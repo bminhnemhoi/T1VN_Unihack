@@ -180,11 +180,11 @@ Tái hiện 03 mục 8, so từng đơn vị (USDC có 6 chữ số thập phân
 
 | Bước | Kết quả |
 |---|---|
-| `payLate(2)` | M4 trả 100 + 0,027397; ký quỹ về 480; holdback của M4 về 80 rồi nhả 20 cho M4 (bước 4 của `payLate`), còn 60; quỹ dự phòng 7,697397; khoản thiếu `resolved` |
+| `payLate(2)` | M4 trả 100 + 0,027396 (lãi tính riêng từng phần gốc 80 và 20, mỗi phần làm tròn xuống, nên lệch 1 đơn vị so với 100 × 10% / 365 = 0,027397); ký quỹ về 480; holdback của M4 về 80 rồi nhả 20 cho M4 (bước 4 của `payLate`), còn 60; quỹ dự phòng 7,697396; khoản thiếu `resolved` |
 | Kỳ 3, M2 hốt, b = 0 | Kéo 400; tiền công 4; quỹ dự phòng 4; H 40; nhận 352; nhả 20 cho M1 và M4 |
 | Kỳ 4, M3 hốt | Kéo 400; 4; 4; H 20; nhận 372; nhả 20 cho M1, M2, M4 |
 | Kỳ 5, M5 hốt | Kéo 400; 4; 4; H 0; nhận 392; nhả 20 cho M1, M2, M3, M4 |
-| `finalize()` | Holdback còn lại 0 (M4 đã được nhả 20 lúc `payLate`); tiền công 19,67 về chủ hụi; ký quỹ 480 về chủ hụi; quỹ dự phòng 19,697397 chia 5: mỗi người 3,939479, dư 0,000002 cho M1 |
+| `finalize()` | Holdback còn lại 0 (M4 đã được nhả 20 lúc `payLate`); tiền công 19,67 về chủ hụi; ký quỹ 480 về chủ hụi; quỹ dự phòng 19,697396 chia 5: mỗi người 3,939479, dư 0,000001 cho M1 |
 | Sổ cái | Vào 2.447,027397 = ra 2.447,027397; số dư contract 0 |
 
 **Nhánh B: M4 không trả, ai đó gọi `markDefault(M4)` sau ân hạn.**
