@@ -71,6 +71,12 @@ contract HuiCircleHarness is HuiCircle, HuiCircleViews {
         reserve = v;
     }
 
+    /// @dev Sets a member's holdback and keeps `totalHoldback` consistent; the test must mint/burn USDC to match.
+    function exposed_setHoldback(address m, uint128 h) external {
+        totalHoldback = totalHoldback - _info[m].holdback + h;
+        _info[m].holdback = h;
+    }
+
     function exposed_setShortfall(uint32 round, address debtor, Shortfall calldata sf) external {
         _shortfalls[round][debtor] = sf;
     }
