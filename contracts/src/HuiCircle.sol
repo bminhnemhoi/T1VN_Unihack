@@ -538,13 +538,15 @@ contract HuiCircle is ERC2771Context, EIP712, Initializable, ReentrancyGuard {
         for (uint256 i = 0; i < n; i++) {
             address m = _members[i];
             Commit storage c = _commits[k][m];
+            if (c.commitIndex == 0 || c.revealed) continue;
             uint256 bond = c.bondHeld;
-            if (c.commitIndex == 0 || c.revealed || bond == 0) continue;
-            c.bondHeld = 0;
-            revealBondsHeld -= bond;
-            reserve += bond;
             _info[m].lateCount += 1;
-            emit IHuiCircle.RevealBondForfeited(k, m, bond);
+            if (bond != 0) {
+                c.bondHeld = 0;
+                revealBondsHeld -= bond;
+                reserve += bond;
+                emit IHuiCircle.RevealBondForfeited(k, m, bond);
+            }
             _record(m, IReputationRegistry.recordLate.selector);
         }
     }

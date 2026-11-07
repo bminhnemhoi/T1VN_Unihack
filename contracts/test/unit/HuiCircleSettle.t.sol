@@ -557,6 +557,19 @@ contract HuiCircleSettleTest is CircleFixture {
         _assertLedger();
     }
 
+    function test_UnrevealedCommit_ZeroRevealBond_StillCountsLate() public {
+        CircleParams memory p = _params();
+        p.revealBondBps = 0;
+        _newCircle(p, 480 * U);
+        _commit(actors[0], 3 * U);
+        _toReveal(); // never revealed
+        _settle();
+        assertEq(c.memberInfo(actors[0]).lateCount, 1);
+        assertEq(rep.reputationOf(actors[0]).late, 1);
+        assertEq(c.reserve(), HuiMath.bpsOf(c.roundInfo(1).pot, 100), "only the premium");
+        _assertLedger();
+    }
+
     function test_BidAboveCap_CannotReveal_ForfeitsBond() public {
         _commit(actors[2], 7 * U); // cap is 6.575342
         _commit(actors[1], 1 * U);
