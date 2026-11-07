@@ -143,7 +143,7 @@ uint16       public minCoverageBps;
 CircleParams internal _params;
 CircleState  public state;
 uint64       public startTime;
-uint64       public pausedAt;
+uint64       public pausedAt;                // thời điểm bắt đầu lần dừng hiện tại (0 khi không dừng)
 uint64       public pausedTotal;
 uint32       public settledRounds;        // số kỳ đã chi
 
@@ -154,6 +154,7 @@ mapping(uint32 => mapping(address => Commit))    internal _commits;
 mapping(uint32 => mapping(address => Shortfall)) internal _shortfalls;
 mapping(uint32 => address)                 internal _leader;       // thăm dẫn đầu tạm thời
 mapping(uint32 => uint32)                  internal _commitCounter;
+mapping(uint32 => uint64)                  internal _pausedAtSettle; // pausedTotal tại lúc chi kỳ k (03 mục 3.2, 6.8)
 mapping(bytes32 => bool)                   public usedAttestation;
 mapping(address => bool)                   public hasLeft;         // đã rời lúc Forming, không vào lại được (03 mục 5.1)
 uint32                                     public liveCount;       // số thành viên sống (joined, chưa hốt, chưa vỡ nợ), giữ bằng bộ đếm (gas)
@@ -243,7 +244,7 @@ interface IHuiCircle {
     function memberInfo(address m) external view returns (MemberInfo memory);
     function currentRound() external view returns (uint32);                       // settledRounds + 1, tối đa N
     function phase() external view returns (RoundPhase);
-    function roundStart(uint32 k) external view returns (uint64);                 // max(startTime + (k−1)·D_r + pausedTotal, settledAt(k−1)), k ≥ 2 (03 mục 3.2)
+    function roundStart(uint32 k) external view returns (uint64);                 // max(startTime + (k−1)·D_r, settledAt(k−1) − pausedAtSettle(k−1)) + pausedTotal, k ≥ 2 (03 mục 3.2)
     function deadline(uint32 k) external view returns (uint64);                   // roundStart(k) + roundDuration
     function roundInfo(uint32 k) external view returns (RoundInfo memory);
     function commitOf(uint32 k, address m) external view returns (Commit memory);
@@ -369,6 +370,8 @@ event HoldbackReleased(address indexed member, uint32 indexed round, uint256 amo
 
 event LatePaid(uint32 indexed round, address indexed member, uint256 amount, uint256 lateFee);
 event DebtRepaid(address indexed member, uint256 principal, uint256 lateFee);
+// Lãi chậm góp không đủ tiền để thu (pot hoặc holdback cạn): không ghi nợ, chỉ phát event làm khoản đòi công khai (03 mục 6.8).
+event LateFeeUnpaid(address indexed member, uint256 amount);
 // Mỗi phần hoàn theo thứ tự 03 mục 6.8 (payLate, repayDebt, pot người bị đóng băng, finalize):
 // source = Uncovered nghĩa là trả thẳng cho người hốt kỳ đó; các source khác là hoàn quỹ dự phòng, ký quỹ, holdback.
 event ShortfallRestored(uint32 indexed round, address indexed member, CoverSource source, uint256 amount);
@@ -423,7 +426,7 @@ error CircleIsPaused();      // tên khác event CirclePaused để solc không 
 error UnwindTooEarly();
 ```
 
-Lỗi riêng của `HuiFactory` (khai báo trong factory): `NotAdmin()`, `NotCircle(address who)` (hàm chỉ circle hợp lệ gọi, hoặc `pauseCircle`/`unpauseCircle`/`unwindCircle` với địa chỉ không phải circle), `ZeroAddress()` (admin, implementation hoặc địa chỉ trong cấu hình bằng 0), `InvalidConfig()` (cấu hình vượt trần cứng, forwarder lệch, `minMembers`/`maxMembers` ngoài 3..30). `onFinished` chỉ được chạy sau `onActivated` của cùng chủ hụi: nếu `activeCirclesOf` đang 0 thì revert bằng custom error thay vì underflow (làm ở C7).
+Lỗi riêng của `HuiFactory` (khai báo trong factory): `NotAdmin()`, `NotCircle(address who)` (hàm chỉ circle hợp lệ gọi, hoặc `pauseCircle`/`unpauseCircle`/`unwindCircle` với địa chỉ không phải circle), `ZeroAddress()` (admin, implementation hoặc địa chỉ trong cấu hình bằng 0), `InvalidConfig()` (cấu hình vượt trần cứng, forwarder lệch, `minMembers`/`maxMembers` ngoài 3..30). `onFinished` chỉ được chạy sau `onActivated` của chính circle đó: factory giữ cờ kích hoạt theo circle, nếu chưa có thì `onFinished` revert `NotActivated(circle)` thay vì underflow, và `onActivated` lần hai từ cùng circle cũng revert `AlreadyActivated(circle)`.
 
 ### 4.3. Mã lỗi tham số (`InvalidParams(code)`)
 
@@ -442,6 +445,7 @@ Lỗi riêng của `HuiFactory` (khai báo trong factory): `NotAdmin()`, `NotCir
 | 11 | `revealBondBps` > 500 |
 | 12 | `capBps` > `maxCapBps` |
 | 13 | `joinDeadline` ≤ now |
+| 14 | `graceSeconds` ≥ `roundDuration` |
 
 ---
 
@@ -651,7 +655,7 @@ Tất cả nhận và trả JSON; số tiền gửi dưới dạng chuỗi (bigi
   2. Selector của `data` nằm trong danh sách cho phép:
      - Người dùng: `createCircle`, `depositBond`, `withdrawBond`, `join`, `leave`, `activate`, `commitBid`, `revealBid`, `payLate`, `repayDebt`, `claim`.
      - Hàm ai cũng gọi được, để nút "Chốt kỳ" trên web chạy không tốn gas khi keeper chậm: `settleRound`, `markDefault`, `finalize`, `cancel`.
-  3. `value == 0`; `gas` ≤ 3.000.000.
+  3. `value == 0`; `gas` ≤ 3.000.000, riêng `settleRound` ≤ 5.000.000 (ca cực đoan N = 30 cả dây cùng thiếu tốn khoảng 4,14 triệu gas, xem 04 mục 7.1).
   4. Rate limit 30 yêu cầu/giờ mỗi `from`.
   5. `forwarder.verify(request)` bằng `eth_call`.
   6. Mô phỏng `execute` bằng `eth_call`.

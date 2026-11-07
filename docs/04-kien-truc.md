@@ -641,7 +641,7 @@ ADR-01 đến ADR-15 là các quyết định gốc của thiết kế. ADR-16 t
 | ADR-16 | Etherscan báo ngừng hỗ trợ API cho Fuji từ 15/11/2026 | Xác minh contract qua API kiểu Etherscan của Routescan (Snowtrace) | Cờ `--verifier-url` riêng; xem 06, mục 6 |
 | ADR-17 | Ghi chú nghiên cứu chỉ xác nhận các EIP Cancun trên C-Chain (ACP-131) | Đặt `evm_version = "cancun"` trong `foundry.toml` | Tránh opcode mới hơn; cần kiểm tra lại nếu Avalanche công bố thêm EIP |
 | ADR-18 | Sổ họ phải là bằng chứng (NĐ 19 Điều 12, 13) | UI và sổ họ dựng từ event, mỗi thay đổi một event | Không có database để lệch với chuỗi |
-| ADR-19 | Relayer trả gas cho yêu cầu của người lạ | Kiểm rồi mới gửi: allowlist đích và selector, `value = 0`, gas ≤ 3.000.000, rate limit, `verify`, mô phỏng | Yêu cầu sai bị chặn trước khi tốn gas. Relayer không có quyền gì trên chuỗi |
+| ADR-19 | Relayer trả gas cho yêu cầu của người lạ | Kiểm rồi mới gửi: allowlist đích và selector, `value = 0`, gas ≤ 3.000.000 (riêng `settleRound` ≤ 5.000.000), rate limit, `verify`, mô phỏng | Yêu cầu sai bị chặn trước khi tốn gas. Relayer không có quyền gì trên chuỗi |
 | ADR-20 | Ba bản HuiMath phải khớp từng đơn vị | Vector JSON do sim sinh, có commit; Solidity đọc bằng `vm.readFile`, TS đọc bằng vitest | Không cần `ffi = true` trong Foundry |
 | ADR-21 | Nhiều tiến trình cùng gửi giao dịch | Mỗi vai một khóa: deployer, relayer, attester, keeper | Không đụng nonce giữa relayer và keeper; lộ một khóa không kéo theo vai khác |
 
@@ -663,6 +663,8 @@ ADR-01 đến ADR-15 là các quyết định gốc của thiết kế. ADR-16 t
 Trường hợp xấu nhất của `settleRound` ở N = 30 là kỳ cuối: 29 lần `transferFrom`, 28 lần nhả holdback, 29 lần ghi ReputationRegistry, cộng vài khoản thiếu (mỗi khoản thiếu ghi struct `Shortfall` mới). Ước tính thô mỗi thành viên 60.000 đến 90.000 gas, cộng khoảng 200.000 gas cố định, ra khoảng 1,9 đến 2,8 triệu gas. Đây là ước tính, phải thay bằng số đo. Cách giảm nếu vượt: dùng `ReentrancyGuardTransient` (C-Chain có EIP-1153 qua ACP-131, cần kiểm tra), gộp ghi ReputationRegistry, đóng gói struct chặt hơn.
 
 Giới hạn khối: theo ACP-176, sức chứa gas tối đa C = 10·T. Mục tiêu T của C-Chain được nâng lên 2,1 triệu gas/giây (08/2025), nên C khoảng 21 triệu gas (suy ra). Một giao dịch 3 triệu gas nằm trong giới hạn. Kiểm lại bằng `cast block latest gasLimit --rpc-url fuji`. Keeper gửi `settleRound` trực tiếp với gas limit = ước tính × 1,2, trần cứng 5.000.000.
+
+Số đo thực (A3, `HuiCircle` C6): N = 30 kỳ 29 với 3 khoản thiếu tốn 1,68 triệu gas; ca cực đoan N = 30 kỳ 1 mà cả 29 người cùng thiếu tốn khoảng 4,14 triệu gas (mỗi khoản thiếu 100.000 đến 140.000 gas vì ghi `Shortfall` 3 slot và 4 đến 5 event). Quyết định: chấp nhận ca cực đoan, không đóng gói lại storage; `/api/relay` cho phép `gas` đến 5.000.000 riêng với `settleRound` (các hàm khác giữ 3.000.000), keeper dùng trần cứng 5.000.000. Ca này không khóa tiền: ai cũng gửi trực tiếp được.
 
 ### 7.2. Độ trễ
 
