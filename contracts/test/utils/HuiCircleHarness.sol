@@ -2,7 +2,7 @@
 pragma solidity ^0.8.24;
 
 import {HuiCircle} from "../../src/HuiCircle.sol";
-import {CircleState} from "../../src/libraries/HuiTypes.sol";
+import {CircleState, MemberInfo, Shortfall} from "../../src/libraries/HuiTypes.sol";
 
 /// @notice Exposes internals of HuiCircle that later tasks (C6, C7) will drive, so C4/C5 tests can reach states
 /// such as "member already received" or "round settled" before `settleRound` exists.
@@ -14,16 +14,29 @@ contract HuiCircleHarness is HuiCircle {
     }
 
     function exposed_liveCount() external view returns (uint256) {
-        return _liveCount();
+        return liveCount;
+    }
+
+    /// @dev Recomputes the `liveCount` storage counter from member flags after a direct state poke.
+    function _recount() private {
+        uint32 count;
+        uint256 n = _members.length;
+        for (uint256 i = 0; i < n; i++) {
+            MemberInfo storage mi = _info[_members[i]];
+            if (!mi.received && !mi.defaulted) count++;
+        }
+        liveCount = count;
     }
 
     function exposed_setReceived(address m, uint8 round) external {
         _info[m].received = true;
         _info[m].receivedRound = round;
+        _recount();
     }
 
     function exposed_setDefaulted(address m, bool v) external {
         _info[m].defaulted = v;
+        _recount();
     }
 
     function exposed_setDebt(address m, uint128 d) external {
@@ -48,5 +61,21 @@ contract HuiCircleHarness is HuiCircle {
 
     function exposed_setState(CircleState s) external {
         state = s;
+    }
+
+    function exposed_setReserve(uint256 v) external {
+        reserve = v;
+    }
+
+    function exposed_setShortfall(uint32 round, address debtor, Shortfall calldata sf) external {
+        _shortfalls[round][debtor] = sf;
+    }
+
+    function exposed_setRoundWinner(uint32 round, address w) external {
+        _rounds[round].winner = w;
+    }
+
+    function exposed_repayFromPot(address debtor, uint256 budget, uint32 upToRound) external returns (uint256) {
+        return _repayFromPot(debtor, budget, upToRound);
     }
 }

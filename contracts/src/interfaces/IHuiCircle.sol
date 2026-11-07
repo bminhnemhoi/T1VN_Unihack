@@ -69,6 +69,8 @@ interface IHuiCircle {
     error NotAdmin();
     error NotMember();
     error AlreadyMember();
+    /// @dev join() after leave() on the same circle (docs/03 section 5.1).
+    error AlreadyLeft();
     error WrongState(CircleState expected, CircleState actual);
     /// @dev Codes in docs/05 section 4.3.
     error InvalidParams(uint8 code);
