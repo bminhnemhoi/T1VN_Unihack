@@ -131,6 +131,8 @@ Quy tắc cứng của factory (constructor và `setConfig` đều kiểm, vư�
 
 ### 2.1. Bố cục lưu trữ của `HuiCircle`
 
+**Giới hạn kích thước (EIP-170, quyết định A4).** `HuiCircle` + hàm C7 vượt 24.576 byte, nên bố cục lưu trữ nằm ở `HuiCircleBase`, các hàm view của mục 3.2 (trừ `currentRound`, `revealBond`, `requiredAllowance`, `guaranteedCoverageBps` và các getter công khai của biến) nằm ở `HuiCircleViews`, và `HuiCircle` chuyển mọi selector không định nghĩa sang `HuiCircleLens` (immutable `lens`, constructor revert `LensNotDeployed()` nếu địa chỉ không có code) bằng DELEGATECALL trong `fallback()`. ABI nhìn từ ngoài không đổi; lens chỉ có hàm `view`, dùng chung bố cục lưu trữ qua `HuiCircleBase` nên không ghi được và không chuyển được tiền. Dựng bằng `via_ir = true`. Không chèn hay đổi thứ tự biến lưu trữ nếu chưa chạy test song song lens (`HuiCircleLens.t.sol`).
+
 ```solidity
 IHuiFactory  public factory;
 address      public organizer;

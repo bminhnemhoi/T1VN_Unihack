@@ -403,6 +403,9 @@ T1VN_Unihack/
 │   ├── src/
 │   │   ├── HuiFactory.sol             # clone, danh bạ, cấu hình, pause qua admin, đếm dây theo chủ hụi
 │   │   ├── HuiCircle.sol              # một dây hụi: mọi luồng tiền của 03
+│   │   ├── HuiCircleBase.sol          # bố cục lưu trữ + hàm chung (chung cho HuiCircle và HuiCircleViews)
+│   │   ├── HuiCircleViews.sol         # các hàm view của 05 mục 3.2, chạy qua lens (abstract)
+│   │   ├── HuiCircleLens.sol          # triển khai một lần; HuiCircle DELEGATECALL tới đây cho mọi selector view
 │   │   ├── ReputationRegistry.sol     # lịch sử đúng hạn, trễ, vỡ nợ, trả nợ, hoàn thành
 │   │   ├── libraries/HuiMath.sol      # công thức thuần, có bản TS và Python
 │   │   ├── libraries/HuiTypes.sol     # enum, struct dùng chung (05, mục 2)
