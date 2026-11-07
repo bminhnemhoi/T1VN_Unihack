@@ -1,0 +1,39 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "huisim"
+version = "0.1.0"
+description = "HuiSafe simulation room: HuiMath in integers, shared test vectors, Monte Carlo simulation"
+requires-python = ">=3.11"
+dependencies = [
+    "numpy==2.5.4",
+    "pandas==3.1.1",
+    "matplotlib==3.11.2",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest==9.2.0",
+    "ruff==0.17.4",
+    "mypy==2.4.1",
+]
+
+[tool.setuptools.packages.find]
+include = ["huisim*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM"]
+
+[tool.mypy]
+python_version = "3.11"
+strict = true
+files = ["huisim"]
