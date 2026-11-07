@@ -2,8 +2,10 @@
 export const vi = {
   appName: 'HụiSafe',
   sampleBanner: 'Màn hình mẫu để xem thử. Chưa nối với mạng, số liệu chỉ để minh họa.',
+  demoBanner:
+    'CHẾ ĐỘ DEMO: 1 kỳ = 3 phút, ân hạn 2 phút. Trần lãi và lãi chậm góp vẫn tính như kỳ 30 ngày. Tiền là USDC thử nghiệm trên Fuji, không có giá trị. Màn hình này dùng số liệu mẫu.',
   tagline: 'Chủ hụi không cầm tiền, nhưng vẫn phải bảo lãnh.',
-  nav: { home: 'Trang chủ', myCircles: 'Dây của tôi', create: 'Tạo dây' },
+  nav: { home: 'Trang chủ', myCircles: 'Dây của tôi', create: 'Tạo dây', room: 'Phòng thăm' },
   help: {
     coverage: 'Phần rủi ro lớn nhất đã có tiền khóa sẵn để bù.',
     bond: 'Tiền chủ hụi khóa để bù khi người đã hốt bỏ đóng.',

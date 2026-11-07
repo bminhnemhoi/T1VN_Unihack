@@ -2,6 +2,7 @@
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
 
+@custom-variant dark (&:is(.dark *));
 
 @theme inline {
   --font-heading: var(--font-sans);
@@ -15,6 +16,11 @@
   --color-sidebar-foreground: var(--sidebar-foreground);
   --color-sidebar: var(--sidebar);
   --color-ngoc: var(--ngoc);
+  --color-muc-dem: var(--muc-dem);
+  --color-nghe: var(--nghe);
+  --color-le-do-sang: var(--le-do-sang);
+  --font-display: var(--font-display);
+  --font-hand: var(--font-hand);
   --color-nghe-bg: var(--nghe-bg);
   --color-nghe-fg: var(--nghe-fg);
   --color-le-do: var(--le-do);
@@ -48,6 +54,24 @@
   --radius-2xl: calc(var(--radius) * 1.8);
   --radius-3xl: calc(var(--radius) * 2.2);
   --radius-4xl: calc(var(--radius) * 2.6);
+  --animate-marquee: marquee var(--duration) infinite linear;
+  --animate-marquee-vertical: marquee-vertical var(--duration) linear infinite;
+  @keyframes marquee {
+  from {
+    transform: translateX(0);
+    }
+  to {
+    transform: translateX(calc(-100% - var(--gap)));
+    }
+  }
+  @keyframes marquee-vertical {
+  from {
+    transform: translateY(0);
+    }
+  to {
+    transform: translateY(calc(-100% - var(--gap)));
+    }
+  }
 }
 
 /* "Sổ hụi" tokens (.handover/DESIGN-BRIEF.md). Contrast checked on --background. */
@@ -88,6 +112,9 @@
   --nghe-bg: #fff0bf;
   --nghe-fg: #5a3a00;
   --le-do: #a91d1d;
+  --muc-dem: #0c1730; /* mực đêm: S01 dark band */
+  --nghe: #e8b04a; /* nghệ: highlight on dark */
+  --le-do-sang: #ff8a80; /* red on dark, 8:1 */
 }
 
 @layer base {
@@ -170,4 +197,102 @@
     transition: none !important;
     scroll-behavior: auto !important;
   }
+}
+
+/* ---------- Sổ hụi, rich version (DESIGN-BRIEF v2): texture, depth, stamp, entrance ---------- */
+@layer base {
+  body {
+    background-image:
+      repeating-linear-gradient(to bottom, transparent 0 35px, rgb(17 32 63 / 0.045) 35px 36px);
+    background-attachment: fixed;
+  }
+  h1, h2, h3 { text-wrap: balance; }
+  p, li { text-wrap: pretty; }
+}
+
+@layer components {
+  .font-display { font-family: var(--font-display), Georgia, serif; }
+  .font-hand { font-family: var(--font-hand), cursive; }
+
+  /* Paper sheet: layered ink-tinted shadows + hairline border + top highlight. */
+  .to-giay {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 0.75rem;
+    box-shadow:
+      0 1px 0 rgb(255 255 255 / 0.9) inset,
+      0 1px 2px rgb(17 32 63 / 0.08),
+      0 8px 24px -8px rgb(17 32 63 / 0.18);
+  }
+  .to-giay-nang {
+    box-shadow:
+      0 1px 0 rgb(255 255 255 / 0.9) inset,
+      0 2px 4px rgb(17 32 63 / 0.1),
+      0 24px 48px -16px rgb(17 32 63 / 0.4);
+  }
+  .the-nang {
+    transition-property: transform, box-shadow;
+    transition-duration: 180ms;
+    transition-timing-function: ease-out;
+  }
+  .the-nang:hover { transform: translateY(-2px); }
+
+  /* Ruled paper lines inside a panel. */
+  .{
+    background-image: repeating-linear-gradient(to bottom, transparent 0 31px, rgb(17 32 63 / 0.07) 31px 32px);
+  }
+  /* Dark ink band with film grain (inline SVG noise) and faint ruling. */
+  .nen-muc {
+    position: relative;
+    isolation: isolate;
+    background-color: var(--muc-dem);
+    color: #f5f7fa;
+  }
+  .nen-muc::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    opacity: 0.5;
+    background-image:
+      url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 1  0 0 0 0 1  0 0 0 0 1  0 0 0 .07 0'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>"),
+      repeating-linear-gradient(to bottom, transparent 0 39px, rgb(245 247 250 / 0.05) 39px 40px);
+  }
+  .vien-le-do { position: relative; padding-left: 1.25rem; }
+  .vien-le-do::before {
+    content: ""; position: absolute; inset-block: 0; left: 0; width: 5px;
+    border-inline: 1px solid var(--le-do); opacity: 0.85;
+  }
+  .nen-muc .vien-le-do::before { border-color: var(--le-do-sang); }
+
+  /* One orchestrated hero entrance: children with .vao rise in sequence. */
+  .vao { opacity: 0; transform: translateY(14px); animation: vao 700ms cubic-bezier(0.16, 1, 0.3, 1) forwards; animation-delay: calc(var(--i, 0) * 90ms); }
+
+  /* Slider (native range, styled, 48px hit area). */
+  .thanh-keo { appearance: none; width: 100%; height: 3rem; background: transparent; cursor: pointer; }
+  .thanh-keo::-webkit-slider-runnable-track { height: 10px; border-radius: 999px; background: linear-gradient(to right, var(--ngoc) var(--fill, 0%), var(--secondary) var(--fill, 0%)); box-shadow: inset 0 0 0 1px var(--input); }
+  .thanh-keo::-moz-range-track { height: 10px; border-radius: 999px; background: var(--secondary); box-shadow: inset 0 0 0 1px var(--input); }
+  .thanh-keo::-moz-range-progress { height: 10px; border-radius: 999px; background: var(--ngoc); }
+  .thanh-keo::-webkit-slider-thumb { appearance: none; width: 2rem; height: 2rem; margin-top: -11px; border-radius: 999px; background: var(--card); border: 3px solid var(--foreground); box-shadow: 0 2px 6px rgb(17 32 63 / 0.35); transition: transform 150ms ease-out; }
+  .thanh-keo::-moz-range-thumb { width: 1.7rem; height: 1.7rem; border-radius: 999px; background: var(--card); border: 3px solid var(--foreground); box-shadow: 0 2px 6px rgb(17 32 63 / 0.35); }
+  .thanh-keo:active::-webkit-slider-thumb { transform: scale(1.12); }
+
+  /* FAQ: details with a rotating mark. */
+  details.hoi > summary { list-style: none; cursor: pointer; }
+  details.hoi > summary::-webkit-details-marker { display: none; }
+  details.hoi[open] .dau-cong { transform: rotate(45deg); }
+}
+
+@keyframes vao { to { opacity: 1; transform: none; } }
+@keyframes dau-xuong {
+  0% { transform: rotate(-9deg) scale(1.5); opacity: 0; }
+  60% { transform: rotate(-4deg) scale(0.96); opacity: 1; }
+  100% { transform: rotate(-4deg) scale(1); opacity: 1; }
+}
+.dau-xuong { animation: dau-xuong 320ms cubic-bezier(0.16, 1, 0.3, 1) both; }
+
+@media (prefers-reduced-motion: reduce) {
+  .vao { opacity: 1 !important; transform: none !important; }
+  .marquee-tinh { flex-wrap: wrap; overflow: visible; }
+  .marquee-tinh > :not(:first-child) { display: none; }
 }

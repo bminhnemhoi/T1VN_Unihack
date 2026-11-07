@@ -14,6 +14,7 @@
     "clsx": "2.1.1",
     "config": "workspace:*",
     "lucide-react": "^1.70.0",
+    "motion": "14.10.1",
     "next": "15.5.29",
     "radix-ui": "^1.8.1",
     "react": "19.3.1",
