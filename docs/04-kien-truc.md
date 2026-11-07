@@ -574,7 +574,7 @@ Chi tiết từng job:
 Lệnh, cờ verifier Routescan và checklist ở [06](06-avalanche-va-blockchain.md), mục 6. Luồng:
 
 1. Bốn ví testnet tách vai (ADR-21), nạp AVAX.
-2. `Deploy.s.sol` deploy theo thứ tự cố định ở 05 mục 3.3: `ERC2771Forwarder("HuiSafeForwarder")` → `ReputationRegistry(admin)` → implementation `HuiCircle(forwarder)` (constructor gọi `_disableInitializers()`) → `HuiFactory(admin, implementation, config)` → `registry.setFactory(factory)` (chỉ admin, đúng một lần). Sau đó verify (Routescan, ADR-16) và ghi `contracts/deployments/fuji.json` (05 mục 6.2).
+2. `Deploy.s.sol` deploy theo thứ tự cố định ở 05 mục 3.3: `ERC2771Forwarder("HuiSafeForwarder")` → `ReputationRegistry(admin)` → `HuiCircleLens` → implementation `HuiCircle(forwarder, lens)` (constructor gọi `_disableInitializers()`, revert `LensNotDeployed()` nếu lens không có code) → `HuiFactory(admin, implementation, config)` → `registry.setFactory(factory)` (chỉ admin, đúng một lần). Sau đó verify (Routescan, ADR-16) và ghi `contracts/deployments/fuji.json` (05 mục 6.2).
 3. `pnpm --filter sdk generate`. `packages/config` đọc `fuji.json`, nên web không cần biến môi trường cho địa chỉ.
 4. Đặt bí mật cho nền tảng chạy web (mục 7.4), deploy web, chạy keeper, tạo dây demo bằng `CreateDemoCircle.s.sol`, commit `fuji.json`, cập nhật README.
 
@@ -660,7 +660,7 @@ ADR-01 đến ADR-15 là các quyết định gốc của thiết kế. ADR-16 t
 | `settleRound` N = 5 (demo) | ≤ 600.000 gas | như trên |
 | `finalize` N = 30 | ≤ 2.500.000 gas | như trên |
 | `join` | ≤ 250.000 gas | `.gas-snapshot` |
-| `commitBid` / `revealBid` | ≤ 120.000 / ≤ 100.000 gas | `.gas-snapshot` |
+| `commitBid` / `revealBid` | ≤ 200.000 / ≤ 100.000 gas (A5: `commitBid` lần đầu mỗi kỳ ~130.000 đến 180.000 vì kéo cọc mở thăm; giữ cọc để chống phá rối) | `.gas-snapshot` |
 | `createCircle` | ≤ 500.000 gas | `.gas-snapshot` |
 
 Trường hợp xấu nhất của `settleRound` ở N = 30 là kỳ cuối: 29 lần `transferFrom`, 28 lần nhả holdback, 29 lần ghi ReputationRegistry, cộng vài khoản thiếu (mỗi khoản thiếu ghi struct `Shortfall` mới). Ước tính thô mỗi thành viên 60.000 đến 90.000 gas, cộng khoảng 200.000 gas cố định, ra khoảng 1,9 đến 2,8 triệu gas. Đây là ước tính, phải thay bằng số đo. Cách giảm nếu vượt: dùng `ReentrancyGuardTransient` (C-Chain có EIP-1153 qua ACP-131, cần kiểm tra), gộp ghi ReputationRegistry, đóng gói struct chặt hơn.

@@ -294,9 +294,10 @@ Bonus: phát huy hiệu không chuyển nhượng được (ERC-5192) khi `compl
 Thứ tự deploy (đã chốt):
 1. `ERC2771Forwarder("HuiSafeForwarder")`.
 2. `ReputationRegistry(admin)`.
-3. Implementation `HuiCircle(forwarder)`; constructor gọi `_disableInitializers()`.
-4. `HuiFactory(admin, implementation, config)`, trong đó `config.reputation` = registry.
-5. `registry.setFactory(factory)`; gọi lần hai thì revert.
+3. `HuiCircleLens()` (chỉ view, mục 2.1).
+4. Implementation `HuiCircle(forwarder, lens)`; constructor gọi `_disableInitializers()`, revert `LensNotDeployed()` nếu `lens` không có code.
+5. `HuiFactory(admin, implementation, config)`, trong đó `config.reputation` = registry.
+6. `registry.setFactory(factory)`; gọi lần hai thì revert.
 
 Từ đó registry chỉ nhận lệnh từ địa chỉ có `factory.isCircle(msg.sender) == true`. Registry không dùng ERC-2771, vì chỉ contract gọi nó.
 
