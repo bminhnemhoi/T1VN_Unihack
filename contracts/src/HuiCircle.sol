@@ -411,9 +411,10 @@ contract HuiCircle is ERC2771Context, EIP712, Initializable, ReentrancyGuard {
         return k > _params.memberCount ? _params.memberCount : k;
     }
 
-    /// @notice Phase of the current round by time. NotStarted before activation (and while waiting for the round to
-    /// open after a late settlement), Done once the round is settled. AwaitingSettle starts when the reveal window
-    /// ends; `settleRound` itself is only allowed from `deadline(k)`.
+    /// @notice Phase of the current round (`settledRounds + 1`) by time: NotStarted before activation or while the
+    /// round has not opened yet (previous round settled early), Commit, Reveal, then AwaitingSettle once the reveal
+    /// window ends. Done once the round is settled. While round k-1 is still unsettled the current round stays k-1,
+    /// so after its reveal window this reports AwaitingSettle even if round k's commit window has already started.
     function phase() external view returns (RoundPhase) {
         CircleState s = state;
         if (s == CircleState.Completed) return RoundPhase.Done;

@@ -76,9 +76,9 @@ contract HuiCircleBiddingTest is CircleFixture {
         assertEq(c.maxBid(5), 0);
     }
 
-    function test_MaxBid_ShrinksWhenMembersFreeze() public {
+    function test_MaxBid_RisesWhenMembersFreezeButStaysBelowC() public {
         uint256 before = c.maxBid(1);
-        c.exposed_setDefaulted(actors[4], true); // frozen: fewer payers, higher per-payer ceiling but never >= C
+        c.exposed_setDefaulted(actors[4], true); // frozen: fewer payers, higher per-payer ceiling, never >= C
         assertEq(c.exposed_liveCount(), 4);
         assertEq(c.maxBid(1), HuiMath.maxBid(2000, 5, 1, 100 * USDC, 30 days, 3));
         assertGe(c.maxBid(1), before);
