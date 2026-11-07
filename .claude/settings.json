@@ -1,0 +1,181 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-settings.json",
+  "permissions": {
+    "allow": [
+      "Bash(forge build *)",
+      "Bash(forge test *)",
+      "Bash(forge fmt *)",
+      "Bash(forge coverage *)",
+      "Bash(forge snapshot *)",
+      "Bash(forge inspect *)",
+      "Bash(forge config *)",
+      "Bash(forge tree *)",
+      "Bash(forge script *)",
+      "Bash(slither *)",
+      "Bash(cast call *)",
+      "Bash(cast abi-encode *)",
+      "Bash(cast abi-decode *)",
+      "Bash(cast calldata *)",
+      "Bash(cast sig *)",
+      "Bash(cast keccak *)",
+      "Bash(cast chain-id *)",
+      "Bash(cast block-number *)",
+      "Bash(cast balance *)",
+      "Bash(cast code *)",
+      "Bash(cast receipt *)",
+      "Bash(cast tx *)",
+      "Bash(cast logs *)",
+      "Bash(cast format-units *)",
+      "Bash(cast parse-units *)",
+      "Bash(pnpm install)",
+      "Bash(pnpm install --frozen-lockfile)",
+      "Bash(pnpm -r build)",
+      "Bash(pnpm -r lint)",
+      "Bash(pnpm -r typecheck)",
+      "Bash(pnpm -r test)",
+      "Bash(pnpm --filter *)",
+      "Bash(python -m pytest *)",
+      "Bash(python3 -m pytest *)",
+      "Bash(pytest *)",
+      "Bash(python -m huisim.cli *)",
+      "Bash(python3 -m huisim.cli *)",
+      "Bash(ruff *)",
+      "Bash(mypy *)",
+      "Bash(git status *)",
+      "Bash(git diff *)",
+      "Bash(git log *)",
+      "Bash(git show *)",
+      "Bash(git branch *)",
+      "Bash(git rev-parse *)",
+      "Bash(git ls-files *)",
+      "Bash(git blame *)",
+      "Bash(git worktree list *)",
+      "Bash(git stash list *)",
+      "Bash(git fetch *)",
+      "Bash(git add *)",
+      "Bash(git commit *)",
+      "Bash(git switch *)",
+      "Bash(git checkout -b *)",
+      "Bash(gh pr view *)",
+      "Bash(gh pr diff *)",
+      "Bash(gh pr list *)",
+      "Bash(gh pr checks *)",
+      "Bash(gh issue view *)",
+      "Bash(gh issue list *)",
+      "Bash(gh run list *)",
+      "Bash(gh run view *)",
+      "Bash(jq *)",
+      "Bash(shellcheck *)"
+    ],
+    "ask": [
+      "Bash(forge script *--broadcast*)",
+      "Bash(forge script *--resume*)",
+      "Bash(forge create *)",
+      "Bash(forge verify-contract *)",
+      "Bash(cast send *)",
+      "Bash(cast publish *)",
+      "Bash(cast wallet *)",
+      "Bash(git push *)",
+      "Bash(git reset --hard *)",
+      "Bash(git clean *)",
+      "Bash(git rebase *)",
+      "Bash(gh pr create *)",
+      "Bash(gh pr merge *)",
+      "Bash(pnpm add *)",
+      "Bash(pnpm remove *)",
+      "Bash(pnpm dlx *)",
+      "Bash(pnpm exec *)",
+      "Bash(pnpm --filter * add *)",
+      "Bash(pnpm --filter * exec *)",
+      "Bash(pnpm *deploy*)",
+      "Bash(npx *)",
+      "Bash(pip install *)",
+      "Bash(python -m pip install *)",
+      "Bash(python3 -m pip install *)",
+      "Bash(curl *)",
+      "Bash(wget *)"
+    ],
+    "deny": [
+      "Read(.env)",
+      "Read(.env.*)",
+      "Read(!.env.example)",
+      "Read(*.pem)",
+      "Read(*.key)",
+      "Read(keystore/**)",
+      "Read(keystores/**)",
+      "Read(~/.foundry/keystores/**)",
+      "Read(~/.ssh/**)",
+      "Edit(.env)",
+      "Edit(.env.*)",
+      "Edit(!.env.example)",
+      "Bash(rm -rf *)",
+      "Bash(rm -fr *)",
+      "Bash(sudo *)",
+      "Bash(git push --force *)",
+      "Bash(git push -f *)",
+      "Bash(printenv *)",
+      "Bash(forge script *api.avax.network*)",
+      "Bash(forge script *--rpc-url avalanche*)",
+      "Bash(forge script *--rpc-url mainnet*)",
+      "Bash(forge script *43114*)",
+      "Bash(forge create *api.avax.network*)",
+      "Bash(forge create *43114*)",
+      "Bash(cast send *api.avax.network*)",
+      "Bash(cast send *--rpc-url avalanche*)",
+      "Bash(cast send *43114*)"
+    ],
+    "disableBypassPermissionsMode": "disable"
+  },
+  "env": {
+    "NEXT_TELEMETRY_DISABLED": "1"
+  },
+  "hooks": {
+    "SessionStart": [
+      {
+        "matcher": "startup|resume|clear|compact",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/session-start.sh",
+            "timeout": 15
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Read|Edit|Write|NotebookEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/guard-secret-files.sh",
+            "timeout": 15
+          }
+        ]
+      },
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/guard-bash.sh",
+            "timeout": 15
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/sol-fmt-build.sh",
+            "timeout": 300,
+            "statusMessage": "forge fmt + forge build..."
+          }
+        ]
+      }
+    ]
+  }
+}
