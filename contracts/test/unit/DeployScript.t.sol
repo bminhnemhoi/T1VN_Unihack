@@ -25,6 +25,8 @@ contract DeployScriptTest is Test {
     function setUp() public {
         script = new Deploy();
         deployer = vm.addr(DEPLOYER_KEY);
+        // The Fuji pre-checks need code at Circle's USDC address, which the test VM does not have.
+        vm.etch(FUJI_USDC, address(new MockUSDC()).code);
     }
 
     /// @dev forge-std has no tearDown hook: tests that write a file call this as their last step.
@@ -37,6 +39,12 @@ contract DeployScriptTest is Test {
         p.deployerKey = DEPLOYER_KEY;
         p.gitCommit = "abcdef1";
         p.outPath = out;
+    }
+
+    function _fujiParams(string memory name) internal returns (Deploy.Params memory p) {
+        vm.chainId(43_113);
+        p = _params(name);
+        p.attester = makeAddr("attester");
     }
 
     function test_Execute_Anvil_WiresEverything() public {
@@ -127,6 +135,70 @@ contract DeployScriptTest is Test {
         _cleanup();
     }
 
+    function test_Execute_Fuji_DoesNotWriteJsonByDefault() public {
+        Deploy.Params memory p = _fujiParams("fujiNoWrite");
+        vm.writeFile(out, "sentinel");
+        script.execute(p);
+        assertEq(vm.readFile(out), "sentinel");
+        _cleanup();
+    }
+
+    function test_Execute_Fuji_WritesJsonWhenEnabled() public {
+        Deploy.Params memory p = _fujiParams("fujiWrite");
+        p.writeDeployment = true;
+        Deploy.Deployment memory d = script.execute(p);
+        string memory json = vm.readFile(out);
+        assertEq(vm.parseJsonUint(json, ".chainId"), 43_113);
+        assertEq(vm.parseJsonAddress(json, ".factory"), d.factory);
+        assertFalse(vm.keyExistsJson(json, ".wired"));
+        _cleanup();
+    }
+
+    function test_Execute_Fuji_RevertsIfAttesterIsDeployer() public {
+        Deploy.Params memory p = _fujiParams("fujiAttDeployer");
+        p.attester = deployer;
+        vm.expectRevert(abi.encodeWithSelector(Deploy.AttesterNotSeparate.selector, deployer));
+        script.execute(p);
+    }
+
+    function test_Execute_Fuji_RevertsIfAttesterIsAdmin() public {
+        Deploy.Params memory p = _fujiParams("fujiAttAdmin");
+        address safe = makeAddr("safe");
+        p.admin = safe;
+        p.attester = safe;
+        p.allowUnwired = true;
+        vm.expectRevert(abi.encodeWithSelector(Deploy.AttesterNotSeparate.selector, safe));
+        script.execute(p);
+    }
+
+    function test_Execute_Fuji_RevertsIfAdminNotDeployer() public {
+        Deploy.Params memory p = _fujiParams("fujiAdmin");
+        address safe = makeAddr("safe");
+        p.admin = safe;
+        vm.expectRevert(abi.encodeWithSelector(Deploy.AdminNotDeployer.selector, safe, deployer));
+        script.execute(p);
+    }
+
+    function test_Execute_Fuji_AllowUnwired_WritesWiredFalse() public {
+        Deploy.Params memory p = _fujiParams("fujiUnwired");
+        address safe = makeAddr("safe");
+        p.admin = safe;
+        p.allowUnwired = true;
+        p.writeDeployment = true;
+        Deploy.Deployment memory d = script.execute(p);
+        assertFalse(d.wired);
+        assertEq(ReputationRegistry(d.reputation).admin(), safe);
+        assertFalse(vm.parseJsonBool(vm.readFile(out), ".wired"));
+        _cleanup();
+    }
+
+    function test_Execute_Fuji_RevertsIfUsdcHasNoCode() public {
+        Deploy.Params memory p = _fujiParams("fujiNoUsdc");
+        vm.etch(FUJI_USDC, "");
+        vm.expectRevert(abi.encodeWithSelector(Deploy.SanityCheckFailed.selector, "usdc.code"));
+        script.execute(p);
+    }
+
     function test_Execute_RevertsOnMainnet() public {
         vm.chainId(NOT_FUJI_CHAIN);
         Deploy.Params memory p = _params("mainnet");
@@ -151,6 +223,11 @@ contract DeployScriptTest is Test {
         vm.setEnv("RELAYER_ADDRESS", vm.toString(relayer));
         vm.setEnv("GIT_COMMIT", "feed123");
         vm.setEnv("DEPLOY_OUT", out);
+        // Neutralise anything exported in the caller's shell so the test does not depend on it.
+        vm.setEnv("ADMIN", "");
+        vm.setEnv("USDC", "");
+        vm.setEnv("WRITE_DEPLOYMENT", "");
+        vm.setEnv("ALLOW_UNWIRED", "");
         vm.chainId(31337);
 
         Deploy.Deployment memory d = script.run();

@@ -28,7 +28,7 @@ Kiểm tra bộ cấu hình Claude Code vừa chép vào repo, chưa sửa gì.
 2. Chạy: bash .claude/hooks/test-hooks.sh  (phải 0 FAIL)
 3. Liệt kê .claude/skills, .claude/agents, .claude/commands; với mỗi file, kiểm frontmatter có name/description (agent, skill) hoặc description (command).
 4. Kiểm 2 file CLAUDE.md import (docs/03-dac-ta-giao-thuc.md, docs/05-cau-truc-du-lieu-va-api.md) và các file nó trỏ tới (docs/04-kien-truc.md, docs/11-ke-hoach-trien-khai.md) có tồn tại.
-5. Kiểm .gitignore có .env, .env.*, !.env.example, .claude/settings.anvil.json, CLAUDE.local.md, .claude/worktrees/.
+5. Kiểm .gitignore có .env, .env.*, !.env.example, .claude/settings.local.json, CLAUDE.local.md, .claude/worktrees/.
 Báo bảng: mục | kết quả | việc cần người làm. Không sửa file nào.
 ```
 

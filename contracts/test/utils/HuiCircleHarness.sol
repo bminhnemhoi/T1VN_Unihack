@@ -85,6 +85,16 @@ contract HuiCircleHarness is HuiCircle, HuiCircleViews {
         _rounds[round].winner = w;
     }
 
+    /// @dev Test-only corruption of the recorded payout of a settled round (INV-05 teeth).
+    function exposed_setRoundPayout(uint32 round, uint128 v) external {
+        _rounds[round].payout = v;
+    }
+
+    /// @dev Test-only: makes the circle pull a different amount than the spec allows (INV-04 teeth).
+    function exposed_setContribution(uint96 v) external {
+        _params.contribution = v;
+    }
+
     function exposed_repayFromPot(address debtor, uint256 budget, uint32 upToRound) external returns (uint256) {
         return _repayFromPot(debtor, budget, upToRound);
     }

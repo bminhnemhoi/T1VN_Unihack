@@ -560,6 +560,8 @@ export const FUJI = {
 }
 ```
 
+Trường `"wired": false` chỉ xuất hiện khi deploy với `ADMIN` khác deployer và `ALLOW_UNWIRED=true` (admin còn phải gọi `registry.setFactory` một lần); thiếu trường nghĩa là đã nối xong. Trên Fuji, script chỉ ghi file khi `WRITE_DEPLOYMENT=true`.
+
 ---
 
 ## 7. SDK (`packages/sdk`)

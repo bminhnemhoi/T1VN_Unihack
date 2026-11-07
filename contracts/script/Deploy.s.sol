@@ -2,6 +2,7 @@
 pragma solidity ^0.8.24;
 
 import {Script, console2} from "forge-std/Script.sol";
+import {IERC20Metadata} from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 import {ERC2771Forwarder} from "@openzeppelin/contracts/metatx/ERC2771Forwarder.sol";
 
 import {HuiCircle} from "../src/HuiCircle.sol";
@@ -26,7 +27,12 @@ import {FactoryConfig} from "../src/libraries/HuiTypes.sol";
 ///   RELAYER_ADDRESS       optional, only recorded in the json file.
 ///   GIT_COMMIT            optional short hash recorded in the json file (export `$(git rev-parse --short HEAD)`).
 ///   DEPLOY_OUT            optional output path under ./deployments; default `deployments/fuji.json` on Fuji
-///                         and `deployments/anvil.json` on anvil (the real fuji.json is never touched by the dry run).
+///                         and `deployments/anvil.json` on anvil.
+///   WRITE_DEPLOYMENT      Fuji only: the json file is written only when this is `true`, so a simulation never
+///                         overwrites the committed fuji.json. Anvil always writes.
+///   ALLOW_UNWIRED         Fuji only: by default the admin must equal the deployer so the script can call
+///                         `registry.setFactory`; `true` allows a different admin (json then records `"wired": false`).
+///                         On Fuji the attester must differ from both the deployer and the admin (ADR-21).
 contract Deploy is Script {
     uint256 internal constant FUJI_CHAIN_ID = 43113;
     uint256 internal constant ANVIL_CHAIN_ID = 31337;
@@ -37,6 +43,10 @@ contract Deploy is Script {
     error UnsupportedChain(uint256 chainId);
     /// @dev A required address was not provided for this chain.
     error MissingEnv(string name);
+    /// @dev Fuji: the attester key must not be the deployer or the admin (ADR-21 role separation).
+    error AttesterNotSeparate(address attester);
+    /// @dev Fuji: admin differs from the deployer and `ALLOW_UNWIRED` is not set.
+    error AdminNotDeployer(address admin, address deployer);
     /// @dev A post-deploy sanity check failed.
     error SanityCheckFailed(string what);
 
@@ -49,6 +59,8 @@ contract Deploy is Script {
         address relayer;
         string gitCommit;
         string outPath;
+        bool writeDeployment; // Fuji: write the json file only when true (anvil always writes)
+        bool allowUnwired; // Fuji: allow admin != deployer (registry.setFactory is then left to the admin)
     }
 
     /// @notice Addresses produced by a run (also written to the json file).
@@ -77,6 +89,8 @@ contract Deploy is Script {
         string memory defaultPath = "deployments/anvil.json";
         if (block.chainid == FUJI_CHAIN_ID) defaultPath = "deployments/fuji.json";
         p.outPath = vm.envOr("DEPLOY_OUT", defaultPath);
+        p.writeDeployment = vm.envOr("WRITE_DEPLOYMENT", false);
+        p.allowUnwired = vm.envOr("ALLOW_UNWIRED", false);
         return execute(p);
     }
 
@@ -96,6 +110,12 @@ contract Deploy is Script {
         d.relayer = p.relayer;
         d.usdc = p.usdc;
         if (d.usdc == address(0) && block.chainid == FUJI_CHAIN_ID) d.usdc = FUJI_USDC;
+        if (block.chainid == FUJI_CHAIN_ID) {
+            if (d.attester == deployer || d.attester == d.admin) revert AttesterNotSeparate(d.attester);
+            if (d.admin != deployer && !p.allowUnwired) revert AdminNotDeployer(d.admin, deployer);
+            if (d.usdc.code.length == 0) revert SanityCheckFailed("usdc.code");
+            if (IERC20Metadata(d.usdc).decimals() != 6) revert SanityCheckFailed("usdc.decimals");
+        }
 
         vm.startBroadcast(p.deployerKey);
         if (d.usdc == address(0)) d.usdc = address(new MockUSDC());
@@ -115,7 +135,11 @@ contract Deploy is Script {
 
         _sanityCheck(d);
         _log(d);
-        _write(d, p);
+        if (block.chainid != FUJI_CHAIN_ID || p.writeDeployment) {
+            _write(d, p);
+        } else {
+            console2.log("deployment json not written; set WRITE_DEPLOYMENT=true");
+        }
     }
 
     function _config(Deployment memory d) internal pure returns (FactoryConfig memory c) {
@@ -143,6 +167,7 @@ contract Deploy is Script {
         if (c.forwarder != d.forwarder) revert SanityCheckFailed("config.forwarder");
         if (c.reputation != d.reputation) revert SanityCheckFailed("config.reputation");
         if (c.usdc != d.usdc) revert SanityCheckFailed("config.usdc");
+        if (ReputationRegistry(d.reputation).admin() != d.admin) revert SanityCheckFailed("registry.admin");
         if (c.attester != d.attester) revert SanityCheckFailed("config.attester");
         if (HuiCircle(payable(d.implementation)).trustedForwarder() != d.forwarder) {
             revert SanityCheckFailed("implementation.forwarder");
@@ -183,6 +208,7 @@ contract Deploy is Script {
         vm.serializeAddress(k, "attester", d.attester);
         vm.serializeAddress(k, "relayer", d.relayer);
         vm.serializeString(k, "deployedAt", _iso(block.timestamp));
+        if (!d.wired) vm.serializeBool(k, "wired", false);
         string memory json = vm.serializeString(k, "gitCommit", p.gitCommit);
         vm.writeJson(json, p.outPath);
         console2.log("written", p.outPath);

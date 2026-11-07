@@ -28,6 +28,9 @@ contract ReentrantUSDC is MockUSDC {
     address public target;
     bytes public payload;
 
+    /// @dev Matching movements to let pass before the hook fires (0 = the first one).
+    uint256 public skip;
+
     uint256 public hookCalls;
     bool public lastOk;
     bytes public lastReturn;
@@ -41,6 +44,25 @@ contract ReentrantUSDC is MockUSDC {
         attacker = attacker_;
         target = target_;
         payload = payload_;
+        skip = 0;
+    }
+
+    /// @notice Like `arm`, but the hook fires at the `skip_ + 1`-th matching movement (for example the late fee pull
+    /// that follows the principal pull in `payLate` and `repayDebt`).
+    function armNth(
+        Side side_,
+        address who_,
+        address attacker_,
+        address target_,
+        bytes calldata payload_,
+        uint256 skip_
+    ) external {
+        side = side_;
+        who = who_;
+        attacker = attacker_;
+        target = target_;
+        payload = payload_;
+        skip = skip_;
     }
 
     function disarm() external {
@@ -71,6 +93,10 @@ contract ReentrantUSDC is MockUSDC {
         Side s = side;
         if (s == Side.None) return;
         if (!((s == Side.Recipient && to == who) || (s == Side.Source && from == who))) return;
+        if (skip != 0) {
+            skip -= 1;
+            return;
+        }
         side = Side.None; // fire once
         _inHook = true;
         VM.prank(attacker);

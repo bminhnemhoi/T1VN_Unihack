@@ -546,7 +546,7 @@ pnpm --filter web dev
 pnpm --filter keeper start
 ```
 
-`Deploy.s.sol` thấy `block.chainid == 31337` thì deploy `MockUSDC` và ghi `deployments/anvil.json` (đã gitignore, không đè `fuji.json`). Trên 43113 thì dùng USDC của Circle và ghi `fuji.json`; chain khác (kể cả mainnet 43114) thì script revert `UnsupportedChain`. Biến môi trường: `DEPLOYER_PRIVATE_KEY`; tùy chọn `ADMIN` (mặc định ví deployer), `ATTESTER_ADDRESS` (bắt buộc trên Fuji), `USDC`, `RELAYER_ADDRESS`, `GIT_COMMIT`, `DEPLOY_OUT`.
+`Deploy.s.sol` thấy `block.chainid == 31337` thì deploy `MockUSDC` và ghi `deployments/anvil.json` (đã gitignore, không đè `fuji.json`). Trên 43113 thì dùng USDC của Circle và ghi `fuji.json`; chain khác (kể cả mainnet 43114) thì script revert `UnsupportedChain`. Biến môi trường: `DEPLOYER_PRIVATE_KEY`; tùy chọn `ADMIN` (mặc định ví deployer), `ATTESTER_ADDRESS` (bắt buộc trên Fuji), `USDC`, `RELAYER_ADDRESS`, `GIT_COMMIT`, `DEPLOY_OUT`. Trên 43113 script chỉ ghi `fuji.json` khi `WRITE_DEPLOYMENT=true` (mô phỏng không đè file), bắt `ADMIN` = ví deployer trừ khi `ALLOW_UNWIRED=true` (khi đó json ghi thêm `"wired": false` và admin tự gọi `registry.setFactory`), và revert nếu `ATTESTER_ADDRESS` trùng deployer hoặc admin (ADR-21).
 
 8. Mở PR. CI xanh. Thay đổi đường tiền phải qua `/audit` (subagent security-auditor, 09 mục 14). Rồi mới merge.
 

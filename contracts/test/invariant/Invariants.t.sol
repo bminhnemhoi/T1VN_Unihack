@@ -276,6 +276,36 @@ abstract contract HuiInvariantsBase is StdInvariant, CircleFixture {
         }
     }
 
+    // ================================================================== liveness (audit M-01)
+
+    /// @notice LIVENESS: whenever the Handler called `settleRound()` on an Active circle past `deadline(k)` with round
+    /// k - 1 settled, the call succeeded. A revert here would freeze the circle (and every member's money in it).
+    function invariant_LIVENESS_settleNeverStuck() public view {
+        assertEq(
+            handler.ghostStuckSettle(),
+            0,
+            string.concat(
+                "LIVENESS settleRound reverted when due, round ",
+                vm.toString(uint256(handler.ghostStuckSettleRound())),
+                ", selector ",
+                vm.toString(abi.encodePacked(handler.ghostStuckSettleSelector()))
+            )
+        );
+    }
+
+    /// @notice LIVENESS: `finalize()` on an Active circle with N rounds settled and past the grace period of round N
+    /// never reverts (docs/03 section 5.3: expired debtors are marked by `finalize` itself).
+    function invariant_LIVENESS_finalizeNeverStuck() public view {
+        assertEq(
+            handler.ghostStuckFinalize(),
+            0,
+            string.concat(
+                "LIVENESS finalize reverted when due, selector ",
+                vm.toString(abi.encodePacked(handler.ghostStuckFinalizeSelector()))
+            )
+        );
+    }
+
     // ================================================================== run statistics
 
     /// @dev Foundry reverts the EVM state between runs, so the counters live in the process environment. The last

@@ -104,6 +104,22 @@ contract Handler is Test {
     uint256 public ghostWindowBreach;
     uint256 public ghostBidCapBreach;
 
+    /// @dev Liveness (audit M-01): `settleRound()` / `finalize()` reverted although the circle was Active and past
+    /// the moment the spec allows them (docs/03 section 6.5 and 5.3), the first selector seen and the round.
+    uint256 public ghostStuckSettle;
+    bytes4 public ghostStuckSettleSelector;
+    uint32 public ghostStuckSettleRound;
+    uint256 public ghostStuckFinalize;
+    bytes4 public ghostStuckFinalizeSelector;
+
+    /// @dev Own copies of what the INV-03 / INV-09 checks compare the circle with (audit L-04): the number of
+    /// payers L_k locked at the first commit of a round, when the current pause began, and for each settled round the
+    /// time and the `pausedTotal` at the moment it was settled.
+    mapping(uint32 => uint256) internal _payersSnap;
+    uint256 public ghostPauseStart;
+    mapping(uint32 => uint256) public ghostSettledAt;
+    mapping(uint32 => uint256) public ghostPausedTotalAtSettle;
+
     uint256 public ghostDefaults;
     uint256 public ghostLatePaid;
     uint256 public ghostRepaid;
@@ -179,6 +195,35 @@ contract Handler is Test {
 
     function _is(CircleState s) internal view returns (bool) {
         return circle.state() == s;
+    }
+
+    /// @dev Members that are alive (joined, not received, not defaulted), counted from the public member info.
+    function _liveNow() internal view returns (uint256 live) {
+        for (uint256 i = 0; i < N; i++) {
+            MemberInfo memory mi = circle.memberInfo(members[i]);
+            if (mi.joined && !mi.received && !mi.defaulted) live++;
+        }
+    }
+
+    /// @dev INV-03 bound computed with `HuiMath.maxBid` and the Handler's own L_k: the payers snapshot taken at the
+    /// first successful commit of round `k` (docs/03 section 6.3), or the live members minus one before any commit.
+    /// Never reads `circle.maxBid`.
+    function _maxBid(uint32 k) internal view returns (uint256) {
+        uint256 payers = _payersSnap[k];
+        if (payers == 0) {
+            uint256 live = _liveNow();
+            payers = live > 0 ? live - 1 : 0;
+        }
+        CircleParams memory p = circle.params();
+        return HuiMath.maxBid(p.capBps, N, k, C, p.periodSeconds, payers);
+    }
+
+    function _firstSelector(bytes memory reason) internal pure returns (bytes4 sel) {
+        if (reason.length >= 4) {
+            assembly ("memory-safe") {
+                sel := mload(add(reason, 0x20))
+            }
+        }
     }
 
     /// @dev Calls `data` on the circle as member `i`, one time in three through a signed ERC-2771 request.
@@ -293,12 +338,14 @@ contract Handler is Test {
         uint256 start = circle.roundStart(k);
         bool inWindow = _now() >= start && _now() < start + circle.params().commitWindow;
         bool wasPaused = _is(CircleState.Paused);
+        uint256 liveBefore = _liveNow();
         uint256 mark = usdc.recordCount();
         bool ok = _callAs(i, abi.encodeCall(circle.commitBid, (h)));
         _audit(mark, allowed);
         if (!ok) return;
         if (wasPaused) ghostPausedBreach += 1;
         if (!inWindow) ghostWindowBreach += 1;
+        if (_payersSnap[k] == 0 && liveBefore > 0) _payersSnap[k] = liveBefore - 1;
         ghostCommits += 1;
         _bids[k][i] = BidRec({bid: bid, salt: salt, exists: true, revealed: false});
     }
@@ -308,7 +355,7 @@ contract Handler is Test {
         BidRec memory rec = _bids[k][i];
         uint256 revealStart = circle.roundStart(k) + circle.params().commitWindow;
         bool inWindow = _now() >= revealStart && _now() < revealStart + circle.params().revealWindow;
-        uint256 maxB = circle.maxBid(k);
+        uint256 maxB = _maxBid(k);
         bool wasPaused = _is(CircleState.Paused);
         uint256 mark = usdc.recordCount();
         bool ok = _callAs(i, abi.encodeCall(circle.revealBid, (rec.bid, salt)));
@@ -327,7 +374,7 @@ contract Handler is Test {
         _hit("commit");
         if (!_is(CircleState.Active) && !_is(CircleState.Paused)) return;
         uint32 k = circle.currentRound();
-        uint256 maxB = circle.maxBid(k);
+        uint256 maxB = _maxBid(k);
         uint256 bid = uint8(salt[0]) % 8 == 0 ? maxB + 1 : bound(bidSeed, 0, maxB);
         _doCommit(bound(seed, 0, N - 1), k, bid, salt);
     }
@@ -371,7 +418,7 @@ contract Handler is Test {
         uint256 start = circle.roundStart(k);
         if (_now() < start) vm.warp(start);
         if (_now() >= start + p.commitWindow) return; // commit window already over
-        uint256 maxB = circle.maxBid(k);
+        uint256 maxB = _maxBid(k);
         uint256 live;
         for (uint256 i = 0; i < N; i++) {
             uint256 h = uint256(keccak256(abi.encode(seed, i, "commit")));
@@ -417,13 +464,23 @@ contract Handler is Test {
         uint32 k = circle.currentRound();
         uint256 dl = circle.deadline(k);
         bool already = circle.roundInfo(k).settled;
-        uint256 maxB = circle.maxBid(k);
+        uint256 maxB = _maxBid(k);
+        // Liveness (M-01): Active, round k - 1 settled (`currentRound`), round k open and its deadline reached.
+        bool due = _is(CircleState.Active) && !already && _now() >= dl && (k == 1 || circle.roundInfo(k - 1).settled);
         Snap memory pre = _snap();
         uint256 mark = usdc.recordCount();
         vm.recordLogs();
         try circle.settleRound() {
             done = true;
-        } catch {}
+        } catch (bytes memory reason) {
+            if (due) {
+                if (ghostStuckSettle == 0) {
+                    ghostStuckSettleSelector = _firstSelector(reason);
+                    ghostStuckSettleRound = k;
+                }
+                ghostStuckSettle += 1;
+            }
+        }
         Vm.Log[] memory logs = vm.getRecordedLogs();
         if (!done) {
             _audit(mark, _none());
@@ -432,6 +489,8 @@ contract Handler is Test {
         if (wasPaused) ghostPausedBreach += 1;
         if (_now() < dl || already) ghostSettledBeforeDeadline += 1;
         ghostSettles += 1;
+        ghostSettledAt[k] = _now();
+        ghostPausedTotalAtSettle[k] = circle.pausedTotal();
 
         RoundInfo memory ri = circle.roundInfo(k);
         ghostWins[ri.winner] += 1;
@@ -499,8 +558,7 @@ contract Handler is Test {
                 }
             }
         } else {
-            uint256 end = uint256(circle.roundInfo(uint32(N)).settledAt) + circle.params().graceSeconds
-                + circle.pausedTotal() + 1;
+            uint256 end = _graceEndOfLast() + 1;
             if (_now() < end) vm.warp(end);
             _tryFinalize();
         }
@@ -537,13 +595,30 @@ contract Handler is Test {
         }
     }
 
+    /// @dev End of the grace period of round N from the Handler's own records: settledAt + G + the time the circle
+    /// was paused since (docs/03 section 6.8). 0 when the Handler never saw round N settle.
+    function _graceEndOfLast() internal view returns (uint256) {
+        uint32 n = uint32(N);
+        if (ghostSettledAt[n] == 0) return 0;
+        return ghostSettledAt[n] + circle.params().graceSeconds + (circle.pausedTotal() - ghostPausedTotalAtSettle[n]);
+    }
+
     function _tryFinalize() internal {
         bool wasPaused = _is(CircleState.Paused);
+        // Liveness (M-01): Active, all N rounds settled and strictly past the grace period of round N: docs/03
+        // section 5.3 has no other condition, so `finalize` must not revert (it marks expired debtors itself).
+        uint256 graceEnd = _graceEndOfLast();
+        bool due = _is(CircleState.Active) && circle.settledRounds() == N && graceEnd != 0 && _now() > graceEnd;
         uint256 mark = usdc.recordCount();
         try circle.finalize() {
             ghostFinalized = true;
             if (wasPaused) ghostPausedBreach += 1;
-        } catch {}
+        } catch (bytes memory reason) {
+            if (due) {
+                if (ghostStuckFinalize == 0) ghostStuckFinalizeSelector = _firstSelector(reason);
+                ghostStuckFinalize += 1;
+            }
+        }
         _audit(mark, _none());
     }
 
@@ -744,7 +819,9 @@ contract Handler is Test {
         _hit("pause");
         if (seed % 3 != 0) return;
         vm.prank(admin);
-        try factory.pauseCircle(address(circle)) {} catch {}
+        try factory.pauseCircle(address(circle)) {
+            ghostPauseStart = _now();
+        } catch {}
     }
 
     /// @notice The admin unpauses (one call in two); the schedule must shift by exactly the paused time (INV-09).
@@ -754,10 +831,11 @@ contract Handler is Test {
         uint32 k = circle.currentRound();
         bool open = !circle.roundInfo(k).settled;
         uint256 before = circle.roundStart(k);
-        uint256 pausedFor = _now() - circle.pausedAt();
+        uint256 pausedFor = _now() - ghostPauseStart;
         vm.prank(admin);
         try factory.unpauseCircle(address(circle)) {
             if (open && circle.roundStart(k) != before + pausedFor) ghostScheduleBreak += 1;
+            ghostPauseStart = 0;
         } catch {}
     }
 
@@ -765,7 +843,7 @@ contract Handler is Test {
     function unwind(uint256 seed) external {
         _hit("unwind");
         if (!_is(CircleState.Paused)) return;
-        uint256 minAt = uint256(circle.pausedAt()) + 48 hours;
+        uint256 minAt = ghostPauseStart + 48 hours;
         bool late = seed % 4 == 0;
         if (late && _now() < minAt) vm.warp(minAt);
         bool tooEarly = _now() < minAt;
