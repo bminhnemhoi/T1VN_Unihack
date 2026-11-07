@@ -25,6 +25,9 @@ contracts/out/
 contracts/cache/
 contracts/broadcast/*/31337/
 contracts/broadcast/**/dry-run/
+# Deploy script dry runs (anvil) and test scratch files; only fuji.json is committed
+contracts/deployments/anvil.json
+contracts/deployments/*.test.json
 
 # Python
 __pycache__/

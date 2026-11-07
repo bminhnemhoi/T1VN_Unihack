@@ -549,6 +549,7 @@ export const FUJI = {
   "usdc": "0x5425890298aed601595a70AB815c96711a31Bc65",
   "forwarder": "0x...",
   "reputation": "0x...",
+  "circleLens": "0x...",
   "circleImplementation": "0x...",
   "factory": "0x...",
   "admin": "0x...",

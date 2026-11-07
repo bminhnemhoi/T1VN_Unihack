@@ -441,7 +441,7 @@ T1VN_Unihack/
 │   ├── script/Deploy.s.sol            # forwarder, registry, implementation, factory; ghi deployments
 │   ├── script/CreateDemoCircle.s.sol  # dây demo 5 người, tham số demo
 │   ├── script/EmergencyPause.s.sol    # (thêm) pause, unpause, unwind qua factory; khóa đọc bằng vm.envUint (09 mục 13)
-│   └── deployments/fuji.json          # địa chỉ đã deploy (05, mục 6.2); local.json không commit
+│   └── deployments/fuji.json          # địa chỉ đã deploy (05, mục 6.2); anvil.json (dry run local) không commit
 ├── packages/
 │   ├── sdk/
 │   │   ├── package.json               # script generate = wagmi generate
@@ -546,7 +546,7 @@ pnpm --filter web dev
 pnpm --filter keeper start
 ```
 
-`Deploy.s.sol` thấy `block.chainid == 31337` thì deploy `MockUSDC` và ghi `deployments/local.json`. Trên 43113 thì dùng USDC của Circle và ghi `fuji.json`.
+`Deploy.s.sol` thấy `block.chainid == 31337` thì deploy `MockUSDC` và ghi `deployments/anvil.json` (đã gitignore, không đè `fuji.json`). Trên 43113 thì dùng USDC của Circle và ghi `fuji.json`; chain khác (kể cả mainnet 43114) thì script revert `UnsupportedChain`. Biến môi trường: `DEPLOYER_PRIVATE_KEY`; tùy chọn `ADMIN` (mặc định ví deployer), `ATTESTER_ADDRESS` (bắt buộc trên Fuji), `USDC`, `RELAYER_ADDRESS`, `GIT_COMMIT`, `DEPLOY_OUT`.
 
 8. Mở PR. CI xanh. Thay đổi đường tiền phải qua `/audit` (subagent security-auditor, 09 mục 14). Rồi mới merge.
 

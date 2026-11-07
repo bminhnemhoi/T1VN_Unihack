@@ -28,7 +28,7 @@ Kiểm tra bộ cấu hình Claude Code vừa chép vào repo, chưa sửa gì.
 2. Chạy: bash .claude/hooks/test-hooks.sh  (phải 0 FAIL)
 3. Liệt kê .claude/skills, .claude/agents, .claude/commands; với mỗi file, kiểm frontmatter có name/description (agent, skill) hoặc description (command).
 4. Kiểm 2 file CLAUDE.md import (docs/03-dac-ta-giao-thuc.md, docs/05-cau-truc-du-lieu-va-api.md) và các file nó trỏ tới (docs/04-kien-truc.md, docs/11-ke-hoach-trien-khai.md) có tồn tại.
-5. Kiểm .gitignore có .env, .env.*, !.env.example, .claude/settings.local.json, CLAUDE.local.md, .claude/worktrees/.
+5. Kiểm .gitignore có .env, .env.*, !.env.example, .claude/settings.anvil.json, CLAUDE.local.md, .claude/worktrees/.
 Báo bảng: mục | kết quả | việc cần người làm. Không sửa file nào.
 ```
 
@@ -225,10 +225,10 @@ Dùng: `/deploy-fuji` (người duyệt lệnh broadcast). Kiểm chứng: link 
 /implement C10: script/Deploy.s.sol theo thứ tự docs/05 mục 3.3, chạy thử trên anvil
 
 Ràng buộc:
-- Đọc khóa bằng vm.envUint("DEPLOYER_PRIVATE_KEY"); chainid 31337 thì deploy MockUSDC và ghi deployments/local.json; 43113 thì dùng USDC 0x5425890298aed601595a70AB815c96711a31Bc65 và ghi deployments/fuji.json đúng schema docs/05 mục 6.2 (kèm gitCommit).
+- Đọc khóa bằng vm.envUint("DEPLOYER_PRIVATE_KEY"); chainid 31337 thì deploy MockUSDC và ghi deployments/anvil.json; 43113 thì dùng USDC 0x5425890298aed601595a70AB815c96711a31Bc65 và ghi deployments/fuji.json đúng schema docs/05 mục 6.2 (kèm gitCommit).
 - Thứ tự: ERC2771Forwarder("HuiSafeForwarder") → ReputationRegistry(admin) → HuiCircle(forwarder) → HuiFactory(admin, implementation, config) → registry.setFactory(factory).
 - Thử: anvil --block-time 1 ở terminal khác (người chạy), rồi forge script script/Deploy.s.sol --rpc-url http://127.0.0.1:8545 --broadcast.
-Tiêu chí chấp nhận: deploy local thành công, local.json đúng schema, registry.factory() == factory. Không chạy lên Fuji trong việc này.
+Tiêu chí chấp nhận: deploy local thành công, anvil.json đúng schema, registry.factory() == factory. Không chạy lên Fuji trong việc này.
 ```
 
 Sau khi PR merge: chạy `/deploy-fuji all` từ `main`.

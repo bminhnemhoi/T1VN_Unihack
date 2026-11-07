@@ -55,7 +55,7 @@ chore(sdk): regenerate ABI after Fuji deploy
 docs(claude): add Fuji verify flags to foundry-fuji skill
 ```
 
-Claude Code tự thêm dòng ghi công (attribution) vào commit theo cấu hình mặc định; đội có thể đổi bằng khóa `attribution` trong settings. Không bao giờ commit `.env*` (trừ `.env.example`), khóa, keystore, `contracts/deployments/local.json`.
+Claude Code tự thêm dòng ghi công (attribution) vào commit theo cấu hình mặc định; đội có thể đổi bằng khóa `attribution` trong settings. Không bao giờ commit `.env*` (trừ `.env.example`), khóa, keystore, `contracts/deployments/anvil.json`.
 
 ## 4. Mẫu pull request
 
