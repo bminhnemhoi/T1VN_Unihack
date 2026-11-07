@@ -155,9 +155,8 @@ mapping(uint32 => RoundInfo)               internal _rounds;
 mapping(uint32 => mapping(address => Commit))    internal _commits;
 mapping(uint32 => mapping(address => Shortfall)) internal _shortfalls;
 mapping(uint32 => address)                 internal _leader;       // thăm dẫn đầu tạm thời
-mapping(uint32 => uint32)                  internal _commitCounter;
+mapping(uint32 => RoundBids)               internal _bids;         // RoundBids { uint32 count; uint8 payers }: số commit của kỳ k và L_k chốt ở commit đầu tiên (0 = chưa chốt, 03 mục 6.3), cùng một slot
 mapping(uint32 => uint64)                  internal _pausedAtSettle; // pausedTotal tại lúc chi kỳ k (03 mục 3.2, 6.8)
-mapping(uint32 => uint8)                   internal _commitPayers;  // L_k chốt ở commit đầu tiên của kỳ k, 0 = chưa chốt (03 mục 6.3)
 mapping(bytes32 => bool)                   public usedAttestation;
 mapping(address => bool)                   public hasLeft;         // đã rời lúc Forming, không vào lại được (03 mục 5.1)
 uint32                                     public liveCount;       // số thành viên sống (joined, chưa hốt, chưa vỡ nợ), giữ bằng bộ đếm (gas)
@@ -377,6 +376,7 @@ event DebtRepaid(address indexed member, uint256 principal, uint256 lateFee);
 event LateFeeUnpaid(address indexed member, uint256 amount);
 // Mỗi phần hoàn theo thứ tự 03 mục 6.8 (payLate, repayDebt, pot người bị đóng băng, finalize):
 // source = Uncovered nghĩa là trả thẳng cho người hốt kỳ đó; các source khác là hoàn quỹ dự phòng, ký quỹ, holdback.
+// Riêng `finalize` với người vỡ nợ: phần source = Holdback là XÓA NỢ (khoản đó đã bị trừ từ chính holdback của họ), không chuyển tiền; sổ họ không được cộng nó vào holdback.
 event ShortfallRestored(uint32 indexed round, address indexed member, CoverSource source, uint256 amount);
 event MemberDefaulted(address indexed member, uint32 indexed round, bool frozen);
 event FeeForfeited(uint32 indexed round, uint256 amount);

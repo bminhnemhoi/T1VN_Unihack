@@ -228,8 +228,9 @@ contract HuiCircle is HuiCircleBase {
         if (liveCount <= 1) revert IHuiCircle.NotEligibleToBid();
 
         Commit storage c = _commits[k][member];
-        if (_commitPayers[k] == 0) _commitPayers[k] = uint8(liveCount - 1); // liveCount >= 2 here
-        uint32 index = ++_commitCounter[k];
+        RoundBids storage rb = _bids[k];
+        if (rb.payers == 0) rb.payers = uint8(liveCount - 1); // liveCount >= 2 here
+        uint32 index = ++rb.count;
         uint256 bond;
         if (c.commitIndex == 0) {
             bond = revealBond();
@@ -285,7 +286,7 @@ contract HuiCircle is HuiCircleBase {
     /// need `debt == 0`.
     function _selectWinner(uint32 k) internal view returns (address winner, uint256 bid) {
         uint256 n = _members.length;
-        if (_commitCounter[k] != 0) {
+        if (_bids[k].count != 0) {
             uint256 winnerLate = type(uint256).max; // lazily read from the registry, only needed on ties
             for (uint256 i = 0; i < n; i++) {
                 address m = _members[i];
@@ -368,7 +369,7 @@ contract HuiCircle is HuiCircleBase {
         uint256 due_ = _roundStart(k) + _params.roundDuration;
         if (block.timestamp < due_) revert IHuiCircle.TooEarly(uint64(due_));
 
-        if (_commitCounter[k] != 0) _forfeitUnrevealed(k);
+        if (_bids[k].count != 0) _forfeitUnrevealed(k);
         (st.winner, st.bid) = _selectWinner(k);
 
         // Effects before any external call (audit I-01): the round is closed before tokens move.
@@ -382,7 +383,7 @@ contract HuiCircle is HuiCircleBase {
         ri.winner = w;
         ri.winningBid = uint128(st.bid);
         ri.settledAt = uint64(block.timestamp);
-        ri.commitCount = _commitCounter[k];
+        ri.commitCount = _bids[k].count;
         ri.settled = true;
 
         _collect(st);
@@ -801,7 +802,8 @@ contract HuiCircle is HuiCircleBase {
     /// @dev Clear every `fromHoldback` part still open for `m` (rounds 1..n): no transfer, no late fee, `debt` falls.
     function _forgiveOwnHoldback(address m, uint32 n) private {
         uint256 forgiven;
-        for (uint32 r = 1; r <= n; r++) {
+        // Holdback only exists after the member received, so only later rounds can have a `fromHoldback` part.
+        for (uint32 r = _info[m].receivedRound + 1; r <= n; r++) {
             Shortfall storage sf = _shortfalls[r][m];
             uint256 h = sf.fromHoldback;
             if (h == 0) continue;

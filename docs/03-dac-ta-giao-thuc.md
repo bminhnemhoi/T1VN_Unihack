@@ -245,7 +245,7 @@ Thành viên đang sống (chưa hốt, không bị đóng băng) và không cò
 ### 6.3. `revealBid(bid, salt)`
 
 - Chỉ trong cửa sổ reveal. Hash phải khớp commit của người gọi ở kỳ này.
-- `maxBid(k)` dùng `L_k` chốt ở lần commit đầu tiên của kỳ (số hụi sống trừ người hốt tại lúc đó); `markDefault` giữa cửa sổ commit và reveal không đổi trần của kỳ đang chạy. Chưa có commit nào thì view dùng số hụi sống hiện tại.
+- `maxBid(k)` dùng `L_k` chốt ở lần commit đầu tiên của kỳ (số hụi sống trừ người hốt tại lúc đó); `markDefault` giữa cửa sổ commit và reveal không đổi trần của kỳ đang chạy. Chưa có commit nào thì view dùng số hụi sống hiện tại. (Ai commit đầu tiên ngay sau một kỳ chi có thể chốt `L_k` còn tính cả người sắp bị `markDefault`, nên trần thấp hơn một chút; chấp nhận vì thận trọng.)
 - Revert nếu `bid > maxBid(k)` hoặc `bid ≥ C`. Vì vậy người commit thăm sai sẽ không mở được và mất cọc; giao diện phải chặn trước.
 - Thăm hợp lệ: trả lại cọc, cập nhật thăm dẫn đầu theo thứ tự so sánh ở 6.4.
 - Salt sinh ngẫu nhiên phía người dùng để giữ bí mật thăm. Salt không dùng để chọn người hốt.

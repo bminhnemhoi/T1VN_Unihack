@@ -38,8 +38,15 @@ abstract contract HuiCircleBase is ERC2771Context, EIP712, Initializable, Reentr
     mapping(uint32 => RoundInfo) internal _rounds;
     mapping(uint32 => mapping(address => Commit)) internal _commits;
     mapping(uint32 => mapping(address => Shortfall)) internal _shortfalls; // round => debtor => record
-    mapping(uint32 => uint32) internal _commitCounter;
-    mapping(uint32 => uint8) internal _commitPayers; // L_k fixed at the first commit of round k, 0 = not fixed yet
+
+    /// @dev Per round: commits so far and L_k (live members minus the winner) fixed by the first commit, 0 = not
+    /// fixed yet. One slot, so the first commit of a round pays for a single new storage word.
+    struct RoundBids {
+        uint32 count;
+        uint8 payers;
+    }
+
+    mapping(uint32 => RoundBids) internal _bids;
     mapping(uint32 => uint64) internal _pausedAtSettle; // pausedTotal when round k was settled (docs/03 section 3.2)
     mapping(bytes32 => bool) public usedAttestation;
     mapping(address => bool) public hasLeft; // left while Forming: cannot rejoin this circle (docs/03 section 5.1)
@@ -77,7 +84,7 @@ abstract contract HuiCircleBase is ERC2771Context, EIP712, Initializable, Reentr
     function _maxBid(uint32 k) internal view returns (uint256) {
         // The bid cap of a round is fixed by its first commit, so a `markDefault` between commit and reveal cannot
         // push an honest sealed bid above the cap (audit M-02). Before any commit the view follows the live count.
-        uint256 payers = _commitPayers[k];
+        uint256 payers = _bids[k].payers;
         if (payers == 0) {
             uint256 live = liveCount;
             payers = live > 0 ? live - 1 : 0;
