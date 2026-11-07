@@ -157,6 +157,7 @@ mapping(uint32 => mapping(address => Shortfall)) internal _shortfalls;
 mapping(uint32 => address)                 internal _leader;       // thăm dẫn đầu tạm thời
 mapping(uint32 => uint32)                  internal _commitCounter;
 mapping(uint32 => uint64)                  internal _pausedAtSettle; // pausedTotal tại lúc chi kỳ k (03 mục 3.2, 6.8)
+mapping(uint32 => uint8)                   internal _commitPayers;  // L_k chốt ở commit đầu tiên của kỳ k, 0 = chưa chốt (03 mục 6.3)
 mapping(bytes32 => bool)                   public usedAttestation;
 mapping(address => bool)                   public hasLeft;         // đã rời lúc Forming, không vào lại được (03 mục 5.1)
 uint32                                     public liveCount;       // số thành viên sống (joined, chưa hốt, chưa vỡ nợ), giữ bằng bộ đếm (gas)
@@ -657,7 +658,7 @@ Tất cả nhận và trả JSON; số tiền gửi dưới dạng chuỗi (bigi
   2. Selector của `data` nằm trong danh sách cho phép:
      - Người dùng: `createCircle`, `depositBond`, `withdrawBond`, `join`, `leave`, `activate`, `commitBid`, `revealBid`, `payLate`, `repayDebt`, `claim`.
      - Hàm ai cũng gọi được, để nút "Chốt kỳ" trên web chạy không tốn gas khi keeper chậm: `settleRound`, `markDefault`, `finalize`, `cancel`.
-  3. `value == 0`; `gas` ≤ 3.000.000, riêng `settleRound` ≤ 5.000.000 (ca cực đoan N = 30 cả dây cùng thiếu tốn khoảng 4,14 triệu gas, xem 04 mục 7.1).
+  3. `value == 0`; `gas` ≤ 3.000.000, riêng `settleRound` và `finalize` ≤ 5.000.000 (ca cực đoan N = 30 cả dây cùng thiếu tốn khoảng 4,1 đến 5 triệu gas, xem 04 mục 7.1).
   4. Rate limit 30 yêu cầu/giờ mỗi `from`.
   5. `forwarder.verify(request)` bằng `eth_call`.
   6. Mô phỏng `execute` bằng `eth_call`.

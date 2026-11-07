@@ -667,7 +667,7 @@ Trường hợp xấu nhất của `settleRound` ở N = 30 là kỳ cuối: 29 
 
 Giới hạn khối: theo ACP-176, sức chứa gas tối đa C = 10·T. Mục tiêu T của C-Chain được nâng lên 2,1 triệu gas/giây (08/2025), nên C khoảng 21 triệu gas (suy ra). Một giao dịch 3 triệu gas nằm trong giới hạn. Kiểm lại bằng `cast block latest gasLimit --rpc-url fuji`. Keeper gửi `settleRound` trực tiếp với gas limit = ước tính × 1,2, trần cứng 5.000.000.
 
-Số đo thực (A3, `HuiCircle` C6): N = 30 kỳ 29 với 3 khoản thiếu tốn 1,68 triệu gas; ca cực đoan N = 30 kỳ 1 mà cả 29 người cùng thiếu tốn khoảng 4,14 triệu gas (mỗi khoản thiếu 100.000 đến 140.000 gas vì ghi `Shortfall` 3 slot và 4 đến 5 event). Quyết định: chấp nhận ca cực đoan, không đóng gói lại storage; `/api/relay` cho phép `gas` đến 5.000.000 riêng với `settleRound` (các hàm khác giữ 3.000.000), keeper dùng trần cứng 5.000.000. Ca này không khóa tiền: ai cũng gửi trực tiếp được.
+Số đo thực (A3, `HuiCircle` C6): N = 30 kỳ 29 với 3 khoản thiếu tốn 1,68 triệu gas; ca cực đoan N = 30 kỳ 1 mà cả 29 người cùng thiếu tốn khoảng 4,14 triệu gas (mỗi khoản thiếu 100.000 đến 140.000 gas vì ghi `Shortfall` 3 slot và 4 đến 5 event). Quyết định: chấp nhận ca cực đoan, không đóng gói lại storage; `/api/relay` cho phép `gas` đến 5.000.000 riêng với `settleRound` (các hàm khác giữ 3.000.000), keeper dùng trần cứng 5.000.000. Ca này không khóa tiền: ai cũng gửi trực tiếp được. Tương tự, `finalize` N = 30 sạch tốn khoảng 1,1 triệu gas, nhưng nếu 29 người cùng thiếu ở kỳ cuối mà chưa ai gọi `markDefault` (keeper phải gọi trong ân hạn) thì tự đánh dấu 29 người trong `finalize` tốn khoảng 5 triệu gas (A4 audit M-03), vượt ngân sách 2,5 triệu ở trên; `/api/relay` cho `finalize` trần 5.000.000 như `settleRound`.
 
 ### 7.2. Độ trễ
 

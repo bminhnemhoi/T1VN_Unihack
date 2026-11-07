@@ -102,7 +102,7 @@ timeScale = periodSeconds / roundDuration                 (bản thật = 1)
 lateFee   = amount · lateRateBps · elapsedSeconds · timeScale / (10_000 · 365 days)
 ```
 
-`elapsedSeconds` tính từ lúc kỳ có khoản thiếu được chi (`settledAt`) đến lúc trả.
+`elapsedSeconds` tính từ lúc kỳ có khoản thiếu được chi (`settledAt`) đến lúc trả, trừ thời gian dây đã tạm dừng trong khoảng đó: `elapsed = now − settledAt(r) − (pausedTotal − pausedAtSettle(r))`. Nhờ vậy dây dừng không làm lãi chậm góp (nhất là ở chế độ demo, `timeScale` lớn) chạy tiếp và ép người trung thực vỡ nợ.
 
 ### 2.6. Tiền công, quỹ dự phòng, cọc mở thăm
 
@@ -209,10 +209,10 @@ Kỳ 1..N chạy theo lịch ở mục 3.2. Chi tiết ở mục 6.
 
 ### 5.3. Completed (kết thúc)
 
-`finalize()` (bất kỳ ai) khi kỳ N đã chi, `now ≥ settledAt(N) + G` (cộng thời gian tạm dừng, mục 6.8), và mọi khoản thiếu hoặc đã trả, hoặc đã bị `markDefault`. Thành viên chưa bị đánh dấu mà còn khoản thiếu đã quá ân hạn thì `finalize` tự đánh dấu vỡ nợ (cùng hiệu ứng `markDefault`, mục 6.8) ngay đầu giao dịch; còn khoản thiếu trong ân hạn thì `finalize` revert `GraceNotOver`. Các bước:
+`finalize()` (bất kỳ ai) khi kỳ N đã chi, `now > settledAt(N) + G` (cộng thời gian tạm dừng, mục 6.8; chặt để không trùng giây cuối còn `payLate` được), và mọi khoản thiếu hoặc đã trả, hoặc đã bị `markDefault`. Thành viên chưa bị đánh dấu mà còn khoản thiếu đã quá ân hạn thì `finalize` tự đánh dấu vỡ nợ (cùng hiệu ứng `markDefault`, mục 6.8) ngay đầu giao dịch; còn khoản thiếu trong ân hạn thì `finalize` revert `GraceNotOver`. Các bước:
 
 1. Holdback còn lại của người không vỡ nợ: trả cho chính họ.
-2. Holdback còn lại của người vỡ nợ: trả gốc còn nợ của họ theo thứ tự hoàn ở mục 6.8 (`uncovered`, quỹ dự phòng, ký quỹ), rồi lãi chậm góp; phần dư trả lại họ. Phần gốc đã được bù từ chính holdback của họ coi là đã tự trả (không chuyển tiền, chỉ xóa nợ). Lãi không đủ tiền để trả thì phát `LateFeeUnpaid` (mục 6.8).
+2. Holdback còn lại của người vỡ nợ: trả gốc còn nợ của họ theo thứ tự hoàn ở mục 6.8 (`uncovered`, quỹ dự phòng, ký quỹ), rồi lãi chậm góp; phần dư trả lại họ. Trước khi dùng holdback để hoàn, mọi phần gốc đã được bù từ chính holdback của họ (ở mọi kỳ) được xóa nợ trước, không chuyển tiền và không tính lãi, vì đó đã là tiền của họ; rồi holdback còn lại mới trả `uncovered`, quỹ dự phòng, ký quỹ theo thứ tự hoàn của kỳ cũ đến kỳ mới. Lãi không đủ tiền để trả thì phát `LateFeeUnpaid` (mục 6.8).
 3. Tiền công escrow của các kỳ không bị mất: trả chủ hụi. Kỳ bị mất đã chuyển vào quỹ dự phòng từ trước.
 4. Ký quỹ còn lại (đã cộng các khoản được hoàn): trả chủ hụi.
 5. Quỹ dự phòng còn lại: chia đều cho các thành viên không vỡ nợ. Phần dư lẻ cho thành viên có `joinIndex` nhỏ nhất. Nếu mọi thành viên đều vỡ nợ thì quỹ dự phòng còn lại trả chủ hụi (không bao giờ tới admin).
@@ -245,6 +245,7 @@ Thành viên đang sống (chưa hốt, không bị đóng băng) và không cò
 ### 6.3. `revealBid(bid, salt)`
 
 - Chỉ trong cửa sổ reveal. Hash phải khớp commit của người gọi ở kỳ này.
+- `maxBid(k)` dùng `L_k` chốt ở lần commit đầu tiên của kỳ (số hụi sống trừ người hốt tại lúc đó); `markDefault` giữa cửa sổ commit và reveal không đổi trần của kỳ đang chạy. Chưa có commit nào thì view dùng số hụi sống hiện tại.
 - Revert nếu `bid > maxBid(k)` hoặc `bid ≥ C`. Vì vậy người commit thăm sai sẽ không mở được và mất cọc; giao diện phải chặn trước.
 - Thăm hợp lệ: trả lại cọc, cập nhật thăm dẫn đầu theo thứ tự so sánh ở 6.4.
 - Salt sinh ngẫu nhiên phía người dùng để giữ bí mật thăm. Salt không dùng để chọn người hốt.
@@ -323,7 +324,7 @@ Mọi khoản trả (tiền hốt, nhả holdback, hoàn cọc, kết thúc dây
   - Nếu member chưa hốt thì rời tập hợp hụi sống.
   - Tiền công escrow của kỳ r bị chuyển vào quỹ dự phòng (`FeeForfeited`).
   - Ghi `recordDefault`.
-- **`repayDebt(amount)`**: người đã bị đánh dấu vỡ nợ trả dần nợ bất cứ lúc nào (người chưa bị đánh dấu dùng `payLate` trong ân hạn). `amount` là phần gốc muốn trả (tối đa bằng tổng gốc còn nợ). Contract áp gốc theo thứ tự hoàn và kéo `amount + Σ lateFee` của các phần gốc đó; allowance không đủ thì revert. Không nhả holdback (người vỡ nợ không còn được nhả theo kỳ). Trạng thái vỡ nợ không đổi, nhưng lịch sử ghi nhận đã trả (`recordRepaid` khi hết nợ).
+- **`repayDebt(amount)`**: người đã bị đánh dấu vỡ nợ trả dần nợ bất cứ lúc nào dây còn `Active` (sau `finalize` khoản `uncovered` còn lại chỉ là khoản đòi công khai ngoài chuỗi) (người chưa bị đánh dấu dùng `payLate` trong ân hạn). `amount` là phần gốc muốn trả (tối đa bằng tổng gốc còn nợ). Contract áp gốc theo thứ tự hoàn và kéo `amount + Σ lateFee` của các phần gốc đó; allowance không đủ thì revert. Không nhả holdback (người vỡ nợ không còn được nhả theo kỳ). Trạng thái vỡ nợ không đổi, nhưng lịch sử ghi nhận đã trả (`recordRepaid` khi hết nợ).
 
 ---
 
