@@ -2,6 +2,7 @@
 pragma solidity ^0.8.24;
 
 import {HuiCircle} from "../../src/HuiCircle.sol";
+import {HuiCircleLens} from "../../src/HuiCircleLens.sol";
 import {HuiCircleViews} from "../../src/HuiCircleViews.sol";
 import {CircleState, MemberInfo, Shortfall} from "../../src/libraries/HuiTypes.sol";
 
@@ -10,7 +11,7 @@ import {CircleState, MemberInfo, Shortfall} from "../../src/libraries/HuiTypes.s
 /// @dev Inherits the views directly (not through the lens) so existing tests keep calling `c.params()` and friends;
 /// the lens path itself is covered by `HuiCircleLens.t.sol` on a real `HuiCircle`.
 contract HuiCircleHarness is HuiCircle, HuiCircleViews {
-    constructor(address forwarder_) HuiCircle(forwarder_, address(0)) {}
+    constructor(address forwarder_) HuiCircle(forwarder_, address(new HuiCircleLens())) {}
 
     function exposed_selectWinner(uint32 k) external view returns (address winner, uint256 bid) {
         return _selectWinner(k);

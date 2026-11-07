@@ -45,12 +45,17 @@ contract HuiCircle is HuiCircleBase {
     bytes32 private constant _ATTESTATION_TYPEHASH =
         keccak256("MemberAttestation(address member,address circle,bytes32 attestationId,uint64 expiry)");
 
+    /// @dev Constructor argument `lens_` has no code.
+    error LensNotDeployed();
+
     /// @notice The `HuiCircleLens` that serves the read-only functions (immutable, shared by all clones).
     address public immutable lens;
 
     /// @param forwarder_ ERC-2771 trusted forwarder shared by all clones.
     /// @param lens_ Deployed `HuiCircleLens`.
     constructor(address forwarder_, address lens_) HuiCircleBase(forwarder_) {
+        // A lens without code would make the delegate fallback return empty data for every view.
+        if (lens_.code.length == 0) revert LensNotDeployed();
         lens = lens_;
         _disableInitializers();
     }
