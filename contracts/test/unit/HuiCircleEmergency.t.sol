@@ -195,7 +195,7 @@ contract HuiCircleEmergencyTest is CircleScenario {
 
     function test_Pause_CompletedCircleCannotBePausedOrUnwound() public {
         _settleRounds(1, 5);
-        vm.warp(_graceEnd(5));
+        vm.warp(_graceEnd(5) + 1);
         c.finalize();
         vm.prank(admin);
         vm.expectRevert(

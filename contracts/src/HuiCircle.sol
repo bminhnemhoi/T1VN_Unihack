@@ -228,6 +228,7 @@ contract HuiCircle is HuiCircleBase {
         if (liveCount <= 1) revert IHuiCircle.NotEligibleToBid();
 
         Commit storage c = _commits[k][member];
+        if (_commitPayers[k] == 0) _commitPayers[k] = uint8(liveCount - 1); // liveCount >= 2 here
         uint32 index = ++_commitCounter[k];
         uint256 bond;
         if (c.commitIndex == 0) {
@@ -578,6 +579,8 @@ contract HuiCircle is HuiCircleBase {
     {
         Shortfall storage sf = _shortfalls[r][debtor];
         if (sf.resolved || sf.amount == 0) return (0, 0);
+        // Time on hold does not accrue late fees: elapsed excludes the pauses after the settlement (audit M-01).
+        uint256 elapsed = block.timestamp - sf.since - (pausedTotal - _pausedAtSettle[r]);
         for (uint8 i = 4; i > 0 && budget > 0; i--) {
             CoverSource source = CoverSource(i - 1); // Uncovered(3), Reserve(2), Bond(1), Holdback(0)
             uint256 owed = _owed(sf, source);
@@ -586,18 +589,18 @@ contract HuiCircle is HuiCircleBase {
             _setOwed(sf, source, owed - p);
             budget -= p;
             principal += p;
-            feeDue += _restorePart(r, debtor, source, p, sf.since);
+            feeDue += _restorePart(r, debtor, source, p, elapsed);
         }
         if (sf.uncovered == 0 && sf.fromReserve == 0 && sf.fromBond == 0 && sf.fromHoldback == 0) sf.resolved = true;
     }
 
-    /// @dev Send `p` of one source back to where the cascade took it from. Returns the late fee `p` owes for the
-    /// time since the shortfall appeared.
-    function _restorePart(uint32 r, address debtor, CoverSource source, uint256 p, uint256 since)
+    /// @dev Send `p` of one source back to where the cascade took it from. Returns the late fee `p` owes for
+    /// `elapsed` seconds (time since the shortfall appeared, without paused time).
+    function _restorePart(uint32 r, address debtor, CoverSource source, uint256 p, uint256 elapsed)
         private
         returns (uint256 f)
     {
-        f = HuiMath.lateFee(p, lateRateBps, block.timestamp - since, _params.periodSeconds, _params.roundDuration);
+        f = HuiMath.lateFee(p, lateRateBps, elapsed, _params.periodSeconds, _params.roundDuration);
         if (source == CoverSource.Reserve) {
             reserve += p;
         } else if (source == CoverSource.Bond) {
@@ -625,12 +628,13 @@ contract HuiCircle is HuiCircleBase {
     }
 
     /// @dev Reputation writes never block a round: the call is made with `selector` and its result, including a
-    /// revert, is ignored (the registry is a trusted contract of the deployment). No return data is copied.
+    /// revert, is ignored (the registry is a trusted contract of the deployment). No return data is copied and the
+    /// registry gets at most 150,000 gas, so a misbehaving registry cannot make a round unaffordable.
     function _record(address m, bytes4 selector) private {
         address reg = reputation;
         bytes memory data = abi.encodeWithSelector(selector, m);
         assembly ("memory-safe") {
-            pop(call(gas(), reg, 0, add(data, 0x20), mload(data), 0, 0))
+            pop(call(150000, reg, 0, add(data, 0x20), mload(data), 0, 0))
         }
     }
 
@@ -747,7 +751,7 @@ contract HuiCircle is HuiCircleBase {
         _requireState(CircleState.Active);
         uint32 n = _params.memberCount;
         if (settledRounds < n) revert IHuiCircle.PreviousRoundNotSettled();
-        if (block.timestamp < _graceEnd(n)) revert IHuiCircle.GraceNotOver();
+        if (block.timestamp <= _graceEnd(n)) revert IHuiCircle.GraceNotOver();
         uint256 count = _members.length;
         for (uint256 i = 0; i < count; i++) {
             address m = _members[i];
@@ -765,12 +769,11 @@ contract HuiCircle is HuiCircleBase {
             uint256 h = mi.holdback;
             mi.holdback = 0;
             totalHoldback -= h;
-            if (mi.defaulted && mi.debt != 0 && h != 0) {
-                h -= _repayFromPot(m, h, n + 1);
-                // Parts of the debt that the member's own holdback had covered are restored into `holdback`.
-                h += mi.holdback;
-                totalHoldback -= mi.holdback;
-                mi.holdback = 0;
+            if (mi.defaulted && mi.debt != 0) {
+                // Debt that the member's own holdback already covered is theirs to settle: forgive it first, so
+                // the holdback left pays the newer `uncovered`, reserve and bond parts (audit H-01).
+                _forgiveOwnHoldback(m, n);
+                if (h != 0 && mi.debt != 0) h -= _repayFromPot(m, h, n + 1);
             }
             if (h != 0) {
                 emit IHuiCircle.HoldbackReleased(m, n, h);
@@ -793,6 +796,21 @@ contract HuiCircle is HuiCircleBase {
         uint256 shared = _shareReserve(true);
         emit IHuiCircle.CircleFinalized(bondReturned, feesPaid, shared);
         _notifyFinished();
+    }
+
+    /// @dev Clear every `fromHoldback` part still open for `m` (rounds 1..n): no transfer, no late fee, `debt` falls.
+    function _forgiveOwnHoldback(address m, uint32 n) private {
+        uint256 forgiven;
+        for (uint32 r = 1; r <= n; r++) {
+            Shortfall storage sf = _shortfalls[r][m];
+            uint256 h = sf.fromHoldback;
+            if (h == 0) continue;
+            sf.fromHoldback = 0;
+            forgiven += h;
+            emit IHuiCircle.ShortfallRestored(r, m, CoverSource.Holdback, h);
+            if (sf.uncovered == 0 && sf.fromReserve == 0 && sf.fromBond == 0) sf.resolved = true;
+        }
+        _info[m].debt -= uint128(forgiven);
     }
 
     /// @dev Split the whole reserve equally among non-defaulted members, dust to the smallest `joinIndex`; if all

@@ -94,7 +94,7 @@ contract HuiCircleFinalizeTest is CircleScenario {
             before[i - 1] = usdc.balanceOf(_M(i));
         }
         assertEq(factory.activeCirclesOf(organizer), 1);
-        vm.warp(_graceEnd(5)); // the grace of round 5 ends 120 s after its settlement
+        vm.warp(_graceEnd(5) + 1); // the grace of round 5 ends 120 s after its settlement
         vm.recordLogs();
         vm.expectEmit(false, false, false, true, address(c));
         emit IHuiCircle.CircleFinalized(160 * U, 15_760_000, 23_580_000);
@@ -118,7 +118,13 @@ contract HuiCircleFinalizeTest is CircleScenario {
         }
         assertEq(factory.activeCirclesOf(organizer), 0);
         assertEq(c.bondRemaining() + c.reserve() + c.totalHoldback() + c.totalFeeEscrow(), 0);
-        assertEq(c.memberInfo(_M(4)).debt, 400 * U, "the unpaid 400 stays on the books as a public claim");
+        assertEq(
+            c.memberInfo(_M(4)).debt,
+            320 * U,
+            "400 minus the 80 its own holdback paid (H-01): the rest is a public claim"
+        );
+        assertEq(c.shortfallOf(2, _M(4)).fromHoldback, 0);
+        assertEq(c.shortfallOf(2, _M(4)).fromBond, 20 * U, "bond parts stay on the books");
         assertEq(usdc.balanceOf(address(c)), 0);
         assertEq(c.totalClaimable(), 0);
         _assertConserved();
@@ -136,7 +142,7 @@ contract HuiCircleFinalizeTest is CircleScenario {
         for (uint256 i = 1; i <= 5; i++) {
             before[i - 1] = usdc.balanceOf(_M(i));
         }
-        vm.warp(_graceEnd(5));
+        vm.warp(_graceEnd(5) + 1);
         vm.recordLogs();
         vm.expectEmit(false, false, false, true, address(c));
         emit IHuiCircle.CircleFinalized(480 * U, 19_670_000, 19_697_396);
@@ -167,13 +173,18 @@ contract HuiCircleFinalizeTest is CircleScenario {
         c.finalize(); // round 5 still open
     }
 
-    function test_Finalize_RevertsInsideGraceOfRoundN_WorksAtItsLastSecond() public {
+    /// @dev L-03 (docs/03 section 5.3): `now > settledAt(N) + G`, strict, so the last second of the grace period
+    /// (where `payLate` still works) is not yet a second where `finalize` works.
+    function test_Finalize_GraceBoundary_RevertsAtGraceEndN_WorksOneSecondLater() public {
         _settleRounds(1, 5);
         vm.warp(_graceEnd(5) - 1);
         vm.expectRevert(IHuiCircle.GraceNotOver.selector);
         c.finalize();
         vm.warp(_graceEnd(5));
-        c.finalize(); // spec: now >= settledAt(N) + G, with nothing open it needs no more
+        vm.expectRevert(IHuiCircle.GraceNotOver.selector);
+        c.finalize();
+        vm.warp(_graceEnd(5) + 1);
+        c.finalize();
         assertEq(uint8(c.state()), uint8(CircleState.Completed));
         assertEq(uint8(c.phase()), uint8(RoundPhase.Done), "a completed circle reports Done");
     }
@@ -191,10 +202,10 @@ contract HuiCircleFinalizeTest is CircleScenario {
         _settleRounds(1, 5);
         uint256 t5 = c.roundInfo(5).settledAt;
         _pauseFor(10, 400);
-        vm.warp(t5 + GRACE + 400 - 1);
+        vm.warp(t5 + GRACE + 400);
         vm.expectRevert(IHuiCircle.GraceNotOver.selector);
         c.finalize();
-        vm.warp(t5 + GRACE + 400);
+        vm.warp(t5 + GRACE + 400 + 1);
         c.finalize();
         assertEq(uint8(c.state()), uint8(CircleState.Completed));
     }
@@ -204,10 +215,10 @@ contract HuiCircleFinalizeTest is CircleScenario {
         _pauseFor(10, 400);
         _settle(); // round 5, on its (shifted) deadline
         uint256 t5 = c.roundInfo(5).settledAt;
-        vm.warp(t5 + GRACE - 1);
+        vm.warp(t5 + GRACE);
         vm.expectRevert(IHuiCircle.GraceNotOver.selector);
         c.finalize();
-        vm.warp(t5 + GRACE);
+        vm.warp(t5 + GRACE + 1);
         c.finalize();
         assertEq(uint8(c.state()), uint8(CircleState.Completed));
     }
@@ -218,7 +229,7 @@ contract HuiCircleFinalizeTest is CircleScenario {
         forming.finalize();
 
         _settleRounds(1, 5);
-        vm.warp(_graceEnd(5));
+        vm.warp(_graceEnd(5) + 1);
         vm.prank(admin);
         factory.pauseCircle(address(c));
         vm.expectRevert(IHuiCircle.CircleIsPaused.selector);
@@ -236,7 +247,7 @@ contract HuiCircleFinalizeTest is CircleScenario {
 
     function test_Finalize_CompletedCircleRejectsEveryRoundFunction() public {
         _settleRounds(1, 5);
-        vm.warp(_graceEnd(5));
+        vm.warp(_graceEnd(5) + 1);
         c.finalize();
         bytes memory wrong =
             abi.encodeWithSelector(IHuiCircle.WrongState.selector, CircleState.Active, CircleState.Completed);
@@ -262,7 +273,7 @@ contract HuiCircleFinalizeTest is CircleScenario {
         assertEq(sf.fromBond, 80 * U);
         assertEq(c.feeEscrow(5), 4 * U);
 
-        vm.warp(_graceEnd(5)); // spec time for finalize, but M3's round-5 grace has not passed yet
+        vm.warp(_graceEnd(5)); // last second of grace: M3's round-5 grace has not passed yet
         vm.expectRevert(IHuiCircle.GraceNotOver.selector);
         c.finalize();
         assertEq(uint8(c.state()), uint8(CircleState.Active));
@@ -283,7 +294,9 @@ contract HuiCircleFinalizeTest is CircleScenario {
         assertEq(rep.reputationOf(_M(3)).defaults, 1);
         assertEq(rep.reputationOf(_M(3)).completed, 0);
         assertEq(usdc.balanceOf(organizer) - orgBefore, 416 * U);
-        assertEq(c.memberInfo(_M(3)).debt, 100 * U, "claim stays public");
+        assertEq(
+            c.memberInfo(_M(3)).debt, 80 * U, "100 minus the 20 its own holdback paid (H-01); the rest stays public"
+        );
         assertEq(usdc.balanceOf(address(c)), 0);
         _assertConserved();
     }
@@ -297,7 +310,7 @@ contract HuiCircleFinalizeTest is CircleScenario {
         vm.prank(_M(3));
         c.payLate(5); // restores holdback 20 + bond 80 and releases alpha*C = 20 again
         assertEq(c.memberInfo(_M(3)).holdback, 0);
-        vm.warp(_graceEnd(5));
+        vm.warp(_graceEnd(5) + 1);
         c.finalize();
         assertFalse(c.memberInfo(_M(3)).defaulted);
         assertEq(rep.reputationOf(_M(3)).completed, 1);
@@ -309,7 +322,7 @@ contract HuiCircleFinalizeTest is CircleScenario {
 
     function test_Finalize_BlockedRecipientsGoToClaimable_ThenClaim() public {
         _settleRounds(1, 5);
-        vm.warp(_graceEnd(5));
+        vm.warp(_graceEnd(5) + 1);
         usdc.setBlacklisted(organizer, true);
         usdc.setBlacklisted(_M(1), true);
         usdc.setBlacklisted(_M(3), true);
@@ -358,7 +371,7 @@ contract HuiCircleFinalizeTest is CircleScenario {
     function test_Finalize_ReserveDustGoesToSmallestJoinIndex_EvenWhenItIsBlocked() public {
         // Branch A leaves 19_697_396 in the reserve: 5 shares of 3_939_479 and dust 1.
         _branchA();
-        vm.warp(_graceEnd(5));
+        vm.warp(_graceEnd(5) + 1);
         usdc.setBlacklisted(_M(1), true);
         vm.expectEmit(true, false, false, true, address(c));
         emit IHuiCircle.PaymentDeferred(_M(1), 3_939_480);
@@ -372,7 +385,7 @@ contract HuiCircleFinalizeTest is CircleScenario {
         for (uint256 i = 1; i <= 5; i++) {
             c.exposed_setDefaulted(_M(i), true);
         }
-        vm.warp(_graceEnd(5));
+        vm.warp(_graceEnd(5) + 1);
         uint256 orgBefore = usdc.balanceOf(organizer);
         vm.expectEmit(false, false, false, true, address(c));
         emit IHuiCircle.CircleFinalized(480 * U, 20 * U, 20 * U);
@@ -391,7 +404,7 @@ contract HuiCircleFinalizeTest is CircleScenario {
         _round2Bids();
         _settle();
         _settleRounds(3, 5);
-        vm.warp(_graceEnd(5));
+        vm.warp(_graceEnd(5) + 1);
         c.finalize();
         assertEq(usdc.balanceOf(address(c)), 0, "nothing stranded");
         assertEq(c.totalClaimable(), 0);
@@ -438,12 +451,14 @@ contract HuiCircleFinalizeTest is CircleScenario {
         assertEq(c.totalHoldback(), m1Holdback, "only M1 still holds anything");
     }
 
+    /// @dev H-01 (docs/03 section 5.3 step 2): the part covered by M1's own holdback (10) is forgiven first, with no
+    /// transfer and no fee; the remaining holdback then repays uncovered, reserve and bond (90) plus their fee.
     function test_Finalize_DefaultedMembersHoldbackRepaysItsDebtInRefundOrder() public {
         _mixedDefaultSetup(392 * U);
-        vm.warp(_graceEnd(5));
+        vm.warp(_graceEnd(5) + 1);
         Shortfall memory sf = c.shortfallOf(2, _M(1));
         uint256 elapsed = _now() - sf.since;
-        uint256 fee = _feeOfParts(sf, elapsed);
+        uint256 fee = _lateFee(30 * U, elapsed) + _lateFee(20 * U, elapsed) + _lateFee(40 * U, elapsed);
         assertGt(fee, 0);
         uint256 reserveBefore = c.reserve();
         uint256 m1Before = usdc.balanceOf(_M(1));
@@ -454,22 +469,22 @@ contract HuiCircleFinalizeTest is CircleScenario {
         uint256 dust = reserveTotal - share * 4;
 
         vm.expectEmit(true, true, false, true, address(c));
+        emit IHuiCircle.ShortfallRestored(2, _M(1), CoverSource.Holdback, 10 * U);
+        vm.expectEmit(true, true, false, true, address(c));
         emit IHuiCircle.ShortfallRestored(2, _M(1), CoverSource.Uncovered, 30 * U);
         vm.expectEmit(true, true, false, true, address(c));
         emit IHuiCircle.ShortfallRestored(2, _M(1), CoverSource.Reserve, 20 * U);
         vm.expectEmit(true, true, false, true, address(c));
         emit IHuiCircle.ShortfallRestored(2, _M(1), CoverSource.Bond, 40 * U);
-        vm.expectEmit(true, true, false, true, address(c));
-        emit IHuiCircle.ShortfallRestored(2, _M(1), CoverSource.Holdback, 10 * U);
         vm.expectEmit(true, false, false, true, address(c));
-        emit IHuiCircle.DebtRepaid(_M(1), 100 * U, fee);
+        emit IHuiCircle.DebtRepaid(_M(1), 90 * U, fee);
         vm.expectEmit(true, true, false, true, address(c));
-        emit IHuiCircle.HoldbackReleased(_M(1), 5, 392 * U - 100 * U - fee + 10 * U);
+        emit IHuiCircle.HoldbackReleased(_M(1), 5, 392 * U - 90 * U - fee);
         vm.expectEmit(false, false, false, true, address(c));
         emit IHuiCircle.CircleFinalized(40 * U, 20 * U, reserveTotal);
         c.finalize();
 
-        assertEq(usdc.balanceOf(_M(1)) - m1Before, 392 * U - 100 * U - fee + 10 * U, "rest of its holdback");
+        assertEq(usdc.balanceOf(_M(1)) - m1Before, 392 * U - 90 * U - fee, "rest of its holdback");
         assertEq(
             usdc.balanceOf(_M(2)) - m2Before,
             30 * U + share + dust,
@@ -485,20 +500,21 @@ contract HuiCircleFinalizeTest is CircleScenario {
     }
 
     function test_Finalize_LateFeeThatTheHoldbackCannotCover_IsAnnouncedNotStored() public {
-        _mixedDefaultSetup(101 * U); // 100 of principal, 1 USDC left for the fee
-        vm.warp(_graceEnd(5));
+        _mixedDefaultSetup(91 * U); // 90 of principal after forgiving the own-holdback part, 1 USDC left for the fee
+        vm.warp(_graceEnd(5) + 1);
         Shortfall memory sf = c.shortfallOf(2, _M(1));
-        uint256 feeDue = _feeOfParts(sf, _now() - sf.since);
+        uint256 elapsed = _now() - sf.since;
+        uint256 feeDue = _lateFee(30 * U, elapsed) + _lateFee(20 * U, elapsed) + _lateFee(40 * U, elapsed);
         assertGt(feeDue, 1 * U, "scenario needs a fee larger than what is left");
         uint256 m1Before = usdc.balanceOf(_M(1));
 
         vm.expectEmit(true, false, false, true, address(c));
         emit IHuiCircle.LateFeeUnpaid(_M(1), feeDue - 1 * U);
         vm.expectEmit(true, false, false, true, address(c));
-        emit IHuiCircle.DebtRepaid(_M(1), 100 * U, 1 * U);
+        emit IHuiCircle.DebtRepaid(_M(1), 90 * U, 1 * U);
         c.finalize();
 
-        assertEq(usdc.balanceOf(_M(1)) - m1Before, 101 * U - 100 * U - 1 * U + 10 * U);
+        assertEq(usdc.balanceOf(_M(1)), m1Before, "91 = 90 principal + 1 fee: nothing is left to return");
         assertEq(c.memberInfo(_M(1)).debt, 0, "principal cleared; the unpaid fee is not a debt");
         assertTrue(c.shortfallOf(2, _M(1)).resolved);
         assertEq(usdc.balanceOf(address(c)), 0);
@@ -507,11 +523,10 @@ contract HuiCircleFinalizeTest is CircleScenario {
 
     function test_Finalize_HoldbackSmallerThanPrincipal_PaysUncoveredFirstAndLeavesTheRestOwed() public {
         _mixedDefaultSetup(50 * U);
-        vm.warp(_graceEnd(5));
+        vm.warp(_graceEnd(5) + 1);
         Shortfall memory sf = c.shortfallOf(2, _M(1));
         uint256 elapsed = _now() - sf.since;
         uint256 feeDue = _lateFee(30 * U, elapsed) + _lateFee(20 * U, elapsed);
-        uint256 reserveBefore = c.reserve();
         uint256 m1Before = usdc.balanceOf(_M(1));
         uint256 m2Before = usdc.balanceOf(_M(2));
 
@@ -527,11 +542,10 @@ contract HuiCircleFinalizeTest is CircleScenario {
         assertEq(sf.uncovered, 0);
         assertEq(sf.fromReserve, 0);
         assertEq(sf.fromBond, 40 * U, "what the holdback could not repay stays on the books");
-        assertEq(sf.fromHoldback, 10 * U);
+        assertEq(sf.fromHoldback, 0, "own-holdback part forgiven (H-01)");
         assertFalse(sf.resolved);
-        assertEq(c.memberInfo(_M(1)).debt, 50 * U);
+        assertEq(c.memberInfo(_M(1)).debt, 40 * U);
         assertEq(c.reserve(), 0, "the restored reserve part was shared out with the rest");
-        assertGe(reserveBefore, 0);
         assertEq(usdc.balanceOf(address(c)), 0);
         _assertConserved();
     }

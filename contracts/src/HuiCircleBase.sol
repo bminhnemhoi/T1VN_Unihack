@@ -39,6 +39,7 @@ abstract contract HuiCircleBase is ERC2771Context, EIP712, Initializable, Reentr
     mapping(uint32 => mapping(address => Commit)) internal _commits;
     mapping(uint32 => mapping(address => Shortfall)) internal _shortfalls; // round => debtor => record
     mapping(uint32 => uint32) internal _commitCounter;
+    mapping(uint32 => uint8) internal _commitPayers; // L_k fixed at the first commit of round k, 0 = not fixed yet
     mapping(uint32 => uint64) internal _pausedAtSettle; // pausedTotal when round k was settled (docs/03 section 3.2)
     mapping(bytes32 => bool) public usedAttestation;
     mapping(address => bool) public hasLeft; // left while Forming: cannot rejoin this circle (docs/03 section 5.1)
@@ -74,8 +75,13 @@ abstract contract HuiCircleBase is ERC2771Context, EIP712, Initializable, Reentr
 
     /// @dev Bid ceiling for round `k` with the current number of paying live members (live minus the winner).
     function _maxBid(uint32 k) internal view returns (uint256) {
-        uint256 live = liveCount;
-        uint256 payers = live > 0 ? live - 1 : 0;
+        // The bid cap of a round is fixed by its first commit, so a `markDefault` between commit and reveal cannot
+        // push an honest sealed bid above the cap (audit M-02). Before any commit the view follows the live count.
+        uint256 payers = _commitPayers[k];
+        if (payers == 0) {
+            uint256 live = liveCount;
+            payers = live > 0 ? live - 1 : 0;
+        }
         return
             HuiMath.maxBid(_params.capBps, _params.memberCount, k, _params.contribution, _params.periodSeconds, payers);
     }

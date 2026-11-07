@@ -91,7 +91,7 @@ abstract contract HuiCircleViews is HuiCircleBase {
     function lateFeeOf(address m, uint32 k) external view returns (uint256 fee) {
         Shortfall storage sf = _shortfalls[k][m];
         if (sf.resolved || sf.amount == 0) return 0;
-        uint256 elapsed = block.timestamp - sf.since;
+        uint256 elapsed = block.timestamp - sf.since - (pausedTotal - _pausedAtSettle[k]);
         uint256[4] memory parts = [uint256(sf.uncovered), sf.fromReserve, sf.fromBond, sf.fromHoldback];
         for (uint256 i = 0; i < 4; i++) {
             fee += HuiMath.lateFee(parts[i], lateRateBps, elapsed, _params.periodSeconds, _params.roundDuration);
