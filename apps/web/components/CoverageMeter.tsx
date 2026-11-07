@@ -1,3 +1,4 @@
+import { memo } from 'react';
 import { formatBps, formatUsdc, MIN_COVERAGE_BPS, type Preview } from 'sdk';
 import { Seal } from '@/components/brand/Seal';
 import { LedgerList } from '@/components/LedgerList';
@@ -6,6 +7,8 @@ import { NumberTicker } from '@/components/ui/number-ticker';
 import { vi } from '@/lib/vi';
 
 interface Props {
+  /** Makes element ids unique when the panel is rendered twice (desktop column and mobile sheet). */
+  idPrefix?: string;
   preview: Preview;
   bond: bigint;
   alphaBps: bigint;
@@ -16,13 +19,13 @@ interface Props {
  * Live "Chỉ số bảo chứng" for the wizard: a big numeral that ticks, a ruler with the 50% line, and a red seal that
  * drops once the circle may start. State is always in words too, never colour alone.
  */
-export function CoverageMeter({ preview, bond, alphaBps, onFillBond }: Props) {
+export const CoverageMeter = memo(function CoverageMeter({ idPrefix = 'cov', preview, bond, alphaBps, onFillBond }: Props) {
   const pct = Math.min(100, Number(preview.coverageBps) / 100);
   const minPct = Number(MIN_COVERAGE_BPS) / 100;
   const ok = preview.canActivate;
   return (
     <div>
-      <h2 id="cov-title" className="font-display text-2xl font-bold">
+      <h2 id={`${idPrefix}-title`} className="font-display text-2xl font-bold">
         Chỉ số bảo chứng
       </h2>
       <p className="text-muted-foreground">{vi.help.coverage}</p>
@@ -39,14 +42,14 @@ export function CoverageMeter({ preview, bond, alphaBps, onFillBond }: Props) {
 
       <div
         role="meter"
-        aria-labelledby="cov-title"
+        aria-labelledby={`${idPrefix}-title`}
         aria-valuemin={0}
         aria-valuemax={100}
         aria-valuenow={pct}
         aria-valuetext={`${formatBps(preview.coverageBps)}, ${ok ? 'đủ để bắt đầu dây' : 'chưa đủ để bắt đầu dây'}`}
         className="relative mt-4 h-4 rounded-full bg-secondary shadow-[inset_0_0_0_1px_var(--input)]"
       >
-        <div className={`h-full rounded-full transition-[width] duration-300 ${ok ? 'bg-ngoc' : 'bg-nghe-fg'}`} style={{ width: `${pct}%` }} />
+        <div className={`h-full origin-left rounded-full transition-transform duration-200 ease-out ${ok ? 'bg-ngoc' : 'bg-nghe-fg'}`} style={{ transform: `scaleX(${pct / 100})` }} />
         <div aria-hidden className="absolute -top-1.5 -bottom-1.5 w-0.5 bg-foreground" style={{ left: `${minPct}%` }} />
       </div>
       <div aria-hidden className="so-ke relative mt-1 h-6 text-base text-muted-foreground">
@@ -81,4 +84,4 @@ export function CoverageMeter({ preview, bond, alphaBps, onFillBond }: Props) {
       )}
     </div>
   );
-}
+});

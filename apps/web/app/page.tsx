@@ -9,7 +9,7 @@ import { TrustGrid } from '@/components/landing/TrustGrid';
 /** S01: landing. Art direction in .handover/DESIGN-BRIEF.md (direction A, "Sổ hụi, bản in sang"). */
 export default function Home() {
   return (
-    <main>
+    <main id="noi-dung">
       <Hero />
       <EventTicker />
       <HowItWorks />

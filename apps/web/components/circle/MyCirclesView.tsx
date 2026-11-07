@@ -16,7 +16,7 @@ export function MyCirclesView() {
   const list = empty ? [] : SAMPLE_CIRCLES;
   const todo = list.filter((c) => c.state !== 'completed').length;
   return (
-    <main className="mx-auto max-w-4xl px-4 py-10">
+    <main id="noi-dung" className="mx-auto max-w-4xl px-4 py-10">
       <div className="flex flex-wrap items-center gap-3">
         <h1 className="font-display text-4xl font-bold md:text-5xl">Dây của tôi</h1>
         <Badge variant="secondary">Dữ liệu mẫu</Badge>
@@ -25,12 +25,10 @@ export function MyCirclesView() {
         {list.length === 0 ? 'Bạn chưa tham gia dây nào.' : `Bạn có ${todo} dây đang cần chú ý trên ${list.length} dây.`}
       </p>
 
-      <div className="mt-4 flex items-center gap-3">
+      <label htmlFor="xem-trong" className="mt-4 flex min-h-12 cursor-pointer items-center gap-3">
         <Switch id="xem-trong" checked={empty} onCheckedChange={setEmpty} />
-        <label htmlFor="xem-trong" className="flex min-h-12 items-center">
-          Xem thử trạng thái chưa có dây
-        </label>
-      </div>
+        Xem thử trạng thái chưa có dây
+      </label>
 
       {list.length > 0 ? (
         <ol className="mt-6 space-y-5">

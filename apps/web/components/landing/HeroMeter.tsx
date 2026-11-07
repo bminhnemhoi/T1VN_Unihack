@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { memo, useMemo, useState } from 'react';
 import { formatBps, formatUsdc, previewCircle } from 'sdk';
 import { Seal } from '@/components/brand/Seal';
 import { LedgerList } from '@/components/LedgerList';
@@ -9,6 +9,17 @@ import { NumberTicker } from '@/components/ui/number-ticker';
 
 const C = 100_000_000n; // 100 USDC
 const MAX_BOND = 480; // (1 - 20%) * O_max for N = 5, C = 100 (docs/03 section 8)
+
+// Does not depend on the bond, so it is computed once and the list below never re-renders while dragging.
+const STATIC = previewCircle({ n: 5n, c: C, periodDays: 30n, alphaBps: 2000n, bond: 0n, capBps: 2000n });
+const STATIC_ITEMS = [
+  { label: 'Rủi ro lớn nhất của dây', value: formatUsdc(STATIC.maxExposure) },
+  { label: 'Tiền giữ lại của người hốt', value: '20%' },
+  { label: 'Trần thăm kỳ 1', value: formatUsdc(STATIC.bidRows[0]!.maxBid) },
+];
+const StaticStats = memo(function StaticStats() {
+  return <LedgerList className="mt-2" items={STATIC_ITEMS} />;
+});
 
 /** The hero toy: drag the bond, watch the coverage index move. Same maths as the contract (previewCircle). */
 export function HeroMeter() {
@@ -51,7 +62,7 @@ export function HeroMeter() {
         aria-valuetext={`${formatBps(p.coverageBps)}, ${ok ? 'đủ để bắt đầu dây' : 'chưa đủ để bắt đầu dây'}`}
         className="relative mt-3 h-4 rounded-full bg-secondary shadow-[inset_0_0_0_1px_var(--input)]"
       >
-        <div className={`h-full rounded-full transition-[width] duration-300 ${ok ? 'bg-ngoc' : 'bg-nghe-fg'}`} style={{ width: `${pct}%` }} />
+        <div className={`h-full origin-left rounded-full transition-transform duration-200 ease-out ${ok ? 'bg-ngoc' : 'bg-nghe-fg'}`} style={{ transform: `scaleX(${pct / 100})` }} />
         <div aria-hidden className="absolute -top-1.5 -bottom-1.5 left-1/2 w-0.5 bg-foreground" />
       </div>
       <p aria-hidden className="relative mt-1 h-6 text-base text-muted-foreground">
@@ -80,14 +91,7 @@ export function HeroMeter() {
         />
       </div>
 
-      <LedgerList
-        className="mt-2"
-        items={[
-          { label: 'Rủi ro lớn nhất của dây', value: formatUsdc(p.maxExposure) },
-          { label: 'Tiền giữ lại của người hốt', value: '20%' },
-          { label: 'Trần thăm kỳ 1', value: formatUsdc(p.bidRows[0]!.maxBid) },
-        ]}
-      />
+      <StaticStats />
       <p className="mt-2 text-base text-muted-foreground">Số liệu tính theo đặc tả, không phải dây thật.</p>
     </div>
   );

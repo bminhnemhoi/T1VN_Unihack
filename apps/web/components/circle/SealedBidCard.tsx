@@ -6,6 +6,7 @@ import { formatUsdc, parseUsdc } from 'sdk';
 import { Countdown } from '@/components/brand/Countdown';
 import { Seal } from '@/components/brand/Seal';
 import type { Phase } from '@/components/circle/RoundTimeline';
+import { SoonButton } from '@/components/shell/SoonButton';
 import { Button } from '@/components/ui/button';
 import { Field, FieldDescription, FieldError, FieldLabel } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
@@ -22,6 +23,7 @@ interface Props {
 export function SealedBidCard({ phase, round, maxBid, revealBond }: Props) {
   const [text, setText] = useState('2');
   const [sealed, setSealed] = useState<bigint | undefined>();
+  const [opened, setOpened] = useState(false);
   const bid = parseUsdc(text);
   const error = bid === undefined ? 'Nhập thăm bằng số, ví dụ 2 hoặc 1,5.' : bid > maxBid ? `Thăm tối đa kỳ này là ${formatUsdc(maxBid)}.` : undefined;
 
@@ -54,7 +56,7 @@ export function SealedBidCard({ phase, round, maxBid, revealBond }: Props) {
           <div className="min-w-0 flex-1">
             <p className="text-xl font-semibold">Đã niêm phong thăm của bạn.</p>
             <p className="text-muted-foreground">Không ai thấy được con số này cho đến giờ mở thăm. Bạn vẫn sửa được trước khi hết giờ nộp.</p>
-            <Button type="button" variant="outline" className="mt-3" onClick={() => setSealed(undefined)}>
+            <Button type="button" variant="outline" size="lg" className="mt-3" onClick={() => setSealed(undefined)}>
               Sửa thăm
             </Button>
           </div>
@@ -64,7 +66,17 @@ export function SealedBidCard({ phase, round, maxBid, revealBond }: Props) {
       {phase === 'reveal' && (
         <div className="mt-4">
           <p className="text-xl">Đến giờ mở thăm. Bấm để mở thăm đã niêm phong của bạn và nhận lại cọc {formatUsdc(revealBond)}.</p>
-          <Button type="button" size="lg" className="mt-3">Mở thăm của tôi</Button>
+          {opened && sealed !== undefined ? (
+            <p role="status" className="so-ke mt-3 rounded-xl border-2 border-ngoc bg-ngoc/10 p-4 text-xl font-semibold text-ngoc">
+              Đã mở thăm của bạn: {formatUsdc(sealed)} mỗi phần. Cọc {formatUsdc(revealBond)} đã được trả lại (mẫu).
+            </p>
+          ) : opened ? (
+            <p role="status" className="mt-3 rounded-xl border-2 border-destructive bg-card p-4 text-xl font-semibold text-destructive">
+              Bạn chưa niêm phong thăm ở giai đoạn nộp, nên không có thăm để mở. Quên nộp thì không mất gì; quên mở thăm đã nộp thì mất cọc.
+            </p>
+          ) : (
+            <Button type="button" size="lg" className="mt-3" onClick={() => setOpened(true)}>Mở thăm của tôi</Button>
+          )}
           <p className="mt-2 text-muted-foreground">Quên mở thì mất cọc vào quỹ dự phòng.</p>
         </div>
       )}
@@ -72,7 +84,9 @@ export function SealedBidCard({ phase, round, maxBid, revealBond }: Props) {
       {phase === 'settle' && (
         <div className="mt-4">
           <p className="text-xl">Đã mở xong. Chờ chốt kỳ: ai cũng bấm được, không cần chờ chủ hụi.</p>
-          <Button type="button" size="lg" className="mt-3">Chốt kỳ {round}</Button>
+          <SoonButton size="lg" className="mt-3" message={`Chốt kỳ ${round} cần nối mạng để trích phần góp của mọi người. Hiện là màn hình mẫu, chưa chốt gì.`}>
+            Chốt kỳ {round}
+          </SoonButton>
         </div>
       )}
 

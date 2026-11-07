@@ -11,9 +11,9 @@ import { cn } from '@/lib/utils';
 export function SiteHeader() {
   const pathname = usePathname();
   return (
-    <header className="sticky top-0 z-30 border-b border-border bg-card/95 backdrop-blur">
+    <header className="sticky top-0 z-30 border-b border-border bg-card">
       <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4">
-        <Link href="/" className="flex min-h-14 items-center gap-2.5 text-foreground">
+        <Link href="/" aria-label="HụiSafe, về trang chủ" className="flex min-h-14 items-center gap-2.5 text-foreground">
           <Seal size={40} center="Hụi" ring="HỤISAFE · KHÔNG AI CẦM TIỀN · " className="-rotate-6 text-le-do" />
           <span className="font-display text-2xl font-bold tracking-tight">{vi.appName}</span>
         </Link>

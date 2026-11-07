@@ -20,7 +20,7 @@ const MAX_BID_K3 = preview.bidRows[2]!.maxBid; // 3,287671 USDC (docs/03 section
 export function RoomView() {
   const [phase, setPhase] = useState<Phase>('commit');
   return (
-    <main className="mx-auto max-w-6xl px-4 py-10">
+    <main id="noi-dung" className="mx-auto max-w-6xl px-4 py-10">
       <div className="flex flex-wrap items-center gap-5">
         <ProgressRing value={2} total={5} size={104} label="Đã chi 2 trên 5 kỳ">
           <span className="so-ke font-display text-4xl leading-none font-bold">2</span>

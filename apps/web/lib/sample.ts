@@ -58,7 +58,7 @@ export const SAMPLE_CIRCLES: SampleCircle[] = [
     contribution: usdc(10),
     todo: 'Chờ đủ người (3 trên 5), rồi bấm bắt đầu dây',
     secondsLeft: 6 * 86_400 + 3 * 3600,
-    href: '/circles/demo',
+    href: '/circles/dang-gom',
   },
   {
     id: 'c',
@@ -70,6 +70,6 @@ export const SAMPLE_CIRCLES: SampleCircle[] = [
     contribution: usdc(50),
     todo: 'Đã xong. Xem sổ hụi hoặc nhận lại phần còn lại',
     secondsLeft: 0,
-    href: '/circles/demo',
+    href: '/circles/da-xong',
   },
 ];

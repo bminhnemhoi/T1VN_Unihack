@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { HeroMeter } from '@/components/landing/HeroMeter';
 import { Seal } from '@/components/brand/Seal';
+import { SoonButton } from '@/components/shell/SoonButton';
 import { Button } from '@/components/ui/button';
 
 const FACTS = ['Không ai cầm tiền', 'Chủ hụi khóa ký quỹ', 'Sổ hụi công khai'];
@@ -25,9 +26,14 @@ export function Hero() {
             ))}
           </ul>
           <div className="vao mt-8 flex max-w-md flex-col gap-2" style={{ ['--i' as string]: 3 }}>
-            <Button size="lg" disabled aria-describedby="dang-nhap-ghi-chu" className="bg-nghe text-muc-dem hover:bg-nghe disabled:opacity-90">
+            <SoonButton
+              size="lg"
+              aria-describedby="dang-nhap-ghi-chu"
+              message="Đăng nhập bằng Google hoặc email sẽ có khi nối ví. Hiện là màn hình mẫu, bạn xem thử các màn hình bằng nút bên dưới."
+              className="bg-nghe text-muc-dem hover:bg-nghe/90"
+            >
               Đăng nhập bằng Google hoặc email
-            </Button>
+            </SoonButton>
             <p id="dang-nhap-ghi-chu" className="text-[#c9d2e0]">
               Đăng nhập sẽ có sau. Không cần ví, không cần AVAX.
             </p>

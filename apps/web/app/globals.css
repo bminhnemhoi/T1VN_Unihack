@@ -132,7 +132,6 @@
   html {
     font-size: 18px; /* body text >= 18px (docs/02 section 7) */
     line-height: 1.6;
-    scroll-behavior: smooth;
   }
   body {
     font-feature-settings: "tnum" 0;
@@ -149,6 +148,16 @@
   h1, h2, h3 {
     letter-spacing: -0.01em;
     text-wrap: balance;
+  }
+  /* Taps respond at once: no 300 ms double-tap wait, no grey flash, our own pressed state instead. */
+  a, button, summary, label, input, [role="switch"], [role="checkbox"], [role="radio"] {
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+  }
+  /* Pressed state: the transition lives only on :active, so hover never animates under a scrolling finger. */
+  a:active, button:not(:disabled):active, summary:active, [role="radio"]:active, [role="checkbox"]:active {
+    transform: scale(0.97);
+    transition: transform 80ms ease-out;
   }
 }
 
@@ -204,7 +213,6 @@
   body {
     background-image:
       repeating-linear-gradient(to bottom, transparent 0 35px, rgb(17 32 63 / 0.045) 35px 36px);
-    background-attachment: fixed;
   }
   h1, h2, h3 { text-wrap: balance; }
   p, li { text-wrap: pretty; }
@@ -237,10 +245,6 @@
   }
   .the-nang:hover { transform: translateY(-2px); }
 
-  /* Ruled paper lines inside a panel. */
-  .{
-    background-image: repeating-linear-gradient(to bottom, transparent 0 31px, rgb(17 32 63 / 0.07) 31px 32px);
-  }
   /* Dark ink band with film grain (inline SVG noise) and faint ruling. */
   .nen-muc {
     position: relative;
@@ -266,7 +270,7 @@
   .nen-muc .vien-le-do::before { border-color: var(--le-do-sang); }
 
   /* One orchestrated hero entrance: children with .vao rise in sequence. */
-  .vao { opacity: 0; transform: translateY(14px); animation: vao 700ms cubic-bezier(0.16, 1, 0.3, 1) forwards; animation-delay: calc(var(--i, 0) * 90ms); }
+  .vao { transform: translateY(12px); animation: vao 500ms cubic-bezier(0.16, 1, 0.3, 1) forwards; animation-delay: calc(var(--i, 0) * 70ms); }
 
   /* Slider (native range, styled, 48px hit area). */
   .thanh-keo { appearance: none; width: 100%; height: 3rem; background: transparent; cursor: pointer; }
@@ -283,7 +287,21 @@
   details.hoi[open] .dau-cong { transform: rotate(45deg); }
 }
 
-@keyframes vao { to { opacity: 1; transform: none; } }
+/* Border beam: a conic wedge that rotates (transform only) behind a masked 2 px ring. */
+.beam-ring {
+  position: absolute; inset: 0; border-radius: inherit; pointer-events: none; overflow: hidden;
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor; mask-composite: exclude;
+}
+.beam-ring::before {
+  content: ""; position: absolute; left: 50%; top: 50%; width: 250%; height: 250%; translate: -50% -50%;
+  background: conic-gradient(from 0deg, transparent 0 90%, var(--beam-1) 96%, var(--beam-2) 100%);
+  animation: beam-spin var(--beam-d, 9s) linear infinite; animation-play-state: var(--beam-state, running);
+  will-change: rotate;
+}
+@keyframes beam-spin { to { rotate: 360deg; } }
+
+@keyframes vao { to { transform: none; } }
 @keyframes dau-xuong {
   0% { transform: rotate(-9deg) scale(1.5); opacity: 0; }
   60% { transform: rotate(-4deg) scale(0.96); opacity: 1; }
@@ -292,7 +310,8 @@
 .dau-xuong { animation: dau-xuong 320ms cubic-bezier(0.16, 1, 0.3, 1) both; }
 
 @media (prefers-reduced-motion: reduce) {
-  .vao { opacity: 1 !important; transform: none !important; }
+  .vao { transform: none !important; }
+  .beam-ring { display: none; }
   .marquee-tinh { flex-wrap: wrap; overflow: visible; }
   .marquee-tinh > :not(:first-child) { display: none; }
 }

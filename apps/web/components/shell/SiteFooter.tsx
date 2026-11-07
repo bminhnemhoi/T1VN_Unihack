@@ -12,7 +12,7 @@ export function SiteFooter() {
             <Seal size={56} className="-rotate-6 text-le-do-sang" />
             <p className="font-display text-3xl font-bold">{vi.appName}</p>
           </div>
-          <p className="mt-4 max-w-prose font-display text-xl leading-snug italic">{vi.tagline}</p>
+          <p className="mt-4 max-w-prose font-display text-xl leading-snug">{vi.tagline}</p>
           <p className="mt-6 max-w-prose text-base text-[#c9d2e0]">
             Đây là thông tin tham khảo, không phải tư vấn tài chính hay pháp lý. Chạy trên Avalanche Fuji (mạng thử), dùng USDC thử nghiệm.
           </p>

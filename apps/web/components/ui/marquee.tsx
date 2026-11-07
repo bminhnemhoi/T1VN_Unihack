@@ -1,5 +1,8 @@
+"use client"
+
 import { type ComponentPropsWithoutRef } from "react"
 
+import { useInView } from "@/lib/useInView"
 import { cn } from "@/lib/utils"
 
 interface MarqueeProps extends ComponentPropsWithoutRef<"div"> {
@@ -42,9 +45,13 @@ export function Marquee({
   repeat = 4,
   ...props
 }: MarqueeProps) {
+  // Pause while off screen so a ticker never costs frames on a section nobody is looking at.
+  const [ref, inView] = useInView<HTMLDivElement>()
   return (
     <div
       {...props}
+      ref={ref}
+      data-offscreen={!inView}
       className={cn(
         "group flex gap-(--gap) overflow-hidden p-2 [--duration:40s] [--gap:1rem]",
         {
@@ -63,6 +70,7 @@ export function Marquee({
               "animate-marquee flex-row": !vertical,
               "animate-marquee-vertical flex-col": vertical,
               "group-hover:[animation-play-state:paused]": pauseOnHover,
+              "group-data-[offscreen=true]:[animation-play-state:paused]": true,
               "[animation-direction:reverse]": reverse,
             })}
           >
