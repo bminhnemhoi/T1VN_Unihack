@@ -23,6 +23,10 @@ contract HuiFactory is ERC2771Context, IHuiFactory {
     error ZeroAddress();
     /// @dev A FactoryConfig field is out of its structural range (see `_checkConfig`).
     error InvalidConfig();
+    /// @dev `onFinished` from a circle that never called `onActivated` (or already finished).
+    error NotActivated(address circle);
+    /// @dev `onActivated` twice from the same circle.
+    error AlreadyActivated(address circle);
 
     // ------------------------------------------------------------------ constants
     /// @notice Smallest allowed contribution, 1 USDC (docs/03 section 3.1).
@@ -56,6 +60,8 @@ contract HuiFactory is ERC2771Context, IHuiFactory {
     mapping(address => address[]) internal _circlesOf;
     mapping(address => uint256) internal _activeCirclesOf;
     mapping(address => bool) internal _isCircle;
+    /// @dev Circles between `onActivated` and `onFinished`; makes `onFinished` impossible before `onActivated`.
+    mapping(address => bool) internal _activated;
 
     modifier onlyAdmin() {
         if (_msgSender() != admin) revert NotAdmin();
@@ -145,11 +151,17 @@ contract HuiFactory is ERC2771Context, IHuiFactory {
 
     /// @inheritdoc IHuiFactory
     function onActivated(address organizer) external override onlyCircle {
+        address circle = _msgSender();
+        if (_activated[circle]) revert AlreadyActivated(circle);
+        _activated[circle] = true;
         _activeCirclesOf[organizer] += 1;
     }
 
     /// @inheritdoc IHuiFactory
     function onFinished(address organizer) external override onlyCircle {
+        address circle = _msgSender();
+        if (!_activated[circle]) revert NotActivated(circle);
+        _activated[circle] = false;
         _activeCirclesOf[organizer] -= 1;
     }
 
@@ -206,6 +218,8 @@ contract HuiFactory is ERC2771Context, IHuiFactory {
         if (p.revealBondBps > MAX_REVEAL_BOND_BPS) revert InvalidParams(11);
         if (p.capBps > cfg.maxCapBps) revert InvalidParams(12);
         if (p.joinDeadline <= block.timestamp) revert InvalidParams(13);
+        // A late payment of round k must be able to run out of grace before round k + 1 settles (INV-06, audit M-02).
+        if (p.graceSeconds >= p.roundDuration) revert InvalidParams(14);
     }
 
     /// @dev Structural sanity of a config: non-zero addresses, forwarder unchanged, every bps value <= 10_000 (fee,
@@ -217,6 +231,8 @@ contract HuiFactory is ERC2771Context, IHuiFactory {
             revert ZeroAddress();
         }
         if (c.forwarder != trustedForwarder()) revert InvalidConfig();
+        // Circles call the registry inside `try`; an address without code would make every call silently succeed.
+        if (c.reputation.code.length == 0) revert InvalidConfig();
         if (
             c.maxCapBps > BPS || c.lateRateBps > BPS || c.minCoverageBps > BPS || c.maxFeeBps > BPS
                 || c.maxReserveBps > BPS

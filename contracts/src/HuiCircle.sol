@@ -1,14 +1,11 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.24;
 
-import {ERC2771Context} from "@openzeppelin/contracts/metatx/ERC2771Context.sol";
-import {Initializable} from "@openzeppelin/contracts/proxy/utils/Initializable.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {ECDSA} from "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
-import {EIP712} from "@openzeppelin/contracts/utils/cryptography/EIP712.sol";
-import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 
+import {HuiCircleBase} from "./HuiCircleBase.sol";
 import {IHuiCircle} from "./interfaces/IHuiCircle.sol";
 import {IHuiFactory} from "./interfaces/IHuiFactory.sol";
 import {IReputationRegistry, Reputation} from "./interfaces/IReputationRegistry.sol";
@@ -24,67 +21,60 @@ import {
     MemberInfo,
     PermitSig,
     RoundInfo,
-    RoundPhase,
     Shortfall
 } from "./libraries/HuiTypes.sol";
 
 /// @title HuiCircle
-/// @notice One rotating-savings circle. This version carries the Forming flow (task C4: bond, join, leave, activate,
-/// cancel), the sealed-bid flow (task C5: commit, reveal) and `settleRound` (task C6: winner selection, pulls, cover
-/// cascade, payout). Late payment, default, finalize and emergency functions are added by task C7 (docs/03 sections
-/// 5-6).
+/// @notice One rotating-savings circle: Forming flow (bond, join, leave, activate, cancel), sealed bids (commit,
+/// reveal), `settleRound` (winner selection, pulls, cover cascade, payout) and, from task C7, late payment,
+/// default, debt repayment, `finalize`, the factory-only pause / unpause / emergency unwind and `claim`
+/// (docs/03 sections 5-6).
 /// @dev Deployed once as an implementation; every circle is an EIP-1167 clone of it. The forwarder is an immutable of
 /// the implementation (ERC2771Context), so every clone shares it. Use `_msgSender()`, never `msg.sender`. No Multicall.
-/// Events and errors are those declared in `IHuiCircle`; this contract does not inherit the interface yet because it
-/// does not implement all of it (C6-C7 will).
-contract HuiCircle is ERC2771Context, EIP712, Initializable, ReentrancyGuard {
+/// Events and errors are those declared in `IHuiCircle`; this contract does not inherit the interface because it
+/// serves part of it through the lens.
+///
+/// Size (EIP-170): the read-only functions of docs/05 section 3.2 (`HuiCircleViews`) live in the immutable
+/// `HuiCircleLens`. Any call whose selector is not defined here falls into `fallback()` and is DELEGATECALLed to the
+/// lens, so views read the circle's own storage and callers see one ABI. The lens contains only `view` functions
+/// (storage layout shared through `HuiCircleBase`), so even a non-static call to the fallback cannot change state or
+/// move funds. Plain ETH is rejected (no `receive`, `fallback` is not payable).
+contract HuiCircle is HuiCircleBase {
     using SafeERC20 for IERC20;
 
     bytes32 private constant _ATTESTATION_TYPEHASH =
         keccak256("MemberAttestation(address member,address circle,bytes32 attestationId,uint64 expiry)");
 
-    // ------------------------------------------------------------------ storage (docs/05 section 2.1, partial)
-    IHuiFactory public factory;
-    address public organizer;
-    IERC20 public usdc;
-    address public reputation;
-    address public attester;
-    uint16 public lateRateBps; // copied from the factory config at initialize
-    uint16 public minCoverageBps;
-
-    CircleParams internal _params;
-    CircleState public state;
-    uint64 public startTime;
-    uint64 public pausedTotal;
-    uint32 public settledRounds; // number of rounds already paid out
-
-    address[] internal _members; // by joinIndex
-    mapping(address => MemberInfo) internal _info;
-    mapping(uint32 => RoundInfo) internal _rounds;
-    mapping(uint32 => mapping(address => Commit)) internal _commits;
-    mapping(uint32 => mapping(address => Shortfall)) internal _shortfalls; // round => debtor => record
-    mapping(uint32 => uint32) internal _commitCounter;
-    mapping(bytes32 => bool) public usedAttestation;
-    mapping(address => bool) public hasLeft; // left while Forming: cannot rejoin this circle (docs/03 section 5.1)
-    uint32 public liveCount; // members joined, not received, not defaulted; set at activate, kept by settleRound
-
-    uint256 public bondDeposited;
-    uint256 public bondRemaining;
-    uint256 public reserve;
-    uint256 public revealBondsHeld;
-    uint256 public totalHoldback;
-    mapping(uint32 => uint256) public feeEscrow;
-    uint256 public totalFeeEscrow;
-    mapping(address => uint256) public claimable;
-    uint256 public totalClaimable;
+    /// @notice The `HuiCircleLens` that serves the read-only functions (immutable, shared by all clones).
+    address public immutable lens;
 
     /// @param forwarder_ ERC-2771 trusted forwarder shared by all clones.
-    constructor(address forwarder_) ERC2771Context(forwarder_) EIP712("HuiSafe", "1") {
+    /// @param lens_ Deployed `HuiCircleLens`.
+    constructor(address forwarder_, address lens_) HuiCircleBase(forwarder_) {
+        lens = lens_;
         _disableInitializers();
+    }
+
+    /// @dev Serves every selector not defined on the circle (the views of `HuiCircleViews`) by delegating to `lens`.
+    fallback() external {
+        address target = lens;
+        assembly ("memory-safe") {
+            calldatacopy(0, 0, calldatasize())
+            let ok := delegatecall(gas(), target, 0, calldatasize(), 0, 0)
+            returndatacopy(0, 0, returndatasize())
+            switch ok
+            case 0 { revert(0, returndatasize()) }
+            default { return(0, returndatasize()) }
+        }
     }
 
     modifier onlyOrganizer() {
         if (_msgSender() != organizer) revert IHuiCircle.NotOrganizer();
+        _;
+    }
+
+    modifier onlyFactory() {
+        if (_msgSender() != address(factory)) revert IHuiCircle.NotFactory();
         _;
     }
 
@@ -339,14 +329,6 @@ contract HuiCircle is ERC2771Context, EIP712, Initializable, ReentrancyGuard {
         if (mi.received || mi.defaulted || mi.debt != 0) revert IHuiCircle.NotEligibleToBid();
     }
 
-    /// @dev Bid ceiling for round `k` with the current number of paying live members (live minus the winner).
-    function _maxBid(uint32 k) private view returns (uint256) {
-        uint256 live = liveCount;
-        uint256 payers = live > 0 ? live - 1 : 0;
-        return
-            HuiMath.maxBid(_params.capBps, _params.memberCount, k, _params.contribution, _params.periodSeconds, payers);
-    }
-
     // ================================================================== settleRound (docs/03 sections 6.5-6.8)
 
     /// @dev Working totals of one `settleRound` call, kept in memory to stay under the stack limit.
@@ -383,26 +365,29 @@ contract HuiCircle is ERC2771Context, EIP712, Initializable, ReentrancyGuard {
         if (_commitCounter[k] != 0) _forfeitUnrevealed(k);
         (st.winner, st.bid) = _selectWinner(k);
 
-        _collect(st);
-        _distribute(st);
-
+        // Effects before any external call (audit I-01): the round is closed before tokens move.
         address w = st.winner;
         MemberInfo storage wi = _info[w];
         wi.received = true;
         wi.receivedRound = uint8(k);
         settledRounds = k;
+        _pausedAtSettle[k] = pausedTotal;
         RoundInfo storage ri = _rounds[k];
         ri.winner = w;
         ri.winningBid = uint128(st.bid);
+        ri.settledAt = uint64(block.timestamp);
+        ri.commitCount = _commitCounter[k];
+        ri.settled = true;
+
+        _collect(st);
+        _distribute(st);
+
         ri.pot = uint128(st.pot);
         ri.payout = uint128(st.payout);
         ri.holdback = uint128(st.holdback);
         ri.fee = uint128(st.fee);
         ri.premium = uint128(st.premium);
         ri.uncovered = uint128(st.uncovered);
-        ri.settledAt = uint64(block.timestamp);
-        ri.commitCount = _commitCounter[k];
-        ri.settled = true;
 
         emit IHuiCircle.RoundSettled(k, w, st.bid, st.pot, st.payout, st.holdback, st.fee, st.premium, st.uncovered);
         _pay(w, st.payout);
@@ -551,59 +536,62 @@ contract HuiCircle is ERC2771Context, EIP712, Initializable, ReentrancyGuard {
         }
     }
 
-    /// @dev docs/03 sections 6.6 and 6.8: spend up to `budget` of the winner's pot on the winner's own open
-    /// shortfalls, oldest round first. Inside one shortfall the refund order is the reverse of the cascade: the
-    /// `uncovered` part is paid straight to that round's winner, then reserve, bond and holdback are refilled.
-    /// All principal comes first; late fees (docs/03 section 2.5, on the principal and the time it was owed) are
-    /// taken from what is left and go to the reserve. Returns the total spent (principal + fees).
+    /// @dev docs/03 sections 6.6 and 6.8: spend up to `budget` of a pot (or of the debtor's own holdback at
+    /// `finalize`) on the debtor's open shortfalls of rounds `< upToRound`, oldest first. All principal comes first;
+    /// late fees (docs/03 section 2.5) are taken from what is left and go to the reserve; a fee the budget cannot
+    /// cover is announced with `LateFeeUnpaid`, never stored. Returns the total spent (principal + fees).
     function _repayFromPot(address debtor, uint256 budget, uint32 upToRound) internal returns (uint256 spent) {
-        uint256 feeDue;
-        uint256 principal;
-        for (uint32 r = 1; r < upToRound && budget > 0; r++) {
-            Shortfall storage sf = _shortfalls[r][debtor];
-            if (sf.resolved || sf.amount == 0) continue;
-            uint256 since = sf.since;
-            uint256 p;
-            uint256 f;
-            (p, f) = _restorePart(r, debtor, CoverSource.Uncovered, sf.uncovered, budget, since);
-            sf.uncovered -= uint128(p);
-            budget -= p;
-            principal += p;
-            feeDue += f;
-            (p, f) = _restorePart(r, debtor, CoverSource.Reserve, sf.fromReserve, budget, since);
-            sf.fromReserve -= uint128(p);
-            budget -= p;
-            principal += p;
-            feeDue += f;
-            (p, f) = _restorePart(r, debtor, CoverSource.Bond, sf.fromBond, budget, since);
-            sf.fromBond -= uint128(p);
-            budget -= p;
-            principal += p;
-            feeDue += f;
-            (p, f) = _restorePart(r, debtor, CoverSource.Holdback, sf.fromHoldback, budget, since);
-            sf.fromHoldback -= uint128(p);
-            budget -= p;
-            principal += p;
-            feeDue += f;
-            if (sf.uncovered == 0 && sf.fromReserve == 0 && sf.fromBond == 0 && sf.fromHoldback == 0) {
-                sf.resolved = true;
-            }
-        }
-        _info[debtor].debt -= uint128(principal);
-        uint256 fee = _min(feeDue, budget);
+        (uint256 principal, uint256 feeDue) = _restoreAll(debtor, budget, upToRound);
+        uint256 fee = _min(feeDue, budget - principal);
         reserve += fee;
-        spent = principal + fee;
+        if (fee < feeDue) emit IHuiCircle.LateFeeUnpaid(debtor, feeDue - fee);
         emit IHuiCircle.DebtRepaid(debtor, principal, fee);
+        return principal + fee;
     }
 
-    /// @dev Restore one source of one shortfall: `p = min(owed, budget)` goes to its destination. Returns `p` and the
-    /// late fee that `p` owes for the time since the shortfall appeared.
-    function _restorePart(uint32 r, address debtor, CoverSource source, uint256 owed, uint256 budget, uint256 since)
+    /// @dev Restore up to `budget` principal across the open shortfalls of `debtor` in rounds `< upToRound`, oldest
+    /// first, and lower `debt` by it. Returns the principal restored and the late fee it owes (not yet collected).
+    function _restoreAll(address debtor, uint256 budget, uint32 upToRound)
         private
-        returns (uint256 p, uint256 f)
+        returns (uint256 principal, uint256 feeDue)
     {
-        p = _min(owed, budget);
-        if (p == 0) return (0, 0);
+        for (uint32 r = 1; r < upToRound && budget > 0; r++) {
+            (uint256 p, uint256 f) = _restoreRound(r, debtor, budget);
+            budget -= p;
+            principal += p;
+            feeDue += f;
+        }
+        _info[debtor].debt -= uint128(principal);
+    }
+
+    /// @dev Restore up to `budget` of one shortfall in the refund order of docs/03 section 6.8 (reverse of the
+    /// cascade): `uncovered` (paid straight to that round's winner), reserve, bond, holdback. Closes the record when
+    /// every part is back to zero. Does NOT touch `debt`; callers do.
+    function _restoreRound(uint32 r, address debtor, uint256 budget)
+        private
+        returns (uint256 principal, uint256 feeDue)
+    {
+        Shortfall storage sf = _shortfalls[r][debtor];
+        if (sf.resolved || sf.amount == 0) return (0, 0);
+        for (uint8 i = 4; i > 0 && budget > 0; i--) {
+            CoverSource source = CoverSource(i - 1); // Uncovered(3), Reserve(2), Bond(1), Holdback(0)
+            uint256 owed = _owed(sf, source);
+            uint256 p = _min(owed, budget);
+            if (p == 0) continue;
+            _setOwed(sf, source, owed - p);
+            budget -= p;
+            principal += p;
+            feeDue += _restorePart(r, debtor, source, p, sf.since);
+        }
+        if (sf.uncovered == 0 && sf.fromReserve == 0 && sf.fromBond == 0 && sf.fromHoldback == 0) sf.resolved = true;
+    }
+
+    /// @dev Send `p` of one source back to where the cascade took it from. Returns the late fee `p` owes for the
+    /// time since the shortfall appeared.
+    function _restorePart(uint32 r, address debtor, CoverSource source, uint256 p, uint256 since)
+        private
+        returns (uint256 f)
+    {
         f = HuiMath.lateFee(p, lateRateBps, block.timestamp - since, _params.periodSeconds, _params.roundDuration);
         if (source == CoverSource.Reserve) {
             reserve += p;
@@ -617,18 +605,284 @@ contract HuiCircle is ERC2771Context, EIP712, Initializable, ReentrancyGuard {
         if (source == CoverSource.Uncovered) _pay(_rounds[r].winner, p);
     }
 
-    /// @dev Reputation writes never block a round: a failing registry is ignored. Only `recordOnTime` and
-    /// `recordLate` are issued here, selected by `selector`.
+    function _owed(Shortfall storage sf, CoverSource source) private view returns (uint256) {
+        if (source == CoverSource.Uncovered) return sf.uncovered;
+        if (source == CoverSource.Reserve) return sf.fromReserve;
+        if (source == CoverSource.Bond) return sf.fromBond;
+        return sf.fromHoldback;
+    }
+
+    function _setOwed(Shortfall storage sf, CoverSource source, uint256 v) private {
+        if (source == CoverSource.Uncovered) sf.uncovered = uint128(v);
+        else if (source == CoverSource.Reserve) sf.fromReserve = uint128(v);
+        else if (source == CoverSource.Bond) sf.fromBond = uint128(v);
+        else sf.fromHoldback = uint128(v);
+    }
+
+    /// @dev Reputation writes never block a round: the call is made with `selector` and its result, including a
+    /// revert, is ignored (the registry is a trusted contract of the deployment). No return data is copied.
     function _record(address m, bytes4 selector) private {
-        if (selector == IReputationRegistry.recordOnTime.selector) {
-            try IReputationRegistry(reputation).recordOnTime(m) {} catch {}
-        } else {
-            try IReputationRegistry(reputation).recordLate(m) {} catch {}
+        address reg = reputation;
+        bytes memory data = abi.encodeWithSelector(selector, m);
+        assembly ("memory-safe") {
+            pop(call(gas(), reg, 0, add(data, 0x20), mload(data), 0, 0))
         }
     }
 
     function _min(uint256 a, uint256 b) private pure returns (uint256) {
         return a < b ? a : b;
+    }
+
+    // ================================================================== Late payment, default, repayment (docs/03 6.8)
+
+    /// @notice Pay the whole open principal of your shortfall of `round` plus its late fee, inside the grace period.
+    /// @dev Principal is pulled first, applied in the refund order of docs/03 section 6.8 (uncovered straight to the
+    /// round winner, then reserve, bond, holdback), then the late fee is pulled and goes to the reserve. A member who
+    /// had already received before `round` and is not defaulted gets the skipped `alpha * C` holdback release of
+    /// that round back, which restores INV-06. The lateness was already recorded when the round settled.
+    /// @param round The round whose shortfall is paid.
+    function payLate(uint32 round) external nonReentrant {
+        _requireState(CircleState.Active);
+        address m = _msgSender();
+        Shortfall storage sf = _shortfalls[round][m];
+        if (sf.resolved || sf.amount == 0) revert IHuiCircle.NoShortfall();
+        if (block.timestamp > _graceEnd(round)) revert IHuiCircle.GraceExpired();
+        uint256 owed = uint256(sf.uncovered) + sf.fromReserve + sf.fromBond + sf.fromHoldback;
+        usdc.safeTransferFrom(m, address(this), owed);
+        (uint256 principal, uint256 fee) = _restoreRound(round, m, owed);
+        MemberInfo storage mi = _info[m];
+        mi.debt -= uint128(principal);
+        if (fee != 0) {
+            reserve += fee;
+            usdc.safeTransferFrom(m, address(this), fee);
+        }
+        emit IHuiCircle.LatePaid(round, m, principal, fee);
+        if (mi.received && !mi.defaulted && mi.receivedRound < round && mi.holdback != 0) {
+            _release(m, round, mi, HuiMath.releasePerRound(_params.alphaBps, _params.contribution));
+        }
+    }
+
+    /// @notice Mark `member` as defaulted once a shortfall is past its grace period. Anyone may call.
+    /// @dev The oldest shortfall past `graceEnd` names the round `r`. A member who already received becomes
+    /// DefaultedDead; one who has not becomes Frozen and leaves the live set. The fee escrow of round `r` moves to
+    /// the reserve and the registry records the default.
+    /// @param member The late member.
+    function markDefault(address member) external nonReentrant {
+        _requireState(CircleState.Active);
+        MemberInfo storage mi = _info[member];
+        if (!mi.joined) revert IHuiCircle.NotMember();
+        if (mi.defaulted) revert IHuiCircle.AlreadyDefaulted();
+        if (mi.debt == 0) revert IHuiCircle.NoShortfall();
+        uint32 r = _expiredShortfall(member);
+        if (r == 0) revert IHuiCircle.GraceNotOver();
+        _default(member, mi, r);
+    }
+
+    /// @notice A defaulted member repays `amount` of principal at any time, plus the late fee of that principal.
+    /// @dev Principal is applied oldest round first in the refund order of docs/03 section 6.8; the fee of each
+    /// restored part (time since its shortfall) goes to the reserve. Holdback is not released: a defaulted member no
+    /// longer earns per-round releases. `recordRepaid` is written once the debt reaches zero.
+    /// @param amount Principal to repay, at most the member's `debt`.
+    function repayDebt(uint256 amount) external nonReentrant {
+        _requireState(CircleState.Active);
+        address m = _msgSender();
+        MemberInfo storage mi = _info[m];
+        if (!mi.joined) revert IHuiCircle.NotMember();
+        if (!mi.defaulted || mi.debt == 0 || amount == 0) revert IHuiCircle.NoShortfall();
+        if (amount > mi.debt) revert IHuiCircle.RepayTooLarge(amount, mi.debt);
+        usdc.safeTransferFrom(m, address(this), amount);
+        (uint256 principal, uint256 fee) = _restoreAll(m, amount, settledRounds + 1);
+        if (fee != 0) {
+            reserve += fee;
+            usdc.safeTransferFrom(m, address(this), fee);
+        }
+        emit IHuiCircle.DebtRepaid(m, principal, fee);
+        if (mi.debt == 0) _record(m, IReputationRegistry.recordRepaid.selector);
+    }
+
+    /// @dev Oldest round whose shortfall of `m` is open and past its grace period, or 0 if there is none.
+    function _expiredShortfall(address m) private view returns (uint32) {
+        uint32 n = settledRounds;
+        for (uint32 r = 1; r <= n; r++) {
+            Shortfall storage sf = _shortfalls[r][m];
+            if (!sf.resolved && sf.amount != 0 && block.timestamp > _graceEnd(r)) return r;
+        }
+        return 0;
+    }
+
+    /// @dev Default effects (docs/03 section 6.8), shared by `markDefault` and `finalize`.
+    function _default(address m, MemberInfo storage mi, uint32 r) private {
+        mi.defaulted = true;
+        bool frozen = !mi.received;
+        if (frozen) liveCount -= 1;
+        uint256 fee = feeEscrow[r];
+        if (fee != 0) {
+            feeEscrow[r] = 0;
+            totalFeeEscrow -= fee;
+            reserve += fee;
+            _rounds[r].feeForfeited = true;
+            emit IHuiCircle.FeeForfeited(r, fee);
+        }
+        emit IHuiCircle.MemberDefaulted(m, r, frozen);
+        _record(m, IReputationRegistry.recordDefault.selector);
+    }
+
+    // ================================================================== finalize (docs/03 section 5.3)
+
+    /// @notice Close the circle after round N: pay back what is left, in the order of docs/03 section 5.3. Anyone may
+    /// call once round N is settled and its grace period is over.
+    /// @dev Members with a shortfall past grace are defaulted first; one still inside grace reverts `GraceNotOver`.
+    /// Then: holdback of non-defaulted members back to them; holdback of defaulted members repays their debt in the
+    /// refund order (late fee last, an unpaid fee is announced) and the rest returns to them; unforfeited fee
+    /// escrows and the remaining bond go to the organizer; the reserve is shared equally among non-defaulted members
+    /// (rounding dust to the smallest `joinIndex`, everything to the organizer if all defaulted); registry records
+    /// completion; the factory is told. Every payment goes through the safe path, so one blocked address cannot block
+    /// the others.
+    function finalize() external nonReentrant {
+        _requireState(CircleState.Active);
+        uint32 n = _params.memberCount;
+        if (settledRounds < n) revert IHuiCircle.PreviousRoundNotSettled();
+        if (block.timestamp < _graceEnd(n)) revert IHuiCircle.GraceNotOver();
+        uint256 count = _members.length;
+        for (uint256 i = 0; i < count; i++) {
+            address m = _members[i];
+            MemberInfo storage mi = _info[m];
+            if (mi.defaulted || mi.debt == 0) continue;
+            uint32 r = _expiredShortfall(m);
+            if (r == 0) revert IHuiCircle.GraceNotOver();
+            _default(m, mi, r);
+        }
+        state = CircleState.Completed;
+
+        for (uint256 i = 0; i < count; i++) {
+            address m = _members[i];
+            MemberInfo storage mi = _info[m];
+            uint256 h = mi.holdback;
+            mi.holdback = 0;
+            totalHoldback -= h;
+            if (mi.defaulted && mi.debt != 0 && h != 0) {
+                h -= _repayFromPot(m, h, n + 1);
+                // Parts of the debt that the member's own holdback had covered are restored into `holdback`.
+                h += mi.holdback;
+                totalHoldback -= mi.holdback;
+                mi.holdback = 0;
+            }
+            if (h != 0) {
+                emit IHuiCircle.HoldbackReleased(m, n, h);
+                _pay(m, h);
+            }
+        }
+
+        uint256 feesPaid;
+        for (uint32 r = 1; r <= n; r++) {
+            uint256 f = feeEscrow[r];
+            if (f == 0) continue;
+            feeEscrow[r] = 0;
+            feesPaid += f;
+        }
+        totalFeeEscrow -= feesPaid;
+        uint256 bondReturned = bondRemaining;
+        bondRemaining = 0;
+        _pay(organizer, feesPaid + bondReturned);
+
+        uint256 shared = _shareReserve(true);
+        emit IHuiCircle.CircleFinalized(bondReturned, feesPaid, shared);
+        _notifyFinished();
+    }
+
+    /// @dev Split the whole reserve equally among non-defaulted members, dust to the smallest `joinIndex`; if all
+    /// defaulted it goes to the organizer, never to the admin. With `completed`, also records completion for them.
+    function _shareReserve(bool completed) private returns (uint256 total) {
+        total = reserve;
+        reserve = 0;
+        uint256 count = _members.length;
+        uint256 eligible;
+        for (uint256 i = 0; i < count; i++) {
+            if (!_info[_members[i]].defaulted) eligible++;
+        }
+        if (eligible == 0) {
+            _pay(organizer, total);
+            return total;
+        }
+        uint256 share = total / eligible;
+        uint256 dust = total - share * eligible;
+        for (uint256 i = 0; i < count; i++) {
+            address m = _members[i];
+            if (_info[m].defaulted) continue;
+            _pay(m, share + dust);
+            dust = 0;
+            if (completed) _record(m, IReputationRegistry.recordCompleted.selector);
+        }
+    }
+
+    /// @dev The factory only counts active circles; a failing factory must never lock the money.
+    function _notifyFinished() private {
+        try factory.onFinished(organizer) {} catch {}
+    }
+
+    // ================================================================== Pause and emergency unwind (docs/03 5.4)
+
+    /// @notice Factory only (the admin goes through `factory.pauseCircle`). Active circles only.
+    function pause() external onlyFactory {
+        _requireState(CircleState.Active);
+        state = CircleState.Paused;
+        pausedAt = uint64(block.timestamp);
+        emit IHuiCircle.CirclePaused(pausedAt);
+    }
+
+    /// @notice Factory only. The paused time is added to `pausedTotal`, so the schedule and every grace period move.
+    function unpause() external onlyFactory {
+        if (state != CircleState.Paused) revert IHuiCircle.WrongState(CircleState.Paused, state);
+        pausedTotal += uint64(block.timestamp) - pausedAt;
+        pausedAt = 0;
+        state = CircleState.Active;
+        emit IHuiCircle.CircleUnpaused(uint64(block.timestamp), pausedTotal);
+    }
+
+    /// @notice Factory only, after 48 hours of continuous pause. Pays everything according to the ledger: bond to the
+    /// organizer, holdback to its owner, open reveal bonds to their senders, fee escrows to the reserve, and the
+    /// reserve equally to non-defaulted members. There is no branch that sends money to the admin.
+    function emergencyUnwind() external onlyFactory nonReentrant {
+        if (state != CircleState.Paused) revert IHuiCircle.WrongState(CircleState.Paused, state);
+        if (block.timestamp < uint256(pausedAt) + 48 hours) revert IHuiCircle.UnwindTooEarly();
+        state = CircleState.Unwound;
+
+        uint32 settled = settledRounds;
+        for (uint32 r = 1; r <= settled; r++) {
+            uint256 f = feeEscrow[r];
+            if (f == 0) continue;
+            feeEscrow[r] = 0;
+            totalFeeEscrow -= f;
+            reserve += f;
+            emit IHuiCircle.FeeForfeited(r, f);
+        }
+        uint256 bond = bondRemaining;
+        bondRemaining = 0;
+        _pay(organizer, bond);
+
+        uint32 k = currentRound();
+        uint256 count = _members.length;
+        for (uint256 i = 0; i < count; i++) {
+            address m = _members[i];
+            MemberInfo storage mi = _info[m];
+            uint256 h = mi.holdback;
+            if (h != 0) {
+                mi.holdback = 0;
+                totalHoldback -= h;
+                emit IHuiCircle.HoldbackReleased(m, settled, h);
+                _pay(m, h);
+            }
+            Commit storage c = _commits[k][m];
+            uint256 rb = c.bondHeld;
+            if (rb != 0) {
+                c.bondHeld = 0;
+                revealBondsHeld -= rb;
+                _pay(m, rb);
+            }
+        }
+        _shareReserve(false);
+        emit IHuiCircle.CircleUnwound();
+        _notifyFinished();
     }
 
     // ================================================================== Payouts
@@ -679,113 +933,13 @@ contract HuiCircle is ERC2771Context, EIP712, Initializable, ReentrancyGuard {
         return err == ECDSA.RecoverError.NoError && signer == attester;
     }
 
-    /// @dev docs/03 section 3.2: the nominal schedule, but never before round k-1 was actually settled, so a late
-    /// settlement only delays round k and never removes its commit window.
-    function _roundStart(uint32 k) private view returns (uint256) {
-        uint256 nominal = uint256(startTime) + uint256(k - 1) * _params.roundDuration + pausedTotal;
-        if (k >= 2) {
-            uint256 prev = _rounds[k - 1].settledAt;
-            if (prev > nominal) return prev;
-        }
-        return nominal;
+    /// @dev End of the grace period of a shortfall of round `r`: `settledAt(r) + G`, extended by the time the circle
+    /// stayed paused after that settlement (docs/03 section 6.8).
+    function _graceEnd(uint32 r) private view returns (uint256) {
+        return uint256(_rounds[r].settledAt) + _params.graceSeconds + (pausedTotal - _pausedAtSettle[r]);
     }
 
     // ================================================================== Views
-
-    /// @notice Creation parameters, immutable after `activate()` (docs/03 section 3.1).
-    function params() external view returns (CircleParams memory) {
-        return _params;
-    }
-
-    /// @notice Members in `joinIndex` order.
-    function members() external view returns (address[] memory) {
-        return _members;
-    }
-
-    /// @notice Bookkeeping of one member.
-    function memberInfo(address m) external view returns (MemberInfo memory) {
-        return _info[m];
-    }
-
-    /// @notice `settledRounds + 1`, capped at N.
-    function currentRound() public view returns (uint32) {
-        uint32 k = settledRounds + 1;
-        return k > _params.memberCount ? _params.memberCount : k;
-    }
-
-    /// @notice Phase of the current round (`settledRounds + 1`) by time: NotStarted before activation or while the
-    /// round has not opened yet (previous round settled early), Commit, Reveal, then AwaitingSettle once the reveal
-    /// window ends. Done once the round is settled. While round k-1 is still unsettled the current round stays k-1,
-    /// so after its reveal window this reports AwaitingSettle until it is settled (round k then starts at that moment).
-    function phase() external view returns (RoundPhase) {
-        CircleState s = state;
-        if (s == CircleState.Completed) return RoundPhase.Done;
-        if (s != CircleState.Active) return RoundPhase.NotStarted;
-        uint32 k = currentRound();
-        if (_rounds[k].settled) return RoundPhase.Done;
-        uint256 start = _roundStart(k);
-        if (block.timestamp < start) return RoundPhase.NotStarted;
-        uint256 revealStart = start + _params.commitWindow;
-        if (block.timestamp < revealStart) return RoundPhase.Commit;
-        if (block.timestamp < revealStart + _params.revealWindow) return RoundPhase.Reveal;
-        return RoundPhase.AwaitingSettle;
-    }
-
-    /// @notice Start of round `k` (1..N): `max(startTime + (k - 1) * roundDuration + pausedTotal, settledAt(k - 1))`.
-    function roundStart(uint32 k) external view returns (uint64) {
-        return uint64(_roundStart(k));
-    }
-
-    /// @notice Earliest time `settleRound` may run for round `k`: `roundStart(k) + roundDuration`.
-    function deadline(uint32 k) external view returns (uint64) {
-        return uint64(_roundStart(k) + _params.roundDuration);
-    }
-
-    /// @notice Stored result of round `k` (empty until settled).
-    function roundInfo(uint32 k) external view returns (RoundInfo memory) {
-        return _rounds[k];
-    }
-
-    /// @notice Sealed bid state of member `m` in round `k`.
-    function commitOf(uint32 k, address m) external view returns (Commit memory) {
-        return _commits[k][m];
-    }
-
-    /// @notice Shortfall record of `m` in round `k` (empty if none).
-    function shortfallOf(uint32 k, address m) external view returns (Shortfall memory) {
-        return _shortfalls[k][m];
-    }
-
-    /// @notice What `m` owes into the pot of any round where a winning bid `bid` is paid: C for members who already
-    /// received, C - bid for the others. Zero for non-members.
-    function dueOf(address m, uint32, uint256 bid) external view returns (uint256) {
-        MemberInfo storage mi = _info[m];
-        if (!mi.joined) return 0;
-        return mi.received ? _params.contribution : _params.contribution - bid;
-    }
-
-    /// @notice Bid ceiling of round `k` for the current number of live members (docs/03 section 2.4).
-    function maxBid(uint32 k) external view returns (uint256) {
-        return _maxBid(k);
-    }
-
-    /// @notice O(k) = k * (N - k) * C.
-    function exposure(uint32 k) external view returns (uint256) {
-        return HuiMath.exposure(_params.memberCount, k, _params.contribution);
-    }
-
-    /// @notice O_max, the peak exposure.
-    function maxExposure() public view returns (uint256) {
-        return HuiMath.maxExposure(_params.memberCount, _params.contribution);
-    }
-
-    /// @notice Coverage index in bps using the current reserve.
-    function coverageIndexBps() external view returns (uint256) {
-        return
-            HuiMath.coverageIndexBps(
-                _params.alphaBps, bondRemaining, reserve, _params.memberCount, _params.contribution
-            );
-    }
 
     /// @notice Coverage index in bps with reserve = 0: the minimum guarantee shown before joining.
     function guaranteedCoverageBps() public view returns (uint256) {
@@ -795,10 +949,5 @@ contract HuiCircle is ERC2771Context, EIP712, Initializable, ReentrancyGuard {
     /// @notice Allowance a member signs when joining: (N - 1) * (C + revealBond).
     function requiredAllowance() public view returns (uint256) {
         return (uint256(_params.memberCount) - 1) * (uint256(_params.contribution) + revealBond());
-    }
-
-    /// @notice Reveal bond: `revealBondBps` of C, rounded down.
-    function revealBond() public view returns (uint256) {
-        return HuiMath.bpsOf(_params.contribution, _params.revealBondBps);
     }
 }

@@ -6,6 +6,7 @@ import {Initializable} from "@openzeppelin/contracts/proxy/utils/Initializable.s
 import {BaseTest} from "../utils/BaseTest.sol";
 import {StubCircle} from "../utils/StubCircle.sol";
 import {HuiCircle} from "../../src/HuiCircle.sol";
+import {HuiCircleLens} from "../../src/HuiCircleLens.sol";
 import {HuiFactory} from "../../src/HuiFactory.sol";
 import {IHuiCircle} from "../../src/interfaces/IHuiCircle.sol";
 import {IHuiFactory} from "../../src/interfaces/IHuiFactory.sol";
@@ -13,6 +14,7 @@ import {CircleMode, CircleParams, CircleState, FactoryConfig} from "../../src/li
 
 contract HuiFactoryTest is BaseTest {
     HuiCircle internal impl;
+    HuiCircleLens internal lens;
     HuiFactory internal factory;
     FactoryConfig internal cfg;
 
@@ -22,6 +24,7 @@ contract HuiFactoryTest is BaseTest {
 
     function setUp() public override {
         super.setUp();
+        vm.etch(reputation, hex"00"); // the factory requires code at the registry address (audit I-03)
         cfg = FactoryConfig({
             usdc: address(usdc),
             forwarder: address(forwarder),
@@ -36,7 +39,8 @@ contract HuiFactoryTest is BaseTest {
             maxMembers: 30,
             maxContribution: uint96(10_000 * USDC)
         });
-        impl = new HuiCircle(address(forwarder));
+        lens = new HuiCircleLens();
+        impl = new HuiCircle(address(forwarder), address(lens));
         factory = new HuiFactory(admin, address(impl), cfg);
     }
 
@@ -164,7 +168,7 @@ contract HuiFactoryTest is BaseTest {
         assertEq(uint8(c.state()), uint8(CircleState.Forming));
         assertEq(c.trustedForwarder(), address(forwarder));
 
-        CircleParams memory got = c.params();
+        CircleParams memory got = IHuiCircle(address(c)).params();
         assertEq(uint8(got.mode), uint8(p.mode));
         assertEq(got.memberCount, p.memberCount);
         assertEq(got.contribution, p.contribution);
@@ -268,6 +272,7 @@ contract HuiFactoryTest is BaseTest {
         p.roundDuration = 120;
         p.commitWindow = 60;
         p.revealWindow = 60; // sum == roundDuration
+        p.graceSeconds = 119; // strictly below roundDuration
         _create(p);
         p.commitWindow = 30;
         p.revealWindow = 30;
@@ -304,7 +309,7 @@ contract HuiFactoryTest is BaseTest {
         p.commitWindow = 0;
         p.revealWindow = 0;
         address circle = _create(p);
-        assertEq(uint8(HuiCircle(circle).params().mode), uint8(CircleMode.Fixed));
+        assertEq(uint8(IHuiCircle(circle).params().mode), uint8(CircleMode.Fixed));
     }
 
     function test_CreateCircle_NonCommissionWithZeroFee() public {
@@ -506,7 +511,7 @@ contract HuiFactoryTest is BaseTest {
         p.roundDuration = uint32(bound(round, 120, 31 days));
         p.commitWindow = uint32(bound(commitW, 30, p.roundDuration - 30));
         p.revealWindow = uint32(bound(uint256(p.roundDuration) - p.commitWindow, 30, p.roundDuration - p.commitWindow));
-        p.graceSeconds = uint32(bound(grace, 60, 30 days));
+        p.graceSeconds = uint32(bound(grace, 60, p.roundDuration - 1));
         p.alphaBps = uint16(bound(alpha, 0, 10_000));
         p.feeBps = uint16(bound(fee, 0, 300));
         p.reserveBps = uint16(bound(reserveBps, 0, 300));
@@ -645,7 +650,7 @@ contract HuiFactoryTest is BaseTest {
     }
 
     function test_Constructor_RevertsOnImplementationForwarderMismatch() public {
-        HuiCircle other = new HuiCircle(makeAddr("otherForwarder"));
+        HuiCircle other = new HuiCircle(makeAddr("otherForwarder"), address(lens));
         vm.expectRevert(HuiFactory.InvalidConfig.selector);
         new HuiFactory(admin, address(other), cfg);
     }
