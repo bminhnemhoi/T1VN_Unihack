@@ -554,7 +554,7 @@ pnpm --filter keeper start
 
 | Job | Việc | Chặn merge khi |
 |---|---|---|
-| `contracts` | `forge fmt --check`, `forge build --sizes`, test trừ invariant, `forge snapshot --check`, `forge coverage --report summary` | fmt sai, contract quá 24.576 byte, test đỏ, gas tăng |
+| `contracts` | `forge fmt --check`, `forge build --sizes --skip "test/**" --skip "script/**"` (harness test vượt 24.576 byte là bình thường), test trừ invariant, `forge snapshot --check`, `forge coverage --report summary --ir-minimum` (cần vì `via_ir`) | fmt sai, contract quá 24.576 byte, test đỏ, gas tăng |
 | `invariant` | `forge test --match-path "test/invariant/*"` với profile `ci` | invariant hỏng |
 | `slither` | `crytic/slither-action` với `fail-on: high` | có phát hiện mức cao |
 | `web` | build contracts, `pnpm --filter sdk generate`, kiểm ABI không lệch, lint, typecheck, test, build | ABI chép tay lệch, lỗi kiểu |
@@ -563,7 +563,7 @@ pnpm --filter keeper start
 
 Chi tiết từng job:
 
-- `contracts` và `invariant` chạy với `FOUNDRY_PROFILE=ci` trong `contracts/`; checkout kèm `submodules: recursive`. Lệnh của `contracts`: `forge fmt --check`, `forge build --sizes`, `forge test -vvv --no-match-path "test/invariant/*"`, `forge snapshot --check`, `forge coverage --report summary`.
+- `contracts` và `invariant` chạy với `FOUNDRY_PROFILE=ci` trong `contracts/`; checkout kèm `submodules: recursive`. Lệnh của `contracts`: `forge fmt --check`, `forge build --sizes --skip "test/**" --skip "script/**"`, `forge test -vvv --no-match-path "test/invariant/*"`, `forge snapshot --check`, `forge coverage --report summary --ir-minimum`.
 - `web` tự chạy `forge build` để có `contracts/out`, rồi `pnpm install --frozen-lockfile`, `pnpm --filter sdk generate && git diff --exit-code packages/sdk/src/generated.ts`, `pnpm -r lint`, `pnpm -r typecheck`, `pnpm -r test`, `pnpm -r build`. Node 22; phiên bản pnpm lấy từ trường `packageManager`.
 - `sim` dùng Python 3.12: `pip install -e ".[dev]"`, `pytest -q`, `python -m huisim.cli run --scenario baseline --seed 42 --circles 500 --out-dir outputs/ci`, rồi sinh lại vector và `git diff --exit-code contracts/test/vectors/huimath.json`.
 - `privacy`: lệnh quét ABI ở 09, mục 8.3.
