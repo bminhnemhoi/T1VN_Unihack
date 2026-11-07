@@ -127,6 +127,8 @@ struct FactoryConfig {
 }
 ```
 
+Quy tắc cứng của factory (constructor và `setConfig` đều kiểm, vượt thì `InvalidConfig()`): `MIN_CONTRIBUTION = 1 USDC` (1_000_000, `contribution` nhỏ hơn thì `InvalidParams(2)`; `maxContribution ≥ MIN_CONTRIBUTION`); `maxFeeBps ≤ 300`, `maxReserveBps ≤ 300`, `maxCapBps ≤ 2000`, `lateRateBps ≤ 1000`, mọi giá trị bps ≤ 10_000; `3 ≤ minMembers ≤ maxMembers ≤ 30`; `config.forwarder` phải bằng forwarder của chính factory và bằng `trustedForwarder()` của implementation (forwarder là immutable, `setConfig` không đổi được); `config.usdc`, `reputation`, `attester`, `forwarder` khác địa chỉ 0. `admin` là `immutable` của factory (đổi admin = deploy factory mới).
+
 ### 2.1. Bố cục lưu trữ của `HuiCircle`
 
 ```solidity
@@ -153,6 +155,8 @@ mapping(uint32 => mapping(address => Shortfall)) internal _shortfalls;
 mapping(uint32 => address)                 internal _leader;       // thăm dẫn đầu tạm thời
 mapping(uint32 => uint32)                  internal _commitCounter;
 mapping(bytes32 => bool)                   public usedAttestation;
+mapping(address => bool)                   public hasLeft;         // đã rời lúc Forming, không vào lại được (03 mục 5.1)
+uint32                                     public liveCount;       // số thành viên sống (joined, chưa hốt, chưa vỡ nợ), giữ bằng bộ đếm (gas)
 
 uint256 public bondDeposited;
 uint256 public bondRemaining;
@@ -163,6 +167,8 @@ uint256 public totalHoldback;
 mapping(address => uint256) public claimable;
 uint256 public totalClaimable;
 ```
+
+Lưu ý SDK/UI (chủ hụi kiêm thành viên): `depositBond` và `join` cùng ghi đè allowance của ví chủ hụi, nên permit của chủ hụi phải ký tổng `requiredAllowance + bond`. `organizerIsMember` hiện chỉ lưu trong `params`, contract chưa ép buộc.
 
 Bất biến sổ cái (03, mục 7.1): `usdc.balanceOf(this) == bondRemaining + reserve + totalHoldback + Σ feeEscrow + revealBondsHeld + totalClaimable`. Nên giữ thêm biến `totalFeeEscrow` để kiểm bất biến rẻ.
 
@@ -237,8 +243,8 @@ interface IHuiCircle {
     function memberInfo(address m) external view returns (MemberInfo memory);
     function currentRound() external view returns (uint32);                       // settledRounds + 1, tối đa N
     function phase() external view returns (RoundPhase);
-    function roundStart(uint32 k) external view returns (uint64);
-    function deadline(uint32 k) external view returns (uint64);
+    function roundStart(uint32 k) external view returns (uint64);                 // max(startTime + (k−1)·D_r + pausedTotal, settledAt(k−1)), k ≥ 2 (03 mục 3.2)
+    function deadline(uint32 k) external view returns (uint64);                   // roundStart(k) + roundDuration
     function roundInfo(uint32 k) external view returns (RoundInfo memory);
     function commitOf(uint32 k, address m) external view returns (Commit memory);
     function shortfallOf(uint32 k, address m) external view returns (Shortfall memory);
@@ -385,6 +391,7 @@ error NotOrganizer();
 error NotAdmin();
 error NotMember();
 error AlreadyMember();
+error AlreadyLeft();           // join sau khi đã leave() chính dây này
 error WrongState(CircleState expected, CircleState actual);
 error InvalidParams(uint8 code);               // bảng mã ở 4.3
 error CircleFull();
@@ -415,6 +422,8 @@ error RepayTooLarge(uint256 amount, uint256 debt); // repayDebt vượt tổng g
 error CircleIsPaused();      // tên khác event CirclePaused để solc không báo trùng
 error UnwindTooEarly();
 ```
+
+Lỗi riêng của `HuiFactory` (khai báo trong factory): `NotAdmin()`, `NotCircle(address who)` (hàm chỉ circle hợp lệ gọi, hoặc `pauseCircle`/`unpauseCircle`/`unwindCircle` với địa chỉ không phải circle), `ZeroAddress()` (admin, implementation hoặc địa chỉ trong cấu hình bằng 0), `InvalidConfig()` (cấu hình vượt trần cứng, forwarder lệch, `minMembers`/`maxMembers` ngoài 3..30). `onFinished` chỉ được chạy sau `onActivated` của cùng chủ hụi: nếu `activeCirclesOf` đang 0 thì revert bằng custom error thay vì underflow (làm ở C7).
 
 ### 4.3. Mã lỗi tham số (`InvalidParams(code)`)
 

@@ -142,13 +142,14 @@ Sau `activate()`, không tham số nào thay đổi được.
 ### 3.2. Mốc thời gian của kỳ k
 
 ```
-roundStart(k) = startTime + (k − 1) · roundDuration + pausedTotal
+roundStart(1) = startTime + pausedTotal
+roundStart(k) = max(startTime + (k − 1) · roundDuration + pausedTotal, settledAt(k − 1))     với k ≥ 2
 commit  : [roundStart(k), roundStart(k) + commitWindow)
 reveal  : [roundStart(k) + commitWindow, roundStart(k) + commitWindow + revealWindow)
 settle  : được gọi khi now ≥ roundStart(k) + roundDuration   (= deadline(k))
 ```
 
-Kỳ k chỉ được chi sau khi kỳ k − 1 đã chi. `startTime` = thời điểm `activate()`.
+Kỳ k chỉ được chi sau khi kỳ k − 1 đã chi. `startTime` = thời điểm `activate()`. Mốc bắt đầu kỳ "trôi" theo lúc chi: kỳ k − 1 chi trễ thì kỳ k chỉ bị dời lại, không bao giờ mất cửa sổ commit hay reveal (cả hai, cùng `deadline(k)`, đều đo từ `roundStart(k)`). Với kỳ chưa tới lượt (kỳ k − 1 chưa chi) `settledAt(k − 1)` coi là 0, nên `roundStart(k)` là mốc dự kiến theo lịch danh nghĩa và có thể còn dời nếu các kỳ trước chi trễ.
 
 ### 3.3. Chế độ demo (dev toggle, phải khai báo đầu buổi pitch)
 
@@ -196,7 +197,7 @@ stateDiagram-v2
    - Thành viên chưa có trong dây và dây chưa đủ N người.
    - Gọi `USDC.permit(member, this, requiredAllowance, deadline, v, r, s)` trong `try`. Nếu permit revert (ví dụ đã bị ai đó gửi trước) thì vẫn chấp nhận khi `allowance(member, this) ≥ requiredAllowance`; nếu không thì revert.
    - Ghi `joinIndex` theo thứ tự vào dây.
-4. `leave()`: thành viên rời trước kích hoạt. Không có tiền bị giữ; giao diện nhắc thu hồi allowance. Những người vào sau lùi lên một bậc, giữ nguyên thứ tự tương đối, nên `joinIndex` luôn liên tục từ 0 (quan trọng với dây `Fixed`, nơi thứ tự vào dây là thứ tự hốt). Rời rồi thì không vào lại được chính dây đó, vì `attestationId` tính theo cặp (người dùng, dây) và đã bị đánh dấu dùng; luật này cũng chặn trò vào ra liên tục để quấy.
+4. `leave()`: thành viên rời trước kích hoạt. Không có tiền bị giữ; giao diện nhắc thu hồi allowance. Những người vào sau lùi lên một bậc, giữ nguyên thứ tự tương đối, nên `joinIndex` luôn liên tục từ 0 (quan trọng với dây `Fixed`, nơi thứ tự vào dây là thứ tự hốt). Rời rồi thì không vào lại được chính dây đó: contract ghi cờ `hasLeft[member]` và `join` revert `AlreadyLeft()` với ví đó (bất kể attestation), ngoài ra `attestationId` tính theo cặp (người dùng, dây) và đã bị đánh dấu dùng; luật này cũng chặn trò vào ra liên tục để quấy.
 5. `activate()`: chỉ chủ hụi. Điều kiện: đủ N người, `now ≤ joinDeadline`, `CI_bps ≥ minCoverageBps`. Đặt `startTime = now`, trạng thái `Active`, factory tăng `activeCirclesOf[organizer]`.
 6. `cancel()`: bất kỳ ai, khi `now > joinDeadline` và dây chưa kích hoạt. Chủ hụi rút ký quỹ bằng `withdrawBond()`.
 
@@ -230,7 +231,7 @@ Mọi khoản trả ở đây dùng cơ chế chi an toàn ở mục 6.7.
 
 ### 6.1. Ai được bỏ thăm (chỉ dây `Bidding`)
 
-Thành viên đang sống (chưa hốt, không bị đóng băng) và không còn khoản thiếu chưa trả ở kỳ trước.
+Thành viên đang sống (chưa hốt, không bị đóng băng) và không còn khoản thiếu chưa trả ở kỳ trước. Nếu chỉ còn đúng một thành viên sống thì người đó không được commit (`NotEligibleToBid`): họ sẽ hốt với b = 0 (mục 6.4), commit chỉ làm họ mất cọc nếu không mở.
 
 ### 6.2. `commitBid(commitHash)`
 
@@ -251,7 +252,7 @@ Thành viên đang sống (chưa hốt, không bị đóng băng) và không cò
 So sánh hai thăm hợp lệ theo thứ tự:
 
 1. Tiền thăm cao hơn thắng.
-2. Bằng nhau: ít lần trễ hơn thắng. Số lần trễ = trễ trong dây này + `lateCount` toàn cục ở ReputationRegistry.
+2. Bằng nhau: ít lần trễ hơn thắng. Số lần trễ = `late` của ví đó ở ReputationRegistry (số này đã gồm cả các lần trễ trong dây này vì `recordLate` được ghi ngay lúc trễ). Chỉ khi gọi registry thất bại thì dùng bộ đếm trễ cục bộ của dây; không bao giờ cộng hai số, để khỏi đếm đôi.
 3. Vẫn bằng: `commitIndex` nhỏ hơn (commit sớm hơn) thắng.
 
 Trường hợp đặc biệt:
@@ -339,10 +340,10 @@ Sau mỗi giao dịch `settleRound`, không có USDC nào khác nằm lại. Ti�
 | INV-03 | Không kỳ nào có thăm thắng vượt `maxBid(k)` hoặc ≥ C. |
 | INV-04 | Không bao giờ kéo của một thành viên nhiều hơn `due` của kỳ đó cộng cọc và lãi chậm góp họ tự trả. |
 | INV-05 | `payout + fee + premium + H (+ trả nợ) == pot` ở mọi kỳ. |
-| INV-06 | Sau m kỳ đã chi, mọi người đã hốt chưa vỡ nợ d có `holdback[d] ≤ α·(N − m)·C/10_000`. Dấu bằng (sai số làm tròn ≤ N đơn vị) khi d không có khoản thiếu đang mở và lúc hốt d nhận đủ H = `holdbackFor(α, N, r_d, C)`. Hệ quả: khi mọi người đóng đúng hạn, tổng holdback = m·α·(N − m)·C = α·O(m). |
+| INV-06 | Sau m kỳ đã chi, mọi người đã hốt chưa vỡ nợ d có `holdback[d] ≤ α·(N − m)·C/10_000 + N` (sai số làm tròn ≤ N đơn vị, khớp docs/09). Dấu bằng (sai số làm tròn ≤ N đơn vị) khi d không có khoản thiếu đang mở và lúc hốt d nhận đủ H = `holdbackFor(α, N, r_d, C)`. Hệ quả: khi mọi người đóng đúng hạn, tổng holdback = m·α·(N − m)·C = α·O(m). |
 | INV-07 | Không hàm nào chuyển USDC tới admin hay tới bất kỳ địa chỉ nào ngoài thành viên, chủ hụi (ký quỹ và tiền công) và người có `claimable`. |
 | INV-08 | Nếu `alphaBps + B·10_000/O_max ≥ 10_000` và chỉ người đã hốt bỏ đóng, thì mọi thành viên trung thực nhận đủ pot của mình (`uncovered == 0` ở mọi kỳ). |
-| INV-09 | Kỳ k chỉ được chi sau kỳ k − 1 và sau `deadline(k)`. Tham số không đổi sau `activate()`. |
+| INV-09 | Kỳ k chỉ được chi sau kỳ k − 1 và sau `deadline(k)`, với `roundStart(k) ≥ settledAt(k − 1)` (kỳ chi trễ chỉ làm dời lịch kỳ sau, kỳ sau luôn có đủ cửa sổ commit và reveal). Tham số không đổi sau `activate()`. |
 | INV-10 | Không có thông tin cá nhân nào trên chuỗi: chỉ địa chỉ ví, mã băm attestation, số tiền, mốc thời gian. |
 
 ### 7.3. Vì sao CI = 100% thì người trung thực an toàn
@@ -422,6 +423,7 @@ Slide giữ bản 100 USDC cho dễ đọc và ghi rõ demo đã thu nhỏ. Test
 | Keeper không chạy | Ai cũng gọi được `settleRound`; chỉ chậm, không mất tiền |
 | Chủ hụi cũng là thành viên | Cho phép. Nghĩa vụ thành viên và ký quỹ tách biệt; nếu chủ hụi bỏ đóng thì ký quỹ của chính họ bù |
 | Tạm dừng giữa kỳ | Lịch dời bằng `pausedTotal`; chỉ `claim()` chạy được |
+| Kỳ k − 1 chi trễ | `roundStart(k) = settledAt(k − 1)` (mục 3.2): kỳ k vẫn đủ cửa sổ commit và reveal, chỉ dời lại |
 | Nhiều người chưa hốt cùng bị đóng băng | Ký quỹ ứng thanh khoản; nếu cạn thì phần thiếu thành `uncovered` và được trả lại khi người bị đóng băng hốt. Phòng mô phỏng đo xác suất |
 | Lệch timestamp | Avalanche cho phép lệch vài giây; mọi cửa sổ ≥ 30 giây nên không đáng kể |
 | Làm tròn | Chia xuống; phần dư về người hốt kỳ đó; kết thúc dây quét phần dư vào quỹ dự phòng trước khi chia |
