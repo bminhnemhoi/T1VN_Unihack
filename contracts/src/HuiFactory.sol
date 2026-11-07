@@ -33,6 +33,12 @@ contract HuiFactory is ERC2771Context, IHuiFactory {
     uint32 internal constant MIN_WINDOW = 30;
     uint32 internal constant MIN_GRACE = 60;
     uint16 internal constant BPS = 10_000;
+    /// @dev Hard ceilings from the spec that no admin config may exceed: fee <= 3%, reserve <= 3% (docs/03 section 1),
+    /// annual interest cap 20% (Decree 19/2019 Art. 21) and late rate at most 50% of it (Art. 22 clause 1).
+    uint16 internal constant HARD_MAX_FEE_BPS = 300;
+    uint16 internal constant HARD_MAX_RESERVE_BPS = 300;
+    uint16 internal constant HARD_MAX_CAP_BPS = 2000;
+    uint16 internal constant HARD_MAX_LATE_RATE_BPS = 1000;
     uint16 internal constant MAX_REVEAL_BOND_BPS = 500;
     /// @dev Hard bound of the member loop in HuiCircle (CLAUDE.md: N <= 30).
     uint8 internal constant HARD_MAX_MEMBERS = 30;
@@ -72,6 +78,8 @@ contract HuiFactory is ERC2771Context, IHuiFactory {
             revert ZeroAddress();
         }
         _checkConfig(config_);
+        // Every clone trusts the implementation's immutable forwarder, so it must be the one the config names.
+        if (ERC2771Context(implementation_).trustedForwarder() != config_.forwarder) revert InvalidConfig();
         admin = admin_;
         implementation = implementation_;
         _config = config_;
@@ -200,7 +208,8 @@ contract HuiFactory is ERC2771Context, IHuiFactory {
         if (p.joinDeadline <= block.timestamp) revert InvalidParams(13);
     }
 
-    /// @dev Structural sanity of a config: non-zero addresses, forwarder unchanged, every bps value <= 10_000 and
+    /// @dev Structural sanity of a config: non-zero addresses, forwarder unchanged, every bps value <= 10_000 (fee,
+    /// reserve, cap and late rate also within the spec hard ceilings) and
     /// 3 <= minMembers <= maxMembers <= 30 (the member loop of HuiCircle is only safe up to 30).
     function _checkConfig(FactoryConfig memory c) internal view {
         if (c.usdc == address(0) || c.forwarder == address(0) || c.reputation == address(0) || c.attester == address(0))
@@ -211,6 +220,10 @@ contract HuiFactory is ERC2771Context, IHuiFactory {
         if (
             c.maxCapBps > BPS || c.lateRateBps > BPS || c.minCoverageBps > BPS || c.maxFeeBps > BPS
                 || c.maxReserveBps > BPS
+        ) revert InvalidConfig();
+        if (
+            c.maxFeeBps > HARD_MAX_FEE_BPS || c.maxReserveBps > HARD_MAX_RESERVE_BPS || c.maxCapBps > HARD_MAX_CAP_BPS
+                || c.lateRateBps > HARD_MAX_LATE_RATE_BPS
         ) revert InvalidConfig();
         if (c.minMembers < HARD_MIN_MEMBERS || c.minMembers > c.maxMembers || c.maxMembers > HARD_MAX_MEMBERS) {
             revert InvalidConfig();

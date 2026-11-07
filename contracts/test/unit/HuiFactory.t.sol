@@ -611,6 +611,45 @@ contract HuiFactoryTest is BaseTest {
         factory.setConfig(c);
     }
 
+    function test_SetConfig_RevertsAboveSpecHardCaps() public {
+        FactoryConfig memory c = factory.config();
+        c.maxFeeBps = 301;
+        vm.prank(admin);
+        vm.expectRevert(HuiFactory.InvalidConfig.selector);
+        factory.setConfig(c);
+
+        c = factory.config();
+        c.maxReserveBps = 301;
+        vm.prank(admin);
+        vm.expectRevert(HuiFactory.InvalidConfig.selector);
+        factory.setConfig(c);
+
+        c = factory.config();
+        c.maxCapBps = 2001;
+        vm.prank(admin);
+        vm.expectRevert(HuiFactory.InvalidConfig.selector);
+        factory.setConfig(c);
+
+        c = factory.config();
+        c.lateRateBps = 1001;
+        vm.prank(admin);
+        vm.expectRevert(HuiFactory.InvalidConfig.selector);
+        factory.setConfig(c);
+    }
+
+    function test_Constructor_RevertsAboveSpecHardCaps() public {
+        FactoryConfig memory c = cfg;
+        c.maxFeeBps = 10_000;
+        vm.expectRevert(HuiFactory.InvalidConfig.selector);
+        new HuiFactory(admin, address(impl), c);
+    }
+
+    function test_Constructor_RevertsOnImplementationForwarderMismatch() public {
+        HuiCircle other = new HuiCircle(makeAddr("otherForwarder"));
+        vm.expectRevert(HuiFactory.InvalidConfig.selector);
+        new HuiFactory(admin, address(other), cfg);
+    }
+
     function test_SetConfig_RevertsOnBadMemberBounds() public {
         FactoryConfig memory c = cfg;
         c.maxMembers = 31; // loop bound
