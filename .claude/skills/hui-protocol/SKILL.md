@@ -115,7 +115,7 @@ settleRound() gọi được khi now ≥ roundStart(k) + roundDuration (= deadli
 - INV-05 `payout + fee + premium + H (+ trả nợ) == pot`.
 - INV-06 sau m kỳ đã chi, mỗi người đã hốt chưa vỡ nợ d có `holdback[d] ≤ α·(N − m)·C/10_000`; bằng (sai số ≤ N đơn vị) khi d không còn khoản thiếu mở và lúc hốt đã giữ đủ H = `holdbackFor(α, N, r_d, C)`; hệ quả: mọi người đóng đúng hạn thì tổng = α·O(m). Thấy docs/03 và docs/09 lệch nhau thì báo người.
 - INV-07 USDC không bao giờ tới admin; chỉ tới thành viên, chủ hụi (ký quỹ, tiền công) và người có `claimable`.
-- INV-08 CI ≥ 100% và chỉ người đã hốt bỏ đóng ⇒ `uncovered == 0` mọi kỳ.
+- INV-08 CI ≥ 100% và chỉ người đã hốt bỏ đóng, tất cả trong CÙNG một kỳ (cú sốc đồng thời lớn nhất) ⇒ `uncovered == 0` mọi kỳ. Bỏ đóng lần lượt có thể vượt ký quỹ (N = 5: thiếu 1000 > O_max 600, kỳ 5 `uncovered` 304); cận bù đủ B_seq = (1 − α)·N(N − 1)/2·C = 800 là roadmap. Chữ pitch: "Chỉ số bảo chứng 100% nghĩa là ký quỹ chịu được cú sốc lớn nhất: mọi người đã hốt cùng bỏ đóng một lúc." Không viết "không bao giờ mất tiền".
 - INV-09 kỳ k chỉ chi sau kỳ k − 1 và sau `deadline(k)`; tham số không đổi sau `activate()`.
 - INV-10 không dữ liệu cá nhân on-chain (kiểm tĩnh: job `privacy` của CI quét ABI, không tham số `string` trong event và hàm ghi).
 

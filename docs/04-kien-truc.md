@@ -436,7 +436,7 @@ T1VN_Unihack/
 │   │   ├── invariant/Handler.sol      # tác nhân, hành động, biến ghost
 │   │   ├── invariant/Invariants.t.sol # INV-01..INV-09
 │   │   ├── integration/WorkedExample.t.sol # số của 03, mục 8, nhánh A và B
-│   │   ├── integration/GasBudget.t.sol # (thêm) gas settleRound và finalize ở N = 30
+│   │   ├── gas/GasBudget.t.sol # (thêm) gas settleRound và finalize ở N = 30
 │   │   └── vectors/huimath.json       # (thêm) vector differential do sim sinh, có commit
 │   ├── script/Deploy.s.sol            # forwarder, registry, implementation, factory; ghi deployments
 │   ├── script/CreateDemoCircle.s.sol  # dây demo 5 người, tham số demo
@@ -656,7 +656,7 @@ ADR-01 đến ADR-15 là các quyết định gốc của thiết kế. ADR-16 t
 
 | Hàm | Ngân sách | Đo bằng |
 |---|---|---|
-| `settleRound` N = 30, trường hợp xấu nhất | ≤ 3.000.000 gas; cảnh báo từ 2.500.000 | `test/integration/GasBudget.t.sol` + `forge snapshot --check` |
+| `settleRound` N = 30, trường hợp xấu nhất | ≤ 3.000.000 gas; cảnh báo từ 2.500.000 | `test/gas/GasBudget.t.sol` + `forge snapshot --check` |
 | `settleRound` N = 5 (demo) | ≤ 600.000 gas | như trên |
 | `finalize` N = 30 | ≤ 2.500.000 gas | như trên |
 | `join` | ≤ 250.000 gas | `.gas-snapshot` |

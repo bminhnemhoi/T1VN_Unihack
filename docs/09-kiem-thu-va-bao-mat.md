@@ -88,7 +88,7 @@ Mọi đầu vào `bound()` về miền của 03: N 3..30, C 1..10.000 USDC, P 1
 `setUp()` dựng `RecordingUSDC` (bản `MockUSDC` ghi lại mọi lần chuyển, đặt trong `test/utils/`), forwarder, registry, factory, một dây Bỏ thăm N = 5 với tham số demo (180, 90, 60, 120 giây; P = 30 ngày), cấp USDC và allowance cho các tác nhân, kích hoạt dây, rồi `targetContract(address(handler))` và `targetSelector(FuzzSelector({ addr: address(handler), selectors: ... }))`. Hai hợp đồng test trong `Invariants.t.sol`:
 
 - `HuiInvariants`: CI = 80% (α 20%, ký quỹ 0,6·O_max), mọi loại bỏ đóng.
-- `HuiInvariantsFullCoverage`: ký quỹ (1 − α)·O_max, Handler chỉ cho người đã hốt bỏ đóng. Dùng cho INV-08.
+- `HuiInvariantsFullCoverage`: ký quỹ (1 − α)·O_max, Handler chỉ cho người đã hốt bỏ đóng, tất cả cùng một lần (`stopReceivers`, cú sốc đồng thời lớn nhất). Dùng cho INV-08. Trường hợp bỏ đóng lần lượt vượt ký quỹ không nằm trong INV-08; nó được ghi lại bằng test `test_INV08_SequentialDefaults_ExceedBond_Documented` (N = 5, tổng thiếu 1000 > O_max 600, kỳ 5 `uncovered` 304, M5 nhận 94,08 thay vì 392) và teeth `test_Teeth_INV08_FailsOnSequentialDefaults_Documented`.
 
 ### 4.2. Tác nhân và hành động của Handler
 
@@ -130,7 +130,7 @@ Mọi đầu vào `bound()` về miền của 03: N 3..30, C 1..10.000 USDC, P 1
 | INV-05 | `invariant_INV05_potSplit` | Mọi kỳ: `pot − (payout + fee + premium + holdback)` = 0 nếu người hốt không đóng băng, ≥ 0 và bằng phần trả nợ nếu đóng băng (`RoundInfo` không có trường trả nợ nên Handler tính) |
 | INV-06 | `invariant_INV06_holdback` | Với mọi d đã hốt chưa vỡ nợ, m = `settledRounds`: `holdback[d] ≤ α·(N − m)·C/10_000` (cộng sai số ≤ N đơn vị). Bằng nhau khi d không có khoản thiếu đang mở và `ghostFullH[d]` (lúc hốt nhận đủ H). Nếu chưa từng có khoản thiếu: Σ holdback = α·O(m) |
 | INV-07 | `invariant_INV07_noAdminPayout` | `ghostAdminReceived == 0` và `ghostUnexpectedRecipient == 0`; `ghostUnauthorizedSuccess == 0` |
-| INV-08 | `invariant_INV08_fullCoverage` (trong `HuiInvariantsFullCoverage`) | Σ `uncovered` của mọi kỳ = 0 |
+| INV-08 | `invariant_INV08_fullCoverage` (trong `HuiInvariantsFullCoverage`) | Σ `uncovered` của mọi kỳ = 0 khi mọi người đã hốt ngừng đóng trong cùng một kỳ (cú sốc đồng thời; bỏ đóng lần lượt: xem 03 mục 7.3) |
 | INV-09 | `invariant_INV09_schedule` | `ghostSettledBeforeDeadline == 0`; sau `activate()`, hash của `params()` không đổi |
 | INV-10 | Tĩnh | Job `privacy` của CI và rà soát (mục 8.3, mục 12) |
 
@@ -216,7 +216,7 @@ Sau mỗi giao dịch, test gọi lại kiểm INV-01. Cùng bảng này là k�
 
 **Ngân sách:** bảng ở 04 mục 7.1; mốc chính là `settleRound` ở N = 30 ≤ 3.000.000 gas, cảnh báo từ 2.500.000.
 
-`test/integration/GasBudget.t.sol` đo bốn ca ở N = 30: kỳ 1 và kỳ 29, mỗi kỳ có và không có 3 khoản thiếu. Kỳ 1 tốn vì ghi ReputationRegistry lần đầu; kỳ 29 tốn vì nhả holdback cho 28 người.
+`test/gas/GasBudget.t.sol` đo bốn ca ở N = 30: kỳ 1 và kỳ 29, mỗi kỳ có và không có 3 khoản thiếu. Kỳ 1 tốn vì ghi ReputationRegistry lần đầu; kỳ 29 tốn vì nhả holdback cho 28 người.
 
 ```solidity
 vm.startSnapshotGas("settleRound", "N30_k29_shortfall3");
@@ -228,7 +228,7 @@ assertLe(used, 3_000_000);
 Cheatcode ghi vào `snapshots/settleRound.json`. Theo tài liệu Foundry, snapshot gas chỉ chính xác ở chế độ test cô lập, chế độ này bật sẵn; không tắt nó.
 
 ```bash
-forge test --match-path "test/integration/GasBudget.t.sol" --gas-report
+forge test --match-path "test/gas/GasBudget.t.sol" --gas-report
 forge snapshot            # cập nhật .gas-snapshot
 forge snapshot --diff     # so với bản trước
 forge snapshot --check    # CI: lỗi nếu test nào tốn hơn bản đã ghi

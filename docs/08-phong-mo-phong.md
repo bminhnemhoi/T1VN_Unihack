@@ -113,8 +113,8 @@ Mỗi file cấu hình có một bộ tham số, đúng schema 05. Thí nghiệm
 
 **Giả thuyết cần kiểm (chưa phải kết quả):**
 
-- H1. Khi chỉ người đã hốt bỏ đóng, HụiSafe với CI = 100% có `uncoveredMeanUsdc` = 0 và tổn thất người hốt sau bằng 0 (03 mục 7.3, INV-08).
-- H2. Dưới đường α + `bondRatio` = 1, tổn thất tăng dần khi đi xa đường đó; trên đường, tổn thất bằng 0 nếu người chưa hốt không bỏ.
+- H1. Khi chỉ người đã hốt bỏ đóng và tất cả bỏ đóng trong cùng một kỳ (cú sốc đồng thời), HụiSafe với CI = 100% có `uncoveredMeanUsdc` = 0 và tổn thất người hốt sau bằng 0 (03 mục 7.3, INV-08). Với bỏ đóng lần lượt, giả thuyết này không được kỳ vọng; kịch bản mô phỏng phải đo riêng (N = 5: tổng thiếu 1000 so với O_max 600).
+- H2. Dưới đường α + `bondRatio` = 1, tổn thất tăng dần khi đi xa đường đó; trên đường, tổn thất bằng 0 nếu người chưa hốt không bỏ và người đã hốt chỉ bỏ đóng đồng thời trong một kỳ (cú sốc đồng thời, 03 mục 7.3); bỏ đóng lần lượt có thể làm tổn thất dương.
 - H3. `naive_onchain` dồn gần hết tổn thất lên người hốt sau.
 - H4. Ở `traditional`, rủi ro lớn nhất của người hốt sau là chủ hụi bỏ trốn, không phải người hốt trước bỏ đóng.
 
@@ -221,12 +221,12 @@ Hai quy tắc về người bị đóng băng, đã chốt ở 03 mục 6.6 và 
 | Mã | Điều kiện | Kỳ vọng |
 |---|---|---|
 | S1 | Không ai bỏ đóng | Mọi tổn thất bằng 0; tổng tiền vào bằng tổng tiền ra khi kết thúc |
-| S2 | α + `bondRatio` ≥ 1, chỉ người đã hốt bỏ (`liveDefaultHazardPerRound` = 0) | `uncovered` = 0 ở mọi kỳ của mọi dây (INV-08); tổn thất người hốt sau = 0 |
+| S2 | α + `bondRatio` ≥ 1, chỉ người đã hốt bỏ, tất cả cùng một kỳ (`liveDefaultHazardPerRound` = 0, cú sốc đồng thời) | `uncovered` = 0 ở mọi kỳ của mọi dây (INV-08); tổn thất người hốt sau = 0. Bỏ đóng lần lượt nằm ngoài S2 (03 mục 7.3) |
 | S3 | `naive_onchain`, hazard người đã hốt > 0 | Tổn thất > 0 và dồn về người hốt sau |
 | S4 | Tăng `bondRatio`, giữ seed | `lateReceiverExpectedLossPct` không tăng |
 | S5 | Không ai bỏ đóng | Tổng holdback sau kỳ m bằng α·O(m), sai số ≤ N đơn vị (INV-06 khi mọi người đóng đúng hạn) |
 | S6 | Mọi dây | Sổ cái khớp ở mọi kỳ, như INV-01 |
-| S7 | `traditional` với xác suất bỏ trốn 0 và ngân sách ≥ O_max | Tổn thất người trung thực = 0 khi chỉ người đã hốt bỏ |
+| S7 | `traditional` với xác suất bỏ trốn 0 và ngân sách ≥ O_max | Tổn thất người trung thực = 0 khi chỉ người đã hốt bỏ và bỏ đồng thời trong một kỳ (ngân sách ≥ O_max không đủ cho bỏ đóng lần lượt, cần N(N − 1)/2·C) |
 | S8 | Tăng số dây gấp 4 | Sai số chuẩn của tổn thất trung bình giảm khoảng một nửa |
 
 Kết quả nào trượt một kiểm tra thì không được dùng.

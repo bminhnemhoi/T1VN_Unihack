@@ -42,7 +42,7 @@ Bản hụi on-chain thông thường ("contract giữ tiền") bỏ cả hai vi
 Toán cốt lõi:
 - Tiền chưa đóng sau kỳ k là k(N − k)C, cao nhất ở giữa dây, bằng khoảng N²C/4.
 - Chỉ số bảo chứng = tỷ lệ giữ lại + (ký quỹ + quỹ dự phòng) chia cho mức đỉnh đó.
-- Chỉ số đạt 100% thì người góp trung thực không lỗ, kể cả khi mọi người đã hốt cùng bỏ đóng.
+- Chỉ số bảo chứng 100% nghĩa là ký quỹ chịu được cú sốc lớn nhất: mọi người đã hốt cùng bỏ đóng một lúc. Nếu họ bỏ đóng lần lượt qua nhiều kỳ thì tổng thiếu có thể vượt ký quỹ (03 mục 7.3).
 
 Chi tiết ở [03-dac-ta-giao-thuc.md](03-dac-ta-giao-thuc.md).
 
@@ -52,7 +52,7 @@ Dây 5 người × 100 USDC trên Fuji, chủ hụi ký quỹ 480 USDC, chỉ s�
 
 1. Kỳ 1: M4 bỏ thăm 6 USDC và thắng, nhận 288,48 USDC; 80 USDC bị giữ lại.
 2. Kỳ 2: M4 không đóng. Contract lấy 80 USDC giữ lại của M4 và 20 USDC từ ký quỹ để bù. Người hốt kỳ 2 vẫn nhận đủ.
-3. Đến hết dây, mọi người trung thực đều nhận đủ phần của mình.
+3. Đến hết dây, mọi người trung thực đều nhận đủ phần của mình (trong kịch bản này, một người đã hốt bỏ đóng).
 
 Kịch bản đầy đủ ở [12-pitch-demo-nop-bai.md](12-pitch-demo-nop-bai.md).
 

@@ -157,7 +157,7 @@ Ràng buộc:
 - Frozen: không kéo, cộng debt. Cọc không reveal vào quỹ dự phòng, +1 trễ.
 - pot, fee (escrow theo kỳ, chỉ khi commissionMode), premium, H = min(holdbackFor(k), pot − fee − premium), payout; chi an toàn (claimable khi chuyển lỗi); nhả α·C cho người đã hốt đóng đúng hạn.
 - Cập nhật RoundInfo, ReputationRegistry, settledRounds; INV-01 và INV-05 đúng sau mỗi lần gọi.
-- Gas: settleRound N = 5 ≤ 600.000, N = 30 ≤ 3.000.000 (đo bằng test/integration/GasBudget.t.sol khung).
+- Gas: settleRound N = 5 ≤ 600.000, N = 30 ≤ 3.000.000 (đo bằng test/gas/GasBudget.t.sol khung).
 Tiêu chí chấp nhận: test cho: không ai thiếu; một người đã hốt thiếu (bù bằng holdback rồi ký quỹ); cạn ký quỹ và quỹ dự phòng → uncovered; người hốt bị chặn địa chỉ → claimable; Frozen; dư lẻ về người hốt. Fuzz số người thiếu và thăm ngẫu nhiên giữ INV-05.
 Sau khi xanh: chạy /audit diff.
 ```
@@ -389,7 +389,7 @@ Ràng buộc:
 - huisim/model.py chạy đúng luật docs/03 cho thiết kế huisafe (thác bù, holdback, ký quỹ, quỹ dự phòng, Frozen); policies.py mô hình chủ hụi truyền thống (bỏ trốn, khả năng bù) và mô hình thăm; scenarios.py kiểm cấu hình; metrics.py sáu chỉ số; cli.py có run, sweep, vectors.
 - scenarios/baseline.json đúng mẫu docs/05 mục 11.1; hazard lấy cảm hứng Klonner & Rai (2008) ghi rõ là giả định.
 - numpy.random.default_rng(seed); outputs/<id>.json + <id>.meta.json (seed, số dây, commit) + PNG nhãn tiếng Việt, chú thích "Mô phỏng, tham số giả định".
-Tiêu chí chấp nhận: pytest xanh (gồm kiểm tra hợp lý: CI 100% và chỉ người đã hốt bỏ đóng thì uncovered = 0); bảng kết quả ba thiết kế; 2-3 câu kết luận dùng được cho pitch kèm giới hạn.
+Tiêu chí chấp nhận: pytest xanh (gồm kiểm tra hợp lý: CI 100% và chỉ người đã hốt bỏ đóng đồng thời trong một kỳ thì uncovered = 0; bỏ đóng lần lượt thì không, docs/03 mục 7.3); bảng kết quả ba thiết kế; 2-3 câu kết luận dùng được cho pitch kèm giới hạn.
 ```
 
 ### P4.2 Server trợ lý chủ hụi với 6 tool tất định (P3, T3-T4)

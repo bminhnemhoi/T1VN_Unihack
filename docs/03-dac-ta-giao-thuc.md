@@ -71,7 +71,7 @@ CI_bps = min(10_000, alphaBps + (B + R) · 10_000 / O_max)
 ```
 
 - Con số hiển thị trước khi tham gia dùng R = 0 (mức bảo đảm tối thiểu). Khi dây chạy, R tăng dần nên CI thực tế cao hơn.
-- CI = 100% nghĩa là người góp trung thực không lỗ đồng nào kể cả khi mọi người đã hốt cùng bỏ đóng vào lúc rủi ro đỉnh (chứng minh ở mục 7).
+- CI = 100% nghĩa là ký quỹ chịu được cú sốc lớn nhất: người góp trung thực nhận đủ pot khi mọi người đã hốt mà vỡ nợ cùng ngừng đóng trong CÙNG một kỳ, vào lúc rủi ro đỉnh (chứng minh ở mục 7.3). Đây KHÔNG phải cam kết "không bao giờ mất tiền": nếu những người đã hốt ngừng đóng lần lượt, kỳ này sang kỳ khác, tổng khoản thiếu có thể vượt O_max và vượt ký quỹ (phản ví dụ và cận ở mục 7.3).
 - Ký quỹ để đạt 100%: `B = (1 − α) · O_max`. Với α mặc định 20%: B = 0,8·O_max.
 - `activate()` chỉ thành công khi `CI_bps ≥ minCoverageBps` (mặc định 50%).
 
@@ -350,13 +350,37 @@ Sau mỗi giao dịch `settleRound`, không có USDC nào khác nằm lại. Ti�
 | INV-05 | `payout + fee + premium + H (+ trả nợ) == pot` ở mọi kỳ. |
 | INV-06 | Sau m kỳ đã chi, mọi người đã hốt chưa vỡ nợ d có `holdback[d] ≤ α·(N − m)·C/10_000 + N` (sai số làm tròn ≤ N đơn vị, khớp docs/09). Dấu bằng (sai số làm tròn ≤ N đơn vị) khi d không có khoản thiếu đang mở và lúc hốt d nhận đủ H = `holdbackFor(α, N, r_d, C)`. Hệ quả: khi mọi người đóng đúng hạn, tổng holdback = m·α·(N − m)·C = α·O(m). |
 | INV-07 | Không hàm nào chuyển USDC tới admin hay tới bất kỳ địa chỉ nào ngoài thành viên, chủ hụi (ký quỹ và tiền công) và người có `claimable`. |
-| INV-08 | Nếu `alphaBps + B·10_000/O_max ≥ 10_000` và chỉ người đã hốt bỏ đóng, thì mọi thành viên trung thực nhận đủ pot của mình (`uncovered == 0` ở mọi kỳ). |
+| INV-08 | Nếu `alphaBps + B·10_000/O_max ≥ 10_000` và chỉ người đã hốt bỏ đóng, tất cả cùng ngừng đóng trong cùng một kỳ (cú sốc đồng thời lớn nhất), thì mọi thành viên trung thực nhận đủ pot của mình (`uncovered == 0` ở mọi kỳ), với điều kiện holdback của họ đã được giữ đủ H = `holdbackFor(α, N, r, C)` lúc hốt (không bị cắt vì pot nhỏ, 6.5 bước 7; xảy ra với α cực lớn như 100% và ký quỹ 0). Không áp dụng khi những người đã hốt ngừng đóng lần lượt (xem 7.3, phản ví dụ). |
 | INV-09 | Kỳ k chỉ được chi sau kỳ k − 1 và sau `deadline(k)`, với `roundStart(k) ≥ settledAt(k − 1)` và một lần dừng sau lúc chi kỳ k − 1 dời `roundStart(k)` đúng bằng thời gian dừng (kỳ chi trễ chỉ làm dời lịch kỳ sau, kỳ sau luôn có đủ cửa sổ commit và reveal). Tham số không đổi sau `activate()`. |
 | INV-10 | Không có thông tin cá nhân nào trên chuỗi: chỉ địa chỉ ví, mã băm attestation, số tiền, mốc thời gian. |
 
-### 7.3. Vì sao CI = 100% thì người trung thực an toàn
+### 7.3. Chỉ số 100% bảo đảm gì, và không bảo đảm gì
 
-Gọi m là kỳ có rủi ro lớn nhất. Giả sử mọi người đã hốt cùng ngừng đóng ngay sau kỳ m. Tổng phần thiếu từ kỳ m + 1 đến N là O(m) ≤ O_max. Theo 2.2, holdback của họ lúc đó là α·O(m), dùng trước. Phần còn lại (1 − α)·O(m) ≤ (1 − α)·O_max ≤ B. Vậy mọi khoản thiếu đều được bù và `uncovered = 0`. Quỹ dự phòng chỉ làm biên an toàn dày thêm. Người chưa hốt mà bỏ đóng không gây lỗ ròng (mục 6.6). Họ chỉ dùng tạm thanh khoản của ký quỹ, nên khi nhiều người chưa hốt cùng bị đóng băng thì vẫn có thể thiếu thanh khoản tạm thời. Phòng mô phỏng ([08-phong-mo-phong.md](08-phong-mo-phong.md)) đo xác suất này.
+**Bảo đảm (cú sốc đồng thời lớn nhất).** Gọi m là kỳ có rủi ro lớn nhất. Giả sử mọi người đã hốt cùng ngừng đóng ngay sau kỳ m, tức là trong cùng một kỳ (với mọi m và mọi tập con người đã hốt, phần thiếu ≤ O(m) ≤ O_max). Chứng minh giả định holdback của họ là đủ H = α·(N − k)·C lúc hốt; nếu pot sau khi trừ fee và premium nhỏ hơn H thì H bị cắt (6.5 bước 7) và có thể còn `uncovered` nhỏ, ví dụ α = 100% với ký quỹ 0. Tổng phần thiếu từ kỳ m + 1 đến N là O(m) ≤ O_max. Theo 2.2, holdback của họ lúc đó là α·O(m), dùng trước. Phần còn lại (1 − α)·O(m) ≤ (1 − α)·O_max ≤ B. Vậy mọi khoản thiếu đều được bù và `uncovered = 0`. Quỹ dự phòng chỉ làm biên an toàn dày thêm. Người chưa hốt mà bỏ đóng không gây lỗ ròng (mục 6.6). Họ chỉ dùng tạm thanh khoản của ký quỹ, nên khi nhiều người chưa hốt cùng bị đóng băng thì vẫn có thể thiếu thanh khoản tạm thời. Phòng mô phỏng ([08-phong-mo-phong.md](08-phong-mo-phong.md)) đo xác suất này.
+
+Câu dùng khi trình bày: "Chỉ số bảo chứng 100% nghĩa là ký quỹ chịu được cú sốc lớn nhất: mọi người đã hốt cùng bỏ đóng một lúc." Không viết "không bao giờ mất tiền" hay "không lỗ đồng nào" khi không kèm điều kiện này.
+
+**Không bảo đảm (người đã hốt ngừng đóng lần lượt).** O_max chỉ đo số tiền chưa đóng tại MỘT thời điểm. Nếu mỗi người ngừng đóng ngay sau kỳ họ hốt, các khoản thiếu cộng dồn qua các kỳ và tổng có thể lớn hơn O_max.
+
+Phản ví dụ (đã khóa bằng test `test_INV08_SequentialDefaults_ExceedBond_Documented`): dây ví dụ ở mục 8 (N = 5, C = 100 USDC, α = 20%, ký quỹ B = 480, CI = 100%), M1 hốt kỳ 1 rồi ngừng đóng, M2 hốt kỳ 2 rồi ngừng, M3 hốt kỳ 3 rồi ngừng, M4 hốt kỳ 4 rồi ngừng. Không ai bỏ thăm (b = 0), khác kỳ 1 ở mục 8.
+
+| Mục | Giá trị |
+|---|---|
+| Tổng khoản thiếu = (N − 1) + (N − 2) + (N − 3) + (N − 4) = N(N − 1)/2 phần C | 1000 USDC |
+| O_max của dây | 600 USDC (nhỏ hơn 1000) |
+| Kỳ 2 đến 4 | vẫn được bù đủ (`uncovered = 0`); ký quỹ còn 60 sau kỳ 4 |
+| Kỳ 5 (M5 là người trung thực hốt cuối) | ký quỹ về 0, quỹ dự phòng cạn, `uncovered = 304` |
+| M5 nhận | 94,08 USDC thay vì 392 USDC (pot 96 USDC) |
+
+Phần 304 USDC là khoản đòi công khai đối với những người vỡ nợ (mục 6.8), không phải tiền mất không dấu vết, nhưng M5 không nhận đủ khi kỳ 5 được chi.
+
+**Cận cho bảo chứng toàn phần (tùy chọn, roadmap).** Nếu muốn bù đủ cả trường hợp ngừng đóng lần lượt, tổng khoản thiếu tối đa là N(N − 1)/2·C. Phần holdback α che được một phần, ký quỹ cần là
+
+```
+B_seq = (1 − α) · N(N − 1)/2 · C        (dây ví dụ: 0,8 · 10 · 100 = 800 USDC; so với B = 480 ở CI = 100%)
+```
+
+Đây là chế độ "bảo chứng toàn phần" tùy chọn, nằm ở roadmap. Quyết định hiện tại (A6, chủ dự án chốt): giữ nguyên công thức CI, O_max, `B = (1 − α)·O_max` và `minCoverageBps = 5000`, không nâng ký quỹ; chỉnh lời cam kết cho khớp với điều đã chứng minh. Giao diện và pitch phải nêu đúng điều kiện "cú sốc đồng thời".
 
 ---
 

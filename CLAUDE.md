@@ -85,7 +85,7 @@ Python: 3.11+, type hints đầy đủ, `numpy.random.default_rng(seed)`; mọi 
 - Thăm thắng: 0 ≤ b ≤ `maxBid(k)` và b < C. `payout + fee + premium + H (+ trả nợ) == pot`; chia làm tròn xuống, phần dư lẻ về người hốt kỳ đó.
 - Holdback (INV-06): sau m kỳ, mỗi người đã hốt chưa vỡ nợ có holdback ≤ α·(N − m)·C, bằng (sai số ≤ N đơn vị) khi người đó không còn khoản thiếu mở và lúc hốt đã giữ đủ H; mọi người đóng đúng hạn thì tổng = α·O(m), O(m) = m(N − m)C. `payLate` hoàn nguồn xong thì nhả phần α·C đã bị bỏ qua của kỳ đó.
 - Thác bù: holdback của chính người thiếu → ký quỹ → quỹ dự phòng → `uncovered` (khoản đòi công khai). Thứ tự hoàn (docs/03 mục 6.8; cho `payLate`, `repayDebt`, pot của người Frozen, `finalize`): khoản cũ trước; trong mỗi khoản `uncovered` (trả thẳng người hốt kỳ đó) → quỹ dự phòng → ký quỹ → holdback; gốc trước, lãi chậm góp sau.
-- CI = 100% và chỉ người đã hốt bỏ đóng thì `uncovered == 0` ở mọi kỳ. `activate()` cần `coverageIndexBps ≥ minCoverageBps` (5000). Allowance vào dây = (N − 1)·(C + revealBond).
+- CI = 100% và chỉ người đã hốt bỏ đóng, tất cả cùng bỏ đóng trong một kỳ (cú sốc đồng thời lớn nhất), thì `uncovered == 0` ở mọi kỳ; bỏ đóng lần lượt qua nhiều kỳ có thể vượt ký quỹ (docs/03 mục 7.3, cận bù đủ B_seq = (1 − α)·N(N−1)/2·C là roadmap). `activate()` cần `coverageIndexBps ≥ minCoverageBps` (5000). Allowance vào dây = (N − 1)·(C + revealBond).
 - USDC chỉ đi tới thành viên, chủ hụi (ký quỹ, tiền công hợp lệ) và người có `claimable`; không bao giờ tới admin. Khi `Paused` chỉ `claim()` chạy, hàm khác revert `CircleIsPaused()` (event vẫn là `CirclePaused`); thời gian dừng cộng vào `pausedTotal`.
 
 ## Quy trình làm việc
