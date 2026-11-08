@@ -1,0 +1,29 @@
+# Tiến độ HụiSafe
+
+Cập nhật: 09/11/2026 (Towfienes). Ai xong một việc đáng kể thì sửa phần TÓM TẮT trong cùng PR (giữ dưới 15 dòng).
+
+<!-- TOM-TAT -->
+- M0 Setup: XONG. M1 Contract lõi: XONG 08/11 (536 test, 44 invariant, Slither high 0).
+- M2 Fuji + SDK (hạn 11/11): ĐANG LÀM. Script dây demo, /api/relay, /api/attest, keeper, chạy thử trên anvil. Deploy Fuji chờ khóa + app Privy.
+- M3 MVP E2E (hạn 14/11): giao diện S01-S06 xong (dữ liệu mẫu). Chưa nối ví và contract (W5 SDK, W7-W9, W11).
+- M4 AI + thử thật (hạn 16/11): mô phỏng XONG; /api/copilot XONG (9router/Gemini hoặc Anthropic), chưa chạy eval live; ngăn kéo trợ lý T6 chưa làm.
+- M5-M7: chưa tới (đóng băng 17/11, pitch 19/11, nộp 20/11).
+- Đang giữ: contracts/, apps/keeper, apps/web/app/api/{relay,attest} (luồng A); apps/web giao diện, sim/, copilot (luồng B). Muốn sửa các chỗ này thì báo Towfienes trước.
+- Việc mở cho member: T8 slide + kịch bản pitch, T4 rà văn bản luật (apps/web/lib/copilot/rules), T10 README, W12 kiểm tiếng Việt/accessibility. Nhận việc nào thì ghi tên vào bảng dưới.
+<!-- /TOM-TAT -->
+
+## Thành viên
+
+| GitHub | Vai trò | Đang làm |
+|---|---|---|
+| Towfienes | Điều phối, review và merge | M2 |
+| khanhle1406 | Thành viên | (chưa nhận) |
+| yuutosolonely | Thành viên | (chưa nhận) |
+
+## Cách làm việc
+
+1. Đọc `CLAUDE.md` (luật cứng, quy ước) trước khi sửa code.
+2. Tạo nhánh từ `main`: `feat/<việc>`, `fix/<việc>`, `docs/<việc>`. Commit theo Conventional Commits, tiếng Anh.
+3. Mở PR vào `main`, ghi lệnh đã chạy để kiểm chứng. Towfienes review rồi merge. Không push thẳng `main`.
+4. Không commit bí mật (`.env*` trừ `.env.example`, khóa riêng, API key). Mỗi người tự điền `.env.local` của mình.
+5. Lịch và định nghĩa xong của từng mốc: `docs/11-ke-hoach-trien-khai.md`.

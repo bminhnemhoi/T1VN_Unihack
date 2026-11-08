@@ -88,6 +88,12 @@ Python: 3.11+, type hints đầy đủ, `numpy.random.default_rng(seed)`; mọi 
 - CI = 100% và chỉ người đã hốt bỏ đóng, tất cả cùng bỏ đóng trong một kỳ (cú sốc đồng thời lớn nhất), thì `uncovered == 0` ở mọi kỳ; bỏ đóng lần lượt qua nhiều kỳ có thể vượt ký quỹ (docs/03 mục 7.3, cận bù đủ B_seq = (1 − α)·N(N−1)/2·C là roadmap). `activate()` cần `coverageIndexBps ≥ minCoverageBps` (5000). Allowance vào dây = (N − 1)·(C + revealBond).
 - USDC chỉ đi tới thành viên, chủ hụi (ký quỹ, tiền công hợp lệ) và người có `claimable`; không bao giờ tới admin. Khi `Paused` chỉ `claim()` chạy, hàm khác revert `CircleIsPaused()` (event vẫn là `CirclePaused`); thời gian dừng cộng vào `pausedTotal`.
 
+## Tiến độ và làm việc nhóm
+
+- Tiến độ chung nằm ở `docs/TIEN-DO.md`; hook SessionStart in sẵn phần TÓM TẮT. Câu trả lời đầu tiên của mỗi phiên báo tiến độ đó cho người dùng trong tối đa 5 dòng, không mở thêm file chỉ để báo.
+- Xong một việc đáng kể (mốc, mã việc C/W/T, PR) thì sửa phần TÓM TẮT của `docs/TIEN-DO.md` trong cùng commit/PR, giữ dưới 15 dòng; nhận việc thì ghi tên vào bảng Thành viên.
+- Thành viên làm qua nhánh riêng và PR vào `main` (Towfienes review, merge); không push thẳng `main`.
+
 ## Quy trình làm việc
 
 1. Lập kế hoạch ở plan mode (Shift+Tab hoặc `/plan`; theo mốc: `/plan-milestone M1`). Đọc docs liên quan trước khi đề xuất.

@@ -61,6 +61,17 @@ fi
 BRANCH="$(git -C "$ROOT" rev-parse --abbrev-ref HEAD 2>/dev/null || true)"
 [ -n "$BRANCH" ] && echo "Nhánh git: ${BRANCH}."
 
+# Tiến độ chung của nhóm (docs/TIEN-DO.md, phần giữa hai dấu TOM-TAT, tối đa 15 dòng).
+STATUS="$ROOT/docs/TIEN-DO.md"
+if [ -f "$STATUS" ]; then
+  summary="$(sed -n '/<!-- TOM-TAT -->/,/<!-- \/TOM-TAT -->/p' "$STATUS" 2>/dev/null | grep -v -- '<!--' | head -15)"
+  if [ -n "$summary" ]; then
+    echo "TIẾN ĐỘ REPO (docs/TIEN-DO.md):"
+    echo "$summary"
+    echo "VIỆC CỦA AGENT: trong câu trả lời đầu tiên của phiên, báo tiến độ trên cho người dùng trong tối đa 5 dòng (không mở thêm file chỉ để báo). Xong một việc đáng kể thì cập nhật phần TÓM TẮT của docs/TIEN-DO.md trong cùng commit/PR."
+  fi
+fi
+
 cat <<'EOF'
 LUẬT CỨNG (chi tiết trong CLAUDE.md):
 1. Chỉ Avalanche Fuji (chainId 43113). Không bao giờ broadcast lên mainnet.
