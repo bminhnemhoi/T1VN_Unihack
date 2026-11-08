@@ -42,3 +42,6 @@ __pycache__/
 .DS_Store
 .idea/
 .vscode/
+
+# Foundry cache run from the repo root by mistake
+/cache/
