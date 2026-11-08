@@ -7,6 +7,7 @@ import { buildFacts } from './facts';
 import { checkAnswer, detectActionRequest } from './guard';
 import { SYSTEM_PROMPT } from './prompt';
 import { prepareUserText } from './scrub';
+import { stripReasoning } from './text';
 import { answerSchema, type CopilotAnswer, type CopilotRequest } from './schemas';
 import { runTool, ToolError, type ToolContext } from './tools';
 import { calculatorAnswer, refusalAnswer } from './templates';
@@ -16,6 +17,8 @@ export interface ToolUseBlock {
   id: string;
   name: string;
   input: unknown;
+  /** The router sent `arguments` that were not valid JSON: answer with an error so the model retries (never throw). */
+  invalidArguments?: true;
 }
 export interface TextBlock {
   type: 'text';
@@ -30,16 +33,30 @@ export interface ToolResultBlock {
 }
 export type TurnMessage =
   | { role: 'user'; content: string | ToolResultBlock[] }
-  | { role: 'assistant'; content: AssistantBlock[] };
+  /** `raw` is the assistant message exactly as the provider returned it; adapters replay it (Gemini thought signatures). */
+  | { role: 'assistant'; content: AssistantBlock[]; raw?: unknown };
 
 export interface ModelTurn {
   content: AssistantBlock[];
   stopReason: 'end_turn' | 'tool_use' | 'refusal' | 'max_tokens' | 'other';
   usage?: { inputTokens: number; outputTokens: number };
+  /** Model id the provider says it used (a gateway may differ from the one requested). */
+  model?: string;
+  raw?: unknown;
 }
 
+export interface CompleteArgs {
+  system: string;
+  messages: TurnMessage[];
+  /** `none` on the last tool round forces a final answer. */
+  toolChoice?: 'auto' | 'none';
+  signal?: AbortSignal;
+}
+
+/** The seam for providers, tests and the eval harness (the Goblin bot calls it `LlmLike`). */
 export interface ModelClient {
-  complete(args: { system: string; messages: TurnMessage[]; signal?: AbortSignal }): Promise<ModelTurn>;
+  info?: { provider: string; model: string };
+  complete(args: CompleteArgs): Promise<ModelTurn>;
 }
 
 export type CopilotEvent =
@@ -62,6 +79,8 @@ export interface RunOptions {
   /** Receives metadata only (docs/07 3.8 item 3): never message content. */
   log?: (entry: Record<string, unknown>) => void;
   signal?: AbortSignal;
+  /** Per-tool timeout; defaults to `LIMITS.toolTimeoutMs`. */
+  toolTimeoutMs?: number;
 }
 
 const STATUS: Record<string, string> = {
@@ -90,19 +109,25 @@ export function buildUserMessage(req: CopilotRequest): string {
 }
 
 function parseAnswer(blocks: AssistantBlock[]): { ok: true; answer: CopilotAnswer } | { ok: false; why: string } {
-  const text = blocks
-    .filter((b): b is TextBlock => b.type === 'text')
-    .map((b) => b.text)
-    .join('')
-    .trim();
-  const json = text.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '');
-  try {
-    const parsed = answerSchema.safeParse(JSON.parse(json));
-    if (!parsed.success) return { ok: false, why: parsed.error.issues.map((i) => i.message).join('; ') };
-    return { ok: true, answer: parsed.data };
-  } catch {
-    return { ok: false, why: 'Đầu ra không phải JSON hợp lệ' };
+  const text = stripReasoning(
+    blocks
+      .filter((b): b is TextBlock => b.type === 'text')
+      .map((b) => b.text)
+      .join(''),
+  );
+  const unfenced = text.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '');
+  // Some models add a sentence around the JSON: fall back to the outermost braces.
+  const braces = unfenced.slice(unfenced.indexOf('{'), unfenced.lastIndexOf('}') + 1);
+  for (const candidate of [unfenced, braces]) {
+    try {
+      const parsed = answerSchema.safeParse(JSON.parse(candidate));
+      if (parsed.success) return { ok: true, answer: { ...parsed.data, answer: stripReasoning(parsed.data.answer) } };
+      return { ok: false, why: parsed.error.issues.map((i) => i.message).join('; ') };
+    } catch {
+      // try the next candidate
+    }
   }
+  return { ok: false, why: 'Đầu ra không phải JSON hợp lệ' };
 }
 
 const withLabel = (answer: CopilotAnswer, source: 'model' | 'calculator' | 'refusal'): CopilotEvent => ({
@@ -111,6 +136,16 @@ const withLabel = (answer: CopilotAnswer, source: 'model' | 'calculator' | 'refu
   source,
   label: AI_LABEL,
 });
+
+function withTimeout<T>(p: Promise<T>, ms: number, name: string): Promise<T> {
+  let timer: ReturnType<typeof setTimeout>;
+  const timeout = new Promise<never>((_, reject) => {
+    timer = setTimeout(() => reject(new ToolError('unavailable', `Tool ${name} quá ${ms / 1000} giây`)), ms);
+  });
+  return Promise.race([p, timeout]).finally(() => clearTimeout(timer));
+}
+
+type Executed = { use: ToolUseBlock; result?: unknown; error?: string };
 
 /** Runs one user turn. Yields events as they happen; the final event is always `answer` or `error`. */
 export async function* runCopilot(opts: RunOptions): AsyncGenerator<CopilotEvent> {
@@ -121,50 +156,88 @@ export async function* runCopilot(opts: RunOptions): AsyncGenerator<CopilotEvent
   const actionRequest = detectActionRequest(last.content);
   const facts = request.draft ? buildFacts(request.draft, request.circle) : request.circle ? { circle: request.circle } : undefined;
   const userTexts = request.messages.map((m) => m.content);
+  const toolTimeoutMs = opts.toolTimeoutMs ?? LIMITS.toolTimeoutMs;
 
   const toolResults: { name: string; result: unknown }[] = [];
   const messages: TurnMessage[] = [{ role: 'user', content: buildUserMessage(request) }];
   let toolCalls = 0;
+  let toolRounds = 0;
   let retried = false;
   let tokensIn = 0;
   let tokensOut = 0;
+  let returnedModel: string | undefined;
 
   const finish = (e: CopilotEvent): CopilotEvent => {
-    log({ requestId, event: 'done', ms: Date.now() - started, tools: toolResults.map((t) => t.name), tokensIn, tokensOut, kind: e.type === 'answer' ? e.source : 'error' });
+    // Metadata only (docs/07 3.8 item 3): never message content, never a key.
+    log({
+      requestId,
+      event: 'done',
+      provider: model.info?.provider,
+      requestedModel: model.info?.model,
+      returnedModel,
+      ms: Date.now() - started,
+      rounds: toolRounds,
+      tools: toolResults.map((t) => t.name),
+      tokensIn,
+      tokensOut,
+      kind: e.type === 'answer' ? e.source : 'error',
+    });
     return e;
   };
 
   try {
-    for (let iter = 0; iter < LIMITS.maxModelIterations; iter++) {
-      const turn = await model.complete({ system: SYSTEM_PROMPT, messages, signal: opts.signal });
+    for (let call = 0; call < LIMITS.maxToolRounds + 2; call++) {
+      if (opts.signal?.aborted) throw new Error('aborted');
+      // On the last tool round no tools may be called: the model must answer.
+      const lastRound = toolRounds >= LIMITS.maxToolRounds;
+      const turn = await model.complete({ system: SYSTEM_PROMPT, messages, toolChoice: lastRound ? 'none' : 'auto', signal: opts.signal });
       tokensIn += turn.usage?.inputTokens ?? 0;
       tokensOut += turn.usage?.outputTokens ?? 0;
+      returnedModel = turn.model ?? returnedModel;
 
       if (turn.stopReason === 'refusal' || turn.stopReason === 'max_tokens') {
         yield finish(withLabel(toolResults.length ? calculatorAnswer(toolResults) : refusalAnswer('model'), 'calculator'));
         return;
       }
 
-      const uses = turn.content.filter((b): b is ToolUseBlock => b.type === 'tool_use');
+      const allUses = turn.content.filter((b): b is ToolUseBlock => b.type === 'tool_use');
+      const uses = lastRound ? [] : allUses;
       if (uses.length > 0) {
-        messages.push({ role: 'assistant', content: turn.content });
-        const results: ToolResultBlock[] = [];
-        for (const use of uses) {
-          if (toolCalls >= LIMITS.maxToolCallsPerTurn) {
-            results.push({ type: 'tool_result', tool_use_id: use.id, is_error: true, content: 'Đã vượt số lần gọi tool tối đa của lượt này.' });
-            continue;
-          }
+        toolRounds++;
+        // Replay the assistant message exactly as returned (keeps Gemini's thought signature), before the tool results.
+        messages.push({ role: 'assistant', content: turn.content, raw: turn.raw });
+
+        const planned = uses.map((use) => {
+          if (toolCalls >= LIMITS.maxToolCallsPerTurn) return { use, rejected: 'Đã vượt số lần gọi tool tối đa của lượt này.' };
           toolCalls++;
-          yield { type: 'status', text: STATUS[use.name] ?? 'Đang tính...' };
-          try {
-            const result = await runTool(use.name, use.input, opts.toolContext);
-            toolResults.push({ name: use.name, result });
-            yield { type: 'tool', name: use.name, result };
-            results.push({ type: 'tool_result', tool_use_id: use.id, content: JSON.stringify(result) });
-          } catch (e) {
-            if (!(e instanceof ToolError)) throw e;
-            yield { type: 'tool', name: use.name, result: null, error: e.message };
-            results.push({ type: 'tool_result', tool_use_id: use.id, is_error: true, content: e.message });
+          if (use.invalidArguments) return { use, rejected: 'Lỗi: arguments không phải JSON hợp lệ, gọi lại với JSON đúng.' };
+          return { use, rejected: undefined };
+        });
+        for (const p of planned) if (!p.rejected) yield { type: 'status', text: STATUS[p.use.name] ?? 'Đang tính...' };
+
+        // All six tools are read-only and deterministic, so parallel execution is safe.
+        const executed: Executed[] = await Promise.all(
+          planned.map(async (p): Promise<Executed> => {
+            if (p.rejected) return { use: p.use, error: p.rejected };
+            try {
+              const result = await withTimeout(runTool(p.use.name, p.use.input, opts.toolContext), toolTimeoutMs, p.use.name);
+              return { use: p.use, result };
+            } catch (e) {
+              if (e instanceof ToolError) return { use: p.use, error: e.message };
+              throw e;
+            }
+          }),
+        );
+
+        const results: ToolResultBlock[] = [];
+        for (const ex of executed) {
+          if (ex.error === undefined) {
+            toolResults.push({ name: ex.use.name, result: ex.result });
+            yield { type: 'tool', name: ex.use.name, result: ex.result };
+            results.push({ type: 'tool_result', tool_use_id: ex.use.id, content: JSON.stringify(ex.result) });
+          } else {
+            yield { type: 'tool', name: ex.use.name, result: null, error: ex.error };
+            results.push({ type: 'tool_result', tool_use_id: ex.use.id, is_error: true, content: ex.error });
           }
         }
         messages.push({ role: 'user', content: results });
@@ -172,7 +245,12 @@ export async function* runCopilot(opts: RunOptions): AsyncGenerator<CopilotEvent
       }
 
       // Final answer: parse, guard, retry once, then fall back to the calculator table.
-      messages.push({ role: 'assistant', content: turn.content });
+      // Tool calls the model made on the last round are dropped, so the history never has a call without a result.
+      messages.push(
+        allUses.length > 0
+          ? { role: 'assistant', content: turn.content.filter((b) => b.type === 'text') }
+          : { role: 'assistant', content: turn.content, raw: turn.raw },
+      );
       const parsed = parseAnswer(turn.content);
       let violations: string[];
       if (parsed.ok) {

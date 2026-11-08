@@ -3,9 +3,10 @@
  * read only in `app/api/copilot/route.ts` (CLAUDE.md hard rule 2).
  */
 
-/** Model id from docs/07 3.2 item 1. Sampling parameters are NOT set: Sonnet 5.5 only accepts defaults. */
-export const COPILOT_MODEL = 'claude-sonnet-5-5';
-/** Effort `medium` keeps p50 latency near the 6 s target in docs/07 section 7; re-tune with the live eval. */
+/**
+ * No model id lives in code: `COPILOT_MODEL` is required (docs/05 8.4), see `provider.ts`.
+ * Anthropic backend only: effort `medium` keeps p50 latency near the 6 s target in docs/07 section 7; re-tune with the live eval.
+ */
 export const COPILOT_EFFORT = 'medium' as const;
 /** Caps spend per call: the answer is about 550 tokens (docs/07 section 7); the rest is room for adaptive thinking. */
 export const MAX_OUTPUT_TOKENS = 8_000;
@@ -21,7 +22,9 @@ export const LIMITS = {
   maxMessages: 12,
   maxMessageChars: 2_000,
   maxToolCallsPerTurn: 6,
-  maxModelIterations: 4,
+  /** Tool rounds before the model is forced (tool_choice none) to answer. */
+  maxToolRounds: 4,
+  toolTimeoutMs: 10_000,
   /** Per IP, per hour (docs/07 section 8 item 3). */
   requestsPerHour: 20,
   /** Per process, per UTC day; overridable with COPILOT_DAILY_LIMIT. */

@@ -338,7 +338,7 @@ Không có tham số `string` trong event hay hàm ghi thì không có chỗ đ�
 | Hạn mức | 20 yêu cầu/giờ mỗi người; một ví mỗi người, lấy ví từ phiên Privy | 30 yêu cầu/giờ mỗi `from`; hạn mức theo IP; ngân sách gas mỗi ngày | Theo người, theo IP; giới hạn token mỗi lượt | Gas limit = ước tính × 1,2, trần 5.000.000 |
 | Allowlist | `factory.isCircle(circle)` | Đích là factory hoặc circle hợp lệ; 15 selector của 05 mục 8.2 (11 hàm người dùng, 4 hàm ai cũng gọi); `value = 0`; gas ≤ 3.000.000 | Đúng 6 tool | Chỉ 4 hàm đến hạn |
 | Trước khi ký hay gửi | Kiểm đủ điều kiện | `forwarder.verify`, mô phỏng `execute` bằng `eth_call` | Bộ kiểm đầu ra | Mô phỏng bằng `eth_call`, bỏ qua lỗi "đã làm" |
-| Khóa | `ATTESTER_PRIVATE_KEY`, `ATTESTATION_ID_SECRET` | `RELAYER_PRIVATE_KEY` | `ANTHROPIC_API_KEY` | `KEEPER_PRIVATE_KEY` |
+| Khóa | `ATTESTER_PRIVATE_KEY`, `ATTESTATION_ID_SECRET` | `RELAYER_PRIVATE_KEY` | `COPILOT_API_KEY`, `ANTHROPIC_API_KEY` | `KEEPER_PRIVATE_KEY` |
 
 Quy tắc chung:
 
@@ -358,7 +358,7 @@ Quy tắc chung:
 | P1 | Không có chỗ chứa văn bản tự do trên chuỗi | Job `privacy` (mục 8.3) |
 | P2 | `attestationId` không đảo ngược được | Test API: 32 byte; khác nhau giữa hai dây của cùng người; khác `keccak256(privyUserId)`; đổi `ATTESTATION_ID_SECRET` thì đổi giá trị; phản hồi không chứa `privyUserId` hay email |
 | P3 | Log không chứa bí mật | Gửi yêu cầu có header `Authorization` và chữ ký, rồi tìm chuỗi đó trong log: không được thấy |
-| P4 | Trợ lý không nhận dữ liệu thành viên | Chặn và kiểm payload gửi Claude API: không có địa chỉ ví thành viên, biệt danh (02, AC-11.4) |
+| P4 | Trợ lý không nhận dữ liệu thành viên | Chặn và kiểm payload gửi nhà cung cấp mô hình (router hoặc Claude API): không có địa chỉ ví thành viên, biệt danh (02, AC-11.4) |
 | P5 | Biệt danh chỉ ở máy chủ hụi | Test web: biệt danh chỉ trong localStorage; không request nào gửi nó lên server |
 | P6 | `label` không chứa tên người | UI nhắc khi tạo dây; sổ họ chỉ in địa chỉ, biệt danh chỉ có trên máy chủ hụi |
 

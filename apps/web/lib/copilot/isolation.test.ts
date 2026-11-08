@@ -45,10 +45,18 @@ describe('copilot key isolation', () => {
     for (const s of sources) expect(s.text, s.file).not.toContain('NEXT_PUBLIC_');
   });
 
-  it('reads the Anthropic key only in the route and the eval CLI, never logs it', () => {
-    const readers = sources.filter((s) => s.text.includes('ANTHROPIC_API_KEY')).map((s) => s.file.replaceAll('\\', '/'));
-    expect(readers.sort()).toEqual(['app/api/copilot/route.ts', 'lib/copilot/evals/run.ts']);
-    for (const s of sources) expect(s.text, s.file).not.toMatch(/console\.\w+\([^)]*apiKey/i);
+  it('names the key variables only in provider.ts (and the eval CLI message), and touches the environment only in three places', () => {
+    const norm = (f: string) => f.replaceAll('\\', '/');
+    const named = sources.filter((x) => /COPILOT_API_KEY|ANTHROPIC_API_KEY|COPILOT_BASE_URL/.test(x.text)).map((x) => norm(x.file));
+    expect(named.sort()).toEqual(['lib/copilot/evals/run.ts', 'lib/copilot/provider.ts']);
+    const envReaders = sources.filter((x) => x.text.includes('process.env')).map((x) => norm(x.file));
+    expect(envReaders.sort()).toEqual(['app/api/copilot/route.ts', 'lib/copilot/evals/run.ts', 'lib/copilot/simResults.ts']);
+  });
+
+  it('never logs a key, a base URL or a provider error message', () => {
+    for (const s of sources) {
+      expect(s.text, s.file).not.toMatch(/console\.\w+\([^)]*(apiKey|baseUrl|cfg\b)/i);
+    }
   });
 
   it('has no randomness in product code (Math.random, crypto.random*)', () => {

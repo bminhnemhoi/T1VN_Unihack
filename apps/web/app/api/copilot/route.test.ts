@@ -24,14 +24,27 @@ async function events(res: Response): Promise<{ type: string; [k: string]: unkno
 afterEach(() => vi.unstubAllEnvs());
 
 describe('POST /api/copilot', () => {
-  it('without a key (and no dev mock) returns a clear Vietnamese 503, not a crash', async () => {
-    vi.stubEnv('ANTHROPIC_API_KEY', '');
-    vi.stubEnv('COPILOT_MOCK', '');
+  it('with nothing configured returns a clear Vietnamese 503 that names the missing variables, not a crash', async () => {
+    for (const k of ['COPILOT_PROVIDER', 'COPILOT_BASE_URL', 'COPILOT_API_KEY', 'COPILOT_MODEL', 'ANTHROPIC_API_KEY', 'COPILOT_MOCK']) vi.stubEnv(k, '');
     const res = await POST(post(ask('Rủi ro lớn nhất?')));
     expect(res.status).toBe(503);
     const body = (await res.json()) as { error: { code: string; message: string } };
-    expect(body.error.code).toBe('no_api_key');
-    expect(body.error.message).toContain('khóa API');
+    expect(body.error.code).toBe('not_configured');
+    expect(body.error.message).toContain('COPILOT_MODEL');
+    expect(body.error.message).toContain('COPILOT_API_KEY');
+  });
+
+  it('a missing COPILOT_MODEL is a config error even when the key and router are set, and the key is not echoed', async () => {
+    vi.stubEnv('COPILOT_MOCK', '');
+    vi.stubEnv('COPILOT_PROVIDER', 'openai-compatible');
+    vi.stubEnv('COPILOT_BASE_URL', 'http://127.0.0.1:9');
+    vi.stubEnv('COPILOT_API_KEY', 'k'.repeat(24));
+    vi.stubEnv('COPILOT_MODEL', '');
+    const res = await POST(post(ask('Rủi ro?')));
+    const text = await res.text();
+    expect(res.status).toBe(503);
+    expect(text).toContain('COPILOT_MODEL');
+    expect(text).not.toContain('k'.repeat(24));
   });
 
   it('the kill switch turns the copilot off', async () => {

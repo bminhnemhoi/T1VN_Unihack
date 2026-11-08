@@ -290,6 +290,7 @@ function factsOf(messages: TurnMessage[]): Res | null {
 export function createScriptedModel(cases: EvalCase[] = loadCases()): ModelClient {
   const byQuestion = new Map(cases.map((c) => [c.input, c.id]));
   return {
+    info: { provider: 'scripted-mock', model: 'scripted' },
     async complete({ messages }): Promise<ModelTurn> {
       const id = byQuestion.get(questionOf(messages));
       const plan = id ? PLANS[id] : undefined;

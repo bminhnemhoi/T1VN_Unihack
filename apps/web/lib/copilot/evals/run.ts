@@ -2,7 +2,7 @@
  * Eval harness for the organizer copilot (docs/07 section 6).
  *
  *   pnpm --filter web eval:copilot -- --mode mock            # CI: scripted model, no key, no network
- *   pnpm --filter web eval:copilot -- --mode live --runs 3   # needs the human to export ANTHROPIC_API_KEY
+ *   pnpm --filter web eval:copilot -- --mode live --runs 3   # needs the human to export the COPILOT_* variables
  *
  * Mock mode checks the deterministic pipeline (tools, guard, scoring); it says nothing about Claude's quality.
  * Live mode without a key prints UNAVAILABLE and exits with code 2. Nothing here reads a secret file.
@@ -10,9 +10,8 @@
 import { mkdirSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { parseArgs } from 'node:util';
-import { createAnthropicModelClient } from '../anthropicClient';
-import { COPILOT_EFFORT, COPILOT_MODEL } from '../config';
 import { runCopilot, type CopilotEvent, type ModelClient } from '../engine';
+import { ConfigError, createModelClient, resolveProviderConfig } from '../provider';
 import { requestSchema } from '../schemas';
 import { createScriptedModel, loadCases, type EvalCase } from './mock';
 import { scoreCase, summarize, type CaseOutcome } from './score';
@@ -35,19 +34,23 @@ const runs = Math.max(1, Number(values.runs) || 1);
 function pickModel(): ModelClient | null {
   if (mode === 'mock') return createScriptedModel(loadCases(String(values.cases)));
   if (mode === 'live') {
-    const key = process.env.ANTHROPIC_API_KEY;
-    return key ? createAnthropicModelClient(key) : null;
+    try {
+      return createModelClient(resolveProviderConfig(process.env));
+    } catch (e) {
+      if (!(e instanceof ConfigError)) throw e;
+      console.log(`Live eval: UNAVAILABLE. ${e.message}`);
+      console.log('Export the COPILOT_* variables (or ANTHROPIC_API_KEY + COPILOT_MODEL) in your own shell, then rerun with --mode live --runs 3.');
+      return null;
+    }
   }
   throw new Error(`Unknown --mode ${mode} (use mock or live)`);
 }
 
 async function main(): Promise<number> {
   const model = pickModel();
-  if (!model) {
-    console.log('Live eval: UNAVAILABLE. ANTHROPIC_API_KEY is not exported in this shell (the agent does not read env files).');
-    console.log('Export it yourself, then rerun with --mode live --runs 3.');
-    return 2;
-  }
+  if (!model) return 2;
+  // Provider and model id only: never the key or the router address.
+  const provider = model.info ?? { provider: 'scripted-mock', model: 'scripted' };
 
   const only = String(values.only).split(',').filter(Boolean);
   const cases: EvalCase[] = loadCases(String(values.cases)).filter((c) => only.length === 0 || only.includes(c.id));
@@ -93,7 +96,7 @@ async function main(): Promise<number> {
   lines.push(
     mode === 'mock'
       ? '> MOCK: câu trả lời do kịch bản viết tay, không phải đo mô hình. Chỉ kiểm tool, bộ kiểm đầu ra và cách chấm.'
-      : `> LIVE: model ${COPILOT_MODEL}, effort ${COPILOT_EFFORT}, không đặt temperature/top_p/top_k (mô hình chỉ nhận mặc định).`,
+      : `> LIVE: nhà cung cấp ${provider.provider}, model ${provider.model}. Nhà cung cấp openai-compatible gửi temperature 0; anthropic dùng mặc định của model.`,
   );
   lines.push('');
   lines.push(`Ca: ${cases.length}, số lần chạy mỗi ca: ${runs}, token vào/ra: ${tokensIn}/${tokensOut}, độ trễ trung vị/p95: ${pctl(0.5)}/${pctl(0.95)} ms`);
@@ -122,7 +125,7 @@ async function main(): Promise<number> {
   writeFileSync(path.join(String(values.out), `${stamp}-${mode}.md`), `${md}\n`);
   writeFileSync(
     path.join(String(values.out), `${stamp}-${mode}.json`),
-    `${JSON.stringify({ mode, model: mode === 'live' ? COPILOT_MODEL : 'scripted-mock', runs, rows, outcomes: Object.fromEntries(outcomes) }, null, 2)}\n`,
+    `${JSON.stringify({ mode, provider: provider.provider, model: provider.model, runs, rows, outcomes: Object.fromEntries(outcomes) }, null, 2)}\n`,
   );
   return allPass ? 0 : 1;
 }

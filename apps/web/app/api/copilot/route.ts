@@ -1,10 +1,11 @@
 /**
  * POST /api/copilot (docs/05 8.4, docs/07 section 3). Streams NDJSON events: status, tool, answer | error.
- * The ONLY place that reads ANTHROPIC_API_KEY. No relay/attest imports, no wallet keys (docs/07 3.2 item 5).
+ * The only code in the copilot that reads the environment for the model (provider, base URL, key, model id):
+ * it passes it to `provider.ts`. No relay/attest imports, no wallet keys (docs/07 3.2 item 5).
  */
-import { createAnthropicModelClient } from '../../../lib/copilot/anthropicClient';
 import { LIMITS } from '../../../lib/copilot/config';
 import { runCopilot, type CopilotEvent, type ModelClient } from '../../../lib/copilot/engine';
+import { ConfigError, createModelClient, resolveProviderConfig } from '../../../lib/copilot/provider';
 import { RateLimiter } from '../../../lib/copilot/ratelimit';
 import { requestSchema } from '../../../lib/copilot/schemas';
 
@@ -45,14 +46,13 @@ function clientIp(req: Request): string {
   return fwd || req.headers.get('x-real-ip') || 'unknown';
 }
 
-/** Dev-only scripted model for curl demos and the eval harness: refused in production builds. */
-async function resolveModel(): Promise<ModelClient | null> {
+/** Dev-only scripted model for curl demos: refused in production builds. Otherwise the env selects the provider. */
+async function resolveModel(): Promise<ModelClient> {
   if (process.env.NODE_ENV !== 'production' && process.env.COPILOT_MOCK === '1') {
     const { createScriptedModel } = await import('../../../lib/copilot/evals/mock');
     return createScriptedModel();
   }
-  const apiKey = process.env.ANTHROPIC_API_KEY;
-  return apiKey ? createAnthropicModelClient(apiKey) : null;
+  return createModelClient(resolveProviderConfig(process.env));
 }
 
 export async function POST(req: Request): Promise<Response> {
@@ -90,9 +90,13 @@ export async function POST(req: Request): Promise<Response> {
     return json(400, 'bad_request', `Dữ liệu không hợp lệ ở: ${fields}.`);
   }
 
-  const model = await resolveModel();
-  if (!model) {
-    return json(503, 'no_api_key', 'Trợ lý AI chưa được cấu hình khóa API trên máy chủ. Bạn dùng chế độ máy tính.');
+  let model: ModelClient;
+  try {
+    model = await resolveModel();
+  } catch (e) {
+    // The message names variables, never their values.
+    if (e instanceof ConfigError) return json(503, 'not_configured', `${e.message} Bạn dùng chế độ máy tính.`);
+    throw e;
   }
 
   const encoder = new TextEncoder();

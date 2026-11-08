@@ -121,7 +121,9 @@ describe('runCopilot', () => {
     const seven = Array.from({ length: 7 }, () => ({ name: 'compute_exposure', input: { N: 5, C: 100 } }));
     const model = script([toolTurn(...seven), answer('Rủi ro lớn nhất là 600 USDC.')]);
     const events = await run('Rủi ro?', model);
-    expect(events.filter((e) => e.type === 'tool')).toHaveLength(6);
+    const toolEvents = events.filter((e): e is Extract<CopilotEvent, { type: 'tool' }> => e.type === 'tool');
+    expect(toolEvents).toHaveLength(7);
+    expect(toolEvents.filter((t) => t.error === undefined)).toHaveLength(6);
     const results = model.calls[1]![2] as { content: { is_error?: boolean }[] };
     expect(results.content.filter((c) => c.is_error)).toHaveLength(1);
   });
@@ -147,6 +149,120 @@ describe('runCopilot', () => {
     expect(joined).toContain('rid-1');
     expect(joined).not.toContain('SECRET-QUESTION');
     expect(joined).not.toContain('0912345678');
+  });
+});
+
+describe('tool loop (Goblin patterns)', () => {
+  it('forces a final answer on the last round: tool_choice none after 4 tool rounds, never a 5th round', async () => {
+    const choices: (string | undefined)[] = [];
+    const calls: TurnMessage[][] = [];
+    let i = 0;
+    const model: ModelClient = {
+      async complete({ messages, toolChoice }) {
+        choices.push(toolChoice);
+        calls.push(structuredClone(messages));
+        // The model keeps asking for tools, even when told not to.
+        if (i++ < 5) return toolTurn({ name: 'compute_exposure', input: { N: 5, C: 100 } });
+        return answer('Rủi ro lớn nhất là 600 USDC.');
+      },
+    };
+    const events = await run('Rủi ro?', model);
+    expect(choices.slice(0, 5)).toEqual(['auto', 'auto', 'auto', 'auto', 'none']);
+    expect(events.filter((e) => e.type === 'tool')).toHaveLength(4); // the 5th request was ignored
+    // The ignored call is not left dangling in the history sent next time.
+    const lastAssistant = [...calls[calls.length - 1]!].reverse().find((m) => m.role === 'assistant');
+    expect(lastAssistant && lastAssistant.role === 'assistant' && lastAssistant.content.some((b) => b.type === 'tool_use')).toBe(false);
+  });
+
+  it('replays the assistant turn exactly as returned (raw) before the tool results', async () => {
+    const raw = {
+      role: 'assistant',
+      content: null,
+      tool_calls: [{ id: 't0', type: 'function', function: { name: 'compute_exposure', arguments: '{"N":5,"C":100}' } }],
+      extra_content: { google: { thought_signature: 'SIG' } },
+    };
+    const model = script([{ ...toolTurn({ name: 'compute_exposure', input: { N: 5, C: 100 } }), raw }, answer('Rủi ro lớn nhất là 600 USDC.')]);
+    await run('Rủi ro?', model);
+    const replayed = model.calls[1]![1] as { role: string; raw?: unknown };
+    expect(replayed.role).toBe('assistant');
+    expect(replayed.raw).toEqual(raw);
+  });
+
+  it('arguments that were not valid JSON go back to the model as an error string, not an exception', async () => {
+    const bad: ModelTurn = { content: [{ type: 'tool_use', id: 't0', name: 'compute_exposure', input: {}, invalidArguments: true }], stopReason: 'tool_use' };
+    const model = script([bad, toolTurn({ name: 'compute_exposure', input: { N: 5, C: 100 } }), answer('Rủi ro lớn nhất là 600 USDC.')]);
+    const events = await run('Rủi ro?', model);
+    const fed = (model.calls[1]![2] as { content: { content: string; is_error?: boolean }[] }).content[0]!;
+    expect(fed.is_error).toBe(true);
+    expect(fed.content).toContain('JSON');
+    expect(finalOf(events)?.source).toBe('model');
+  });
+
+  it('runs the tool calls of one round in parallel and reports them in call order', async () => {
+    let inFlight = 0;
+    let peak = 0;
+    const ctx = {
+      isCircle: async () => {
+        inFlight++;
+        peak = Math.max(peak, inFlight);
+        await new Promise((r) => setTimeout(r, 20));
+        inFlight--;
+        return true;
+      },
+    };
+    const circle = '0x1111111111111111111111111111111111111111';
+    const model = script([
+      toolTurn({ name: 'draft_ubnd_notice', input: { circle } }, { name: 'compute_exposure', input: { N: 5, C: 100 } }, { name: 'draft_ubnd_notice', input: { circle } }),
+      answer('Mình đã soạn nháp thông báo.'),
+    ]);
+    const events = await collect(runCopilot({ request: req('Soạn thông báo'), model, requestId: 't', toolContext: ctx }));
+    expect(peak).toBe(2);
+    expect(events.filter((e): e is Extract<CopilotEvent, { type: 'tool' }> => e.type === 'tool').map((e) => e.name)).toEqual([
+      'draft_ubnd_notice',
+      'compute_exposure',
+      'draft_ubnd_notice',
+    ]);
+  });
+
+  it('a tool that hangs is cut off by the per-tool timeout and reported as an error', async () => {
+    const ctx = { isCircle: () => new Promise<boolean>(() => {}) };
+    const model = script([
+      toolTurn({ name: 'draft_ubnd_notice', input: { circle: '0x1111111111111111111111111111111111111111' } }),
+      answer('Mình chưa soạn được.'),
+    ]);
+    const events = await collect(runCopilot({ request: req('Soạn thông báo'), model, requestId: 't', toolContext: ctx, toolTimeoutMs: 30 }));
+    const t = events.find((e) => e.type === 'tool') as Extract<CopilotEvent, { type: 'tool' }>;
+    expect(t.error).toContain('quá');
+  });
+
+  it('strips reasoning blocks from the answer, and finds JSON wrapped in prose', async () => {
+    const json = JSON.stringify({ answer: `<think>x 777</think>Rủi ro lớn nhất là 600 USDC.\n${DISCLAIMER}`, figures: [], citations: [], refused: false });
+    const model = script([toolTurn({ name: 'compute_exposure', input: { N: 5, C: 100 } }), text(`<thinking>600 rồi 999</thinking>Đây là kết quả:\n${json}`)]);
+    const f = finalOf(await run('Rủi ro?', model))!;
+    expect(f.source).toBe('model');
+    expect(f.answer.answer).not.toMatch(/think|777|999/);
+  });
+
+  it('a request aborted before the first call never reaches the model', async () => {
+    const model = script([answer('x')]);
+    const ac = new AbortController();
+    ac.abort();
+    const events = await collect(runCopilot({ request: req('Rủi ro?'), model, requestId: 't', signal: ac.signal }));
+    expect(model.calls).toHaveLength(0);
+    expect(events[events.length - 1]).toMatchObject({ type: 'error' });
+  });
+
+  it('logs provider, requested and returned model id, tokens and tools, but no content', async () => {
+    const lines: Record<string, unknown>[] = [];
+    const base = script([
+      { ...toolTurn({ name: 'compute_exposure', input: { N: 5, C: 100 } }), model: 'gateway-picked-x', usage: { inputTokens: 11, outputTokens: 5 } },
+      { ...answer('Rủi ro lớn nhất là 600 USDC.'), usage: { inputTokens: 20, outputTokens: 7 } },
+    ]);
+    const model: ModelClient = { info: { provider: 'openai-compatible', model: 'asked-x' }, complete: base.complete };
+    await collect(runCopilot({ request: req('SECRET-Q'), model, requestId: 'rid', log: (e) => lines.push(e) }));
+    const done = lines.find((l) => l.event === 'done')!;
+    expect(done).toMatchObject({ provider: 'openai-compatible', requestedModel: 'asked-x', returnedModel: 'gateway-picked-x', tokensIn: 31, tokensOut: 12, tools: ['compute_exposure'], requestId: 'rid' });
+    expect(JSON.stringify(lines)).not.toContain('SECRET-Q');
   });
 });
 

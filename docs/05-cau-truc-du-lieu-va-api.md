@@ -657,7 +657,7 @@ Dựng sổ họ (mục 10) từ event. `format=pdf` trả file PDF tiếng Vi�
 
 - Body: `{ "messages": [{ "role": "user"|"assistant", "content": "..." }], "draft"?: CircleDraft, "circle"?: "0x..." }`. `circle` là dây đang xem, địa chỉ ví duy nhất mô hình được thấy (07, mục 3.8) và là đầu vào của `draft_ubnd_notice`. Tối đa 12 tin, 2.000 ký tự mỗi tin, 16 KB mỗi yêu cầu, 20 câu mỗi giờ mỗi IP; trả luồng NDJSON gồm các dòng `status`, `tool`, `answer` hoặc `error`.
 - Trả: stream văn bản kèm kết quả tool.
-- Server gọi Claude API với các tool ở mục 12. Không có tool nào ký giao dịch hay chuyển tiền.
+- Server gọi mô hình qua một bộ chuyển đổi nhà cung cấp (provider adapter) với hai backend, chọn bằng biến `COPILOT_PROVIDER`: `openai-compatible` (mặc định; `POST {COPILOT_BASE_URL}/chat/completions`, tool call theo định dạng OpenAI, ví dụ router của nhóm chạy Gemini) hoặc `anthropic` (SDK chính thức, khóa `ANTHROPIC_API_KEY`). Định nghĩa tool ở mục 12 là nguồn duy nhất và được chuyển đổi theo backend; tham số tool có thể là chuỗi JSON hoặc đối tượng, luôn được kiểm lại bằng schema của tool. Các vòng gọi mô hình không stream (tối đa 4 vòng tool, vòng cuối `tool_choice: none`); route stream cho trình duyệt các sự kiện từng bước. Không đặt sẵn tên model: thiếu `COPILOT_MODEL` thì route trả lỗi cấu hình tiếng Việt. Không có tool nào ký giao dịch hay chuyển tiền.
 
 ### 8.5. `GET /api/sim/results?scenario=<id>`
 
@@ -762,7 +762,7 @@ Các số trong ví dụ trên chỉ là chỗ trống; số thật do mô phỏ
 
 ---
 
-## 12. Tool của Trợ lý chủ hụi (JSON Schema, dùng cho Claude API)
+## 12. Tool của Trợ lý chủ hụi (JSON Schema, dùng cho tool use của cả hai backend ở mục 8.4)
 
 Tất cả là hàm tất định chạy trên server (bản TS của `HuiMath` hoặc kết quả mô phỏng sẵn). LLM chỉ chọn tool, đọc kết quả và giải thích. Không có tool ký hay chuyển tiền.
 
