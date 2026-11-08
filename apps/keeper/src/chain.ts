@@ -1,0 +1,106 @@
+/**
+ * viem implementation of the keeper port. Sends DIRECTLY from the keeper wallet (not through the relayer, ADR-21)
+ * with gas limit = estimate x 1.2, hard cap 5,000,000 (docs/04 section 7.1). Revert reasons are decoded to the
+ * custom error name by the SDK; no key or signature is ever logged.
+ */
+import {
+  createPublicClient,
+  createWalletClient,
+  defineChain,
+  fallback,
+  http,
+  type Chain,
+  type PublicClient,
+} from 'viem';
+import { privateKeyToAccount } from 'viem/accounts';
+import { avalancheFuji } from 'viem/chains';
+import { loadAddresses } from 'config/addresses';
+import { decodeError, huiCircleAbi, huiFactoryAbi } from 'sdk';
+import { GAS_HARD_CAP, GAS_MARGIN_DEN, GAS_MARGIN_NUM, type KeeperConfig } from './config.js';
+import type { AttemptResult, CircleSnapshot, KeeperFn, KeeperPort } from './keeper.js';
+
+type Address = `0x${string}`;
+
+const anvil: Chain = defineChain({
+  id: 31337,
+  name: 'Anvil',
+  nativeCurrency: { name: 'Ether', symbol: 'ETH', decimals: 18 },
+  rpcUrls: { default: { http: ['http://127.0.0.1:8545'] } },
+});
+
+export class NotDeployedError extends Error {}
+
+export function createViemPort(cfg: KeeperConfig): { port: KeeperPort; keeper: Address } {
+  const { network } = cfg;
+  const deployment = loadAddresses(network.deploymentFile, [network.chainId]);
+  if (!deployment.deployed || !deployment.factory) {
+    throw new NotDeployedError(`no deployment file for ${network.name}`);
+  }
+  const factory = deployment.factory;
+  const chain = network.name === 'anvil' ? anvil : avalancheFuji;
+  const transports = network.rpcUrls.map((u) => http(u));
+  const transport = transports.length > 1 ? fallback(transports) : transports[0]!;
+  const publicClient = createPublicClient({ chain, transport }) as PublicClient;
+  const account = privateKeyToAccount(cfg.privateKey);
+  const wallet = createWalletClient({ account, chain, transport });
+
+  const read = <T>(circle: Address, functionName: string, args: readonly unknown[] = []): Promise<T> =>
+    publicClient.readContract({ address: circle, abi: huiCircleAbi, functionName, args } as never) as Promise<T>;
+
+  // Terminal circles never come back; remember them to skip their reads.
+  const terminal = new Set<Address>();
+
+  const port: KeeperPort = {
+    async nowSec() {
+      const block = await publicClient.getBlock({ blockTag: 'latest' });
+      return Number(block.timestamp);
+    },
+    async circles() {
+      const all = await publicClient.readContract({ address: factory, abi: huiFactoryAbi, functionName: 'allCircles' });
+      return all.filter((c) => !terminal.has(c));
+    },
+    async snapshot(circle): Promise<CircleSnapshot> {
+      const [state, params, settledRounds, members] = await Promise.all([
+        read<number>(circle, 'state'),
+        read<{ memberCount: number; joinDeadline: bigint }>(circle, 'params'),
+        read<number>(circle, 'settledRounds'),
+        read<readonly Address[]>(circle, 'members'),
+      ]);
+      if (state >= 3) terminal.add(circle);
+      return {
+        state: Number(state),
+        memberCount: Number(params.memberCount),
+        joinDeadline: BigInt(params.joinDeadline),
+        settledRounds: Number(settledRounds),
+        members,
+      };
+    },
+    deadline: (circle, round) => read<bigint>(circle, 'deadline', [round]),
+    async owes(circle, member) {
+      const info = await read<{ defaulted: boolean; debt: bigint }>(circle, 'memberInfo', [member]);
+      return !info.defaulted && info.debt > 0n;
+    },
+    async attempt(circle, fn: KeeperFn, args): Promise<AttemptResult> {
+      const call = { address: circle, abi: huiCircleAbi, functionName: fn, args, account } as never;
+      let gas: bigint;
+      try {
+        await publicClient.simulateContract(call);
+        const estimate = await publicClient.estimateContractGas(call);
+        gas = (estimate * GAS_MARGIN_NUM) / GAS_MARGIN_DEN;
+        if (gas > GAS_HARD_CAP) gas = GAS_HARD_CAP;
+      } catch (e) {
+        const d = decodeError(e);
+        return { sent: false, code: d.code, message: d.message };
+      }
+      try {
+        const txHash = await wallet.writeContract({ ...(call as object), gas } as never);
+        const receipt = await publicClient.waitForTransactionReceipt({ hash: txHash });
+        return { sent: true, txHash, gasUsed: receipt.gasUsed, ok: receipt.status === 'success' };
+      } catch (e) {
+        const d = decodeError(e);
+        return { sent: false, code: d.code === 'Unknown' ? 'SendFailed' : d.code, message: d.message };
+      }
+    },
+  };
+  return { port, keeper: account.address };
+}
