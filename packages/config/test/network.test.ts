@@ -46,3 +46,11 @@ describe('parseDeployment with allowed chains', () => {
     expect(out.circleLens).toBe(A(6));
   });
 });
+
+describe('deploymentsDir', () => {
+  it('honours HUISAFE_DEPLOYMENTS_DIR and otherwise finds contracts/deployments upwards', async () => {
+    const { deploymentsDir } = await import('../src/paths');
+    expect(deploymentsDir('/x', { HUISAFE_DEPLOYMENTS_DIR: '/tmp/d' })).toBe('/tmp/d');
+    expect(deploymentsDir(process.cwd(), {}).endsWith('contracts/deployments')).toBe(true);
+  });
+});

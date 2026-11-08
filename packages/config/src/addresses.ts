@@ -3,7 +3,8 @@
  * Nothing is hard-coded here: before the first deploy every address is undefined and `deployed` is false.
  */
 import { existsSync, readFileSync } from 'node:fs';
-import { fileURLToPath } from 'node:url';
+import { join } from 'node:path';
+import { deploymentsDir } from './paths';
 
 type Address = `0x${string}`;
 
@@ -65,8 +66,7 @@ export function parseDeployment(text: string, allowedChainIds: readonly number[]
 
 /** Read `contracts/deployments/fuji.json` (server, keeper, tests). Missing file means not deployed. */
 export function loadAddresses(path?: string, allowedChainIds: readonly number[] = [43113]): Addresses {
-  const file =
-    path ?? fileURLToPath(new URL('../../../contracts/deployments/fuji.json', import.meta.url));
+  const file = path ?? join(deploymentsDir(), 'fuji.json');
   if (!existsSync(file)) return NOT_DEPLOYED;
   return parseDeployment(readFileSync(file, 'utf8'), allowedChainIds);
 }

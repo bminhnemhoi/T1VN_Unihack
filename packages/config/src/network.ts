@@ -3,7 +3,8 @@
  * `anvil` (31337) exists so the whole flow can be rehearsed on a local node (docs/04 section 7.5). Any other value,
  * mainnet included, is rejected (CLAUDE.md hard rule 1). Reads only non-secret variables.
  */
-import { fileURLToPath } from 'node:url';
+import { join } from 'node:path';
+import { deploymentsDir } from './paths';
 
 export type NetworkName = 'fuji' | 'anvil';
 
@@ -20,8 +21,8 @@ const PUBLIC_FUJI_RPC = 'https://api.avax-test.network/ext/bc/C/rpc';
 const LOCAL_RPC = 'http://127.0.0.1:8545';
 const MAINNET_RPC = /avax\.network|avalanche-mainnet|avax-mainnet/i;
 
-const deploymentPath = (name: NetworkName): string =>
-  fileURLToPath(new URL(`../../../contracts/deployments/${name}.json`, import.meta.url));
+const deploymentPath = (name: NetworkName, env: Record<string, string | undefined>): string =>
+  join(deploymentsDir(process.cwd(), env), `${name}.json`);
 
 export class NetworkError extends Error {}
 
@@ -36,14 +37,14 @@ export function resolveNetwork(env: Record<string, string | undefined> = process
         throw new NetworkError('RPC URL points at Avalanche mainnet; HụiSafe runs on Fuji only');
       }
     }
-    return { name: 'fuji', chainId: 43113, rpcUrls, deploymentFile: deploymentPath('fuji') };
+    return { name: 'fuji', chainId: 43113, rpcUrls, deploymentFile: deploymentPath('fuji', env) };
   }
   if (name === 'anvil') {
     const url = env.ANVIL_RPC_URL || LOCAL_RPC;
     if (!/^https?:\/\/(127\.0\.0\.1|localhost)(:\d+)?(\/|$)/.test(url)) {
       throw new NetworkError('ANVIL_RPC_URL must be a local address');
     }
-    return { name: 'anvil', chainId: 31337, rpcUrls: [url], deploymentFile: deploymentPath('anvil') };
+    return { name: 'anvil', chainId: 31337, rpcUrls: [url], deploymentFile: deploymentPath('anvil', env) };
   }
   throw new NetworkError(`HUISAFE_NETWORK must be "fuji" or "anvil", got "${name}"`);
 }
