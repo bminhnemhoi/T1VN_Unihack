@@ -15,7 +15,7 @@ import {
 import { privateKeyToAccount } from 'viem/accounts';
 import { avalancheFuji } from 'viem/chains';
 import { loadAddresses } from 'config/addresses';
-import { decodeError, huiCircleAbi, huiFactoryAbi } from 'sdk';
+import { decodeError, huiCircleFullAbi, huiFactoryAbi } from 'sdk';
 import { GAS_HARD_CAP, GAS_MARGIN_DEN, GAS_MARGIN_NUM, type KeeperConfig } from './config.js';
 import type { AttemptResult, CircleSnapshot, KeeperFn, KeeperPort } from './keeper.js';
 
@@ -45,7 +45,7 @@ export function createViemPort(cfg: KeeperConfig): { port: KeeperPort; keeper: A
   const wallet = createWalletClient({ account, chain, transport });
 
   const read = <T>(circle: Address, functionName: string, args: readonly unknown[] = []): Promise<T> =>
-    publicClient.readContract({ address: circle, abi: huiCircleAbi, functionName, args } as never) as Promise<T>;
+    publicClient.readContract({ address: circle, abi: huiCircleFullAbi, functionName, args } as never) as Promise<T>;
 
   // Terminal circles never come back; remember them to skip their reads.
   const terminal = new Set<Address>();
@@ -81,7 +81,7 @@ export function createViemPort(cfg: KeeperConfig): { port: KeeperPort; keeper: A
       return !info.defaulted && info.debt > 0n;
     },
     async attempt(circle, fn: KeeperFn, args): Promise<AttemptResult> {
-      const call = { address: circle, abi: huiCircleAbi, functionName: fn, args, account } as never;
+      const call = { address: circle, abi: huiCircleFullAbi, functionName: fn, args, account } as never;
       let gas: bigint;
       try {
         await publicClient.simulateContract(call);

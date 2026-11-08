@@ -1,0 +1,392 @@
+/**
+ * Local rehearsal of the whole HụiSafe flow on anvil (A8, docs/03 section 8 scaled to C = 10 USDC, branch B).
+ *
+ *   pnpm --filter web e2e:anvil
+ *
+ * What runs: a fresh anvil; `Deploy.s.sol`; `CreateDemoCircle.s.sol`; five members join through the REAL
+ * `/api/attest` and `/api/relay` handlers (Privy faked, chain real) with a permit and a forward request; sealed bids
+ * through the relay; the REAL keeper tick settles rounds, marks M4 as defaulted and finalizes. Time is moved with
+ * anvil's evm_setNextBlockTimestamp. Only anvil's well-known default test mnemonic is used: no real key, no env file,
+ * no Fuji. Every asserted number is printed. Exit code 0 only when every assertion holds.
+ */
+import { spawn, spawnSync, type ChildProcess } from 'node:child_process';
+import { existsSync, rmSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
+import {
+  createPublicClient,
+  createTestClient,
+  createWalletClient,
+  encodeFunctionData,
+  http,
+  toHex,
+  type Hex,
+  type PublicClient,
+} from 'viem';
+import { mnemonicToAccount, type HDAccount } from 'viem/accounts';
+import { resolveNetwork } from 'config/network';
+import { loadAddresses } from 'config/addresses';
+import {
+  commitHash,
+  encodeJoin,
+  erc2771ForwarderAbi,
+  formatUsdc,
+  huiCircleFullAbi,
+  huiFactoryAbi,
+  iReputationRegistryAbi,
+  mockUsdcAbi,
+  newSalt,
+  signForwardRequest,
+  signPermit,
+  type SignContext,
+} from 'sdk';
+import { createAttestHandler } from '../lib/server/attest';
+import { anvilChain } from '../lib/server/chain';
+import { createRelayHandler } from '../lib/server/relay';
+import { SlidingWindowLimiter } from '../lib/server/ratelimit';
+import { InvalidTokenError, type PrivyVerifier } from '../lib/server/privy';
+import { createViemPort } from '../../keeper/src/chain';
+import { tick, type Log } from '../../keeper/src/keeper';
+
+type Address = `0x${string}`;
+
+const MNEMONIC = 'test test test test test test test test test test test junk'; // anvil's public default
+const RPC = 'http://127.0.0.1:8545';
+const ROOT = fileURLToPath(new URL('../../../', import.meta.url));
+const CONTRACTS = `${ROOT}contracts`;
+const FOUNDRY_BIN = `${process.env.HOME}/.foundry/bin`;
+const ONE = 1_000_000n;
+
+// ---------------------------------------------------------------- accounts (roles are separate, ADR-21)
+const hd = (i: number): HDAccount => mnemonicToAccount(MNEMONIC, { addressIndex: i });
+const keyOf = (a: HDAccount): Hex => toHex(a.getHdKey().privateKey!);
+const deployer = hd(0);
+const attester = hd(1);
+const relayer = hd(2);
+const keeperAcct = hd(3);
+const organizer = hd(4);
+const M = [hd(5), hd(6), hd(7), hd(8), hd(9)]; // M1..M5 in joining order
+
+// ---------------------------------------------------------------- tiny harness
+let passed = 0;
+function check(label: string, actual: unknown, expected: unknown, unit?: string): void {
+  const a = typeof actual === 'bigint' && !unit ? formatUsdc(actual) : String(actual);
+  const e = typeof expected === 'bigint' && !unit ? formatUsdc(expected) : String(expected);
+  if (a !== e) throw new Error(`ASSERT FAILED  ${label}: got ${a}, expected ${e}`);
+  passed++;
+  console.log(`  ok  ${label}: ${a}`);
+}
+const step = (s: string): void => console.log(`\n== ${s}`);
+
+function run(cmd: string, args: string[], cwd: string, env: Record<string, string>): string {
+  const r = spawnSync(cmd, args, {
+    cwd,
+    env: { ...process.env, PATH: `${FOUNDRY_BIN}:${process.env.PATH}`, ...env },
+    encoding: 'utf8',
+  });
+  if (r.status !== 0) throw new Error(`${cmd} ${args[0]} failed:\n${(r.stdout ?? '').slice(-1500)}\n${(r.stderr ?? '').slice(-1500)}`);
+  return r.stdout;
+}
+
+async function startAnvil(): Promise<ChildProcess> {
+  const child = spawn('anvil', ['--silent'], { env: { ...process.env, PATH: `${FOUNDRY_BIN}:${process.env.PATH}` }, stdio: 'ignore' });
+  for (let i = 0; i < 60; i++) {
+    try {
+      const r = await fetch(RPC, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'eth_chainId', params: [] }),
+      });
+      if (r.ok) return child;
+    } catch {
+      /* not up yet */
+    }
+    await new Promise((r) => setTimeout(r, 250));
+  }
+  child.kill();
+  throw new Error('anvil did not start on 127.0.0.1:8545 (is another node using the port?)');
+}
+
+async function main(): Promise<void> {
+  const anvil = await startAnvil();
+  try {
+    await scenario();
+    console.log(`\nE2E OK: ${passed} assertions passed`);
+  } finally {
+    anvil.kill();
+  }
+}
+
+async function scenario(): Promise<void> {
+  const deployFile = `${CONTRACTS}/deployments/anvil.json`;
+  if (existsSync(deployFile)) rmSync(deployFile);
+
+  step('1. deploy (Deploy.s.sol) and create the demo circle (CreateDemoCircle.s.sol)');
+  run(
+    'forge',
+    ['script', 'script/Deploy.s.sol', '--rpc-url', RPC, '--broadcast'],
+    CONTRACTS,
+    {
+      DEPLOYER_PRIVATE_KEY: keyOf(deployer),
+      ATTESTER_ADDRESS: attester.address,
+      RELAYER_ADDRESS: relayer.address,
+      GIT_COMMIT: 'e2e-anvil',
+    },
+  );
+  run('forge', ['script', 'script/CreateDemoCircle.s.sol', '--rpc-url', RPC, '--broadcast'], CONTRACTS, {
+    DEMO_ORGANIZER_PRIVATE_KEY: keyOf(organizer),
+  });
+
+  const network = resolveNetwork({ HUISAFE_NETWORK: 'anvil' });
+  const dep = loadAddresses(network.deploymentFile, [network.chainId]);
+  if (!dep.deployed || !dep.factory || !dep.forwarder || !dep.usdc || !dep.reputation) throw new Error('anvil.json incomplete');
+  const { factory, forwarder, usdc, reputation } = dep;
+  const pub = createPublicClient({ chain: anvilChain, transport: http(RPC) }) as PublicClient;
+  const testClient = createTestClient({ chain: anvilChain, mode: 'anvil', transport: http(RPC) });
+  const wallet = (a: HDAccount) => createWalletClient({ account: a, chain: anvilChain, transport: http(RPC) });
+
+  const circles = await pub.readContract({ address: factory, abi: huiFactoryAbi, functionName: 'allCircles' });
+  check('factory has one circle', circles.length, 1);
+  const circle = circles[0]!;
+  const rd = <T,>(functionName: string, args: readonly unknown[] = []) =>
+    pub.readContract({ address: circle, abi: huiCircleFullAbi, functionName, args } as never) as Promise<T>;
+  const bal = (a: Address) => pub.readContract({ address: usdc, abi: mockUsdcAbi, functionName: 'balanceOf', args: [a] });
+  const chainNow = async () => Number((await pub.getBlock({ blockTag: 'latest' })).timestamp);
+  const warpTo = async (ts: number) => {
+    if (ts > (await chainNow())) await testClient.setNextBlockTimestamp({ timestamp: BigInt(ts) });
+    await testClient.mine({ blocks: 1 });
+  };
+  const waitTx = async (hash: Hex) => {
+    const r = await pub.waitForTransactionReceipt({ hash });
+    if (r.status !== 'success') throw new Error(`tx reverted ${hash}`);
+    return r;
+  };
+
+  check('coverage index (bps)', await rd<bigint>('coverageIndexBps'), 10000n, 'bps');
+  check('bond deposited by the organizer', await rd<bigint>('bondRemaining'), 48n * ONE);
+
+  step('2. fund the five members (faucet stands in for Circle faucet; anvil MockUSDC)');
+  for (const m of M) {
+    await waitTx(await wallet(deployer).writeContract({ address: usdc, abi: mockUsdcAbi, functionName: 'mint', args: [m.address, 100n * ONE] }));
+  }
+
+  // ------------------------------------------------------------ the real handlers, Privy faked, chain real
+  const logs: string[] = [];
+  const log = (_l: string, m: string, f?: Record<string, unknown>) => void logs.push(`${m} ${JSON.stringify(f ?? {})}`);
+  let clockMs = (await chainNow()) * 1000;
+  const verifier: PrivyVerifier = {
+    async verify(token) {
+      const i = Number(/^member-(\d)$/.exec(token)?.[1] ?? -1);
+      const m = M[i - 1];
+      if (!m) throw new InvalidTokenError('unknown token');
+      return { userId: `did:privy:e2e-${i}`, wallet: m.address };
+    },
+  };
+  const attestHandler = createAttestHandler({
+    verifier,
+    attester: { address: attester.address, signTypedData: (a) => attester.signTypedData(a) },
+    idSecret: 'e2e-secret',
+    chainId: network.chainId,
+    isCircle: (c) => pub.readContract({ address: factory, abi: huiFactoryAbi, functionName: 'isCircle', args: [c] }),
+    userLimiter: new SlidingWindowLimiter(20),
+    ipLimiter: new SlidingWindowLimiter(1000),
+    now: () => clockMs,
+    requestId: (() => { let n = 0; return () => `a-${++n}`; })(),
+    log,
+  });
+  const relayWallet = wallet(relayer);
+  const relayHandler = createRelayHandler({
+    publicClient: pub,
+    factory,
+    forwarder,
+    sender: {
+      address: relayer.address,
+      execute: ({ forwarder: f, request, gas }) =>
+        relayWallet.writeContract({ address: f, abi: erc2771ForwarderAbi, functionName: 'execute', args: [request], gas }),
+    },
+    limiter: new SlidingWindowLimiter(1000),
+    now: Date.now,
+    requestId: (() => { let n = 0; return () => `r-${++n}`; })(),
+    log,
+  });
+  const post = (h: (r: Request) => Promise<Response>, url: string, body: unknown, headers: Record<string, string> = {}) =>
+    h(new Request(url, { method: 'POST', headers, body: JSON.stringify(body) }));
+
+  const ctxOf = (a: HDAccount): SignContext => ({ publicClient: pub, walletClient: wallet(a), account: a, chainId: network.chainId });
+  /** Sign a forward request for `data` and relay it; returns the mined receipt. */
+  async function relay(a: HDAccount, data: Hex, gas = 400_000n) {
+    const { request, signature } = await signForwardRequest(ctxOf(a), forwarder, circle, data, {
+      gas,
+      deadlineSec: (await chainNow()) + 600,
+    });
+    const res = await post(relayHandler, 'http://x/api/relay', { request, signature });
+    const body = (await res.json()) as { txHash?: Hex; error?: { code: string; message: string } };
+    if (res.status !== 200 || !body.txHash) throw new Error(`relay ${res.status}: ${body.error?.code} ${body.error?.message}`);
+    return waitTx(body.txHash);
+  }
+  const call = (fn: string, args: readonly unknown[] = []) => encodeFunctionData({ abi: huiCircleFullAbi, functionName: fn, args } as never);
+
+  step('3. five members join: /api/attest -> permit -> forward request -> /api/relay (they pay no gas)');
+  const requiredAllowance = await rd<bigint>('requiredAllowance');
+  check('requiredAllowance = (N-1) x (C + revealBond)', requiredAllowance, 4n * (10n * ONE + ONE / 10n));
+  const ethBefore = await Promise.all(M.map((m) => pub.getBalance({ address: m.address })));
+
+  // negative checks on the public surface first
+  const noAge = await post(attestHandler, 'http://x/api/attest', { circle, ageConfirmed: false }, { authorization: 'Bearer member-1' });
+  check('attest refuses without the 18+ confirmation', noAge.status, 400);
+  const noAuth = await post(attestHandler, 'http://x/api/attest', { circle, ageConfirmed: true });
+  check('attest refuses without a token', noAuth.status, 401);
+  const pauseReq = await signForwardRequest(ctxOf(M[0]!), forwarder, circle, call('pause'), { gas: 200_000n, deadlineSec: (await chainNow()) + 600 });
+  const pauseRes = await post(relayHandler, 'http://x/api/relay', pauseReq);
+  check('relay refuses pause() (selector not allowed)', pauseRes.status, 403);
+  const tampered = { ...pauseReq, request: { ...pauseReq.request, data: call('leave') } };
+  const tamperedRes = await post(relayHandler, 'http://x/api/relay', tampered);
+  check('relay refuses a request whose content changed after signing (invalid signature)', tamperedRes.status, 400);
+
+  for (let i = 0; i < 5; i++) {
+    clockMs = (await chainNow()) * 1000;
+    const res = await post(attestHandler, 'http://x/api/attest', { circle, ageConfirmed: true }, { authorization: `Bearer member-${i + 1}` });
+    const out = (await res.json()) as {
+      attestation: { member: Address; circle: Address; attestationId: Hex; expiry: string };
+      signature: Hex;
+    };
+    if (res.status !== 200) throw new Error(`attest ${res.status}`);
+    const permit = await signPermit(ctxOf(M[i]!), usdc, circle, requiredAllowance, BigInt((await chainNow()) + 3600));
+    const data = encodeJoin({ ...out.attestation, expiry: BigInt(out.attestation.expiry) }, out.signature, permit);
+    await relay(M[i]!, data, 600_000n);
+  }
+  check('members joined', (await rd<Address[]>('members')).length, 5);
+  const ethAfter = await Promise.all(M.map((m) => pub.getBalance({ address: m.address })));
+  check('members spent no gas at all', ethAfter.every((v, i) => v === ethBefore[i]), true);
+
+  step('4. organizer activates (relayed)');
+  await relay(organizer, call('activate'));
+  check('state is Active (1)', await rd<number>('state'), 1);
+  const params = await rd<{ commitWindow: number; revealWindow: number; graceSeconds: number }>('params');
+
+  // ------------------------------------------------------------ keeper (the real tick, real viem port)
+  const { port } = createViemPort({ network, privateKey: keyOf(keeperAcct), intervalSeconds: 15 });
+  const keeperLog: Log = (level, message, f) => console.log(`     keeper ${level} ${message} ${JSON.stringify(f ?? {})}`);
+  const keeperTick = () => tick(port, keeperLog);
+
+  const roundStart = async (k: number) => Number(await rd<bigint>('roundStart', [k]));
+  const deadline = async (k: number) => Number(await rd<bigint>('deadline', [k]));
+  const memberAddrs = M.map((m) => m.address);
+  const salts = new Map<string, { bid: bigint; salt: Hex }>();
+  async function commit(k: number, i: number, bid: bigint) {
+    const salt = newSalt();
+    salts.set(`${k}:${i}`, { bid, salt });
+    await relay(M[i]!, call('commitBid', [commitHash(circle, k, M[i]!.address, bid, salt)]));
+  }
+  async function reveal(k: number, i: number) {
+    const s = salts.get(`${k}:${i}`)!;
+    await relay(M[i]!, call('revealBid', [s.bid, s.salt]));
+  }
+  const roundInfo = (k: number) =>
+    rd<{ winner: Address; winningBid: bigint; pot: bigint; payout: bigint; holdback: bigint; fee: bigint; premium: bigint; uncovered: bigint; settledAt: bigint; feeForfeited: boolean }>('roundInfo', [k]);
+
+  step('5. round 1: M2 bids 0.4, M4 bids 0.6 (sealed), reveal, keeper settles');
+  await warpTo(await roundStart(1));
+  await commit(1, 1, 400_000n);
+  await commit(1, 3, 600_000n);
+  const idleTick = await keeperTick();
+  check('keeper does nothing before the deadline', idleTick.sent, 0);
+  await warpTo((await roundStart(1)) + params.commitWindow);
+  await reveal(1, 1);
+  await reveal(1, 3);
+  const m4Before1 = await bal(M[3]!.address);
+  await warpTo(await deadline(1));
+  const t1 = await keeperTick();
+  check('keeper settled round 1 (1 tx)', t1.sent, 1);
+  const r1 = await roundInfo(1);
+  check('round 1 winner is M4', r1.winner, M[3]!.address);
+  check('round 1 winning bid', r1.winningBid, 600_000n);
+  check('round 1 pot', r1.pot, 37_600_000n);
+  check('round 1 holdback kept from M4', r1.holdback, 8n * ONE);
+  check('M4 receives', r1.payout, 28_848_000n);
+  check('M4 wallet balance rose by exactly that', (await bal(M[3]!.address)) - m4Before1, 28_848_000n);
+
+  step('6. round 2: M4 revokes the allowance; M1 and M2 both bid 0.3, M1 commits first');
+  await waitTx(await wallet(M[3]!).writeContract({ address: usdc, abi: mockUsdcAbi, functionName: 'approve', args: [circle, 0n] }));
+  await warpTo(await roundStart(2));
+  await commit(2, 0, 300_000n);
+  await commit(2, 1, 300_000n);
+  await warpTo((await roundStart(2)) + params.commitWindow);
+  await reveal(2, 0);
+  await reveal(2, 1);
+  await warpTo(await deadline(2));
+  await keeperTick();
+  const r2 = await roundInfo(2);
+  check('round 2 winner is M1 (tie, committed first)', r2.winner, M[0]!.address);
+  check('M1 receives', r2.payout, 32_318_000n);
+  check('bond after covering M4: 8 from his holdback, 2 from the bond', await rd<bigint>('bondRemaining'), 46n * ONE);
+  const sf2 = await rd<{ amount: bigint; fromHoldback: bigint; fromBond: bigint; fromReserve: bigint; uncovered: bigint }>('shortfallOf', [2, M[3]!.address]);
+  check('M4 shortfall from his own holdback', sf2.fromHoldback, 8n * ONE);
+  check('M4 shortfall from the bond', sf2.fromBond, 2n * ONE);
+  check('nothing uncovered', sf2.uncovered, 0n);
+
+  step('7. branch B: M4 never pays. Keeper waits out the grace period, then marks him BEFORE settling round 3');
+  const settled2 = Number(r2.settledAt);
+  await warpTo(settled2 + params.graceSeconds - 30);
+  const early = await keeperTick();
+  check('keeper does not mark M4 inside the grace period', early.sent, 0);
+  await warpTo(await deadline(3));
+  const before3 = await keeperTick();
+  check('keeper sent markDefault + settleRound', before3.sent, 2);
+  check('M4 is marked defaulted', (await rd<{ defaulted: boolean }>('memberInfo', [M[3]!.address])).defaulted, true);
+  const again = await keeperTick();
+  check('a second tick sends nothing (idempotent)', again.sent, 0);
+  check('bond after round 3', await rd<bigint>('bondRemaining'), 36n * ONE);
+
+  for (const [k, bond] of [[4, 26n], [5, 16n]] as const) {
+    await warpTo(await deadline(k));
+    await keeperTick();
+    check(`bond after round ${k}`, await rd<bigint>('bondRemaining'), bond * ONE);
+  }
+  check('rounds settled', await rd<number>('settledRounds'), 5);
+  const winners = await Promise.all([3, 4, 5].map(async (k) => (await roundInfo(k)).winner));
+  check('winners of rounds 3, 4, 5', winners.join(','), [memberAddrs[1], memberAddrs[2], memberAddrs[4]].join(','));
+
+  step('8. finalize: keeper waits for the grace period after the last round');
+  const settled5 = Number((await roundInfo(5)).settledAt);
+  const orgBefore = await bal(organizer.address);
+  await warpTo(settled5 + params.graceSeconds + 1);
+  const fin = await keeperTick();
+  check('keeper finalized (1 tx)', fin.sent, 1);
+  check('state is Completed (3)', await rd<number>('state'), 3);
+  const infos = await Promise.all([1, 2, 3, 4, 5].map(roundInfo));
+  const feesPaid = infos.filter((r) => !r.feeForfeited).reduce((s, r) => s + r.fee, 0n);
+  check('round 2 fee was forfeited when M4 was marked', infos[1]!.feeForfeited, true);
+  check('organizer gets the 16 USDC bond left plus the fees not forfeited', (await bal(organizer.address)) - orgBefore, 16n * ONE + feesPaid);
+  const rep = await pub.readContract({ address: reputation, abi: iReputationRegistryAbi, functionName: 'reputationOf', args: [M[3]!.address] });
+  check('M4 has one default on record', rep.defaults, 1);
+  check('circle holds no USDC any more', await bal(circle), 0n);
+
+  step('9. the real keeper process starts and scans once (entry point smoke test)');
+  const child = spawn('pnpm', ['--filter', 'keeper', 'start'], {
+    cwd: ROOT,
+    env: { ...process.env, HUISAFE_NETWORK: 'anvil', KEEPER_PRIVATE_KEY: keyOf(keeperAcct), KEEPER_INTERVAL_SECONDS: '3600' },
+    stdio: ['ignore', 'pipe', 'pipe'],
+  });
+  const seen = await new Promise<string>((resolve) => {
+    let out = '';
+    const timer = setTimeout(() => resolve(out), 20_000);
+    child.stdout.on('data', (d: Buffer) => {
+      out += d.toString();
+      if (out.includes('scan done')) {
+        clearTimeout(timer);
+        resolve(out);
+      }
+    });
+  });
+  child.kill();
+  check('keeper process logged "keeper started" and "scan done"', seen.includes('keeper started') && seen.includes('scan done'), true);
+  check('keeper logs contain no key material', seen.includes(keyOf(keeperAcct).slice(2)), false);
+
+  const allLogs = logs.join('\n');
+  check('server logs contain no private key or full signature', allLogs.includes(keyOf(M[0]!).slice(2)) || /0x[0-9a-f]{130}/i.test(allLogs), false);
+}
+
+main().catch((e: unknown) => {
+  console.error(e instanceof Error ? e.message : e);
+  process.exit(1);
+});

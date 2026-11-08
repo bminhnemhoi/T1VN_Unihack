@@ -6,3 +6,4 @@ export * from './format';
 export * from './preview';
 export * from './errors';
 export * from './sign';
+export * from './abi';
