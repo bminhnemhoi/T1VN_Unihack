@@ -1,0 +1,147 @@
+{
+  "scenario": "baseline",
+  "seed": 42,
+  "circles": 10000,
+  "scenarioSha256": "96510e303d49bf0ab81e02ae15258936168851f8e674ac8ecf71f7738f3e9373",
+  "gitCommit": "9699239",
+  "python": "3.14.7",
+  "numpy": "2.5.4",
+  "elapsedSeconds": 2.89,
+  "ci95": {
+    "traditional": {
+      "lateReceiverExpectedLossPct": [
+        4.651815,
+        5.352784
+      ],
+      "lateReceiverP95LossPct": [
+        23.961655,
+        29.912862
+      ],
+      "circleFailureProb": [
+        0.225114,
+        0.241691
+      ],
+      "uncoveredMeanUsdc": [
+        54.819952,
+        61.571235
+      ],
+      "bondUsageMeanPct": [
+        41.938118,
+        43.542447
+      ],
+      "organizerNetReturnPct": [
+        -17.730403,
+        -15.984736
+      ]
+    },
+    "naive_onchain": {
+      "lateReceiverExpectedLossPct": [
+        6.220674,
+        6.518047
+      ],
+      "lateReceiverP95LossPct": [
+        23.888857,
+        23.91057
+      ],
+      "circleFailureProb": [
+        0.615063,
+        0.634041
+      ],
+      "uncoveredMeanUsdc": [
+        307.398083,
+        320.525741
+      ],
+      "bondUsageMeanPct": null,
+      "organizerNetReturnPct": null
+    },
+    "huisafe": {
+      "lateReceiverExpectedLossPct": [
+        0.0,
+        0.000972
+      ],
+      "lateReceiverP95LossPct": [
+        0.0,
+        0.0
+      ],
+      "circleFailureProb": [
+        1.8e-05,
+        0.000566
+      ],
+      "uncoveredMeanUsdc": [
+        9.5e-05,
+        0.08361
+      ],
+      "bondUsageMeanPct": [
+        16.665303,
+        17.400423
+      ],
+      "organizerNetReturnPct": [
+        -8.950203,
+        -8.342676
+      ]
+    }
+  },
+  "diagnostics": {
+    "traditional": {
+      "circles": 10000,
+      "withAnyDefault": 0.6124,
+      "withUncovered": 0.2017,
+      "deadDefaultsOneReceiver": {
+        "circles": 3752,
+        "uncoveredShare": 0.19536247334754797,
+        "uncoveredMeanUsdc": 51.266314966151384
+      },
+      "deadDefaultsSameRound": {
+        "circles": 210,
+        "uncoveredShare": 0.4714285714285714,
+        "uncoveredMeanUsdc": 197.7907983
+      },
+      "deadDefaultsDifferentRounds": {
+        "circles": 1489,
+        "uncoveredShare": 0.6977837474815313,
+        "uncoveredMeanUsdc": 305.14522674680995
+      }
+    },
+    "naive_onchain": {
+      "circles": 10000,
+      "withAnyDefault": 0.6261,
+      "withUncovered": 0.6249,
+      "deadDefaultsOneReceiver": {
+        "circles": 3824,
+        "uncoveredShare": 1.0,
+        "uncoveredMeanUsdc": 506.37470196626566
+      },
+      "deadDefaultsSameRound": {
+        "circles": 216,
+        "uncoveredShare": 1.0,
+        "uncoveredMeanUsdc": 778.2585967916666
+      },
+      "deadDefaultsDifferentRounds": {
+        "circles": 1539,
+        "uncoveredShare": 1.0,
+        "uncoveredMeanUsdc": 996.4495224210526
+      }
+    },
+    "huisafe": {
+      "circles": 10000,
+      "withAnyDefault": 0.6261,
+      "withUncovered": 0.0005,
+      "deadDefaultsOneReceiver": {
+        "circles": 3824,
+        "uncoveredShare": 0.0,
+        "uncoveredMeanUsdc": 0.0
+      },
+      "deadDefaultsSameRound": {
+        "circles": 216,
+        "uncoveredShare": 0.004629629629629629,
+        "uncoveredMeanUsdc": 0.04709218055555556
+      },
+      "deadDefaultsDifferentRounds": {
+        "circles": 1539,
+        "uncoveredShare": 0.002599090318388564,
+        "uncoveredMeanUsdc": 0.28612815919428203
+      }
+    }
+  },
+  "assumptions": "Behavioural parameters are assumptions (docs/08 section 9), not measurements."
+}
