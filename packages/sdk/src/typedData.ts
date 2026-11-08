@@ -1,4 +1,5 @@
-/** EIP-712 typed data (docs/05 section 5). Domain name "HuiSafe", version "1". */
+/** EIP-712 typed data (docs/05 section 5). Domain name "HuiSafe", version "1". `chainId` defaults to Fuji; only the
+ * local anvil rehearsal passes 31337. */
 import { FUJI_CHAIN_ID } from 'config';
 
 export const attestationTypes = {
@@ -35,28 +36,33 @@ export const forwardRequestTypes = {
 type Address = `0x${string}`;
 
 /** Domain of `MemberAttestation`: the circle clone verifies it. */
-export const huiSafeDomain = (circle: Address) =>
+export const huiSafeDomain = (circle: Address, chainId: number = FUJI_CHAIN_ID) =>
   ({
     name: 'HuiSafe',
     version: '1',
-    chainId: FUJI_CHAIN_ID,
+    chainId,
     verifyingContract: circle,
   }) as const;
 
 /** Domain of the ERC-2771 forwarder, deployed as `ERC2771Forwarder("HuiSafeForwarder")`. */
-export const forwarderDomain = (forwarder: Address) =>
+export const forwarderDomain = (forwarder: Address, chainId: number = FUJI_CHAIN_ID) =>
   ({
     name: 'HuiSafeForwarder',
     version: '1',
-    chainId: FUJI_CHAIN_ID,
+    chainId,
     verifyingContract: forwarder,
   }) as const;
 
 /** USDC permit domain. `name` and `version` must be read from the token at runtime ("2" on Circle USDC). */
-export const usdcPermitDomain = (usdc: Address, name: string, version: string) =>
+export const usdcPermitDomain = (
+  usdc: Address,
+  name: string,
+  version: string,
+  chainId: number = FUJI_CHAIN_ID,
+) =>
   ({
     name,
     version,
-    chainId: FUJI_CHAIN_ID,
+    chainId,
     verifyingContract: usdc,
   }) as const;

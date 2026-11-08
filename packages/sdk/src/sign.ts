@@ -52,7 +52,7 @@ export async function signPermit(
   ]);
   const signature = await ctx.walletClient.signTypedData({
     account: ctx.account,
-    domain: { ...usdcPermitDomain(usdc, name, version), chainId },
+    domain: usdcPermitDomain(usdc, name, version, chainId),
     types: permitTypes,
     primaryType: 'Permit',
     message: { owner, spender: circle, value, nonce, deadline: deadlineSec },
@@ -83,7 +83,7 @@ export async function signForwardRequest(
   const gas = opts.gas ?? 500_000n;
   const signature = await ctx.walletClient.signTypedData({
     account: ctx.account,
-    domain: { ...forwarderDomain(forwarder), chainId },
+    domain: forwarderDomain(forwarder, chainId),
     types: forwardRequestTypes,
     primaryType: 'ForwardRequest',
     message: { from, to, value: 0n, gas, nonce, deadline: opts.deadlineSec, data },

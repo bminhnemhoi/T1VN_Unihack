@@ -649,10 +649,10 @@ Tất cả nhận và trả JSON; số tiền gửi dưới dạng chuỗi (bigi
 ### 8.1. `POST /api/attest`
 
 - Header: `Authorization: Bearer <Privy access token>`.
-- Body: `{ "circle": "0x..." }`.
-- Kiểm: token Privy hợp lệ (SDK server của Privy); địa chỉ embedded wallet của user; user đã tick xác nhận đủ 18 tuổi; giới hạn một ví mỗi người và 20 yêu cầu mỗi giờ; `factory.isCircle(circle)`.
+- Body: `{ "circle": "0x...", "ageConfirmed": true }`. `ageConfirmed` là ô tự xác nhận đủ 18 tuổi trên giao diện; khác `true` thì trả `AgeNotConfirmed`. Địa chỉ thành viên KHÔNG nằm trong body: server lấy từ ví nhúng Ethereum của chính user ở Privy, nên không xin được xác nhận cho ví khác.
+- Kiểm: token Privy hợp lệ (SDK server `@privy-io/node`, qua một interface để test giả lập); địa chỉ embedded wallet của user; user đã tick xác nhận đủ 18 tuổi; giới hạn một ví mỗi người và 20 yêu cầu mỗi giờ; `factory.isCircle(circle)`.
 - `attestationId = keccak256(serverSecret ‖ privyUserId ‖ circle)` (không đảo ngược được, không lưu dữ liệu cá nhân).
-- Trả: `{ "attestation": { member, circle, attestationId, expiry }, "signature": "0x..." }`, `expiry` = now + 1 giờ.
+- Trả: `{ "attestation": { member, circle, attestationId, expiry }, "signature": "0x..." }`, `expiry` = now + 1 giờ (chuỗi số). Lỗi trả `{ "error": { "code", "message" } }` (401 chưa đăng nhập, 400 `AgeNotConfirmed`, 404 `NotCircle`, 409 `NoWallet`, 429 `RateLimited`, 503 `NotConfigured`). Giới hạn thêm 120 yêu cầu/giờ mỗi IP.
 
 ### 8.2. `POST /api/relay`
 
