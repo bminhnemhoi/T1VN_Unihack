@@ -184,9 +184,13 @@ export const erc2771ForwarderAbi = [
 export const huiCircleAbi = [
   {
     type: 'constructor',
-    inputs: [{ name: 'forwarder_', internalType: 'address', type: 'address' }],
+    inputs: [
+      { name: 'forwarder_', internalType: 'address', type: 'address' },
+      { name: 'lens_', internalType: 'address', type: 'address' },
+    ],
     stateMutability: 'nonpayable',
   },
+  { type: 'fallback', stateMutability: 'nonpayable' },
   {
     type: 'function',
     inputs: [],
@@ -245,46 +249,9 @@ export const huiCircleAbi = [
   },
   {
     type: 'function',
-    inputs: [
-      { name: 'k', internalType: 'uint32', type: 'uint32' },
-      { name: 'm', internalType: 'address', type: 'address' },
-    ],
-    name: 'commitOf',
-    outputs: [
-      {
-        name: '',
-        internalType: 'struct Commit',
-        type: 'tuple',
-        components: [
-          { name: 'hash', internalType: 'bytes32', type: 'bytes32' },
-          { name: 'commitIndex', internalType: 'uint32', type: 'uint32' },
-          { name: 'revealed', internalType: 'bool', type: 'bool' },
-          { name: 'bid', internalType: 'uint128', type: 'uint128' },
-          { name: 'bondHeld', internalType: 'uint128', type: 'uint128' },
-        ],
-      },
-    ],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
-    inputs: [],
-    name: 'coverageIndexBps',
-    outputs: [{ name: '', internalType: 'uint256', type: 'uint256' }],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
     inputs: [],
     name: 'currentRound',
     outputs: [{ name: '', internalType: 'uint32', type: 'uint32' }],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
-    inputs: [{ name: 'k', internalType: 'uint32', type: 'uint32' }],
-    name: 'deadline',
-    outputs: [{ name: '', internalType: 'uint64', type: 'uint64' }],
     stateMutability: 'view',
   },
   {
@@ -325,10 +292,10 @@ export const huiCircleAbi = [
   },
   {
     type: 'function',
-    inputs: [{ name: 'k', internalType: 'uint32', type: 'uint32' }],
-    name: 'exposure',
-    outputs: [{ name: '', internalType: 'uint256', type: 'uint256' }],
-    stateMutability: 'view',
+    inputs: [],
+    name: 'emergencyUnwind',
+    outputs: [],
+    stateMutability: 'nonpayable',
   },
   {
     type: 'function',
@@ -341,9 +308,30 @@ export const huiCircleAbi = [
   },
   {
     type: 'function',
+    inputs: [{ name: '', internalType: 'uint32', type: 'uint32' }],
+    name: 'feeEscrow',
+    outputs: [{ name: '', internalType: 'uint256', type: 'uint256' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'finalize',
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
     inputs: [],
     name: 'guaranteedCoverageBps',
     outputs: [{ name: '', internalType: 'uint256', type: 'uint256' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [{ name: '', internalType: 'address', type: 'address' }],
+    name: 'hasLeft',
+    outputs: [{ name: '', internalType: 'bool', type: 'bool' }],
     stateMutability: 'view',
   },
   {
@@ -453,47 +441,24 @@ export const huiCircleAbi = [
   },
   {
     type: 'function',
-    inputs: [{ name: 'k', internalType: 'uint32', type: 'uint32' }],
-    name: 'maxBid',
-    outputs: [{ name: '', internalType: 'uint256', type: 'uint256' }],
+    inputs: [],
+    name: 'lens',
+    outputs: [{ name: '', internalType: 'address', type: 'address' }],
     stateMutability: 'view',
   },
   {
     type: 'function',
     inputs: [],
-    name: 'maxExposure',
-    outputs: [{ name: '', internalType: 'uint256', type: 'uint256' }],
+    name: 'liveCount',
+    outputs: [{ name: '', internalType: 'uint32', type: 'uint32' }],
     stateMutability: 'view',
   },
   {
     type: 'function',
-    inputs: [{ name: 'm', internalType: 'address', type: 'address' }],
-    name: 'memberInfo',
-    outputs: [
-      {
-        name: '',
-        internalType: 'struct MemberInfo',
-        type: 'tuple',
-        components: [
-          { name: 'joined', internalType: 'bool', type: 'bool' },
-          { name: 'received', internalType: 'bool', type: 'bool' },
-          { name: 'defaulted', internalType: 'bool', type: 'bool' },
-          { name: 'joinIndex', internalType: 'uint8', type: 'uint8' },
-          { name: 'receivedRound', internalType: 'uint8', type: 'uint8' },
-          { name: 'lateCount', internalType: 'uint16', type: 'uint16' },
-          { name: 'holdback', internalType: 'uint128', type: 'uint128' },
-          { name: 'debt', internalType: 'uint128', type: 'uint128' },
-        ],
-      },
-    ],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
-    inputs: [],
-    name: 'members',
-    outputs: [{ name: '', internalType: 'address[]', type: 'address[]' }],
-    stateMutability: 'view',
+    inputs: [{ name: 'member', internalType: 'address', type: 'address' }],
+    name: 'markDefault',
+    outputs: [],
+    stateMutability: 'nonpayable',
   },
   {
     type: 'function',
@@ -512,33 +477,15 @@ export const huiCircleAbi = [
   {
     type: 'function',
     inputs: [],
-    name: 'params',
-    outputs: [
-      {
-        name: '',
-        internalType: 'struct CircleParams',
-        type: 'tuple',
-        components: [
-          { name: 'mode', internalType: 'enum CircleMode', type: 'uint8' },
-          { name: 'memberCount', internalType: 'uint8', type: 'uint8' },
-          { name: 'contribution', internalType: 'uint96', type: 'uint96' },
-          { name: 'periodSeconds', internalType: 'uint32', type: 'uint32' },
-          { name: 'roundDuration', internalType: 'uint32', type: 'uint32' },
-          { name: 'commitWindow', internalType: 'uint32', type: 'uint32' },
-          { name: 'revealWindow', internalType: 'uint32', type: 'uint32' },
-          { name: 'graceSeconds', internalType: 'uint32', type: 'uint32' },
-          { name: 'alphaBps', internalType: 'uint16', type: 'uint16' },
-          { name: 'commissionMode', internalType: 'bool', type: 'bool' },
-          { name: 'feeBps', internalType: 'uint16', type: 'uint16' },
-          { name: 'reserveBps', internalType: 'uint16', type: 'uint16' },
-          { name: 'revealBondBps', internalType: 'uint16', type: 'uint16' },
-          { name: 'capBps', internalType: 'uint16', type: 'uint16' },
-          { name: 'joinDeadline', internalType: 'uint64', type: 'uint64' },
-          { name: 'organizerIsMember', internalType: 'bool', type: 'bool' },
-          { name: 'label', internalType: 'bytes32', type: 'bytes32' },
-        ],
-      },
-    ],
+    name: 'pause',
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'pausedAt',
+    outputs: [{ name: '', internalType: 'uint64', type: 'uint64' }],
     stateMutability: 'view',
   },
   {
@@ -550,10 +497,17 @@ export const huiCircleAbi = [
   },
   {
     type: 'function',
-    inputs: [],
-    name: 'phase',
-    outputs: [{ name: '', internalType: 'enum RoundPhase', type: 'uint8' }],
-    stateMutability: 'view',
+    inputs: [{ name: 'round', internalType: 'uint32', type: 'uint32' }],
+    name: 'payLate',
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [{ name: 'amount', internalType: 'uint256', type: 'uint256' }],
+    name: 'repayDebt',
+    outputs: [],
+    stateMutability: 'nonpayable',
   },
   {
     type: 'function',
@@ -602,37 +556,10 @@ export const huiCircleAbi = [
   },
   {
     type: 'function',
-    inputs: [{ name: 'k', internalType: 'uint32', type: 'uint32' }],
-    name: 'roundInfo',
-    outputs: [
-      {
-        name: '',
-        internalType: 'struct RoundInfo',
-        type: 'tuple',
-        components: [
-          { name: 'winner', internalType: 'address', type: 'address' },
-          { name: 'winningBid', internalType: 'uint128', type: 'uint128' },
-          { name: 'pot', internalType: 'uint128', type: 'uint128' },
-          { name: 'payout', internalType: 'uint128', type: 'uint128' },
-          { name: 'holdback', internalType: 'uint128', type: 'uint128' },
-          { name: 'fee', internalType: 'uint128', type: 'uint128' },
-          { name: 'premium', internalType: 'uint128', type: 'uint128' },
-          { name: 'uncovered', internalType: 'uint128', type: 'uint128' },
-          { name: 'settledAt', internalType: 'uint64', type: 'uint64' },
-          { name: 'commitCount', internalType: 'uint32', type: 'uint32' },
-          { name: 'settled', internalType: 'bool', type: 'bool' },
-          { name: 'feeForfeited', internalType: 'bool', type: 'bool' },
-        ],
-      },
-    ],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
-    inputs: [{ name: 'k', internalType: 'uint32', type: 'uint32' }],
-    name: 'roundStart',
-    outputs: [{ name: '', internalType: 'uint64', type: 'uint64' }],
-    stateMutability: 'view',
+    inputs: [],
+    name: 'settleRound',
+    outputs: [],
+    stateMutability: 'nonpayable',
   },
   {
     type: 'function',
@@ -665,9 +592,30 @@ export const huiCircleAbi = [
   {
     type: 'function',
     inputs: [],
+    name: 'totalFeeEscrow',
+    outputs: [{ name: '', internalType: 'uint256', type: 'uint256' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'totalHoldback',
+    outputs: [{ name: '', internalType: 'uint256', type: 'uint256' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
     name: 'trustedForwarder',
     outputs: [{ name: '', internalType: 'address', type: 'address' }],
     stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'unpause',
+    outputs: [],
+    stateMutability: 'nonpayable',
   },
   {
     type: 'function',
@@ -799,6 +747,54 @@ export const huiCircleAbi = [
     type: 'event',
     anonymous: false,
     inputs: [
+      {
+        name: 'bondReturned',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: false,
+      },
+      {
+        name: 'feesPaid',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: false,
+      },
+      {
+        name: 'reserveDistributed',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: false,
+      },
+    ],
+    name: 'CircleFinalized',
+  },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      { name: 'at', internalType: 'uint64', type: 'uint64', indexed: false },
+    ],
+    name: 'CirclePaused',
+  },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      { name: 'at', internalType: 'uint64', type: 'uint64', indexed: false },
+      {
+        name: 'pausedTotal',
+        internalType: 'uint64',
+        type: 'uint64',
+        indexed: false,
+      },
+    ],
+    name: 'CircleUnpaused',
+  },
+  { type: 'event', anonymous: false, inputs: [], name: 'CircleUnwound' },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
       { name: 'to', internalType: 'address', type: 'address', indexed: true },
       {
         name: 'amount',
@@ -809,7 +805,106 @@ export const huiCircleAbi = [
     ],
     name: 'Claimed',
   },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      { name: 'round', internalType: 'uint32', type: 'uint32', indexed: true },
+      {
+        name: 'member',
+        internalType: 'address',
+        type: 'address',
+        indexed: true,
+      },
+      {
+        name: 'amount',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: false,
+      },
+    ],
+    name: 'ContributionPulled',
+  },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      { name: 'round', internalType: 'uint32', type: 'uint32', indexed: true },
+      {
+        name: 'member',
+        internalType: 'address',
+        type: 'address',
+        indexed: true,
+      },
+      {
+        name: 'amount',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: false,
+      },
+    ],
+    name: 'ContributionShortfall',
+  },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      {
+        name: 'member',
+        internalType: 'address',
+        type: 'address',
+        indexed: true,
+      },
+      {
+        name: 'principal',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: false,
+      },
+      {
+        name: 'lateFee',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: false,
+      },
+    ],
+    name: 'DebtRepaid',
+  },
   { type: 'event', anonymous: false, inputs: [], name: 'EIP712DomainChanged' },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      { name: 'round', internalType: 'uint32', type: 'uint32', indexed: true },
+      {
+        name: 'amount',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: false,
+      },
+    ],
+    name: 'FeeForfeited',
+  },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      {
+        name: 'member',
+        internalType: 'address',
+        type: 'address',
+        indexed: true,
+      },
+      { name: 'round', internalType: 'uint32', type: 'uint32', indexed: true },
+      {
+        name: 'amount',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: false,
+      },
+    ],
+    name: 'HoldbackReleased',
+  },
   {
     type: 'event',
     anonymous: false,
@@ -822,6 +917,66 @@ export const huiCircleAbi = [
       },
     ],
     name: 'Initialized',
+  },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      {
+        name: 'member',
+        internalType: 'address',
+        type: 'address',
+        indexed: true,
+      },
+      {
+        name: 'amount',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: false,
+      },
+    ],
+    name: 'LateFeeUnpaid',
+  },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      { name: 'round', internalType: 'uint32', type: 'uint32', indexed: true },
+      {
+        name: 'member',
+        internalType: 'address',
+        type: 'address',
+        indexed: true,
+      },
+      {
+        name: 'amount',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: false,
+      },
+      {
+        name: 'lateFee',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: false,
+      },
+    ],
+    name: 'LatePaid',
+  },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      {
+        name: 'member',
+        internalType: 'address',
+        type: 'address',
+        indexed: true,
+      },
+      { name: 'round', internalType: 'uint32', type: 'uint32', indexed: true },
+      { name: 'frozen', internalType: 'bool', type: 'bool', indexed: false },
+    ],
+    name: 'MemberDefaulted',
   },
   {
     type: 'event',
@@ -875,6 +1030,121 @@ export const huiCircleAbi = [
     ],
     name: 'PaymentDeferred',
   },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      { name: 'round', internalType: 'uint32', type: 'uint32', indexed: true },
+      {
+        name: 'member',
+        internalType: 'address',
+        type: 'address',
+        indexed: true,
+      },
+      {
+        name: 'amount',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: false,
+      },
+    ],
+    name: 'RevealBondForfeited',
+  },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      { name: 'round', internalType: 'uint32', type: 'uint32', indexed: true },
+      {
+        name: 'winner',
+        internalType: 'address',
+        type: 'address',
+        indexed: true,
+      },
+      { name: 'bid', internalType: 'uint256', type: 'uint256', indexed: false },
+      { name: 'pot', internalType: 'uint256', type: 'uint256', indexed: false },
+      {
+        name: 'payout',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: false,
+      },
+      {
+        name: 'holdback',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: false,
+      },
+      { name: 'fee', internalType: 'uint256', type: 'uint256', indexed: false },
+      {
+        name: 'premium',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: false,
+      },
+      {
+        name: 'uncovered',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: false,
+      },
+    ],
+    name: 'RoundSettled',
+  },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      { name: 'round', internalType: 'uint32', type: 'uint32', indexed: true },
+      {
+        name: 'member',
+        internalType: 'address',
+        type: 'address',
+        indexed: true,
+      },
+      {
+        name: 'source',
+        internalType: 'enum CoverSource',
+        type: 'uint8',
+        indexed: false,
+      },
+      {
+        name: 'amount',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: false,
+      },
+    ],
+    name: 'ShortfallCovered',
+  },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      { name: 'round', internalType: 'uint32', type: 'uint32', indexed: true },
+      {
+        name: 'member',
+        internalType: 'address',
+        type: 'address',
+        indexed: true,
+      },
+      {
+        name: 'source',
+        internalType: 'enum CoverSource',
+        type: 'uint8',
+        indexed: false,
+      },
+      {
+        name: 'amount',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: false,
+      },
+    ],
+    name: 'ShortfallRestored',
+  },
+  { type: 'error', inputs: [], name: 'AlreadyDefaulted' },
+  { type: 'error', inputs: [], name: 'AlreadyLeft' },
   { type: 'error', inputs: [], name: 'AlreadyMember' },
   { type: 'error', inputs: [], name: 'AlreadyRevealed' },
   { type: 'error', inputs: [], name: 'AttestationExpired' },
@@ -907,6 +1177,8 @@ export const huiCircleAbi = [
     ],
     name: 'CoverageTooLow',
   },
+  { type: 'error', inputs: [], name: 'GraceExpired' },
+  { type: 'error', inputs: [], name: 'GraceNotOver' },
   {
     type: 'error',
     inputs: [
@@ -918,8 +1190,11 @@ export const huiCircleAbi = [
   { type: 'error', inputs: [], name: 'InvalidInitialization' },
   { type: 'error', inputs: [], name: 'InvalidShortString' },
   { type: 'error', inputs: [], name: 'JoinClosed' },
+  { type: 'error', inputs: [], name: 'LensNotDeployed' },
   { type: 'error', inputs: [], name: 'NoCommit' },
+  { type: 'error', inputs: [], name: 'NoShortfall' },
   { type: 'error', inputs: [], name: 'NotEligibleToBid' },
+  { type: 'error', inputs: [], name: 'NotFactory' },
   { type: 'error', inputs: [], name: 'NotInCommitWindow' },
   { type: 'error', inputs: [], name: 'NotInRevealWindow' },
   { type: 'error', inputs: [], name: 'NotInitializing' },
@@ -927,7 +1202,16 @@ export const huiCircleAbi = [
   { type: 'error', inputs: [], name: 'NotOrganizer' },
   { type: 'error', inputs: [], name: 'NothingToClaim' },
   { type: 'error', inputs: [], name: 'NothingToWithdraw' },
+  { type: 'error', inputs: [], name: 'PreviousRoundNotSettled' },
   { type: 'error', inputs: [], name: 'ReentrancyGuardReentrantCall' },
+  {
+    type: 'error',
+    inputs: [
+      { name: 'amount', internalType: 'uint256', type: 'uint256' },
+      { name: 'debt', internalType: 'uint256', type: 'uint256' },
+    ],
+    name: 'RepayTooLarge',
+  },
   { type: 'error', inputs: [], name: 'RoundAlreadySettled' },
   {
     type: 'error',
@@ -944,6 +1228,7 @@ export const huiCircleAbi = [
     inputs: [{ name: 'at', internalType: 'uint64', type: 'uint64' }],
     name: 'TooEarly',
   },
+  { type: 'error', inputs: [], name: 'UnwindTooEarly' },
   {
     type: 'error',
     inputs: [
@@ -1266,6 +1551,11 @@ export const huiFactoryAbi = [
     ],
     name: 'ConfigUpdated',
   },
+  {
+    type: 'error',
+    inputs: [{ name: 'circle', internalType: 'address', type: 'address' }],
+    name: 'AlreadyActivated',
+  },
   { type: 'error', inputs: [], name: 'FailedDeployment' },
   {
     type: 'error',
@@ -1280,6 +1570,11 @@ export const huiFactoryAbi = [
     type: 'error',
     inputs: [{ name: 'code', internalType: 'uint8', type: 'uint8' }],
     name: 'InvalidParams',
+  },
+  {
+    type: 'error',
+    inputs: [{ name: 'circle', internalType: 'address', type: 'address' }],
+    name: 'NotActivated',
   },
   { type: 'error', inputs: [], name: 'NotAdmin' },
   {

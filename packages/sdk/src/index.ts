@@ -4,3 +4,5 @@ export * from './typedData';
 export * from './commit';
 export * from './format';
 export * from './preview';
+export * from './errors';
+export * from './sign';
