@@ -10,6 +10,7 @@ import {HuiFactory} from "../../src/HuiFactory.sol";
 import {IHuiCircle} from "../../src/interfaces/IHuiCircle.sol";
 import {HuiMath} from "../../src/libraries/HuiMath.sol";
 import {
+    CircleMode,
     CircleParams,
     CircleState,
     MemberAttestation,
@@ -120,6 +121,19 @@ contract Handler is Test {
     mapping(uint32 => uint256) public ghostSettledAt;
     mapping(uint32 => uint256) public ghostPausedTotalAtSettle;
 
+    /// @dev Winner of each settled round as the Handler saw it at settlement (compared with the views through the lens).
+    mapping(uint32 => address) public ghostWinnerOf;
+
+    /// @dev Fixed mode (docs/03 section 6.4): per settled round the winner the Handler derives on its own from the
+    /// pre-settlement flags and the joinIndex order (first member that has not received and is not frozen, frozen ones
+    /// last), whether a frozen member existed, and the counters of rounds checked and of order violations seen.
+    mapping(uint32 => address) public ghostFixedExpected;
+    mapping(uint32 => bool) public ghostFixedFrozenAtSettle;
+    uint256 public ghostFixedChecked;
+    uint256 public ghostFixedOrderBreak;
+    uint256 public ghostFixedStrictBreak;
+    uint256 public ghostFixedFrozenRounds;
+
     uint256 public ghostDefaults;
     uint256 public ghostLatePaid;
     uint256 public ghostRepaid;
@@ -216,6 +230,12 @@ contract Handler is Test {
         }
         CircleParams memory p = circle.params();
         return HuiMath.maxBid(p.capBps, N, k, C, p.periodSeconds, payers);
+    }
+
+    /// @notice The INV-03 bound the Handler computes on its own (payers snapshot of the first commit, else live - 1);
+    /// the view tests compare `circle.maxBid(k)` with it.
+    function expectedMaxBid(uint32 k) external view returns (uint256) {
+        return _maxBid(k);
     }
 
     function _firstSelector(bytes memory reason) internal pure returns (bytes4 sel) {
@@ -497,6 +517,8 @@ contract Handler is Test {
         ghostPaidOut += ri.payout;
         ghostMaxBidAtSettle[k] = maxB;
         ghostFullH[ri.winner] = ri.holdback == HuiMath.holdbackFor(circle.params().alphaBps, N, k, C);
+        ghostWinnerOf[k] = ri.winner;
+        if (circle.params().mode == CircleMode.Fixed) _checkFixedOrder(k, ri, pre);
 
         uint256[6] memory allowed;
         for (uint256 i = 0; i < N; i++) {
@@ -506,6 +528,39 @@ contract Handler is Test {
         }
         ghostPulledAtSettle[k] = _audit(mark, allowed);
         _parseSettle(k, logs);
+    }
+
+    /// @dev docs/03 section 6.4, Fixed: the winner of round k is the member with `joinIndex = k - 1` if it is alive;
+    /// frozen members go to the back of the queue and the ones after them move up in the same relative order; with
+    /// no live member left the frozen member with the smallest `joinIndex` wins. The bid is always 0.
+    function _checkFixedOrder(uint32 k, RoundInfo memory ri, Snap memory pre) internal {
+        address[5] memory byIndex;
+        for (uint256 i = 0; i < N; i++) {
+            MemberInfo memory mi = circle.memberInfo(members[i]);
+            if (mi.joined) byIndex[mi.joinIndex] = members[i];
+        }
+        address expected;
+        address firstFrozen;
+        bool anyFrozen;
+        for (uint256 j = 0; j < N; j++) {
+            address m = byIndex[j];
+            if (m == address(0)) continue;
+            uint256 i = _idx(m);
+            if (pre.received[i]) continue;
+            if (pre.defaulted[i]) {
+                anyFrozen = true;
+                if (firstFrozen == address(0)) firstFrozen = m;
+            } else if (expected == address(0)) {
+                expected = m;
+            }
+        }
+        if (expected == address(0)) expected = firstFrozen;
+        ghostFixedExpected[k] = expected;
+        ghostFixedFrozenAtSettle[k] = anyFrozen;
+        ghostFixedChecked += 1;
+        if (anyFrozen) ghostFixedFrozenRounds += 1;
+        if (ri.winner != expected || ri.winningBid != 0) ghostFixedOrderBreak += 1;
+        if (!anyFrozen && ri.winner != byIndex[k - 1]) ghostFixedStrictBreak += 1;
     }
 
     function _parseSettle(uint32 k, Vm.Log[] memory logs) internal {

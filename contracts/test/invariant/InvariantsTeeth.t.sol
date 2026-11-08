@@ -6,10 +6,10 @@ import {stdStorage, StdStorage} from "forge-std/StdStorage.sol";
 import {Handler} from "./Handler.sol";
 import {IHuiCircle} from "../../src/interfaces/IHuiCircle.sol";
 import {CircleState} from "../../src/libraries/HuiTypes.sol";
-import {HuiInvariants, HuiInvariantsFullCoverage} from "./Invariants.t.sol";
+import {HuiInvariants, HuiInvariantsFixed, HuiInvariantsFullCoverage, HuiInvariantsLens} from "./Invariants.t.sol";
 
 /// @notice "Teeth" checks for the invariant suite: each test corrupts the system on purpose (or drives it into the
-/// known INV-08 spec gap) and demands that the matching `invariant_*` function fails. An invariant that cannot fail
+/// documented INV-08 sequential-defaults limit) and demands that the matching `invariant_*` function fails. An invariant that cannot fail
 /// proves nothing, so this guards the suite itself against being weakened by accident.
 /// @dev The inherited `invariant_*` functions still run as invariants here, but with the `warp` selector only, so
 /// they cost almost nothing; the real campaigns are `HuiInvariants` and friends.
@@ -210,7 +210,7 @@ contract HuiInvariantsTeeth is HuiInvariants {
     }
 }
 
-/// @notice Teeth of INV-08: the sequential-defaults case of the known spec gap must trip it, which also shows it is
+/// @notice Teeth of INV-08: the sequential-defaults case documented in docs/03 section 7.3 must trip it, which also shows it is
 /// not vacuous. (`HuiInvariantsFullCoverage` itself only allows the bounded case that docs/03 section 7.3 proves.)
 contract HuiInvariantsFullCoverageTeeth is HuiInvariantsFullCoverage {
     function _selectors() internal pure override returns (bytes4[] memory s) {
@@ -229,7 +229,7 @@ contract HuiInvariantsFullCoverageTeeth is HuiInvariantsFullCoverage {
 
     /// @dev M1..M4 each stop paying right after winning, one round apart: unpaid contributions reach N(N-1)/2 * C =
     /// 1000 USDC against 480 of bond, so round 5 leaves 304 USDC uncovered (pinned in HuiCircleLate.t.sol).
-    function test_Teeth_INV08_FailsOnSequentialDefaults_KnownSpecGap() public {
+    function test_Teeth_INV08_FailsOnSequentialDefaults_Documented() public {
         handler.advanceRound(1); // round 1: M1 wins
         this.invariant_INV08_fullCoverage();
         _stop(0);
@@ -240,7 +240,7 @@ contract HuiInvariantsFullCoverageTeeth is HuiInvariantsFullCoverage {
         handler.advanceRound(1);
         _stop(3);
         handler.advanceRound(1); // round 5: M5 wins and is short-changed
-        assertEq(circle.roundInfo(5).uncovered, 304e6, "the gap of the spec");
+        assertEq(circle.roundInfo(5).uncovered, 304e6, "documented: round 5 uncovered 304 USDC");
         vm.expectRevert();
         this.invariant_INV08_fullCoverage();
         // Every other invariant still holds in that scenario: the money is accounted for, only INV-08 is at stake.
@@ -283,5 +283,198 @@ contract HuiInvariantsFullCoverageTeeth is HuiInvariantsFullCoverage {
         handler.advanceRound(1);
         assertEq(circle.settledRounds(), 5);
         this.invariant_INV08_fullCoverage();
+    }
+}
+
+/// @dev A lens that answers every call with 32 zero bytes: stands for a lens whose views disagree with the circle.
+contract ZeroLens {
+    fallback() external {
+        assembly ("memory-safe") {
+            mstore(0, 0)
+            return(0, 32)
+        }
+    }
+}
+
+/// @notice Teeth of the lens invariants (task A6): a lens that lies must trip `invariant_LENS_viewParity` and
+/// `invariant_VIEWS_matchSpec`; the real lens passes both after real rounds.
+/// forge-config: default.invariant.runs = 16
+/// forge-config: default.invariant.depth = 16
+/// forge-config: ci.invariant.runs = 16
+/// forge-config: ci.invariant.depth = 16
+contract HuiInvariantsLensTeeth is HuiInvariantsLens {
+    function _requireCompletion() internal pure override returns (bool) {
+        return false; // warp-only selectors never finish a circle
+    }
+
+    function _selectors() internal pure override returns (bytes4[] memory s) {
+        s = new bytes4[](1);
+        s[0] = Handler.warp.selector;
+    }
+
+    function _label() internal pure override returns (string memory) {
+        return "HuiInvariantsLensTeeth";
+    }
+
+    function test_Teeth_LENS_HealthyAfterTwoRounds() public {
+        handler.advanceRound(1);
+        handler.advanceRound(1);
+        assertEq(circle.settledRounds(), 2);
+        this.invariant_LENS_viewParity();
+        this.invariant_VIEWS_matchSpec();
+        this.invariant_INV01_ledger();
+        this.invariant_INV05_potSplit();
+    }
+
+    function test_Teeth_LENS_FailsWhenTheLensLies() public {
+        handler.advanceRound(1);
+        this.invariant_LENS_viewParity();
+        vm.etch(lens, address(new ZeroLens()).code);
+        vm.expectRevert();
+        this.invariant_LENS_viewParity();
+    }
+
+    function test_Teeth_VIEWS_FailsWhenTheLensLies() public {
+        handler.advanceRound(1);
+        this.invariant_VIEWS_matchSpec();
+        vm.etch(lens, address(new ZeroLens()).code);
+        vm.expectRevert();
+        this.invariant_VIEWS_matchSpec();
+    }
+
+    /// @dev The parity check swaps the implementation code for a second and restores it: nothing may stay behind.
+    function test_Teeth_LENS_ParityLeavesTheImplementationUntouched() public {
+        bytes32 before = keccak256(address(realImpl).code);
+        this.invariant_LENS_viewParity();
+        assertEq(keccak256(address(realImpl).code), before);
+    }
+}
+
+/// @notice Teeth and scenarios of the `Fixed` invariants (task A6). The harness is the implementation here
+/// (`_realClone` off) so that bookkeeping can be corrupted with the `exposed_*` helpers.
+/// forge-config: default.invariant.runs = 16
+/// forge-config: default.invariant.depth = 16
+/// forge-config: ci.invariant.runs = 16
+/// forge-config: ci.invariant.depth = 16
+contract HuiInvariantsFixedTeeth is HuiInvariantsFixed {
+    using stdStorage for StdStorage;
+
+    function _requireCompletion() internal pure override returns (bool) {
+        return false; // warp-only selectors never finish a circle
+    }
+
+    function _realClone() internal pure override returns (bool) {
+        return false;
+    }
+
+    function _selectors() internal pure override returns (bytes4[] memory s) {
+        s = new bytes4[](1);
+        s[0] = Handler.warp.selector;
+    }
+
+    function _label() internal pure override returns (string memory) {
+        return "HuiInvariantsFixedTeeth";
+    }
+
+    function _all() internal view {
+        this.invariant_INV01_ledger();
+        this.invariant_INV02_oneWinEach();
+        this.invariant_INV03_bidCap();
+        this.invariant_INV04_noOverPull();
+        this.invariant_INV05_potSplit();
+        this.invariant_INV06_holdback();
+        this.invariant_INV07_noAdminPayout();
+        this.invariant_INV09_schedule();
+        this.invariant_FIXED_orderFollowsJoinIndex();
+        this.invariant_VIEWS_matchSpec();
+        this.invariant_LIVENESS_settleNeverStuck();
+        this.invariant_LIVENESS_finalizeNeverStuck();
+    }
+
+    /// @dev The circle is Fixed, has no bidding window, and `commitBid` can never work.
+    function test_Fixed_NoBiddingWindowAndCommitReverts() public {
+        assertEq(uint8(circle.params().mode), 0, "Fixed");
+        assertEq(circle.params().commitWindow, 0);
+        assertEq(circle.params().revealWindow, 0);
+        handler.commit(1, 0, bytes32(uint256(1)));
+        assertEq(handler.ghostCommits(), 0, "no commit worked");
+        assertEq(handler.ghostWindowBreach(), 0);
+        vm.prank(actors[1]);
+        vm.expectRevert(IHuiCircle.NotInCommitWindow.selector);
+        circle.commitBid(bytes32(uint256(1)));
+    }
+
+    /// @dev Nobody frozen: round k goes to the member with joinIndex k - 1, the circle completes, all invariants hold.
+    function test_Fixed_PlainOrder_FullCircleReachesFinalize() public {
+        for (uint32 k = 1; k <= 5; k++) {
+            handler.advanceRound(1);
+            assertEq(circle.roundInfo(k).winner, actors[k - 1], "winner follows joinIndex");
+            assertEq(circle.roundInfo(k).winningBid, 0);
+            assertEq(handler.ghostFixedExpected(k), actors[k - 1]);
+            assertFalse(handler.ghostFixedFrozenAtSettle(k));
+            _all();
+        }
+        handler.advanceRound(1); // past the grace period of round 5: finalize
+        assertEq(uint8(circle.state()), uint8(CircleState.Completed), "finalized");
+        assertEq(handler.ghostFixedChecked(), 5);
+        _all();
+    }
+
+    /// @dev docs/03 section 6.4: M2 stops paying in round 1, is marked after the grace period and becomes Frozen. The
+    /// queue is then M1 (round 1), M3, M4, M5 and M2 last, with its pot going to the debt first.
+    function test_Fixed_FrozenMemberIsPushedToTheBack() public {
+        vm.prank(actors[1]);
+        usdc.approve(address(circle), 0);
+        handler.advanceRound(1); // round 1: M1 wins, M2 fails (covered by the bond)
+        assertEq(circle.roundInfo(1).winner, actors[0]);
+        assertGt(circle.memberInfo(actors[1]).debt, 0, "M2 has a shortfall");
+        vm.warp(circle.roundInfo(1).settledAt + 121);
+        circle.markDefault(actors[1]);
+        assertTrue(circle.memberInfo(actors[1]).defaulted && !circle.memberInfo(actors[1]).received, "M2 frozen");
+        address[4] memory expected = [actors[2], actors[3], actors[4], actors[1]];
+        for (uint32 k = 2; k <= 5; k++) {
+            handler.advanceRound(1);
+            assertEq(circle.roundInfo(k).winner, expected[k - 2], "frozen member goes last");
+            assertEq(handler.ghostFixedExpected(k), expected[k - 2], "ghost agrees");
+            assertTrue(handler.ghostFixedFrozenAtSettle(k));
+            _all();
+        }
+        assertEq(handler.ghostFixedFrozenRounds(), 4);
+        assertEq(handler.ghostFixedOrderBreak(), 0);
+        assertEq(handler.ghostFixedStrictBreak(), 0);
+        handler.advanceRound(1);
+        assertEq(uint8(circle.state()), uint8(CircleState.Completed));
+        _all();
+    }
+
+    function test_Teeth_FIXED_FailsWhenARoundGoesToTheWrongMember() public {
+        handler.advanceRound(1);
+        handler.advanceRound(1);
+        handler.advanceRound(1);
+        this.invariant_FIXED_orderFollowsJoinIndex();
+        circle.exposed_setRoundWinner(2, actors[3]); // round 2 "won" by M4 instead of M2
+        vm.expectRevert();
+        this.invariant_FIXED_orderFollowsJoinIndex();
+    }
+
+    function test_Teeth_FIXED_FailsWhenTheHandlerSawAnOrderBreak() public {
+        handler.advanceRound(1);
+        stdstore.target(address(handler)).sig("ghostFixedOrderBreak()").checked_write(uint256(1));
+        vm.expectRevert();
+        this.invariant_FIXED_orderFollowsJoinIndex();
+    }
+
+    function test_Teeth_FIXED_FailsWhenTheStrictOrderBroke() public {
+        handler.advanceRound(1);
+        stdstore.target(address(handler)).sig("ghostFixedStrictBreak()").checked_write(uint256(1));
+        vm.expectRevert();
+        this.invariant_FIXED_orderFollowsJoinIndex();
+    }
+
+    function test_Teeth_FIXED_FailsWhenASettlementWasNotChecked() public {
+        handler.advanceRound(1);
+        stdstore.target(address(handler)).sig("ghostFixedChecked()").checked_write(uint256(0));
+        vm.expectRevert();
+        this.invariant_FIXED_orderFollowsJoinIndex();
     }
 }

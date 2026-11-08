@@ -1137,15 +1137,14 @@ contract HuiCircleLateTest is CircleScenario {
         assertEq(c.settledRounds(), 5);
     }
 
-    /// @notice SPEC GAP (found while writing the INV-08 test, reported to the coordinator; this test pins the
-    /// behaviour of the contract, which follows the cascade of docs/03 section 6.5 to the letter).
-    /// @dev docs/03 INV-08 says: with coverage index 100% and only dead members defaulting, `uncovered == 0` in every
-    /// round. Section 7.3 only proves it when all defaulters stop at the same moment. If they stop one after the
-    /// other, right after each of them wins (M1 after round 1, M2 after round 2, M3 after round 3, M4 after round 4),
-    /// the unpaid contributions add up to N(N-1)/2 * C = 1000, not O_max = 600: the bond (480) and the reserve (16)
-    /// run dry and the honest last winner M5 receives 94.08 of a possible 392 in round 5.
-    /// If the docs or the bond rule change, this test must change with them.
-    function test_INV08_SpecGap_DeadMembersStoppingOneAfterAnotherExhaustTheBond() public {
+    /// @notice Documented limit of INV-08 (docs/03 sections 2.3, 7.2 and 7.3, decision A6): coverage index 100% only
+    /// covers the peak simultaneous shock (every receiver who defaults stops in the SAME round). If the receivers
+    /// stop one after the other, right after each of them wins (M1 after round 1, M2 after round 2, M3 after round 3,
+    /// M4 after round 4), the unpaid contributions add up to N(N-1)/2 * C = 1000, not O_max = 600: the bond (480) and
+    /// the reserve (16) run dry and the honest last winner M5 receives 94.08 of a possible 392 in round 5. Full
+    /// sequential coverage would need B_seq = (1 - alpha) * N(N-1)/2 * C = 800 (roadmap, "bao chung toan phan").
+    /// This test asserts those documented numbers; if the docs or the bond rule change, it must change with them.
+    function test_INV08_SequentialDefaults_ExceedBond_Documented() public {
         _settle(); // r1: M1 wins (no bids)
         _block(_M(1));
         _settle(); // r2: M2 wins; M1 stops paying
@@ -1162,7 +1161,7 @@ contract HuiCircleLateTest is CircleScenario {
         RoundInfo memory ri = c.roundInfo(5);
         assertEq(c.bondRemaining(), 0);
         assertEq(ri.winner, _M(5));
-        assertEq(ri.uncovered, 304 * U, "NOT zero: INV-08 as worded in docs/03 does not hold here");
+        assertEq(ri.uncovered, 304 * U, "documented: sequential defaults exceed the bond (docs/03 7.3), uncovered 304");
         assertEq(ri.pot, 96 * U);
         assertEq(ri.payout, 94_080_000);
         assertEq(c.reserve(), ri.premium, "the reserve was emptied by the cascade; only the new premium is in it");

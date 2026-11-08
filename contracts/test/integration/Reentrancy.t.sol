@@ -355,7 +355,7 @@ contract ReentrancyTest is CircleScenario {
     uint32 internal _payerRound;
     uint256 internal _payerUncovered;
 
-    /// @dev Docs/03 section 7.3 spec gap: M1..M4 each stop paying right after winning; in round 5 M5 is short-changed.
+    /// @dev Docs/03 section 7.3 documented limit (sequential defaults beyond the peak shock): M1..M4 each stop paying right after winning; in round 5 M5 is short-changed.
     /// Picks the first defaulter whose round-5 shortfall has an `uncovered` part (owed to M5) and tops it up.
     function _uncoveredScenario() internal {
         _settleRounds(1, 1);
