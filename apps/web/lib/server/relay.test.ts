@@ -1,7 +1,9 @@
 import { concat, encodeErrorResult, encodeFunctionData } from 'viem';
 import { describe, expect, it } from 'vitest';
 import { huiCircleAbi, huiFactoryAbi, erc2771ForwarderAbi } from 'sdk';
+import { InvalidTokenError } from './privy';
 import {
+  CREATE_CIRCLE_PER_HOUR,
   GAS_CAP,
   GAS_CAP_HEAVY,
   RELAY_PER_HOUR,
@@ -25,13 +27,13 @@ interface Harness {
   deps: RelayDeps;
   sent: ForwardRequestData[];
   logs: string[];
-  state: { verify: boolean; sim: Sim; balance: bigint; active: number; maxActive: number };
+  state: { verify: boolean; sim: Sim; balance: bigint; active: number; maxActive: number; globalLimit: number };
 }
 
 function harness(): Harness {
   const sent: ForwardRequestData[] = [];
   const logs: string[] = [];
-  const state = { verify: true, sim: 'ok' as Sim, balance: 5n * 10n ** 18n, active: 0, maxActive: 0 };
+  const state = { verify: true, sim: 'ok' as Sim, balance: 5n * 10n ** 18n, active: 0, maxActive: 0, globalLimit: 1000 };
   const failedCall = encodeErrorResult({ abi: erc2771ForwarderAbi, errorName: 'FailedCall' as never });
   const bidTooHigh = encodeErrorResult({ abi: huiCircleAbi, errorName: 'BidTooHigh', args: [9_000_000n, 6_575_342n] });
   const publicClient = {
@@ -68,6 +70,18 @@ function harness(): Harness {
       },
     },
     limiter: new SlidingWindowLimiter(RELAY_PER_HOUR, 3_600_000, () => NOW),
+    ipLimiter: new SlidingWindowLimiter(1000, 3_600_000, () => NOW),
+    globalLimiter: new SlidingWindowLimiter(state.globalLimit, 3_600_000, () => NOW),
+    verifier: {
+      async verifyToken(token) {
+        if (token === 'bad') throw new InvalidTokenError('x');
+        return { userId: `did:privy:${token}` };
+      },
+      async walletOf(userId) {
+        return userId === 'did:privy:owner' ? member : stranger;
+      },
+    },
+    createLimiter: new SlidingWindowLimiter(CREATE_CIRCLE_PER_HOUR, 3_600_000, () => NOW),
     now: () => NOW,
     requestId: () => 'req-1',
     log: (_l, m, f) => void logs.push(JSON.stringify({ m, ...f })),
@@ -91,8 +105,8 @@ const body = (over: { to?: string; data?: string; value?: string; gas?: string; 
   signature: `0x${'ab'.repeat(65)}`,
 });
 
-const post = (h: (r: Request) => Promise<Response>, b: unknown) =>
-  h(new Request('http://x/api/relay', { method: 'POST', body: typeof b === 'string' ? b : JSON.stringify(b) }));
+const post = (h: (r: Request) => Promise<Response>, b: unknown, headers: Record<string, string> = {}) =>
+  h(new Request('http://x/api/relay', { method: 'POST', headers, body: typeof b === 'string' ? b : JSON.stringify(b) }));
 const code = async (res: Response) => ((await res.json()) as { error: { code: string } }).error.code;
 
 describe('POST /api/relay', () => {
@@ -146,7 +160,7 @@ describe('POST /api/relay', () => {
         },
       ],
     });
-    expect((await post(h, body({ data: create, to: factory }))).status).toBe(200);
+    expect((await post(h, body({ data: create, to: factory }), { authorization: 'Bearer owner' })).status).toBe(200);
     expect(await code(await post(h, body({ data: create })))).toBe('SelectorNotAllowed'); // createCircle on a circle
     expect(await code(await post(h, body({ to: factory })))).toBe('SelectorNotAllowed'); // commitBid on the factory
     for (const fn of ['settleRound', 'finalize', 'cancel'] as const) {
@@ -217,5 +231,72 @@ describe('POST /api/relay', () => {
 
   it('concat helper sanity: inner call appends the signer (ERC-2771)', () => {
     expect(concat([commit, member]).endsWith(member.slice(2))).toBe(true);
+  });
+
+  it('H-01: invalid signatures do not consume the signer quota', async () => {
+    const t = harness();
+    const h = createRelayHandler(t.deps);
+    t.state.verify = false;
+    for (let i = 0; i < RELAY_PER_HOUR + 5; i++) expect((await post(h, body())).status).toBe(400);
+    t.state.verify = true;
+    expect((await post(h, body())).status).toBe(200);
+  });
+
+  it('H-02: createCircle needs a Privy login of the signing wallet, with its own quota', async () => {
+    const h = createRelayHandler(harness().deps);
+    const create = encodeFunctionData({
+      abi: huiFactoryAbi,
+      functionName: 'createCircle',
+      args: [
+        {
+          mode: 1,
+          memberCount: 5,
+          contribution: 10_000_000n,
+          periodSeconds: 2_592_000,
+          roundDuration: 180,
+          commitWindow: 90,
+          revealWindow: 60,
+          graceSeconds: 120,
+          alphaBps: 2000,
+          commissionMode: true,
+          feeBps: 100,
+          reserveBps: 100,
+          revealBondBps: 100,
+          capBps: 2000,
+          joinDeadline: 1n,
+          organizerIsMember: false,
+          label: `0x${'00'.repeat(32)}`,
+        },
+      ],
+    });
+    const b = () => body({ data: create, to: factory });
+    expect((await post(h, b())).status).toBe(401); // no token
+    expect((await post(h, b(), { authorization: 'Bearer bad' })).status).toBe(401);
+    expect(await code(await post(h, b(), { authorization: 'Bearer someone-else' }))).toBe('WalletMismatch');
+    for (let i = 0; i < CREATE_CIRCLE_PER_HOUR; i++) {
+      expect((await post(h, b(), { authorization: 'Bearer owner' })).status).toBe(200);
+    }
+    expect((await post(h, b(), { authorization: 'Bearer owner' })).status).toBe(429);
+  });
+
+  it('a global hourly budget and a per-IP limit protect the relayer', async () => {
+    const t = harness();
+    const small = createRelayHandler({ ...t.deps, globalLimiter: new SlidingWindowLimiter(2, 3_600_000, () => NOW) });
+    expect((await post(small, body())).status).toBe(200);
+    expect((await post(small, body())).status).toBe(200);
+    expect(await code(await post(small, body()))).toBe('RelayBusy');
+    const ipOnly = createRelayHandler({ ...t.deps, ipLimiter: new SlidingWindowLimiter(1, 3_600_000, () => NOW) });
+    expect((await post(ipOnly, body(), { 'x-forwarded-for': '1.2.3.4' })).status).toBe(200);
+    expect((await post(ipOnly, body(), { 'x-forwarded-for': '1.2.3.4' })).status).toBe(429);
+    expect((await post(ipOnly, body(), { 'x-forwarded-for': '5.6.7.8' })).status).toBe(200);
+  });
+
+  it('refuses to send when the relayer is nearly out of AVAX', async () => {
+    const t = harness();
+    t.state.balance = 10n ** 16n; // 0.01 AVAX
+    const res = await post(createRelayHandler(t.deps), body());
+    expect(res.status).toBe(503);
+    expect(await code(res)).toBe('RelayUnavailable');
+    expect(t.sent).toHaveLength(0);
   });
 });

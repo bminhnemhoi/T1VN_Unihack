@@ -13,10 +13,22 @@ import { chainFor, ConfigError, loadDeployment, makePublicClient } from './chain
 import { consoleLogger, errorResponse, makeRequestIdGenerator } from './http';
 import { createPrivyVerifier } from './privy';
 import { SlidingWindowLimiter } from './ratelimit';
-import { createRelayHandler, RELAY_PER_HOUR } from './relay';
+import {
+  CREATE_CIRCLE_PER_HOUR,
+  GLOBAL_PER_HOUR,
+  IP_PER_HOUR,
+  RELAY_PER_HOUR,
+  createRelayHandler,
+} from './relay';
 
 type Env = Record<string, string | undefined>;
 type Handler = (req: Request) => Promise<Response>;
+
+/** The RPC must answer with the chain this process was configured for (audit L-02: no silent wrong-chain reads). */
+async function assertChainId(client: { getChainId(): Promise<number> }, expected: number): Promise<void> {
+  const actual = await client.getChainId();
+  if (actual !== expected) throw new ConfigError(`RPC reports chain ${actual}, expected ${expected}`);
+}
 
 function requireVar(env: Env, name: string): string {
   const v = env[name];
@@ -37,6 +49,7 @@ export async function buildAttestHandler(env: Env = process.env): Promise<Handle
   const idSecret = requireVar(env, 'ATTESTATION_ID_SECRET');
   const verifier = createPrivyVerifier(requireVar(env, 'NEXT_PUBLIC_PRIVY_APP_ID'), requireVar(env, 'PRIVY_APP_SECRET'));
   const publicClient = makePublicClient(network);
+  await assertChainId(publicClient, network.chainId);
 
   // The circle only accepts signatures from the attester recorded in the factory config.
   const config = await publicClient.readContract({ address: deployment.factory, abi: huiFactoryAbi, functionName: 'config' });
@@ -65,6 +78,7 @@ export async function buildRelayHandler(env: Env = process.env): Promise<Handler
   const deployment = loadDeployment(network);
   const account = privateKeyToAccount(requireKey(env, 'RELAYER_PRIVATE_KEY'));
   const publicClient = makePublicClient(network);
+  await assertChainId(publicClient, network.chainId);
   const transports = network.rpcUrls.map((u) => http(u));
   const wallet = createWalletClient({
     account,
@@ -86,6 +100,10 @@ export async function buildRelayHandler(env: Env = process.env): Promise<Handler
         wallet.writeContract({ address: forwarder, abi: erc2771ForwarderAbi, functionName: 'execute', args: [request], gas }),
     },
     limiter: new SlidingWindowLimiter(RELAY_PER_HOUR),
+    ipLimiter: new SlidingWindowLimiter(IP_PER_HOUR),
+    globalLimiter: new SlidingWindowLimiter(GLOBAL_PER_HOUR),
+    verifier: createPrivyVerifier(requireVar(env, 'NEXT_PUBLIC_PRIVY_APP_ID'), requireVar(env, 'PRIVY_APP_SECRET')),
+    createLimiter: new SlidingWindowLimiter(CREATE_CIRCLE_PER_HOUR),
     now: Date.now,
     requestId: makeRequestIdGenerator(),
     log: consoleLogger,
@@ -96,16 +114,23 @@ export async function buildRelayHandler(env: Env = process.env): Promise<Handler
 export function lazyHandler(build: () => Promise<Handler>, name: string): Handler {
   let cached: Promise<Handler> | undefined;
   return async (req) => {
+    let handler: Handler;
     try {
       cached ??= build();
-      return await (await cached)(req);
+      handler = await cached;
     } catch (e) {
-      cached = undefined;
+      cached = undefined; // only a failed BUILD is retried; a handler error must not reset limiters or the nonce mutex
       if (e instanceof ConfigError || e instanceof NetworkError) {
         consoleLogger('error', `${name} not configured`, { reason: e.message });
         return errorResponse(503, 'NotConfigured', 'Dịch vụ chưa được cấu hình. Hãy thử lại sau.');
       }
       consoleLogger('error', `${name} failed`, { reason: e instanceof Error ? e.name : 'unknown' });
+      return errorResponse(500, 'Internal', 'Có lỗi hệ thống. Hãy thử lại sau.');
+    }
+    try {
+      return await handler(req);
+    } catch {
+      consoleLogger('error', `${name} failed`, { reason: 'handler error' });
       return errorResponse(500, 'Internal', 'Có lỗi hệ thống. Hãy thử lại sau.');
     }
   };

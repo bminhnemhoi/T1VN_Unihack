@@ -80,13 +80,10 @@ export function createAttestHandler(deps: AttestDeps): (req: Request) => Promise
     const token = /^Bearer\s+(\S+)$/i.exec(auth)?.[1];
     if (!token) return done(errorResponse(401, 'Unauthorized', 'Cần đăng nhập để xin xác nhận.'), 'no-token');
 
-    let identity;
+    let userId: string;
     try {
-      identity = await deps.verifier.verify(token);
+      ({ userId } = await deps.verifier.verifyToken(token));
     } catch (e) {
-      if (e instanceof NoWalletError) {
-        return done(errorResponse(409, 'NoWallet', 'Tài khoản chưa có ví. Hãy đăng nhập lại để tạo ví.'), 'no-wallet');
-      }
       if (e instanceof InvalidTokenError) {
         return done(errorResponse(401, 'Unauthorized', 'Phiên đăng nhập không hợp lệ hoặc đã hết hạn.'), 'bad-token');
       }
@@ -94,7 +91,8 @@ export function createAttestHandler(deps: AttestDeps): (req: Request) => Promise
       return done(errorResponse(502, 'AuthUnavailable', 'Chưa xác minh được đăng nhập. Hãy thử lại.'), 'privy-error');
     }
 
-    const user = deps.userLimiter.take(identity.userId);
+    // Per-person quota BEFORE the Privy user lookup, so a valid token cannot be used to spam the Privy API.
+    const user = deps.userLimiter.take(userId);
     if (!user.ok) {
       return done(
         errorResponse(429, 'RateLimited', 'Bạn xin xác nhận quá nhiều lần. Hãy thử lại sau.', {
@@ -104,7 +102,18 @@ export function createAttestHandler(deps: AttestDeps): (req: Request) => Promise
       );
     }
 
-    const raw = await readLimited(req, MAX_BODY_BYTES);
+    let wallet: Address;
+    try {
+      wallet = await deps.verifier.walletOf(userId);
+    } catch (e) {
+      if (e instanceof NoWalletError) {
+        return done(errorResponse(409, 'NoWallet', 'Tài khoản chưa có ví. Hãy đăng nhập lại để tạo ví.'), 'no-wallet');
+      }
+      deps.log('error', 'attest privy failure', { requestId });
+      return done(errorResponse(502, 'AuthUnavailable', 'Chưa xác minh được đăng nhập. Hãy thử lại.'), 'privy-error');
+    }
+
+    const raw = await readLimited(req, MAX_BODY_BYTES).catch(() => null);
     if (raw === null) return done(errorResponse(413, 'TooLarge', 'Yêu cầu quá lớn.'), 'too-large');
     let parsed;
     try {
@@ -138,9 +147,9 @@ export function createAttestHandler(deps: AttestDeps): (req: Request) => Promise
     }
     if (!known) return done(errorResponse(404, 'NotCircle', 'Địa chỉ này không phải một dây của HụiSafe.'), 'not-circle');
 
-    const attestationId = computeAttestationId(deps.idSecret, identity.userId, circle);
+    const attestationId = computeAttestationId(deps.idSecret, userId, circle);
     const expiry = BigInt(Math.floor(deps.now() / 1000) + ATTESTATION_TTL_SECONDS);
-    const message = { member: identity.wallet, circle, attestationId, expiry };
+    const message = { member: wallet, circle, attestationId, expiry };
     const signature = await deps.attester.signTypedData({
       domain: huiSafeDomain(circle, deps.chainId),
       types: attestationTypes,

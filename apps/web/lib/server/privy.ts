@@ -8,19 +8,14 @@ import { PrivyClient } from '@privy-io/node';
 
 type Address = `0x${string}`;
 
-export interface PrivyIdentity {
-  /** Privy DID, e.g. `did:privy:...`. Never logged, never stored. */
-  userId: string;
-  /** The user's Ethereum embedded wallet: the only address an attestation is issued for. */
-  wallet: Address;
-}
-
 export class InvalidTokenError extends Error {}
 export class NoWalletError extends Error {}
 
 export interface PrivyVerifier {
-  /** Resolves the identity or throws InvalidTokenError / NoWalletError. */
-  verify(accessToken: string): Promise<PrivyIdentity>;
+  /** Checks the access token only (cheap, local JWT check). Throws InvalidTokenError. Returns the Privy DID. */
+  verifyToken(accessToken: string): Promise<{ userId: string }>;
+  /** Looks up the user's Ethereum embedded wallet (a Privy API call: rate limit the user first). Throws NoWalletError. */
+  walletOf(userId: string): Promise<Address>;
 }
 
 const isAddress = (v: unknown): v is Address => typeof v === 'string' && /^0x[0-9a-fA-F]{40}$/.test(v);
@@ -28,14 +23,15 @@ const isAddress = (v: unknown): v is Address => typeof v === 'string' && /^0x[0-
 export function createPrivyVerifier(appId: string, appSecret: string): PrivyVerifier {
   const client = new PrivyClient({ appId, appSecret });
   return {
-    async verify(accessToken) {
-      let userId: string;
+    async verifyToken(accessToken) {
       try {
         const claims = await client.utils().auth().verifyAccessToken(accessToken);
-        userId = claims.user_id;
+        return { userId: claims.user_id };
       } catch {
         throw new InvalidTokenError('invalid access token');
       }
+    },
+    async walletOf(userId) {
       const user = await client.users()._get(userId);
       // Deterministic choice when a user has several embedded wallets: the earliest verified one, then by address.
       const wallets = user.linked_accounts
@@ -54,7 +50,7 @@ export function createPrivyVerifier(appId: string, appSecret: string): PrivyVeri
         .sort((x, y) => x.at - y.at || x.address.localeCompare(y.address));
       const first = wallets[0];
       if (!first) throw new NoWalletError('no embedded wallet');
-      return { userId, wallet: first.address };
+      return first.address;
     },
   };
 }

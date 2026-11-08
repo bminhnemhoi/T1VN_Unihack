@@ -69,6 +69,13 @@ contract CreateDemoCircleScriptTest is Test {
         _cleanup();
     }
 
+    function test_Execute_RevertsWhenLabelTooLong() public {
+        _deploy("label");
+        vm.expectRevert(abi.encodeWithSelector(CreateDemoCircle.LabelTooLong.selector, 32));
+        script.execute(ORGANIZER_KEY, file, 7 days, "0123456789012345678901234567890a");
+        _cleanup();
+    }
+
     function test_Execute_RevertsOnUnsupportedChain() public {
         _deploy("chain");
         vm.chainId(43_114);

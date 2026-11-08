@@ -21,6 +21,8 @@ export interface CircleSnapshot {
   joinDeadline: bigint;
   settledRounds: number;
   members: readonly Address[];
+  /** Bond held by the circle; a Forming circle past its deadline is only worth cancelling when this is above zero. */
+  bondRemaining: bigint;
 }
 
 export type AttemptResult =
@@ -56,6 +58,7 @@ const EXPECTED = new Set([
   'WrongState',
   'CircleIsPaused',
   'JoinClosed',
+  'BackingOff',
 ]);
 
 export interface TickSummary {
@@ -111,7 +114,7 @@ export async function tick(port: KeeperPort, log: Log): Promise<TickSummary> {
     let snap = await port.snapshot(circle);
     if (snap.state === STATE.Forming) {
       summary.circles++;
-      if (BigInt(now) > snap.joinDeadline) await run(circle, 'cancel', [], {});
+      if (BigInt(now) > snap.joinDeadline && snap.bondRemaining > 0n) await run(circle, 'cancel', [], {});
       continue;
     }
     if (snap.state !== STATE.Active) continue; // Paused or terminal: nothing to do

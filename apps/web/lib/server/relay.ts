@@ -3,16 +3,20 @@
  * member already signed (ERC-2771). The checks run in the documented order and the request is never altered, so a
  * tampered request simply fails `forwarder.verify`. The relayer key lives only in the injected `sender`.
  *
- *   1. `to` is the factory or `factory.isCircle(to)`          5. `forwarder.verify(request)` by eth_call
- *   2. selector is on the allowlist for that target           6. simulate `forwarder.execute` by eth_call
- *   3. value == 0 and gas within the cap (3M; 5M for         then send, serialised through a mutex so concurrent
- *      settleRound and finalize)                              requests cannot reuse one relayer nonce.
- *   4. rate limit 30 requests/hour per `from`
+ * Before the checks: a per-IP limit and a global hourly budget (abuse protection that costs nothing to evaluate).
+ *   1. `to` is the factory or `factory.isCircle(to)`          4. `forwarder.verify(request)` by eth_call
+ *   2. selector is on the allowlist for that target           5. rate limit 30 requests/hour per `from`, charged
+ *   3. value == 0 and gas within the cap (3M; 5M for             ONLY for a valid signature (audit H-01)
+ *      settleRound and finalize)                              6. `createCircle` needs a Privy login of that wallet
+ *                                                             7. simulate `forwarder.execute` by eth_call
+ * then a hard stop when the relayer is nearly out of AVAX, and the send, serialised through a mutex so concurrent
+ * requests cannot reuse one relayer nonce.
  */
 import { concat, getAbiItem, toFunctionSelector, type Abi, type AbiFunction, type PublicClient } from 'viem';
 import { z } from 'zod';
 import { decodeError, erc2771ForwarderAbi, huiCircleAbi, huiFactoryAbi } from 'sdk';
-import { errorResponse, jsonResponse, readLimited, type Logger } from './http';
+import { clientIp, errorResponse, jsonResponse, readLimited, type Logger } from './http';
+import { InvalidTokenError, NoWalletError, type PrivyVerifier } from './privy';
 import type { SlidingWindowLimiter } from './ratelimit';
 
 type Address = `0x${string}`;
@@ -21,7 +25,11 @@ type Hex = `0x${string}`;
 export const RELAY_PER_HOUR = 30;
 export const GAS_CAP = 3_000_000n;
 export const GAS_CAP_HEAVY = 5_000_000n;
-export const LOW_BALANCE_WEI = 10n ** 18n; // 1 AVAX
+export const LOW_BALANCE_WEI = 10n ** 18n; // 1 AVAX: warn
+export const HARD_STOP_WEI = 5n * 10n ** 16n; // 0.05 AVAX: refuse to send, the relayer cannot pay for gas anyway
+export const IP_PER_HOUR = 300;
+export const GLOBAL_PER_HOUR = 1500;
+export const CREATE_CIRCLE_PER_HOUR = 5;
 const MAX_BODY_BYTES = 24_576;
 
 const selectorOf = (abi: Abi, name: string): Hex => toFunctionSelector(getAbiItem({ abi, name }) as AbiFunction);
@@ -84,7 +92,15 @@ export interface RelayDeps {
   factory: Address;
   forwarder: Address;
   sender: RelaySender;
+  /** Per signer, charged only after `forwarder.verify` passes. */
   limiter: SlidingWindowLimiter;
+  /** Per client IP, charged before anything else. */
+  ipLimiter: SlidingWindowLimiter;
+  /** Every relayed request, all signers together: caps what the relayer can be made to spend per hour. */
+  globalLimiter: SlidingWindowLimiter;
+  /** `createCircle` is open to any wallet, so it needs a Privy login of the same wallet and its own small quota. */
+  verifier: PrivyVerifier;
+  createLimiter: SlidingWindowLimiter;
   now: () => number;
   requestId: () => string;
   log: Logger;
@@ -117,7 +133,26 @@ export function createRelayHandler(deps: RelayDeps): (req: Request) => Promise<R
       return res;
     };
 
-    const raw = await readLimited(req, MAX_BODY_BYTES);
+    const ip = deps.ipLimiter.take(clientIp(req));
+    if (!ip.ok) {
+      return done(
+        errorResponse(429, 'RateLimited', 'Bạn gửi quá nhiều yêu cầu. Hãy thử lại sau.', {
+          'retry-after': String(ip.retryAfterSec),
+        }),
+        'ip-limited',
+      );
+    }
+    const budget = deps.globalLimiter.take('all');
+    if (!budget.ok) {
+      return done(
+        errorResponse(503, 'RelayBusy', 'Dịch vụ miễn phí đang quá tải. Hãy thử lại sau ít phút.', {
+          'retry-after': String(budget.retryAfterSec),
+        }),
+        'global-budget',
+      );
+    }
+
+    const raw = await readLimited(req, MAX_BODY_BYTES).catch(() => null);
     if (raw === null) return done(errorResponse(413, 'TooLarge', 'Yêu cầu quá lớn.'), 'too-large');
     let parsed;
     try {
@@ -176,18 +211,7 @@ export function createRelayHandler(deps: RelayDeps): (req: Request) => Promise<R
       return done(errorResponse(400, 'GasTooHigh', `Mức gas vượt trần ${cap.toString()}.`), 'gas');
     }
 
-    // 4. Rate limit per signer.
-    const limit = deps.limiter.take(request.from.toLowerCase());
-    if (!limit.ok) {
-      return done(
-        errorResponse(429, 'RateLimited', 'Bạn gửi quá nhiều yêu cầu. Hãy thử lại sau.', {
-          'retry-after': String(limit.retryAfterSec),
-        }),
-        'rate-limited',
-      );
-    }
-
-    // 5. The forwarder accepts the signature, nonce and deadline.
+    // 4. The forwarder accepts the signature, nonce and deadline.
     let valid: boolean;
     try {
       valid = await deps.publicClient.readContract({
@@ -206,7 +230,48 @@ export function createRelayHandler(deps: RelayDeps): (req: Request) => Promise<R
       );
     }
 
-    // 6. Simulate the whole execute. The forwarder hides the inner revert (it only reports FailedCall), so on failure
+    // 5. Per-signer quota, charged only for a valid signature: an attacker cannot burn a victim's quota with junk.
+    const limit = deps.limiter.take(request.from.toLowerCase());
+    if (!limit.ok) {
+      return done(
+        errorResponse(429, 'RateLimited', 'Bạn gửi quá nhiều yêu cầu. Hãy thử lại sau.', {
+          'retry-after': String(limit.retryAfterSec),
+        }),
+        'rate-limited',
+      );
+    }
+
+    // 6. Creating a circle is open to everyone and each clone is costly: require a Privy login of the same wallet.
+    if (fn === 'createCircle') {
+      const token = /^Bearer\s+(\S+)$/i.exec(req.headers.get('authorization') ?? '')?.[1];
+      if (!token) return done(errorResponse(401, 'Unauthorized', 'Cần đăng nhập để tạo dây qua dịch vụ miễn phí.'), 'create-no-token');
+      try {
+        const { userId } = await deps.verifier.verifyToken(token);
+        const quota = deps.createLimiter.take(userId);
+        if (!quota.ok) {
+          return done(
+            errorResponse(429, 'RateLimited', 'Bạn tạo dây quá nhiều lần. Hãy thử lại sau.', {
+              'retry-after': String(quota.retryAfterSec),
+            }),
+            'create-limited',
+          );
+        }
+        const wallet = await deps.verifier.walletOf(userId);
+        if (wallet.toLowerCase() !== request.from.toLowerCase()) {
+          return done(errorResponse(403, 'WalletMismatch', 'Ví ký không phải ví của tài khoản đang đăng nhập.'), 'create-wallet-mismatch');
+        }
+      } catch (e) {
+        if (e instanceof InvalidTokenError) {
+          return done(errorResponse(401, 'Unauthorized', 'Phiên đăng nhập không hợp lệ hoặc đã hết hạn.'), 'create-bad-token');
+        }
+        if (e instanceof NoWalletError) {
+          return done(errorResponse(409, 'NoWallet', 'Tài khoản chưa có ví.'), 'create-no-wallet');
+        }
+        return done(errorResponse(502, 'AuthUnavailable', 'Chưa xác minh được đăng nhập. Hãy thử lại.'), 'create-auth-error');
+      }
+    }
+
+    // 7. Simulate the whole execute. The forwarder hides the inner revert (it only reports FailedCall), so on failure
     // replay the inner call as the forwarder would (sender appended, ERC-2771) to decode the real custom error.
     const gasLimit = request.gas + request.gas / 32n + 200_000n;
     try {
@@ -236,7 +301,16 @@ export function createRelayHandler(deps: RelayDeps): (req: Request) => Promise<R
       return done(errorResponse(422, decoded.code, decoded.message), 'simulation-reverted');
     }
 
-    // Send. Warn (log only) when the relayer is nearly out of gas money.
+    // Hard stop when the relayer cannot pay for gas; warn (log only) below 1 AVAX after a send.
+    try {
+      const balance = await deps.publicClient.getBalance({ address: deps.sender.address });
+      if (balance < HARD_STOP_WEI) {
+        deps.log('error', 'relayer out of AVAX, refusing to send', { requestId, balanceWei: balance.toString() });
+        return done(errorResponse(503, 'RelayUnavailable', 'Dịch vụ miễn phí tạm ngưng. Hãy thử lại sau.'), 'relayer-empty');
+      }
+    } catch {
+      return done(errorResponse(502, 'ChainUnavailable', 'Chưa đọc được dữ liệu từ mạng. Hãy thử lại.'), 'chain-error');
+    }
     try {
       const hash = await sendLock(() => deps.sender.execute({ forwarder: deps.forwarder, request, gas: gasLimit }));
       fields.txHash = hash;

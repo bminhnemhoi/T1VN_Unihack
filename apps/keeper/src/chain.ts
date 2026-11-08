@@ -16,7 +16,7 @@ import { privateKeyToAccount } from 'viem/accounts';
 import { avalancheFuji } from 'viem/chains';
 import { loadAddresses } from 'config/addresses';
 import { decodeError, huiCircleFullAbi, huiFactoryAbi } from 'sdk';
-import { GAS_HARD_CAP, GAS_MARGIN_DEN, GAS_MARGIN_NUM, type KeeperConfig } from './config.js';
+import { REVERT_BACKOFF_SECONDS, gasLimitFor, type KeeperConfig } from './config.js';
 import type { AttemptResult, CircleSnapshot, KeeperFn, KeeperPort } from './keeper.js';
 
 type Address = `0x${string}`;
@@ -49,6 +49,8 @@ export function createViemPort(cfg: KeeperConfig): { port: KeeperPort; keeper: A
 
   // Terminal circles never come back; remember them to skip their reads.
   const terminal = new Set<Address>();
+  // (circle, action) pairs whose transaction was mined but reverted: do not burn gas on them every scan.
+  const revertedUntil = new Map<string, number>();
 
   const port: KeeperPort = {
     async nowSec() {
@@ -60,19 +62,26 @@ export function createViemPort(cfg: KeeperConfig): { port: KeeperPort; keeper: A
       return all.filter((c) => !terminal.has(c));
     },
     async snapshot(circle): Promise<CircleSnapshot> {
-      const [state, params, settledRounds, members] = await Promise.all([
+      const [state, params, settledRounds, members, bondRemaining] = await Promise.all([
         read<number>(circle, 'state'),
         read<{ memberCount: number; joinDeadline: bigint }>(circle, 'params'),
         read<number>(circle, 'settledRounds'),
         read<readonly Address[]>(circle, 'members'),
+        read<bigint>(circle, 'bondRemaining'),
       ]);
       if (state >= 3) terminal.add(circle);
+      // A Forming circle past its join deadline with no bond has nothing to return: ignore it from now on, so spam
+      // circles cost the keeper neither reads nor a cancel() transaction (audit H-02).
+      if (state === 0 && bondRemaining === 0n && BigInt(params.joinDeadline) < BigInt(await port.nowSec())) {
+        terminal.add(circle);
+      }
       return {
         state: Number(state),
         memberCount: Number(params.memberCount),
         joinDeadline: BigInt(params.joinDeadline),
         settledRounds: Number(settledRounds),
         members,
+        bondRemaining: BigInt(bondRemaining),
       };
     },
     deadline: (circle, round) => read<bigint>(circle, 'deadline', [round]),
@@ -81,13 +90,25 @@ export function createViemPort(cfg: KeeperConfig): { port: KeeperPort; keeper: A
       return !info.defaulted && info.debt > 0n;
     },
     async attempt(circle, fn: KeeperFn, args): Promise<AttemptResult> {
+      const backoffKey = `${circle}:${fn}:${String(args[0] ?? '')}`;
+      const until = revertedUntil.get(backoffKey);
+      if (until !== undefined && Date.now() < until) {
+        return { sent: false, code: 'BackingOff', message: 'a previous attempt reverted on-chain; waiting to retry' };
+      }
       const call = { address: circle, abi: huiCircleFullAbi, functionName: fn, args, account } as never;
       let gas: bigint;
       try {
         await publicClient.simulateContract(call);
         const estimate = await publicClient.estimateContractGas(call);
-        gas = (estimate * GAS_MARGIN_NUM) / GAS_MARGIN_DEN;
-        if (gas > GAS_HARD_CAP) gas = GAS_HARD_CAP;
+        const limit = gasLimitFor(estimate);
+        if (limit === undefined) {
+          return {
+            sent: false,
+            code: 'GasAboveCap',
+            message: `estimate ${estimate} exceeds the 5,000,000 cap; mark defaulters first`,
+          };
+        }
+        gas = limit;
       } catch (e) {
         const d = decodeError(e);
         return { sent: false, code: d.code, message: d.message };
@@ -95,7 +116,9 @@ export function createViemPort(cfg: KeeperConfig): { port: KeeperPort; keeper: A
       try {
         const txHash = await wallet.writeContract({ ...(call as object), gas } as never);
         const receipt = await publicClient.waitForTransactionReceipt({ hash: txHash });
-        return { sent: true, txHash, gasUsed: receipt.gasUsed, ok: receipt.status === 'success' };
+        const ok = receipt.status === 'success';
+        if (!ok) revertedUntil.set(backoffKey, Date.now() + REVERT_BACKOFF_SECONDS * 1000);
+        return { sent: true, txHash, gasUsed: receipt.gasUsed, ok };
       } catch (e) {
         const d = decodeError(e);
         return { sent: false, code: d.code === 'Unknown' ? 'SendFailed' : d.code, message: d.message };

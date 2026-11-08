@@ -77,29 +77,38 @@ function check(label: string, actual: unknown, expected: unknown, unit?: string)
 }
 const step = (s: string): void => console.log(`\n== ${s}`);
 
+/** Minimal environment for children: nothing the operator exported (DEPLOY_OUT, keys...) leaks into the rehearsal. */
+const baseEnv = (): NodeJS.ProcessEnv =>
+  ({
+    PATH: `${FOUNDRY_BIN}:${process.env.PATH ?? ''}`,
+    HOME: process.env.HOME ?? '',
+    NODE_ENV: 'development',
+  }) as NodeJS.ProcessEnv;
+
 function run(cmd: string, args: string[], cwd: string, env: Record<string, string>): string {
-  const r = spawnSync(cmd, args, {
-    cwd,
-    env: { ...process.env, PATH: `${FOUNDRY_BIN}:${process.env.PATH}`, ...env },
-    encoding: 'utf8',
-  });
+  const r = spawnSync(cmd, args, { cwd, env: { ...baseEnv(), ...env }, encoding: 'utf8' });
   if (r.status !== 0) throw new Error(`${cmd} ${args[0]} failed:\n${(r.stdout ?? '').slice(-1500)}\n${(r.stderr ?? '').slice(-1500)}`);
   return r.stdout;
 }
 
+async function rpcChainId(): Promise<string | undefined> {
+  try {
+    const r = await fetch(RPC, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'eth_chainId', params: [] }),
+    });
+    return r.ok ? ((await r.json()) as { result?: string }).result : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
 async function startAnvil(): Promise<ChildProcess> {
-  const child = spawn('anvil', ['--silent'], { env: { ...process.env, PATH: `${FOUNDRY_BIN}:${process.env.PATH}` }, stdio: 'ignore' });
+  if ((await rpcChainId()) !== undefined) throw new Error('something already listens on 127.0.0.1:8545; stop it first');
+  const child = spawn('anvil', ['--silent', '--port', '8545', '--chain-id', '31337'], { env: baseEnv(), stdio: 'ignore' });
   for (let i = 0; i < 60; i++) {
-    try {
-      const r = await fetch(RPC, {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'eth_chainId', params: [] }),
-      });
-      if (r.ok) return child;
-    } catch {
-      /* not up yet */
-    }
+    if ((await rpcChainId()) === '0x7a69') return child;
     await new Promise((r) => setTimeout(r, 250));
   }
   child.kill();
@@ -174,11 +183,13 @@ async function scenario(): Promise<void> {
   const log = (_l: string, m: string, f?: Record<string, unknown>) => void logs.push(`${m} ${JSON.stringify(f ?? {})}`);
   let clockMs = (await chainNow()) * 1000;
   const verifier: PrivyVerifier = {
-    async verify(token) {
+    async verifyToken(token) {
       const i = Number(/^member-(\d)$/.exec(token)?.[1] ?? -1);
-      const m = M[i - 1];
-      if (!m) throw new InvalidTokenError('unknown token');
-      return { userId: `did:privy:e2e-${i}`, wallet: m.address };
+      if (!M[i - 1]) throw new InvalidTokenError('unknown token');
+      return { userId: `did:privy:e2e-${i}` };
+    },
+    async walletOf(userId) {
+      return M[Number(userId.slice(-1)) - 1]!.address;
     },
   };
   const attestHandler = createAttestHandler({
@@ -204,6 +215,10 @@ async function scenario(): Promise<void> {
         relayWallet.writeContract({ address: f, abi: erc2771ForwarderAbi, functionName: 'execute', args: [request], gas }),
     },
     limiter: new SlidingWindowLimiter(1000),
+    ipLimiter: new SlidingWindowLimiter(1000),
+    globalLimiter: new SlidingWindowLimiter(1000),
+    verifier,
+    createLimiter: new SlidingWindowLimiter(5),
     now: Date.now,
     requestId: (() => { let n = 0; return () => `r-${++n}`; })(),
     log,
@@ -364,7 +379,7 @@ async function scenario(): Promise<void> {
   step('9. the real keeper process starts and scans once (entry point smoke test)');
   const child = spawn('pnpm', ['--filter', 'keeper', 'start'], {
     cwd: ROOT,
-    env: { ...process.env, HUISAFE_NETWORK: 'anvil', KEEPER_PRIVATE_KEY: keyOf(keeperAcct), KEEPER_INTERVAL_SECONDS: '3600' },
+    env: { ...baseEnv(), HUISAFE_NETWORK: 'anvil', KEEPER_PRIVATE_KEY: keyOf(keeperAcct), KEEPER_INTERVAL_SECONDS: '3600' },
     stdio: ['ignore', 'pipe', 'pipe'],
   });
   const seen = await new Promise<string>((resolve) => {

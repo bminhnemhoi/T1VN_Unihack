@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { STATE, tick, type AttemptResult, type CircleSnapshot, type KeeperFn, type KeeperPort } from '../src/keeper';
-import { KeeperConfigError, loadKeeperConfig } from '../src/config';
+import { GAS_HARD_CAP, KeeperConfigError, gasLimitFor, loadKeeperConfig } from '../src/config';
 
 const C1 = '0x1111111111111111111111111111111111111111' as const;
 const M = (n: number) => `0x${n.toString(16).padStart(40, '0')}` as const;
@@ -26,6 +26,7 @@ function fakePort(over: {
     joinDeadline: 1000n,
     settledRounds: 0,
     members,
+    bondRemaining: 48_000_000n,
     ...over.snap,
   };
   const owes = over.owes ?? new Set<string>();
@@ -58,6 +59,12 @@ describe('keeper tick', () => {
     const late = fakePort({ now: 1001, snap: { state: STATE.Forming } });
     await tick(late.port, late.log);
     expect(late.calls).toEqual([{ fn: 'cancel', args: [] }]);
+  });
+
+  it('does not cancel empty Forming circles (spam costs the keeper nothing)', async () => {
+    const t = fakePort({ now: 1001, snap: { state: STATE.Forming, bondRemaining: 0n } });
+    await tick(t.port, t.log);
+    expect(t.calls).toEqual([]);
   });
 
   it('settles the current round only once its deadline has passed', async () => {
@@ -117,6 +124,15 @@ describe('keeper tick', () => {
       expect(t.calls).toEqual([]);
       expect(s.circles).toBe(0);
     }
+  });
+});
+
+describe('gasLimitFor', () => {
+  it('adds a 20% margin, caps at 5M, and refuses an estimate above the cap', () => {
+    expect(gasLimitFor(1_000_000n)).toBe(1_200_000n);
+    expect(gasLimitFor(4_500_000n)).toBe(GAS_HARD_CAP);
+    expect(gasLimitFor(GAS_HARD_CAP)).toBe(GAS_HARD_CAP);
+    expect(gasLimitFor(GAS_HARD_CAP + 1n)).toBeUndefined();
   });
 });
 

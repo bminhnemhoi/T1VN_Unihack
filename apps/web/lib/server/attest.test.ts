@@ -14,10 +14,13 @@ const NOW = 1_800_000_000_000;
 function makeDeps(over: Partial<AttestDeps> = {}): AttestDeps & { logs: string[] } {
   const logs: string[] = [];
   const verifier: PrivyVerifier = {
-    async verify(token) {
+    async verifyToken(token) {
       if (token === 'bad') throw new InvalidTokenError('x');
-      if (token === 'nowallet') throw new NoWalletError('x');
-      return { userId: `did:privy:${token}`, wallet };
+      return { userId: `did:privy:${token}` };
+    },
+    async walletOf(userId) {
+      if (userId === 'did:privy:nowallet') throw new NoWalletError('x');
+      return wallet;
     },
   };
   return {

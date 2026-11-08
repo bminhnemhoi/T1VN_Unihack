@@ -18,6 +18,17 @@ export interface KeeperConfig {
 
 export class KeeperConfigError extends Error {}
 
+/** Gas limit for a transaction: estimate x 1.2 capped at 5M. `undefined` when even the bare estimate exceeds the cap:
+ * such a transaction would run out of gas, so it must not be sent (audit M-02). */
+export function gasLimitFor(estimate: bigint): bigint | undefined {
+  if (estimate > GAS_HARD_CAP) return undefined;
+  const withMargin = (estimate * GAS_MARGIN_NUM) / GAS_MARGIN_DEN;
+  return withMargin > GAS_HARD_CAP ? GAS_HARD_CAP : withMargin;
+}
+
+/** After a mined revert the same (circle, action) is not retried for this long (seconds). */
+export const REVERT_BACKOFF_SECONDS = 300;
+
 export function loadKeeperConfig(env: Record<string, string | undefined> = process.env): KeeperConfig {
   const network = resolveNetwork(env);
   const key = env.KEEPER_PRIVATE_KEY;

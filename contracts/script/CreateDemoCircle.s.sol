@@ -43,6 +43,8 @@ contract CreateDemoCircle is Script {
     error NotDeployed(string file);
     /// @dev Fuji: the organizer wallet lacks the USDC for the bond.
     error InsufficientUsdc(uint256 have, uint256 need);
+    /// @dev The label is longer than 31 bytes (it would be truncated into the bytes32).
+    error LabelTooLong(uint256 length);
     /// @dev The circle did not come out as docs/03 section 8 expects.
     error SanityCheckFailed(string what);
 
@@ -72,6 +74,7 @@ contract CreateDemoCircle is Script {
             revert UnsupportedChain(block.chainid);
         }
 
+        if (bytes(label).length > 31) revert LabelTooLong(bytes(label).length);
         string memory json = vm.readFile(file);
         HuiFactory factory = HuiFactory(vm.parseJsonAddress(json, ".factory"));
         MockUSDC usdc = MockUSDC(vm.parseJsonAddress(json, ".usdc"));
