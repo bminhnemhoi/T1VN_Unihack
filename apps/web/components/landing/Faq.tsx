@@ -11,11 +11,14 @@ const QA = [
 
 export function Faq() {
   return (
-    <section aria-labelledby="hoi-dap" className="mx-auto max-w-3xl px-4 py-16">
-      <h2 id="hoi-dap" className="font-display text-4xl font-bold md:text-5xl">
-        Hay hỏi
-      </h2>
-      <div className="mt-8">
+    <section aria-labelledby="hoi-dap" className="mx-auto grid max-w-6xl gap-8 px-4 py-16 lg:grid-cols-[1fr_2fr] lg:gap-16">
+      <div>
+        <h2 id="hoi-dap" className="font-display text-4xl font-bold md:text-5xl">
+          Hay hỏi
+        </h2>
+        <p className="mt-3 max-w-prose text-xl text-muted-foreground">Những điều nên biết trước khi vào dây.</p>
+      </div>
+      <div>
         {QA.map(([q, a]) => (
           <details key={q} className="hoi dong-ke">
             <summary className="flex min-h-14 items-center justify-between gap-4 py-3 text-xl font-semibold">

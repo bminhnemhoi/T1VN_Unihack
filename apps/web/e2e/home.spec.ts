@@ -46,6 +46,40 @@ test.describe('S01 /', () => {
     errs.expectClean();
   });
 
+  test('card shows the sum behind the percentage and it follows the slider', async ({ page }) => {
+    await page.goto('/');
+    const sum = page.getByTestId('cong-thuc');
+    await expect(sum).toHaveText('480 ký quỹ + 120 giữ lại = 600 trên 600 rủi ro lớn nhất');
+    const slider = page.getByRole('slider', { name: /Ký quỹ của chủ hụi/ });
+    await slider.focus();
+    await slider.press('Home');
+    await expect(sum).toHaveText('0 ký quỹ + 120 giữ lại = 120 trên 600 rủi ro lớn nhất');
+    for (let i = 0; i < 18; i++) await slider.press('ArrowRight');
+    await expect(sum).toHaveText('180 ký quỹ + 120 giữ lại = 300 trên 600 rủi ro lớn nhất');
+    await expect(page.getByText('Trần thăm kỳ 1')).toHaveCount(0); // not part of the hero card any more
+  });
+
+  test('page has no repeated number band or running ticker, and NĐ 19 is worded as "mức trần" with a source link', async ({ page }) => {
+    await page.goto('/');
+    await expect(page.getByRole('region', { name: 'Số liệu dây mẫu' })).toHaveCount(0);
+    await expect(page.getByRole('region', { name: 'Dòng sổ hụi mẫu' })).toHaveCount(0);
+    await expect(page.getByRole('heading', { name: 'Áp các mức trần của NĐ 19/2019' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Theo Nghị định 19/2019' })).toHaveCount(0);
+    const src = page.getByRole('link', { name: /Đọc văn bản NĐ 19\/2019/ });
+    await expect(src).toHaveAttribute('href', /caselaw\.vn/);
+    await expect(src).toHaveAttribute('rel', /noopener/);
+  });
+
+  test('hero: the no-login demo is the main action, login is secondary', async ({ page }) => {
+    await page.goto('/');
+    const demo = page.getByRole('link', { name: 'Xem thử màn hình mẫu' });
+    const login = page.getByRole('button', { name: 'Đăng nhập bằng Google hoặc email' });
+    const [d, l] = await Promise.all([demo.boundingBox(), login.boundingBox()]);
+    expect(d!.y).toBeLessThan(l!.y); // demo comes first
+    await expect(demo).toHaveCSS('background-color', 'rgb(232, 176, 74)');
+    await expect(login).toHaveCSS('background-color', 'rgba(0, 0, 0, 0)');
+  });
+
   test('FAQ: every question opens and closes', async ({ page }) => {
     await page.goto('/');
     const items = page.locator('details.hoi');
@@ -62,7 +96,7 @@ test.describe('S01 /', () => {
     }
   });
 
-  test('ticker, border beam and the page are static under reduced motion', async ({ page }) => {
+  test('border beam and the entrance are off under reduced motion', async ({ page }) => {
     await page.emulateMedia({ reducedMotion: 'reduce' });
     await page.goto('/');
     await expect(page.locator('.beam-ring')).toBeHidden();

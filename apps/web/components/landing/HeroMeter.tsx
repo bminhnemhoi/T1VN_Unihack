@@ -1,25 +1,19 @@
 'use client';
 
-import { memo, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { formatBps, formatUsdc, previewCircle } from 'sdk';
 import { Seal } from '@/components/brand/Seal';
-import { LedgerList } from '@/components/LedgerList';
 import { BorderBeam } from '@/components/ui/border-beam';
 import { NumberTicker } from '@/components/ui/number-ticker';
 
 const C = 100_000_000n; // 100 USDC
 const MAX_BOND = 480; // (1 - 20%) * O_max for N = 5, C = 100 (docs/03 section 8)
 
-// Does not depend on the bond, so it is computed once and the list below never re-renders while dragging.
+// Does not depend on the bond: risk at its peak (600 USDC) and the 20% holdback that already covers part of it (120 USDC).
 const STATIC = previewCircle({ n: 5n, c: C, periodDays: 30n, alphaBps: 2000n, bond: 0n, capBps: 2000n });
-const STATIC_ITEMS = [
-  { label: 'Rủi ro lớn nhất của dây', value: formatUsdc(STATIC.maxExposure) },
-  { label: 'Tiền giữ lại của người hốt', value: '20%' },
-  { label: 'Trần thăm kỳ 1', value: formatUsdc(STATIC.bidRows[0]!.maxBid) },
-];
-const StaticStats = memo(function StaticStats() {
-  return <LedgerList className="mt-2" items={STATIC_ITEMS} />;
-});
+const RISK = Number(STATIC.maxExposure / 1_000_000n); // 600
+const HELD = (RISK * 2000) / 10_000; // 120
+const num = (n: number) => n.toLocaleString('vi-VN');
 
 /** The hero toy: drag the bond, watch the coverage index move. Same maths as the contract (previewCircle). */
 export function HeroMeter() {
@@ -72,10 +66,19 @@ export function HeroMeter() {
         {ok ? 'Đủ để bắt đầu dây.' : `Chưa đủ để bắt đầu dây. Cần thêm ${formatUsdc(p.bondMissing)} ký quỹ.`}
       </p>
 
+      <p className="so-ke mt-2 rounded-lg bg-secondary px-3 py-2 text-lg leading-snug" data-testid="cong-thuc">
+        <span className="block">
+          <strong>{num(bond)}</strong> ký quỹ + <strong>{num(HELD)}</strong> giữ lại
+        </span>{' '}
+        <span className="block">
+          = <strong>{num(bond + HELD)}</strong> <span className="text-base text-muted-foreground">trên {num(RISK)} rủi ro lớn nhất</span>
+        </span>
+      </p>
+
       <div className="mt-4">
         <label htmlFor="hero-bond" className="flex items-baseline justify-between gap-3 font-semibold">
           <span>Ký quỹ của chủ hụi</span>
-          <span className="so-ke font-display text-2xl">{bond} USDC</span>
+          <span className="so-ke font-display text-2xl whitespace-nowrap">{bond} USDC</span>
         </label>
         <p aria-hidden className="font-hand text-2xl leading-none font-bold text-primary">thử kéo thanh này đi</p>
         <input
@@ -91,8 +94,9 @@ export function HeroMeter() {
         />
       </div>
 
-      <StaticStats />
-      <p className="mt-2 text-base text-muted-foreground">Số liệu tính theo đặc tả, không phải dây thật.</p>
+      <p className="mt-3 text-base text-muted-foreground">
+        Giữ lại = 20% × {num(RISK)} = {num(HELD)} USDC, lấy từ phần người hốt nhận. Số liệu tính theo đặc tả, không phải dây thật.
+      </p>
     </div>
   );
 }

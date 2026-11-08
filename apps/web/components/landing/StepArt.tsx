@@ -58,23 +58,29 @@ export function ArtHot() {
 }
 
 export function ArtBu() {
-  const bars = [
-    { label: 'Giữ lại', v: 80, c: 'var(--primary)' },
-    { label: 'Ký quỹ', v: 20, c: 'var(--le-do)' },
-    { label: 'Dự phòng', v: 0, c: 'var(--ngoc)' },
+  // Waterfall of cover: holdback first, then the organizer's bond, then the reserve fund. Same line style as the other steps.
+  const boxes = [
+    { x: 4, label: 'Giữ lại', v: '80', c: 'var(--primary)' },
+    { x: 80, label: 'Ký quỹ', v: '20', c: 'var(--le-do)' },
+    { x: 156, label: 'Dự phòng', v: '0', c: 'var(--ngoc)' },
   ];
   return (
     <svg {...svgProps}>
-      {bars.map((b, i) => (
+      {boxes.map((b, i) => (
         <g key={b.label}>
-          <text x="10" y={28 + i * 32} fontSize="11" fontWeight="600" fill="var(--muted-foreground)">
+          <rect x={b.x} y="28" width="60" height="54" rx="8" fill="var(--card)" stroke={b.c} strokeWidth="2.5" />
+          <text x={b.x + 30} y="48" textAnchor="middle" fontSize="12" fontWeight="600" fill="var(--muted-foreground)">
             {b.label}
           </text>
-          <rect x="78" y={14 + i * 32} width="100" height="18" rx="9" fill="var(--secondary)" />
-          <rect x="78" y={14 + i * 32} width={Math.max(b.v, 0)} height="18" rx="9" fill={b.c} />
-          <text x="186" y={28 + i * 32} fontSize="12" fontWeight="700" fill="var(--foreground)">
+          <text x={b.x + 30} y="70" textAnchor="middle" fontSize="18" fontWeight="700" fill={b.c} className="font-display">
             {b.v}
           </text>
+          {i < boxes.length - 1 && (
+            <g stroke="var(--foreground)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" fill="none">
+              <path d={`M${b.x + 64} 55 H${b.x + 74}`} />
+              <path d={`M${b.x + 70} 49 l6 6 l-6 6`} />
+            </g>
+          )}
         </g>
       ))}
     </svg>

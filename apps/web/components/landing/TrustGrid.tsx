@@ -17,7 +17,7 @@ function Ticks({ items, dark }: { items: string[]; dark?: boolean }) {
 
 function Cell({ className, children, dark }: { className?: string; children: ReactNode; dark?: boolean }) {
   return (
-    <div className={cn('the-nang p-6', dark ? 'nen-muc rounded-xl to-giay-nang' : 'to-giay', className)}>{children}</div>
+    <div className={cn('the-nang flex flex-col p-6', dark ? 'nen-muc rounded-xl to-giay-nang' : 'to-giay', className)}>{children}</div>
   );
 }
 
@@ -34,7 +34,7 @@ export function TrustGrid() {
           <p className="mt-2 max-w-prose text-xl text-[#dfe5f0]">
             Tiền nằm trong ví từng người cho đến hạn. Đến kỳ, hệ thống kéo đúng phần góp và trả cho người hốt trong cùng một giao dịch.
           </p>
-          <div aria-hidden className="mt-6 flex items-center gap-3 font-semibold">
+          <div aria-hidden className="mt-auto flex items-center gap-3 pt-6 font-semibold">
             <span className="rounded-full border border-[#c9d2e0]/50 px-4 py-2">Ví của bạn</span>
             <span className="h-0.5 flex-1 border-t-2 border-dashed border-nghe" />
             <span className="rounded-full bg-nghe px-4 py-2 text-muc-dem">Người hốt</span>
@@ -43,16 +43,28 @@ export function TrustGrid() {
         </Cell>
         <Cell className="md:col-span-2">
           <ShieldCheck aria-hidden className="size-9 text-ngoc" />
-          <h3 className="mt-2 font-display text-2xl font-bold">Theo Nghị định 19/2019</h3>
+          <h3 className="mt-2 font-display text-2xl font-bold">Áp các mức trần của NĐ 19/2019</h3>
           <Ticks items={['Trần lãi 20%/năm (Điều 21)', 'Lãi chậm góp 10%/năm (Điều 22)', 'Nhắc thông báo UBND (Điều 14)']} />
+          <p className="mt-auto pt-4 text-muted-foreground">
+            Đây là cách hiểu của HụiSafe, chưa phải ý kiến pháp lý.{' '}
+            <a
+              href="https://caselaw.vn/van-ban-phap-luat/339092-nghi-dinh-so-19-2019-nd-cp-ngay-19-02-2019-cua-chinh-phu-ve-ho-hui-bieu-phuong"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="font-semibold text-primary underline underline-offset-4"
+            >
+              Đọc văn bản NĐ 19/2019<span className="sr-only"> (mở trang mới)</span>
+            </a>
+          </p>
         </Cell>
         <Cell className="md:col-span-2">
           <h3 className="font-display text-2xl font-bold">Chủ hụi khóa ký quỹ</h3>
-          <p className="mt-1 text-muted-foreground">Dây mẫu: khóa 480 trên 600 USDC rủi ro lớn nhất.</p>
-          <div aria-hidden className="mt-4 h-4 rounded-full bg-secondary shadow-[inset_0_0_0_1px_var(--input)]">
-            <div className="h-full w-4/5 rounded-full bg-ngoc" />
+          <p className="mt-1 text-muted-foreground">Dây mẫu: rủi ro lớn nhất là 600 USDC. Ký quỹ cộng tiền giữ lại phải phủ hết số này.</p>
+          <div aria-hidden className="mt-auto flex h-4 overflow-hidden rounded-full bg-secondary shadow-[inset_0_0_0_1px_var(--input)]">
+            <div className="h-full w-4/5 bg-ngoc" />
+            <div className="h-full w-1/5 bg-primary" />
           </div>
-          <p className="so-ke mt-2 font-semibold">480 USDC ký quỹ + 20% giữ lại = 100%</p>
+          <p className="so-ke mt-2 font-semibold">480 ký quỹ + 120 giữ lại = 600 trên 600</p>
         </Cell>
         <Cell className="md:col-span-2">
           <h3 className="font-display text-2xl font-bold">Sổ hụi công khai</h3>
@@ -61,7 +73,7 @@ export function TrustGrid() {
             <li className="so-ke flex justify-between"><span>Kỳ 2 hốt</span><span>323,18</span></li>
             <li className="so-ke flex justify-between"><span>Ký quỹ còn</span><span>460,00</span></li>
           </ul>
-          <p className="mt-2 text-muted-foreground">Ai cũng kiểm lại được. Xuất ra PDF khi cần.</p>
+          <p className="mt-auto pt-2 text-muted-foreground">Ai cũng kiểm lại được. Xuất ra PDF khi cần.</p>
         </Cell>
         <Cell className="md:col-span-2">
           <h3 className="font-display text-2xl font-bold">Không cần ví, không phí mạng</h3>
