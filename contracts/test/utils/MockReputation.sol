@@ -17,6 +17,29 @@ contract MockReputation {
         broken = b;
     }
 
+    /// @dev Write side used by settleRound; counts like the real registry so tie-breaks see in-circle lateness.
+    function recordOnTime(address m) external {
+        require(!broken, "registry broken");
+        _rep[m].onTime += 1;
+    }
+
+    function recordLate(address m) external {
+        require(!broken, "registry broken");
+        _rep[m].late += 1;
+    }
+
+    function recordDefault(address m) external {
+        _rep[m].defaults += 1;
+    }
+
+    function recordRepaid(address m) external {
+        _rep[m].repaid += 1;
+    }
+
+    function recordCompleted(address m) external {
+        _rep[m].completed += 1;
+    }
+
     function reputationOf(address m) external view returns (Reputation memory) {
         require(!broken, "registry broken");
         return _rep[m];

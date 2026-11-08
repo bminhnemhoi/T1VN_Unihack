@@ -403,6 +403,9 @@ T1VN_Unihack/
 │   ├── src/
 │   │   ├── HuiFactory.sol             # clone, danh bạ, cấu hình, pause qua admin, đếm dây theo chủ hụi
 │   │   ├── HuiCircle.sol              # một dây hụi: mọi luồng tiền của 03
+│   │   ├── HuiCircleBase.sol          # bố cục lưu trữ + hàm chung (chung cho HuiCircle và HuiCircleViews)
+│   │   ├── HuiCircleViews.sol         # các hàm view của 05 mục 3.2, chạy qua lens (abstract)
+│   │   ├── HuiCircleLens.sol          # triển khai một lần; HuiCircle DELEGATECALL tới đây cho mọi selector view
 │   │   ├── ReputationRegistry.sol     # lịch sử đúng hạn, trễ, vỡ nợ, trả nợ, hoàn thành
 │   │   ├── libraries/HuiMath.sol      # công thức thuần, có bản TS và Python
 │   │   ├── libraries/HuiTypes.sol     # enum, struct dùng chung (05, mục 2)
@@ -433,12 +436,12 @@ T1VN_Unihack/
 │   │   ├── invariant/Handler.sol      # tác nhân, hành động, biến ghost
 │   │   ├── invariant/Invariants.t.sol # INV-01..INV-09
 │   │   ├── integration/WorkedExample.t.sol # số của 03, mục 8, nhánh A và B
-│   │   ├── integration/GasBudget.t.sol # (thêm) gas settleRound và finalize ở N = 30
+│   │   ├── gas/GasBudget.t.sol # (thêm) gas settleRound và finalize ở N = 30
 │   │   └── vectors/huimath.json       # (thêm) vector differential do sim sinh, có commit
 │   ├── script/Deploy.s.sol            # forwarder, registry, implementation, factory; ghi deployments
 │   ├── script/CreateDemoCircle.s.sol  # dây demo 5 người, tham số demo
 │   ├── script/EmergencyPause.s.sol    # (thêm) pause, unpause, unwind qua factory; khóa đọc bằng vm.envUint (09 mục 13)
-│   └── deployments/fuji.json          # địa chỉ đã deploy (05, mục 6.2); local.json không commit
+│   └── deployments/fuji.json          # địa chỉ đã deploy (05, mục 6.2); anvil.json (dry run local) không commit
 ├── packages/
 │   ├── sdk/
 │   │   ├── package.json               # script generate = wagmi generate
@@ -543,7 +546,7 @@ pnpm --filter web dev
 pnpm --filter keeper start
 ```
 
-`Deploy.s.sol` thấy `block.chainid == 31337` thì deploy `MockUSDC` và ghi `deployments/local.json`. Trên 43113 thì dùng USDC của Circle và ghi `fuji.json`.
+`Deploy.s.sol` thấy `block.chainid == 31337` thì deploy `MockUSDC` và ghi `deployments/anvil.json` (đã gitignore, không đè `fuji.json`). Trên 43113 thì dùng USDC của Circle và ghi `fuji.json`; chain khác (kể cả mainnet 43114) thì script revert `UnsupportedChain`. Biến môi trường: `DEPLOYER_PRIVATE_KEY`; tùy chọn `ADMIN` (mặc định ví deployer), `ATTESTER_ADDRESS` (bắt buộc trên Fuji), `USDC`, `RELAYER_ADDRESS`, `GIT_COMMIT`, `DEPLOY_OUT`. Trên 43113 script chỉ ghi `fuji.json` khi `WRITE_DEPLOYMENT=true` (mô phỏng không đè file), bắt `ADMIN` = ví deployer trừ khi `ALLOW_UNWIRED=true` (khi đó json ghi thêm `"wired": false` và admin tự gọi `registry.setFactory`), và revert nếu `ATTESTER_ADDRESS` trùng deployer hoặc admin (ADR-21).
 
 8. Mở PR. CI xanh. Thay đổi đường tiền phải qua `/audit` (subagent security-auditor, 09 mục 14). Rồi mới merge.
 
@@ -551,7 +554,7 @@ pnpm --filter keeper start
 
 | Job | Việc | Chặn merge khi |
 |---|---|---|
-| `contracts` | `forge fmt --check`, `forge build --sizes`, test trừ invariant, `forge snapshot --check`, `forge coverage --report summary` | fmt sai, contract quá 24.576 byte, test đỏ, gas tăng |
+| `contracts` | `forge fmt --check`, `forge build --sizes --skip "test/**" --skip "script/**"` (harness test vượt 24.576 byte là bình thường), test trừ invariant, `forge snapshot --check --no-match-path "test/{fuzz,gas,invariant}/*" --no-match-test "testFuzz_"` (`.gas-snapshot` đã commit; loại fuzz, invariant và `GasBudget`, vốn có trần riêng), `forge coverage --report summary --ir-minimum` (cần vì `via_ir`) | fmt sai, contract quá 24.576 byte, test đỏ, gas tăng |
 | `invariant` | `forge test --match-path "test/invariant/*"` với profile `ci` | invariant hỏng |
 | `slither` | `crytic/slither-action` với `fail-on: high` | có phát hiện mức cao |
 | `web` | build contracts, `pnpm --filter sdk generate`, kiểm ABI không lệch, lint, typecheck, test, build | ABI chép tay lệch, lỗi kiểu |
@@ -560,7 +563,7 @@ pnpm --filter keeper start
 
 Chi tiết từng job:
 
-- `contracts` và `invariant` chạy với `FOUNDRY_PROFILE=ci` trong `contracts/`; checkout kèm `submodules: recursive`. Lệnh của `contracts`: `forge fmt --check`, `forge build --sizes`, `forge test -vvv --no-match-path "test/invariant/*"`, `forge snapshot --check`, `forge coverage --report summary`.
+- `contracts` và `invariant` chạy với `FOUNDRY_PROFILE=ci` trong `contracts/`; checkout kèm `submodules: recursive`. Lệnh của `contracts`: `forge fmt --check`, `forge build --sizes --skip "test/**" --skip "script/**"`, `forge test -vvv --no-match-path "test/invariant/*"`, `forge snapshot --check`, `forge coverage --report summary --ir-minimum`.
 - `web` tự chạy `forge build` để có `contracts/out`, rồi `pnpm install --frozen-lockfile`, `pnpm --filter sdk generate && git diff --exit-code packages/sdk/src/generated.ts`, `pnpm -r lint`, `pnpm -r typecheck`, `pnpm -r test`, `pnpm -r build`. Node 22; phiên bản pnpm lấy từ trường `packageManager`.
 - `sim` dùng Python 3.12: `pip install -e ".[dev]"`, `pytest -q`, `python -m huisim.cli run --scenario baseline --seed 42 --circles 500 --out-dir outputs/ci`, rồi sinh lại vector và `git diff --exit-code contracts/test/vectors/huimath.json`.
 - `privacy`: lệnh quét ABI ở 09, mục 8.3.
@@ -571,7 +574,7 @@ Chi tiết từng job:
 Lệnh, cờ verifier Routescan và checklist ở [06](06-avalanche-va-blockchain.md), mục 6. Luồng:
 
 1. Bốn ví testnet tách vai (ADR-21), nạp AVAX.
-2. `Deploy.s.sol` deploy theo thứ tự cố định ở 05 mục 3.3: `ERC2771Forwarder("HuiSafeForwarder")` → `ReputationRegistry(admin)` → implementation `HuiCircle(forwarder)` (constructor gọi `_disableInitializers()`) → `HuiFactory(admin, implementation, config)` → `registry.setFactory(factory)` (chỉ admin, đúng một lần). Sau đó verify (Routescan, ADR-16) và ghi `contracts/deployments/fuji.json` (05 mục 6.2).
+2. `Deploy.s.sol` deploy theo thứ tự cố định ở 05 mục 3.3: `ERC2771Forwarder("HuiSafeForwarder")` → `ReputationRegistry(admin)` → `HuiCircleLens` → implementation `HuiCircle(forwarder, lens)` (constructor gọi `_disableInitializers()`, revert `LensNotDeployed()` nếu lens không có code) → `HuiFactory(admin, implementation, config)` → `registry.setFactory(factory)` (chỉ admin, đúng một lần). Sau đó verify (Routescan, ADR-16) và ghi `contracts/deployments/fuji.json` (05 mục 6.2).
 3. `pnpm --filter sdk generate`. `packages/config` đọc `fuji.json`, nên web không cần biến môi trường cho địa chỉ.
 4. Đặt bí mật cho nền tảng chạy web (mục 7.4), deploy web, chạy keeper, tạo dây demo bằng `CreateDemoCircle.s.sol`, commit `fuji.json`, cập nhật README.
 
@@ -641,7 +644,7 @@ ADR-01 đến ADR-15 là các quyết định gốc của thiết kế. ADR-16 t
 | ADR-16 | Etherscan báo ngừng hỗ trợ API cho Fuji từ 15/11/2026 | Xác minh contract qua API kiểu Etherscan của Routescan (Snowtrace) | Cờ `--verifier-url` riêng; xem 06, mục 6 |
 | ADR-17 | Ghi chú nghiên cứu chỉ xác nhận các EIP Cancun trên C-Chain (ACP-131) | Đặt `evm_version = "cancun"` trong `foundry.toml` | Tránh opcode mới hơn; cần kiểm tra lại nếu Avalanche công bố thêm EIP |
 | ADR-18 | Sổ họ phải là bằng chứng (NĐ 19 Điều 12, 13) | UI và sổ họ dựng từ event, mỗi thay đổi một event | Không có database để lệch với chuỗi |
-| ADR-19 | Relayer trả gas cho yêu cầu của người lạ | Kiểm rồi mới gửi: allowlist đích và selector, `value = 0`, gas ≤ 3.000.000, rate limit, `verify`, mô phỏng | Yêu cầu sai bị chặn trước khi tốn gas. Relayer không có quyền gì trên chuỗi |
+| ADR-19 | Relayer trả gas cho yêu cầu của người lạ | Kiểm rồi mới gửi: allowlist đích và selector, `value = 0`, gas ≤ 3.000.000 (riêng `settleRound` ≤ 5.000.000), rate limit, `verify`, mô phỏng | Yêu cầu sai bị chặn trước khi tốn gas. Relayer không có quyền gì trên chuỗi |
 | ADR-20 | Ba bản HuiMath phải khớp từng đơn vị | Vector JSON do sim sinh, có commit; Solidity đọc bằng `vm.readFile`, TS đọc bằng vitest | Không cần `ffi = true` trong Foundry |
 | ADR-21 | Nhiều tiến trình cùng gửi giao dịch | Mỗi vai một khóa: deployer, relayer, attester, keeper | Không đụng nonce giữa relayer và keeper; lộ một khóa không kéo theo vai khác |
 
@@ -651,18 +654,28 @@ ADR-01 đến ADR-15 là các quyết định gốc của thiết kế. ADR-16 t
 
 ### 7.1. Gas
 
-| Hàm | Ngân sách | Đo bằng |
-|---|---|---|
-| `settleRound` N = 30, trường hợp xấu nhất | ≤ 3.000.000 gas; cảnh báo từ 2.500.000 | `test/integration/GasBudget.t.sol` + `forge snapshot --check` |
-| `settleRound` N = 5 (demo) | ≤ 600.000 gas | như trên |
-| `finalize` N = 30 | ≤ 2.500.000 gas | như trên |
-| `join` | ≤ 250.000 gas | `.gas-snapshot` |
-| `commitBid` / `revealBid` | ≤ 120.000 / ≤ 100.000 gas | `.gas-snapshot` |
-| `createCircle` | ≤ 500.000 gas | `.gas-snapshot` |
+Ngân sách dưới đây là gas THỰC THI (`gasleft()` trước và sau lời gọi, không gồm 21.000 gas intrinsic của giao dịch). Số đo lấy từ `test/gas/GasBudget.t.sol` trên clone thật (A6/A7); các trần trong test giữ làm cột chống tăng gas.
+
+| Hàm | Ngân sách (thực thi) | Số đo A7 | Đo bằng |
+|---|---|---|---|
+| `settleRound` N = 30, trường hợp xấu nhất | ≤ 3.000.000 gas; cảnh báo từ 2.500.000 | kỳ cuối ai cũng đóng ~1.486.000; kỳ 29 với 3 khoản thiếu ~1.711.000; kỳ cuối 10 khoản thiếu ~2.256.000 | `test/gas/GasBudget.t.sol` |
+| `settleRound` N = 5 (demo), không hoặc một khoản thiếu | ≤ 600.000 gas | không thiếu ~520.000; một khoản thiếu ~495.000 | như trên |
+| `settleRound` N = 5 (demo), 4 khoản thiếu | ≤ 800.000 gas (ca xấu của demo; nới từ 600.000 theo số đo) | ~746.000 | như trên |
+| `settleRound` N = 30, kỳ 1 cả 29 người cùng thiếu (ca cực đoan) | ≤ 5.000.000 gas (trần relay/keeper) | ~4.158.000 | như trên |
+| `finalize` N = 30, đường thường (khoản thiếu đã `markDefault`) | ≤ 2.500.000 gas | sạch ~1.171.000; 5 người đã đánh dấu ~1.456.000; 29 người đã đánh dấu trước ~2.009.000 | như trên |
+| `finalize` N = 30, 29 người chưa `markDefault` (chỉ khi keeper bỏ lỡ) | KHÔNG nằm trong ngân sách; có thể vượt 5.000.000 | ~5.502.000 | trần chống tăng 5.600.000 trong test |
+| `join` | ≤ 250.000 gas | ~203.000 (người đầu), ~186.000 (người thứ 30) | `test/gas/GasBudget.t.sol` + `.gas-snapshot` |
+| `commitBid` | ≤ 200.000 gas (lần đầu mỗi kỳ vì kéo cọc mở thăm; giữ cọc để chống phá rối) | ~191.000 lần đầu | như trên |
+| `revealBid` | ≤ 100.000 gas | ~92.000 | như trên |
+| `createCircle` | ≤ 500.000 gas | ~405.000 (N = 30) | như trên |
 
 Trường hợp xấu nhất của `settleRound` ở N = 30 là kỳ cuối: 29 lần `transferFrom`, 28 lần nhả holdback, 29 lần ghi ReputationRegistry, cộng vài khoản thiếu (mỗi khoản thiếu ghi struct `Shortfall` mới). Ước tính thô mỗi thành viên 60.000 đến 90.000 gas, cộng khoảng 200.000 gas cố định, ra khoảng 1,9 đến 2,8 triệu gas. Đây là ước tính, phải thay bằng số đo. Cách giảm nếu vượt: dùng `ReentrancyGuardTransient` (C-Chain có EIP-1153 qua ACP-131, cần kiểm tra), gộp ghi ReputationRegistry, đóng gói struct chặt hơn.
 
 Giới hạn khối: theo ACP-176, sức chứa gas tối đa C = 10·T. Mục tiêu T của C-Chain được nâng lên 2,1 triệu gas/giây (08/2025), nên C khoảng 21 triệu gas (suy ra). Một giao dịch 3 triệu gas nằm trong giới hạn. Kiểm lại bằng `cast block latest gasLimit --rpc-url fuji`. Keeper gửi `settleRound` trực tiếp với gas limit = ước tính × 1,2, trần cứng 5.000.000.
+
+Số đo thực (A3, `HuiCircle` C6): N = 30 kỳ 29 với 3 khoản thiếu tốn 1,7 triệu gas; ca cực đoan N = 30 kỳ 1 mà cả 29 người cùng thiếu tốn khoảng 4,14 triệu gas (mỗi khoản thiếu 100.000 đến 140.000 gas vì ghi `Shortfall` 3 slot và 4 đến 5 event). Quyết định: chấp nhận ca cực đoan, không đóng gói lại storage; `/api/relay` cho phép `gas` đến 5.000.000 riêng với `settleRound` (các hàm khác giữ 3.000.000), keeper dùng trần cứng 5.000.000. Ca này không khóa tiền: ai cũng gửi trực tiếp được. Tương tự, `finalize` N = 30 sạch tốn khoảng 1,1 triệu gas, nhưng nếu 29 người cùng thiếu ở kỳ cuối mà chưa ai gọi `markDefault` (keeper phải gọi trong ân hạn) thì tự đánh dấu 29 người trong `finalize` tốn khoảng 5 triệu gas (A4 audit M-03), vượt ngân sách 2,5 triệu ở trên; `/api/relay` cho `finalize` trần 5.000.000 như `settleRound`.
+
+**Quy tắc keeper/vận hành (quyết định A7).** Keeper phải gọi `markDefault` cho MỌI khoản thiếu quá hạn trong và ngay sau ân hạn, TRƯỚC khi gọi `finalize`. Trên đường thường `finalize` N = 30 tốn khoảng 1,2 triệu gas (sạch) đến 2,0 triệu gas (29 người đã đánh dấu trước), trong ngân sách 2,5 triệu; mỗi `markDefault` là một giao dịch riêng, rẻ. Nếu bỏ qua bước này và nhiều người chưa bị đánh dấu (ca 29 người, ~5,5 triệu gas) thì `finalize` có thể vượt trần 5.000.000 của relayer và keeper; khi đó phải đánh dấu từng nhóm bằng `markDefault` rồi mới `finalize`. Hợp đồng không đổi: không khóa tiền, vì `markDefault` là hàm ai cũng gọi được và rẻ.
 
 ### 7.2. Độ trễ
 

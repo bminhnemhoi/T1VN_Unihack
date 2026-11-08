@@ -127,7 +127,11 @@ struct FactoryConfig {
 }
 ```
 
+Quy tắc cứng của factory (constructor và `setConfig` đều kiểm, vượt thì `InvalidConfig()`): `MIN_CONTRIBUTION = 1 USDC` (1_000_000, `contribution` nhỏ hơn thì `InvalidParams(2)`; `maxContribution ≥ MIN_CONTRIBUTION`); `maxFeeBps ≤ 300`, `maxReserveBps ≤ 300`, `maxCapBps ≤ 2000`, `lateRateBps ≤ 1000`, mọi giá trị bps ≤ 10_000; `3 ≤ minMembers ≤ maxMembers ≤ 30`; `config.forwarder` phải bằng forwarder của chính factory và bằng `trustedForwarder()` của implementation (forwarder là immutable, `setConfig` không đổi được); `config.usdc`, `reputation`, `attester`, `forwarder` khác địa chỉ 0. `admin` là `immutable` của factory (đổi admin = deploy factory mới).
+
 ### 2.1. Bố cục lưu trữ của `HuiCircle`
+
+**Giới hạn kích thước (EIP-170, quyết định A4).** `HuiCircle` + hàm C7 vượt 24.576 byte, nên bố cục lưu trữ nằm ở `HuiCircleBase`, các hàm view của mục 3.2 (trừ `currentRound`, `revealBond`, `requiredAllowance`, `guaranteedCoverageBps` và các getter công khai của biến) nằm ở `HuiCircleViews`, và `HuiCircle` chuyển mọi selector không định nghĩa sang `HuiCircleLens` (immutable `lens`, constructor revert `LensNotDeployed()` nếu địa chỉ không có code) bằng DELEGATECALL trong `fallback()`. ABI nhìn từ ngoài không đổi; lens chỉ có hàm `view`, dùng chung bố cục lưu trữ qua `HuiCircleBase` nên không ghi được và không chuyển được tiền. Dựng bằng `via_ir = true`. Không chèn hay đổi thứ tự biến lưu trữ nếu chưa chạy test song song lens (`HuiCircleLens.t.sol`).
 
 ```solidity
 IHuiFactory  public factory;
@@ -141,7 +145,7 @@ uint16       public minCoverageBps;
 CircleParams internal _params;
 CircleState  public state;
 uint64       public startTime;
-uint64       public pausedAt;
+uint64       public pausedAt;                // thời điểm bắt đầu lần dừng hiện tại (0 khi không dừng)
 uint64       public pausedTotal;
 uint32       public settledRounds;        // số kỳ đã chi
 
@@ -151,8 +155,11 @@ mapping(uint32 => RoundInfo)               internal _rounds;
 mapping(uint32 => mapping(address => Commit))    internal _commits;
 mapping(uint32 => mapping(address => Shortfall)) internal _shortfalls;
 mapping(uint32 => address)                 internal _leader;       // thăm dẫn đầu tạm thời
-mapping(uint32 => uint32)                  internal _commitCounter;
+mapping(uint32 => RoundBids)               internal _bids;         // RoundBids { uint32 count; uint8 payers }: số commit của kỳ k và L_k chốt ở commit đầu tiên (0 = chưa chốt, 03 mục 6.3), cùng một slot
+mapping(uint32 => uint64)                  internal _pausedAtSettle; // pausedTotal tại lúc chi kỳ k (03 mục 3.2, 6.8)
 mapping(bytes32 => bool)                   public usedAttestation;
+mapping(address => bool)                   public hasLeft;         // đã rời lúc Forming, không vào lại được (03 mục 5.1)
+uint32                                     public liveCount;       // số thành viên sống (joined, chưa hốt, chưa vỡ nợ), giữ bằng bộ đếm (gas)
 
 uint256 public bondDeposited;
 uint256 public bondRemaining;
@@ -163,6 +170,8 @@ uint256 public totalHoldback;
 mapping(address => uint256) public claimable;
 uint256 public totalClaimable;
 ```
+
+Lưu ý SDK/UI (chủ hụi kiêm thành viên): `depositBond` và `join` cùng ghi đè allowance của ví chủ hụi, nên permit của chủ hụi phải ký tổng `requiredAllowance + bond`. `organizerIsMember` hiện chỉ lưu trong `params`, contract chưa ép buộc.
 
 Bất biến sổ cái (03, mục 7.1): `usdc.balanceOf(this) == bondRemaining + reserve + totalHoldback + Σ feeEscrow + revealBondsHeld + totalClaimable`. Nên giữ thêm biến `totalFeeEscrow` để kiểm bất biến rẻ.
 
@@ -237,8 +246,8 @@ interface IHuiCircle {
     function memberInfo(address m) external view returns (MemberInfo memory);
     function currentRound() external view returns (uint32);                       // settledRounds + 1, tối đa N
     function phase() external view returns (RoundPhase);
-    function roundStart(uint32 k) external view returns (uint64);
-    function deadline(uint32 k) external view returns (uint64);
+    function roundStart(uint32 k) external view returns (uint64);                 // max(startTime + (k−1)·D_r, settledAt(k−1) − pausedAtSettle(k−1)) + pausedTotal, k ≥ 2 (03 mục 3.2)
+    function deadline(uint32 k) external view returns (uint64);                   // roundStart(k) + roundDuration
     function roundInfo(uint32 k) external view returns (RoundInfo memory);
     function commitOf(uint32 k, address m) external view returns (Commit memory);
     function shortfallOf(uint32 k, address m) external view returns (Shortfall memory);
@@ -285,9 +294,10 @@ Bonus: phát huy hiệu không chuyển nhượng được (ERC-5192) khi `compl
 Thứ tự deploy (đã chốt):
 1. `ERC2771Forwarder("HuiSafeForwarder")`.
 2. `ReputationRegistry(admin)`.
-3. Implementation `HuiCircle(forwarder)`; constructor gọi `_disableInitializers()`.
-4. `HuiFactory(admin, implementation, config)`, trong đó `config.reputation` = registry.
-5. `registry.setFactory(factory)`; gọi lần hai thì revert.
+3. `HuiCircleLens()` (chỉ view, mục 2.1).
+4. Implementation `HuiCircle(forwarder, lens)`; constructor gọi `_disableInitializers()`, revert `LensNotDeployed()` nếu `lens` không có code.
+5. `HuiFactory(admin, implementation, config)`, trong đó `config.reputation` = registry.
+6. `registry.setFactory(factory)`; gọi lần hai thì revert.
 
 Từ đó registry chỉ nhận lệnh từ địa chỉ có `factory.isCircle(msg.sender) == true`. Registry không dùng ERC-2771, vì chỉ contract gọi nó.
 
@@ -363,8 +373,11 @@ event HoldbackReleased(address indexed member, uint32 indexed round, uint256 amo
 
 event LatePaid(uint32 indexed round, address indexed member, uint256 amount, uint256 lateFee);
 event DebtRepaid(address indexed member, uint256 principal, uint256 lateFee);
+// Lãi chậm góp không đủ tiền để thu (pot hoặc holdback cạn): không ghi nợ, chỉ phát event làm khoản đòi công khai (03 mục 6.8).
+event LateFeeUnpaid(address indexed member, uint256 amount);
 // Mỗi phần hoàn theo thứ tự 03 mục 6.8 (payLate, repayDebt, pot người bị đóng băng, finalize):
 // source = Uncovered nghĩa là trả thẳng cho người hốt kỳ đó; các source khác là hoàn quỹ dự phòng, ký quỹ, holdback.
+// Riêng `finalize` với người vỡ nợ: phần source = Holdback là XÓA NỢ (khoản đó đã bị trừ từ chính holdback của họ), không chuyển tiền; sổ họ không được cộng nó vào holdback.
 event ShortfallRestored(uint32 indexed round, address indexed member, CoverSource source, uint256 amount);
 event MemberDefaulted(address indexed member, uint32 indexed round, bool frozen);
 event FeeForfeited(uint32 indexed round, uint256 amount);
@@ -385,6 +398,7 @@ error NotOrganizer();
 error NotAdmin();
 error NotMember();
 error AlreadyMember();
+error AlreadyLeft();           // join sau khi đã leave() chính dây này
 error WrongState(CircleState expected, CircleState actual);
 error InvalidParams(uint8 code);               // bảng mã ở 4.3
 error CircleFull();
@@ -416,6 +430,8 @@ error CircleIsPaused();      // tên khác event CirclePaused để solc không 
 error UnwindTooEarly();
 ```
 
+Lỗi riêng của `HuiFactory` (khai báo trong factory): `NotAdmin()`, `NotCircle(address who)` (hàm chỉ circle hợp lệ gọi, hoặc `pauseCircle`/`unpauseCircle`/`unwindCircle` với địa chỉ không phải circle), `ZeroAddress()` (admin, implementation hoặc địa chỉ trong cấu hình bằng 0), `InvalidConfig()` (cấu hình vượt trần cứng, forwarder lệch, `minMembers`/`maxMembers` ngoài 3..30). `onFinished` chỉ được chạy sau `onActivated` của chính circle đó: factory giữ cờ kích hoạt theo circle, nếu chưa có thì `onFinished` revert `NotActivated(circle)` thay vì underflow, và `onActivated` lần hai từ cùng circle cũng revert `AlreadyActivated(circle)`.
+
 ### 4.3. Mã lỗi tham số (`InvalidParams(code)`)
 
 | Mã | Điều kiện sai |
@@ -433,6 +449,7 @@ error UnwindTooEarly();
 | 11 | `revealBondBps` > 500 |
 | 12 | `capBps` > `maxCapBps` |
 | 13 | `joinDeadline` ≤ now |
+| 14 | `graceSeconds` ≥ `roundDuration` |
 
 ---
 
@@ -532,6 +549,7 @@ export const FUJI = {
   "usdc": "0x5425890298aed601595a70AB815c96711a31Bc65",
   "forwarder": "0x...",
   "reputation": "0x...",
+  "circleLens": "0x...",
   "circleImplementation": "0x...",
   "factory": "0x...",
   "admin": "0x...",
@@ -541,6 +559,8 @@ export const FUJI = {
   "gitCommit": "abcdef1"
 }
 ```
+
+Trường `"wired": false` chỉ xuất hiện khi deploy với `ADMIN` khác deployer và `ALLOW_UNWIRED=true` (admin còn phải gọi `registry.setFactory` một lần); thiếu trường nghĩa là đã nối xong. Trên Fuji, script chỉ ghi file khi `WRITE_DEPLOYMENT=true`.
 
 ---
 
@@ -642,7 +662,7 @@ Tất cả nhận và trả JSON; số tiền gửi dưới dạng chuỗi (bigi
   2. Selector của `data` nằm trong danh sách cho phép:
      - Người dùng: `createCircle`, `depositBond`, `withdrawBond`, `join`, `leave`, `activate`, `commitBid`, `revealBid`, `payLate`, `repayDebt`, `claim`.
      - Hàm ai cũng gọi được, để nút "Chốt kỳ" trên web chạy không tốn gas khi keeper chậm: `settleRound`, `markDefault`, `finalize`, `cancel`.
-  3. `value == 0`; `gas` ≤ 3.000.000.
+  3. `value == 0`; `gas` ≤ 3.000.000, riêng `settleRound` và `finalize` ≤ 5.000.000 (ca cực đoan N = 30 cả dây cùng thiếu tốn khoảng 4,1 đến 5 triệu gas, xem 04 mục 7.1).
   4. Rate limit 30 yêu cầu/giờ mỗi `from`.
   5. `forwarder.verify(request)` bằng `eth_call`.
   6. Mô phỏng `execute` bằng `eth_call`.
@@ -671,12 +691,13 @@ Trả file JSON kết quả mô phỏng đã sinh sẵn trong `sim/outputs/` (m�
 |---|---|---|
 | Chi kỳ | dây Active, `now ≥ deadline(currentRound)`, kỳ chưa chi | `settleRound()` |
 | Đánh dấu vỡ nợ | có `Shortfall` chưa `resolved` và `now > since + grace` | `markDefault(member)` |
-| Kết thúc | kỳ N đã chi, qua ân hạn, không còn khoản thiếu đang trong ân hạn | `finalize()` |
+| Kết thúc | kỳ N đã chi, qua ân hạn, không còn khoản thiếu đang trong ân hạn, và MỌI khoản thiếu quá hạn đã được `markDefault` ở dòng trên | `finalize()` |
 | Hủy | Forming và `now > joinDeadline` | `cancel()` |
 | Nhắc hụi (bonus) | 24 giờ (demo: 60 giây) trước cửa sổ commit đóng; 6 giờ trước `deadline` nếu ví không đủ số dư | gửi Telegram cho người đã đăng ký |
 
 - Chu kỳ quét: 15 giây ở chế độ demo, 5 phút ở bản thật.
 - Mọi lệnh đều idempotent: mô phỏng bằng `eth_call` trước, bỏ qua khi revert vì "đã làm".
+- Thứ tự bắt buộc: `markDefault` cho mọi khoản thiếu quá hạn TRƯỚC `finalize`. `finalize` tự đánh dấu người chưa bị đánh dấu nhưng với nhiều người (N = 30, 29 người) có thể tốn hơn 5.000.000 gas và vượt trần relayer/keeper; đường thường khoảng 1,2 đến 2,0 triệu gas (04, mục 7.1).
 - Keeper chỉ là tiện ích: ai cũng gọi được các hàm trên.
 
 ---

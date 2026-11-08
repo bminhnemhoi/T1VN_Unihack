@@ -71,7 +71,7 @@ CI_bps = min(10_000, alphaBps + (B + R) · 10_000 / O_max)
 ```
 
 - Con số hiển thị trước khi tham gia dùng R = 0 (mức bảo đảm tối thiểu). Khi dây chạy, R tăng dần nên CI thực tế cao hơn.
-- CI = 100% nghĩa là người góp trung thực không lỗ đồng nào kể cả khi mọi người đã hốt cùng bỏ đóng vào lúc rủi ro đỉnh (chứng minh ở mục 7).
+- CI = 100% nghĩa là ký quỹ chịu được cú sốc lớn nhất: người góp trung thực nhận đủ pot khi mọi người đã hốt mà vỡ nợ cùng ngừng đóng trong CÙNG một kỳ, vào lúc rủi ro đỉnh (chứng minh ở mục 7.3). Đây KHÔNG phải cam kết "không bao giờ mất tiền": nếu những người đã hốt ngừng đóng lần lượt, kỳ này sang kỳ khác, tổng khoản thiếu có thể vượt O_max và vượt ký quỹ (phản ví dụ và cận ở mục 7.3).
 - Ký quỹ để đạt 100%: `B = (1 − α) · O_max`. Với α mặc định 20%: B = 0,8·O_max.
 - `activate()` chỉ thành công khi `CI_bps ≥ minCoverageBps` (mặc định 50%).
 
@@ -102,7 +102,7 @@ timeScale = periodSeconds / roundDuration                 (bản thật = 1)
 lateFee   = amount · lateRateBps · elapsedSeconds · timeScale / (10_000 · 365 days)
 ```
 
-`elapsedSeconds` tính từ lúc kỳ có khoản thiếu được chi (`settledAt`) đến lúc trả.
+`elapsedSeconds` tính từ lúc kỳ có khoản thiếu được chi (`settledAt`) đến lúc trả, trừ thời gian dây đã tạm dừng trong khoảng đó: `elapsed = now − settledAt(r) − (pausedTotal − pausedAtSettle(r))`. Nhờ vậy dây dừng không làm lãi chậm góp (nhất là ở chế độ demo, `timeScale` lớn) chạy tiếp và ép người trung thực vỡ nợ.
 
 ### 2.6. Tiền công, quỹ dự phòng, cọc mở thăm
 
@@ -127,7 +127,7 @@ requiredAllowance = (N − 1) · (C + revealBond)                 → allowance 
 | `periodSeconds` | 1..31 ngày | 30 ngày |
 | `roundDuration` | ≥ 120 giây; bản thật = `periodSeconds` | demo 180 giây |
 | `commitWindow`, `revealWindow` | ≥ 30 giây mỗi cửa sổ; tổng ≤ `roundDuration` (Fixed: cả hai = 0) | demo 90 / 60 giây |
-| `graceSeconds` | ≥ 60 giây | 172.800 (demo 120) |
+| `graceSeconds` | ≥ 60 giây và < `roundDuration` (để khoản trả trễ của kỳ k luôn hết ân hạn trước khi kỳ k + 1 chi, giữ INV-06) | 172.800 (demo 120) |
 | `alphaBps` | 0..10_000 | 2000 |
 | `commissionMode`, `feeBps` | `feeBps` ≤ 300; = 0 nếu không phải họ hưởng hoa hồng | true, 100 |
 | `reserveBps` | ≤ 300 | 100 |
@@ -142,13 +142,16 @@ Sau `activate()`, không tham số nào thay đổi được.
 ### 3.2. Mốc thời gian của kỳ k
 
 ```
-roundStart(k) = startTime + (k − 1) · roundDuration + pausedTotal
+roundStart(1) = startTime + pausedTotal
+roundStart(k) = max(startTime + (k − 1) · roundDuration, settledAt(k − 1) − pausedAtSettle(k − 1)) + pausedTotal     với k ≥ 2
 commit  : [roundStart(k), roundStart(k) + commitWindow)
 reveal  : [roundStart(k) + commitWindow, roundStart(k) + commitWindow + revealWindow)
 settle  : được gọi khi now ≥ roundStart(k) + roundDuration   (= deadline(k))
 ```
 
-Kỳ k chỉ được chi sau khi kỳ k − 1 đã chi. `startTime` = thời điểm `activate()`.
+Kỳ k chỉ được chi sau khi kỳ k − 1 đã chi. `startTime` = thời điểm `activate()`. Mốc bắt đầu kỳ "trôi" theo lúc chi: kỳ k − 1 chi trễ thì kỳ k chỉ bị dời lại, không bao giờ mất cửa sổ commit hay reveal (cả hai, cùng `deadline(k)`, đều đo từ `roundStart(k)`). Với kỳ chưa tới lượt (kỳ k − 1 chưa chi) `settledAt(k − 1)` và `pausedAtSettle(k − 1)` coi là 0, nên `roundStart(k)` là mốc dự kiến theo lịch danh nghĩa và có thể còn dời nếu các kỳ trước chi trễ.
+
+`pausedAtSettle(j)` là giá trị `pausedTotal` tại lúc kỳ j được chi (contract lưu theo kỳ). Trừ nó khỏi `settledAt(k − 1)` rồi cộng lại `pausedTotal` hiện tại làm cho thời gian tạm dừng xảy ra SAU lúc chi kỳ k − 1 luôn dời trọn vẹn `roundStart(k)`; nếu không, kỳ k − 1 chi trễ rồi dừng sẽ làm dừng bị "nuốt" một phần và cắt cửa sổ commit và reveal. Nếu không có lần dừng nào sau lúc chi thì công thức cho đúng `settledAt(k − 1)`.
 
 ### 3.3. Chế độ demo (dev toggle, phải khai báo đầu buổi pitch)
 
@@ -196,7 +199,7 @@ stateDiagram-v2
    - Thành viên chưa có trong dây và dây chưa đủ N người.
    - Gọi `USDC.permit(member, this, requiredAllowance, deadline, v, r, s)` trong `try`. Nếu permit revert (ví dụ đã bị ai đó gửi trước) thì vẫn chấp nhận khi `allowance(member, this) ≥ requiredAllowance`; nếu không thì revert.
    - Ghi `joinIndex` theo thứ tự vào dây.
-4. `leave()`: thành viên rời trước kích hoạt. Không có tiền bị giữ; giao diện nhắc thu hồi allowance. Những người vào sau lùi lên một bậc, giữ nguyên thứ tự tương đối, nên `joinIndex` luôn liên tục từ 0 (quan trọng với dây `Fixed`, nơi thứ tự vào dây là thứ tự hốt). Rời rồi thì không vào lại được chính dây đó, vì `attestationId` tính theo cặp (người dùng, dây) và đã bị đánh dấu dùng; luật này cũng chặn trò vào ra liên tục để quấy.
+4. `leave()`: thành viên rời trước kích hoạt. Không có tiền bị giữ; giao diện nhắc thu hồi allowance. Những người vào sau lùi lên một bậc, giữ nguyên thứ tự tương đối, nên `joinIndex` luôn liên tục từ 0 (quan trọng với dây `Fixed`, nơi thứ tự vào dây là thứ tự hốt). Rời rồi thì không vào lại được chính dây đó: contract ghi cờ `hasLeft[member]` và `join` revert `AlreadyLeft()` với ví đó (bất kể attestation), ngoài ra `attestationId` tính theo cặp (người dùng, dây) và đã bị đánh dấu dùng; luật này cũng chặn trò vào ra liên tục để quấy.
 5. `activate()`: chỉ chủ hụi. Điều kiện: đủ N người, `now ≤ joinDeadline`, `CI_bps ≥ minCoverageBps`. Đặt `startTime = now`, trạng thái `Active`, factory tăng `activeCirclesOf[organizer]`.
 6. `cancel()`: bất kỳ ai, khi `now > joinDeadline` và dây chưa kích hoạt. Chủ hụi rút ký quỹ bằng `withdrawBond()`.
 
@@ -206,13 +209,13 @@ Kỳ 1..N chạy theo lịch ở mục 3.2. Chi tiết ở mục 6.
 
 ### 5.3. Completed (kết thúc)
 
-`finalize()` (bất kỳ ai) khi kỳ N đã chi, `now ≥ settledAt(N) + G`, và mọi khoản thiếu hoặc đã trả, hoặc đã bị `markDefault`. Các bước:
+`finalize()` (bất kỳ ai) khi kỳ N đã chi, `now > settledAt(N) + G` (cộng thời gian tạm dừng, mục 6.8; chặt để không trùng giây cuối còn `payLate` được), và mọi khoản thiếu hoặc đã trả, hoặc đã bị `markDefault`. Thành viên chưa bị đánh dấu mà còn khoản thiếu đã quá ân hạn thì `finalize` tự đánh dấu vỡ nợ (cùng hiệu ứng `markDefault`, mục 6.8) ngay đầu giao dịch; còn khoản thiếu trong ân hạn thì `finalize` revert `GraceNotOver`. Các bước:
 
 1. Holdback còn lại của người không vỡ nợ: trả cho chính họ.
-2. Holdback còn lại của người vỡ nợ: trả gốc còn nợ của họ theo thứ tự hoàn ở mục 6.8 (`uncovered`, quỹ dự phòng, ký quỹ), rồi lãi chậm góp; phần dư trả lại họ.
+2. Holdback còn lại của người vỡ nợ: trả gốc còn nợ của họ theo thứ tự hoàn ở mục 6.8 (`uncovered`, quỹ dự phòng, ký quỹ), rồi lãi chậm góp; phần dư trả lại họ. Trước khi dùng holdback để hoàn, mọi phần gốc đã được bù từ chính holdback của họ (ở mọi kỳ) được xóa nợ trước, không chuyển tiền và không tính lãi, vì đó đã là tiền của họ; rồi holdback còn lại mới trả `uncovered`, quỹ dự phòng, ký quỹ theo thứ tự hoàn của kỳ cũ đến kỳ mới. Lãi không đủ tiền để trả thì phát `LateFeeUnpaid` (mục 6.8).
 3. Tiền công escrow của các kỳ không bị mất: trả chủ hụi. Kỳ bị mất đã chuyển vào quỹ dự phòng từ trước.
 4. Ký quỹ còn lại (đã cộng các khoản được hoàn): trả chủ hụi.
-5. Quỹ dự phòng còn lại: chia đều cho các thành viên không vỡ nợ. Phần dư lẻ cho thành viên có `joinIndex` nhỏ nhất.
+5. Quỹ dự phòng còn lại: chia đều cho các thành viên không vỡ nợ. Phần dư lẻ cho thành viên có `joinIndex` nhỏ nhất. Nếu mọi thành viên đều vỡ nợ thì quỹ dự phòng còn lại trả chủ hụi (không bao giờ tới admin).
 6. Ghi `recordCompleted` vào ReputationRegistry cho thành viên không vỡ nợ.
 7. Factory giảm `activeCirclesOf[organizer]`.
 8. Khoản "không được bù" còn tồn tại (nếu có) giữ nguyên trong sổ làm khoản đòi công khai.
@@ -221,7 +224,7 @@ Mọi khoản trả ở đây dùng cơ chế chi an toàn ở mục 6.7.
 
 ### 5.4. Paused và Unwound
 
-- Khi `Paused`, mọi hàm thay đổi trạng thái của dây bị chặn, trừ `claim()`. Khi `unpause`, thời gian đã tạm dừng cộng vào `pausedTotal` để lịch không lệch.
+- Chỉ dây `Active` mới tạm dừng được. Khi `Paused`, mọi hàm thay đổi trạng thái của dây bị chặn, trừ `claim()`. Khi `unpause`, thời gian đã tạm dừng cộng vào `pausedTotal` để lịch không lệch; ân hạn của mọi khoản thiếu cũng dài thêm đúng thời gian dừng sau lúc khoản đó phát sinh (mục 6.8), để không ai bị vỡ nợ chỉ vì dây đang dừng.
 - `emergencyUnwind()` chỉ factory gọi được (admin dùng `factory.unwindCircle(circle)`), và chỉ sau 48 giờ tạm dừng liên tục. Trả tiền theo sổ: ký quỹ còn lại về chủ hụi, holdback về chủ của nó, tiền công escrow về quỹ dự phòng, quỹ dự phòng chia đều cho thành viên không vỡ nợ, cọc mở thăm về người nộp. Không có nhánh nào chuyển tiền cho admin.
 
 ---
@@ -230,7 +233,7 @@ Mọi khoản trả ở đây dùng cơ chế chi an toàn ở mục 6.7.
 
 ### 6.1. Ai được bỏ thăm (chỉ dây `Bidding`)
 
-Thành viên đang sống (chưa hốt, không bị đóng băng) và không còn khoản thiếu chưa trả ở kỳ trước.
+Thành viên đang sống (chưa hốt, không bị đóng băng) và không còn khoản thiếu chưa trả ở kỳ trước. Nếu chỉ còn đúng một thành viên sống thì người đó không được commit (`NotEligibleToBid`): họ sẽ hốt với b = 0 (mục 6.4), commit chỉ làm họ mất cọc nếu không mở.
 
 ### 6.2. `commitBid(commitHash)`
 
@@ -242,6 +245,7 @@ Thành viên đang sống (chưa hốt, không bị đóng băng) và không cò
 ### 6.3. `revealBid(bid, salt)`
 
 - Chỉ trong cửa sổ reveal. Hash phải khớp commit của người gọi ở kỳ này.
+- `maxBid(k)` dùng `L_k` chốt ở lần commit đầu tiên của kỳ (số hụi sống trừ người hốt tại lúc đó); `markDefault` giữa cửa sổ commit và reveal không đổi trần của kỳ đang chạy. Chưa có commit nào thì view dùng số hụi sống hiện tại. (Ai commit đầu tiên ngay sau một kỳ chi có thể chốt `L_k` còn tính cả người sắp bị `markDefault`, nên trần thấp hơn một chút; chấp nhận vì thận trọng.)
 - Revert nếu `bid > maxBid(k)` hoặc `bid ≥ C`. Vì vậy người commit thăm sai sẽ không mở được và mất cọc; giao diện phải chặn trước.
 - Thăm hợp lệ: trả lại cọc, cập nhật thăm dẫn đầu theo thứ tự so sánh ở 6.4.
 - Salt sinh ngẫu nhiên phía người dùng để giữ bí mật thăm. Salt không dùng để chọn người hốt.
@@ -251,7 +255,7 @@ Thành viên đang sống (chưa hốt, không bị đóng băng) và không cò
 So sánh hai thăm hợp lệ theo thứ tự:
 
 1. Tiền thăm cao hơn thắng.
-2. Bằng nhau: ít lần trễ hơn thắng. Số lần trễ = trễ trong dây này + `lateCount` toàn cục ở ReputationRegistry.
+2. Bằng nhau: ít lần trễ hơn thắng. Số lần trễ = `late` của ví đó ở ReputationRegistry (số này đã gồm cả các lần trễ trong dây này vì `recordLate` được ghi ngay lúc trễ). Chỉ khi gọi registry thất bại thì dùng bộ đếm trễ cục bộ của dây; không bao giờ cộng hai số, để khỏi đếm đôi.
 3. Vẫn bằng: `commitIndex` nhỏ hơn (commit sớm hơn) thắng.
 
 Trường hợp đặc biệt:
@@ -297,25 +301,30 @@ Khi pot rơi vào người bị đóng băng f (H = 0), lấy từ `pot − fee 
 
 Vì pot của f do những người khác góp, f không lấy được tiền của ai. Ký quỹ chỉ ứng trước rồi được hoàn.
 
+Người hốt còn sống (chưa bị đánh dấu) mà đang có khoản thiếu mở, ví dụ khoản kỳ trước chưa trả và ân hạn đã hết nhưng chưa ai gọi `markDefault`: áp dụng cùng quy tắc nhưng vẫn bị giữ holdback. Thứ tự: trừ `fee` và `premium`, trả gốc rồi lãi các khoản thiếu mở của người đó theo thứ tự hoàn ở mục 6.8 từ phần còn lại, rồi mới giữ `H = min(holdback(k), phần còn lại)` và chi phần cuối. Người đó rời tập hợp hụi sống như mọi người hốt.
+
 ### 6.7. Chi tiền an toàn
 
 Mọi khoản trả (tiền hốt, nhả holdback, hoàn cọc, kết thúc dây) đều thử `transfer` trực tiếp. Nếu thất bại (ví dụ địa chỉ bị Circle chặn), ghi vào `claimable[addr]` và phát event; người nhận tự gọi `claim()` sau. Một người thất bại không làm hỏng cả kỳ.
 
 ### 6.8. Trả trễ, vỡ nợ, trả nợ
 
-- **Thứ tự hoàn** (dùng chung cho `payLate`, `repayDebt`, pot của người bị đóng băng ở 6.6 và bước 2 của `finalize`). Đi qua các khoản thiếu còn mở của người đó từ kỳ cũ đến kỳ mới. Trong mỗi khoản, hoàn ngược với thác bù: phần `uncovered` trả thẳng cho người hốt kỳ đó trước, rồi tới quỹ dự phòng, rồi ký quỹ, cuối cùng là holdback của chính người đó. Thành viên trung thực bị nhận thiếu vì vậy được trả trước mọi nguồn bù. Các trường `uncovered`, `fromReserve`, `fromBond`, `fromHoldback` của `Shortfall` là số **còn phải hoàn**, giảm dần khi trả; khoản đóng (`resolved = true`) khi cả bốn bằng 0. Mỗi phần gốc p trả cho khoản của kỳ r kèm lãi chậm góp `lateFee(p, now − since_r)` theo mục 2.5, vào quỹ dự phòng. Nhờ vậy lãi chỉ tính trên phần gốc thực sự còn nợ và đúng khoảng thời gian nợ. Khi người nợ tự trả (`payLate`, `repayDebt`) thì lãi kéo thêm trên phần gốc; khi nguồn trả có hạn (pot của người bị đóng băng, holdback lúc `finalize`) thì trả hết gốc trước rồi mới tới lãi.
+- **Thứ tự hoàn** (dùng chung cho `payLate`, `repayDebt`, pot của người bị đóng băng ở 6.6 và bước 2 của `finalize`). Đi qua các khoản thiếu còn mở của người đó từ kỳ cũ đến kỳ mới. Trong mỗi khoản, hoàn ngược với thác bù: phần `uncovered` trả thẳng cho người hốt kỳ đó trước, rồi tới quỹ dự phòng, rồi ký quỹ, cuối cùng là holdback của chính người đó. Thành viên trung thực bị nhận thiếu vì vậy được trả trước mọi nguồn bù. Các trường `uncovered`, `fromReserve`, `fromBond`, `fromHoldback` của `Shortfall` là số **còn phải hoàn**, giảm dần khi trả; khoản đóng (`resolved = true`) khi cả bốn bằng 0. Mỗi phần gốc p trả cho khoản của kỳ r kèm lãi chậm góp `lateFee(p, now − since_r)` theo mục 2.5, vào quỹ dự phòng. Nhờ vậy lãi chỉ tính trên phần gốc thực sự còn nợ và đúng khoảng thời gian nợ. Khi người nợ tự trả (`payLate`, `repayDebt`) thì lãi kéo thêm trên phần gốc; khi nguồn trả có hạn (pot của người bị đóng băng hoặc của người hốt có nợ, holdback lúc `finalize`) thì trả hết gốc trước rồi mới tới lãi. Phần lãi không đủ tiền để trả KHÔNG được ghi nợ: contract phát event `LateFeeUnpaid(member, amount)` với số lãi chưa thu, và đó là khoản đòi công khai ngoài chuỗi (người trả thêm lãi vẫn có thể tự nguyện qua `repayDebt`, nhưng sổ on-chain không giữ khoản này).
+
+**Ân hạn và tạm dừng.** Ân hạn của khoản thiếu kỳ r kết thúc ở `graceEnd(r) = settledAt(r) + G + (pausedTotal − pausedAtSettle(r))`, tức là dài thêm đúng thời gian dây đã tạm dừng sau lúc kỳ r được chi. `payLate` cần `now ≤ graceEnd(r)`; `markDefault` và `finalize` cần `now > graceEnd(r)`.
 - **`payLate(round)`** (chỉ khi `now ≤ settledAt(round) + G`):
   1. Người gọi trả toàn bộ gốc còn lại `s` của khoản kỳ đó cộng `lateFee`.
   2. Áp phần gốc theo thứ tự hoàn ở trên.
   3. `lateFee` vào quỹ dự phòng.
-  4. Nếu người trả là người đã hốt: nhả phần holdback α·C/10_000 của kỳ đó (phần đã bị bỏ qua lúc chi kỳ vì họ chưa đóng), giống như khi đóng đúng hạn. Nhờ vậy INV-06 đúng trở lại.
+  4. Nếu người trả là người đã hốt và chưa vỡ nợ: nhả phần holdback α·C/10_000 của kỳ đó (phần đã bị bỏ qua lúc chi kỳ vì họ chưa đóng), giống như khi đóng đúng hạn. Nhờ vậy INV-06 đúng trở lại.
   5. Ghi trễ nhưng không vỡ nợ.
-- **`markDefault(member)`** (bất kỳ ai, khi member còn khoản thiếu của kỳ r và `now > settledAt(r) + G`):
+- **`markDefault(member)`** (bất kỳ ai, khi member còn khoản thiếu của kỳ r và `now > graceEnd(r)`; r là kỳ cũ nhất thỏa điều kiện; member đã bị đánh dấu thì revert `AlreadyDefaulted`, không có khoản thiếu mở thì `NoShortfall`, có nhưng chưa quá ân hạn thì `GraceNotOver`):
   - Nếu member đã hốt: chuyển sang DefaultedDead. Các kỳ sau, phần C của họ vẫn được thử kéo; thiếu thì bù theo thác.
   - Nếu member chưa hốt: chuyển sang Frozen (mục 6.6).
-  - Tiền công escrow của kỳ r bị chuyển vào quỹ dự phòng.
+  - Nếu member chưa hốt thì rời tập hợp hụi sống.
+  - Tiền công escrow của kỳ r bị chuyển vào quỹ dự phòng (`FeeForfeited`).
   - Ghi `recordDefault`.
-- **`repayDebt(amount)`**: người vỡ nợ trả dần nợ bất cứ lúc nào. `amount` là phần gốc muốn trả (tối đa bằng tổng gốc còn nợ). Contract áp gốc theo thứ tự hoàn và kéo `amount + Σ lateFee` của các phần gốc đó; allowance không đủ thì revert. Không nhả holdback (người vỡ nợ không còn được nhả theo kỳ). Trạng thái vỡ nợ không đổi, nhưng lịch sử ghi nhận đã trả (`recordRepaid` khi hết nợ).
+- **`repayDebt(amount)`**: người đã bị đánh dấu vỡ nợ trả dần nợ bất cứ lúc nào dây còn `Active` (sau `finalize` khoản `uncovered` còn lại chỉ là khoản đòi công khai ngoài chuỗi) (người chưa bị đánh dấu dùng `payLate` trong ân hạn). `amount` là phần gốc muốn trả (tối đa bằng tổng gốc còn nợ). Contract áp gốc theo thứ tự hoàn và kéo `amount + Σ lateFee` của các phần gốc đó; allowance không đủ thì revert. Không nhả holdback (người vỡ nợ không còn được nhả theo kỳ). Trạng thái vỡ nợ không đổi, nhưng lịch sử ghi nhận đã trả (`recordRepaid` khi hết nợ).
 
 ---
 
@@ -339,15 +348,39 @@ Sau mỗi giao dịch `settleRound`, không có USDC nào khác nằm lại. Ti�
 | INV-03 | Không kỳ nào có thăm thắng vượt `maxBid(k)` hoặc ≥ C. |
 | INV-04 | Không bao giờ kéo của một thành viên nhiều hơn `due` của kỳ đó cộng cọc và lãi chậm góp họ tự trả. |
 | INV-05 | `payout + fee + premium + H (+ trả nợ) == pot` ở mọi kỳ. |
-| INV-06 | Sau m kỳ đã chi, mọi người đã hốt chưa vỡ nợ d có `holdback[d] ≤ α·(N − m)·C/10_000`. Dấu bằng (sai số làm tròn ≤ N đơn vị) khi d không có khoản thiếu đang mở và lúc hốt d nhận đủ H = `holdbackFor(α, N, r_d, C)`. Hệ quả: khi mọi người đóng đúng hạn, tổng holdback = m·α·(N − m)·C = α·O(m). |
+| INV-06 | Sau m kỳ đã chi, mọi người đã hốt chưa vỡ nợ d có `holdback[d] ≤ α·(N − m)·C/10_000 + N` (sai số làm tròn ≤ N đơn vị, khớp docs/09). Dấu bằng (sai số làm tròn ≤ N đơn vị) khi d không có khoản thiếu đang mở và lúc hốt d nhận đủ H = `holdbackFor(α, N, r_d, C)`. Hệ quả: khi mọi người đóng đúng hạn, tổng holdback = m·α·(N − m)·C = α·O(m). |
 | INV-07 | Không hàm nào chuyển USDC tới admin hay tới bất kỳ địa chỉ nào ngoài thành viên, chủ hụi (ký quỹ và tiền công) và người có `claimable`. |
-| INV-08 | Nếu `alphaBps + B·10_000/O_max ≥ 10_000` và chỉ người đã hốt bỏ đóng, thì mọi thành viên trung thực nhận đủ pot của mình (`uncovered == 0` ở mọi kỳ). |
-| INV-09 | Kỳ k chỉ được chi sau kỳ k − 1 và sau `deadline(k)`. Tham số không đổi sau `activate()`. |
+| INV-08 | Nếu `alphaBps + B·10_000/O_max ≥ 10_000` và chỉ người đã hốt bỏ đóng, tất cả cùng ngừng đóng trong cùng một kỳ (cú sốc đồng thời lớn nhất), thì mọi thành viên trung thực nhận đủ pot của mình (`uncovered == 0` ở mọi kỳ), với điều kiện holdback của họ đã được giữ đủ H = `holdbackFor(α, N, r, C)` lúc hốt (không bị cắt vì pot nhỏ, 6.5 bước 7; xảy ra với α cực lớn như 100% và ký quỹ 0). Không áp dụng khi những người đã hốt ngừng đóng lần lượt (xem 7.3, phản ví dụ). |
+| INV-09 | Kỳ k chỉ được chi sau kỳ k − 1 và sau `deadline(k)`, với `roundStart(k) ≥ settledAt(k − 1)` và một lần dừng sau lúc chi kỳ k − 1 dời `roundStart(k)` đúng bằng thời gian dừng (kỳ chi trễ chỉ làm dời lịch kỳ sau, kỳ sau luôn có đủ cửa sổ commit và reveal). Tham số không đổi sau `activate()`. |
 | INV-10 | Không có thông tin cá nhân nào trên chuỗi: chỉ địa chỉ ví, mã băm attestation, số tiền, mốc thời gian. |
 
-### 7.3. Vì sao CI = 100% thì người trung thực an toàn
+### 7.3. Chỉ số 100% bảo đảm gì, và không bảo đảm gì
 
-Gọi m là kỳ có rủi ro lớn nhất. Giả sử mọi người đã hốt cùng ngừng đóng ngay sau kỳ m. Tổng phần thiếu từ kỳ m + 1 đến N là O(m) ≤ O_max. Theo 2.2, holdback của họ lúc đó là α·O(m), dùng trước. Phần còn lại (1 − α)·O(m) ≤ (1 − α)·O_max ≤ B. Vậy mọi khoản thiếu đều được bù và `uncovered = 0`. Quỹ dự phòng chỉ làm biên an toàn dày thêm. Người chưa hốt mà bỏ đóng không gây lỗ ròng (mục 6.6). Họ chỉ dùng tạm thanh khoản của ký quỹ, nên khi nhiều người chưa hốt cùng bị đóng băng thì vẫn có thể thiếu thanh khoản tạm thời. Phòng mô phỏng ([08-phong-mo-phong.md](08-phong-mo-phong.md)) đo xác suất này.
+**Bảo đảm (cú sốc đồng thời lớn nhất).** Gọi m là kỳ có rủi ro lớn nhất. Giả sử mọi người đã hốt cùng ngừng đóng ngay sau kỳ m, tức là trong cùng một kỳ (với mọi m và mọi tập con người đã hốt, phần thiếu ≤ O(m) ≤ O_max). Chứng minh giả định holdback của họ là đủ H = α·(N − k)·C lúc hốt; nếu pot sau khi trừ fee và premium nhỏ hơn H thì H bị cắt (6.5 bước 7) và có thể còn `uncovered` nhỏ, ví dụ α = 100% với ký quỹ 0. Tổng phần thiếu từ kỳ m + 1 đến N là O(m) ≤ O_max. Theo 2.2, holdback của họ lúc đó là α·O(m), dùng trước. Phần còn lại (1 − α)·O(m) ≤ (1 − α)·O_max ≤ B. Vậy mọi khoản thiếu đều được bù và `uncovered = 0`. Quỹ dự phòng chỉ làm biên an toàn dày thêm. Người chưa hốt mà bỏ đóng không gây lỗ ròng (mục 6.6). Họ chỉ dùng tạm thanh khoản của ký quỹ, nên khi nhiều người chưa hốt cùng bị đóng băng thì vẫn có thể thiếu thanh khoản tạm thời. Phòng mô phỏng ([08-phong-mo-phong.md](08-phong-mo-phong.md)) đo xác suất này.
+
+Câu dùng khi trình bày: "Chỉ số bảo chứng 100% nghĩa là ký quỹ chịu được cú sốc lớn nhất: mọi người đã hốt cùng bỏ đóng một lúc." Không viết "không bao giờ mất tiền" hay "không lỗ đồng nào" khi không kèm điều kiện này.
+
+**Không bảo đảm (người đã hốt ngừng đóng lần lượt).** O_max chỉ đo số tiền chưa đóng tại MỘT thời điểm. Nếu mỗi người ngừng đóng ngay sau kỳ họ hốt, các khoản thiếu cộng dồn qua các kỳ và tổng có thể lớn hơn O_max.
+
+Phản ví dụ (đã khóa bằng test `test_INV08_SequentialDefaults_ExceedBond_Documented`): dây ví dụ ở mục 8 (N = 5, C = 100 USDC, α = 20%, ký quỹ B = 480, CI = 100%), M1 hốt kỳ 1 rồi ngừng đóng, M2 hốt kỳ 2 rồi ngừng, M3 hốt kỳ 3 rồi ngừng, M4 hốt kỳ 4 rồi ngừng. Không ai bỏ thăm (b = 0), khác kỳ 1 ở mục 8.
+
+| Mục | Giá trị |
+|---|---|
+| Tổng khoản thiếu = (N − 1) + (N − 2) + (N − 3) + (N − 4) = N(N − 1)/2 phần C | 1000 USDC |
+| O_max của dây | 600 USDC (nhỏ hơn 1000) |
+| Kỳ 2 đến 4 | vẫn được bù đủ (`uncovered = 0`); ký quỹ còn 60 sau kỳ 4 |
+| Kỳ 5 (M5 là người trung thực hốt cuối) | ký quỹ về 0, quỹ dự phòng cạn, `uncovered = 304` |
+| M5 nhận | 94,08 USDC thay vì 392 USDC (pot 96 USDC) |
+
+Phần 304 USDC là khoản đòi công khai đối với những người vỡ nợ (mục 6.8), không phải tiền mất không dấu vết, nhưng M5 không nhận đủ khi kỳ 5 được chi.
+
+**Cận cho bảo chứng toàn phần (tùy chọn, roadmap).** Nếu muốn bù đủ cả trường hợp ngừng đóng lần lượt, tổng khoản thiếu tối đa là N(N − 1)/2·C. Phần holdback α che được một phần, ký quỹ cần là
+
+```
+B_seq = (1 − α) · N(N − 1)/2 · C        (dây ví dụ: 0,8 · 10 · 100 = 800 USDC; so với B = 480 ở CI = 100%)
+```
+
+Đây là chế độ "bảo chứng toàn phần" tùy chọn, nằm ở roadmap. Quyết định hiện tại (A6, chủ dự án chốt): giữ nguyên công thức CI, O_max, `B = (1 − α)·O_max` và `minCoverageBps = 5000`, không nâng ký quỹ; chỉnh lời cam kết cho khớp với điều đã chứng minh. Giao diện và pitch phải nêu đúng điều kiện "cú sốc đồng thời".
 
 ---
 
@@ -421,7 +454,8 @@ Slide giữ bản 100 USDC cho dễ đọc và ghi rõ demo đã thu nhỏ. Test
 | Địa chỉ người nhận bị chặn chuyển | Ghi `claimable`, `claim()` sau |
 | Keeper không chạy | Ai cũng gọi được `settleRound`; chỉ chậm, không mất tiền |
 | Chủ hụi cũng là thành viên | Cho phép. Nghĩa vụ thành viên và ký quỹ tách biệt; nếu chủ hụi bỏ đóng thì ký quỹ của chính họ bù |
-| Tạm dừng giữa kỳ | Lịch dời bằng `pausedTotal`; chỉ `claim()` chạy được |
+| Tạm dừng giữa kỳ | Lịch dời bằng `pausedTotal` (kể cả khi kỳ trước chi trễ rồi mới dừng, mục 3.2); ân hạn dài thêm đúng thời gian dừng; chỉ `claim()` chạy được |
+| Kỳ k − 1 chi trễ | `roundStart(k) = settledAt(k − 1)` (mục 3.2): kỳ k vẫn đủ cửa sổ commit và reveal, chỉ dời lại |
 | Nhiều người chưa hốt cùng bị đóng băng | Ký quỹ ứng thanh khoản; nếu cạn thì phần thiếu thành `uncovered` và được trả lại khi người bị đóng băng hốt. Phòng mô phỏng đo xác suất |
 | Lệch timestamp | Avalanche cho phép lệch vài giây; mọi cửa sổ ≥ 30 giây nên không đáng kể |
 | Làm tròn | Chia xuống; phần dư về người hốt kỳ đó; kết thúc dây quét phần dư vào quỹ dự phòng trước khi chia |

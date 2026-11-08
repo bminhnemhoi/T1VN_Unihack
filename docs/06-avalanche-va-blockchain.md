@@ -152,7 +152,7 @@ forge script script/Deploy.s.sol --rpc-url fuji --broadcast --verify \
   --etherscan-api-key "${SNOWTRACE_API_KEY:-verifyContract}"
 ```
 
-Thứ tự trong script: `ERC2771Forwarder("HuiSafeForwarder")`, `ReputationRegistry`, implementation `HuiCircle(forwarder)`, `HuiFactory`, rồi nối cấu hình. Script ghi `deployments/fuji.json` đúng mẫu 05, mục 6.2.
+Thứ tự trong script: `ERC2771Forwarder("HuiSafeForwarder")`, `ReputationRegistry`, `HuiCircleLens`, implementation `HuiCircle(forwarder, lens)`, `HuiFactory`, rồi nối cấu hình. Script ghi `deployments/fuji.json` đúng mẫu 05, mục 6.2.
 
 6. Contract nào verify lỗi thì verify lại riêng:
 

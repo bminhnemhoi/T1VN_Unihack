@@ -132,7 +132,7 @@ Quét 15 giây ở demo, 5 phút bản thật. Mỗi việc (`settleRound`, `mar
 - Số theo vi-VN: "288,48 USDC", "13.000.000 đ" (`Intl.NumberFormat('vi-VN')`); VND luôn ghi "quy đổi tham khảo" (tỷ giá cấu hình, mặc định 26.000). Giờ 24 giờ theo múi giờ máy trên giao diện; sổ họ ghi giờ Việt Nam. Địa chỉ rút gọn `0x12…ab`, ưu tiên biệt danh.
 - Thao tác có tiền: hiện số to kèm ≈ VND trước khi ký; trạng thái chờ có chữ ("Đang gửi…").
 - Câu dưới 20 chữ, lời đời thường. Màn hình chính KHÔNG dùng: gas, smart contract, on-chain, allowance, permit, commit, reveal, token, APY. Dùng: tiền giữ lại, ký quỹ, chỉ số bảo chứng, quỹ dự phòng, tiền công chủ hụi, nộp thăm kín / mở thăm, cọc mở thăm, trần thăm, cho phép trích tiền, khoản thiếu, ân hạn, vỡ nợ, đóng băng, nhận tiền, miễn phí giao dịch (bảng đầy đủ docs/02 mục 8).
-- Không hứa: không "lợi nhuận", "đầu tư", "an toàn tuyệt đối", "không bao giờ mất tiền", "bảo hiểm"; nói "được bảo chứng X%". Không gọi trợ lý là "luật sư AI", không mô tả dịch vụ là "tư vấn".
+- Không hứa: không "lợi nhuận", "đầu tư", "an toàn tuyệt đối", "không bao giờ mất tiền", "bảo hiểm"; nói "được bảo chứng X%" và nêu điều kiện: ký quỹ chịu được cú sốc lớn nhất, mọi người đã hốt cùng bỏ đóng một lúc (bỏ đóng lần lượt có thể vượt ký quỹ; 03 mục 7.3). Không gọi trợ lý là "luật sư AI", không mô tả dịch vụ là "tư vấn".
 - Trước khi vào dây hiện chỉ số bảo chứng tối thiểu (R = 0), ký quỹ, tiền giữ lại, trần thăm từng kỳ, lãi chậm góp.
 - Cảnh báo NĐ 19 Điều 14 (giá trị một kỳ = N·C quy đổi ≥ 100 triệu VND, cách tính thận trọng; hoặc chủ hụi có ≥ 2 dây đang chạy, nên form tạo dây cảnh báo khi chủ hụi đã có ≥ 1 dây, docs/02 AC-01.4) kèm mẫu thông báo UBND (màn S15).
 - `localStorage['huisafe.demoMode']` bật thì hiện nhãn "Chế độ demo" trên mọi màn hình.

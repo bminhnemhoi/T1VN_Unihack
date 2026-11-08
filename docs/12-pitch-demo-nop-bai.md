@@ -107,12 +107,12 @@ Cửa sổ của kỳ 1: nộp thăm [0:00, 1:30), mở thăm [1:30, 2:30), ch�
 
 | Thời điểm | Màn hình, người làm | Lời nói | Trên chuỗi |
 |---|---|---|---|
-| 0:00–0:10 | Laptop A, S04 "Demo Sống"; P3 bấm "Bắt đầu dây" | "Dây 5 người, mỗi kỳ 100 USDC. Cô Tư ký quỹ 480, chỉ số bảo chứng 100%." | `activate` |
+| 0:00–0:10 | Laptop A, S04 "Demo Sống"; P3 bấm "Bắt đầu dây" | "Dây 5 người, mỗi kỳ 100 USDC. Cô Tư ký quỹ 480. Chỉ số bảo chứng 100% nghĩa là ký quỹ chịu được cú sốc lớn nhất: mọi người đã hốt cùng bỏ đóng một lúc." | `activate` |
 | 0:10–0:40 | Điện thoại B, S06; P2 nhập 6, nộp thăm kín, bấm "Sao lưu thăm" | "Trần thăm kỳ này 6,575342 USDC, đúng trần lãi 20%/năm. Thắng với thăm 6 thì nhận 288,48, giữ lại 80." | `commitBid` của M4, cọc 1 USDC. P1 nộp thăm 4 cho M2 trên Laptop C trước 1:00 |
 | 0:40–1:05 | Laptop A, S03; P3 | "Tạo dây mới: gõ ký quỹ 480 là đồng hồ lên 100%. Đây là dây thứ hai đang chạy của cô, nên app nhắc thông báo UBND cấp xã theo Điều 14. Trợ lý trả lời 480 và dẫn Điều 18 khoản 4." | Không gửi giao dịch |
 | 1:05–1:30 | Laptop A, cửa sổ ẩn danh, S05 "Demo Mời"; P3 | "Thành viên mới: đăng nhập Google, tick đủ 18 tuổi, ký một lần. Không AVAX, không seed phrase." | `join` qua relayer |
 | 1:30–1:50 | Điện thoại B, S06; P2 bấm "Mở thăm" (P1 mở thăm M2) | "Hết giờ nộp. Mọi người mở thăm. Không bốc thăm: thăm cao nhất thắng." | `revealBid`: M4 = 6, M2 = 4 |
-| 1:50–2:40 | Laptop A, "Demo Hoàn Tất": S07 kỳ 2 → S09 → S11 | "Dây này chạy trọn sáng nay. Kỳ 2, M4 đã hốt nhưng không đóng 100 USDC. Hệ thống bù ngay: 80 từ tiền giữ lại của M4, 20 từ ký quỹ. M1 vẫn nhận đủ 323,18. Quá ân hạn, M4 bị ghi vỡ nợ; ký quỹ bù các kỳ sau: 460, 360, 260, 160. Người góp trung thực không mất đồng nào. Đây là sổ họ, dòng nào cũng có mã giao dịch." | Chỉ đọc event |
+| 1:50–2:40 | Laptop A, "Demo Hoàn Tất": S07 kỳ 2 → S09 → S11 | "Dây này chạy trọn sáng nay. Kỳ 2, M4 đã hốt nhưng không đóng 100 USDC. Hệ thống bù ngay: 80 từ tiền giữ lại của M4, 20 từ ký quỹ. M1 vẫn nhận đủ 323,18. Quá ân hạn, M4 bị ghi vỡ nợ; ký quỹ bù các kỳ sau: 460, 360, 260, 160. Ở kịch bản này người góp trung thực nhận đủ. Đây là sổ họ, dòng nào cũng có mã giao dịch." | Chỉ đọc event |
 | 2:40–3:00 | Laptop A, "Demo Sống" S07 | "Quay lại dây vừa chạy: kỳ 1 chốt lúc 3:00, keeper chi trong vài giây: M4 thắng với thăm 6, nhận 288,48." Chưa hiện thì: "Kết quả sẽ hiện trong lúc chúng em trả lời câu hỏi." | `settleRound` do keeper gọi |
 
 ### 3.3. Ví nạp sẵn
@@ -160,7 +160,7 @@ Mục tiêu 2:50. YouTube công khai hoặc không công khai, hoặc Loom; mở
 | 4 | 0:45–1:05 | Quay màn hình S03 và trợ lý | Tạo dây, chỉ số 100%, cảnh báo Điều 14 | "Ký quỹ 480 → 100%" |
 | 5 | 1:05–1:20 | Điện thoại, S05 | Vào dây bằng Google | "1 chữ ký, 0 AVAX" |
 | 6 | 1:20–1:45 | S06 → S07, tua nhanh | Thăm kín, M4 thắng thăm 6, nhận 288,48 | "Tua nhanh ×4" |
-| 7 | 1:45–2:10 | S07 kỳ 2 → S09 | M4 bỏ đóng: 80 + 20; ký quỹ 460 → 160 | "Người trung thực: không mất đồng nào" |
+| 7 | 1:45–2:10 | S07 kỳ 2 → S09 | M4 bỏ đóng: 80 + 20; ký quỹ 460 → 160 | "Kịch bản này: người trung thực nhận đủ" |
 | 8 | 2:10–2:20 | S11 và Snowtrace | Sổ họ theo NĐ 19, mã giao dịch | Link Snowtrace |
 | 9 | 2:20–2:35 | `forge test`, biểu đồ `/lab` | Chỉ số thật đã đo | Số thật hoặc "chưa có" |
 | 10 | 2:35–2:50 | Slide 3 câu hỏi, pháp lý | Ba câu trả lời ngắn | Link repo, app |
@@ -227,7 +227,7 @@ Chức danh giám khảo lấy từ team1vn.xyz; điều họ có thể quan tâ
 5. **Gas một kỳ 30 người?** Ngân sách ≤ 3.000.000 gas (04 mục 7.1), số đo thật: [điền]. Ở 2,5 nAVAX là khoảng 0,0075 AVAX, chưa tới 0,07 USD theo giá 05/11/2026 (suy ra).
 6. **Vì sao Avalanche?** Finality dưới 1 giây theo Avalanche, phí đủ thấp để relayer trả thay cả dây, USDC native của Circle có permit. Hướng sau: L1 riêng cho từng hội, passkey P-256.
 7. **Sau hackathon có làm tiếp không?** Có: thử testnet với 3–5 nhóm, xin ý kiến luật sư, làm chế độ VND, nộp Team1 Mini Grant (mục 8).
-8. **Chứng minh chỉ số 100% thì người trung thực không mất tiền?** 03 mục 7.3: nếu mọi người đã hốt cùng bỏ ngay sau kỳ rủi ro đỉnh, phần thiếu là O(m) ≤ O_max; tiền giữ lại che α·O(m), phần còn lại (1 − α)·O(m) ≤ B. Test INV-08 fuzz đúng điều này. Giới hạn: người chưa hốt bị đóng băng chỉ dùng tạm thanh khoản ký quỹ.
+8. **Chỉ số 100% bảo đảm gì? Có phải "không bao giờ mất tiền" không?** Không, và đừng nói vậy. Chỉ số bảo chứng 100% nghĩa là ký quỹ chịu được cú sốc lớn nhất: mọi người đã hốt cùng bỏ đóng một lúc. Chứng minh ở 03 mục 7.3: nếu mọi người đã hốt cùng bỏ ngay sau kỳ rủi ro đỉnh, phần thiếu là O(m) ≤ O_max; tiền giữ lại che α·O(m), phần còn lại (1 − α)·O(m) ≤ B. Test INV-08 fuzz đúng điều này. Giới hạn nói thẳng: nếu họ bỏ đóng lần lượt qua các kỳ (N = 5: tổng thiếu 1000 so với O_max 600) thì ký quỹ 480 không đủ, kỳ cuối thiếu 304; bù đủ cần B_seq = (1 − α)·N(N − 1)/2·C = 800, tùy chọn ở roadmap. Người chưa hốt bị đóng băng chỉ dùng tạm thanh khoản ký quỹ.
 9. **Mô phỏng dựa trên giả định gì?** 10.000 dây mỗi kịch bản, seed cố định, 3 thiết kế. Tỷ lệ bỏ đóng là tham số giả định lấy cảm hứng từ Klonner & Rai, nói rõ là giả định; có sốc tương quan. Kết quả: [điền sau khi chạy].
 10. **Làm sao biết ba bản `HuiMath` khớp?** Vector JSON do mô phỏng sinh, có commit; Solidity và TS cùng đọc và so từng đơn vị trong CI.
 11. **Thị trường bao lớn?** Chưa có khảo sát quốc gia về số người chơi hụi, chúng em không bịa số. Tín hiệu: các vụ vỡ tới hơn 100 tỷ đồng; tòa vẫn xử tranh chấp hụi năm 2026; Findex 2025: 71% người lớn có tài khoản nhưng chỉ 16% tiết kiệm, 13% vay ở tổ chức chính thức (theo ghi chú nghiên cứu).

@@ -6,6 +6,7 @@ import {Initializable} from "@openzeppelin/contracts/proxy/utils/Initializable.s
 import {BaseTest} from "../utils/BaseTest.sol";
 import {StubCircle} from "../utils/StubCircle.sol";
 import {HuiCircle} from "../../src/HuiCircle.sol";
+import {HuiCircleLens} from "../../src/HuiCircleLens.sol";
 import {HuiFactory} from "../../src/HuiFactory.sol";
 import {IHuiCircle} from "../../src/interfaces/IHuiCircle.sol";
 import {IHuiFactory} from "../../src/interfaces/IHuiFactory.sol";
@@ -13,6 +14,7 @@ import {CircleMode, CircleParams, CircleState, FactoryConfig} from "../../src/li
 
 contract HuiFactoryTest is BaseTest {
     HuiCircle internal impl;
+    HuiCircleLens internal lens;
     HuiFactory internal factory;
     FactoryConfig internal cfg;
 
@@ -22,6 +24,7 @@ contract HuiFactoryTest is BaseTest {
 
     function setUp() public override {
         super.setUp();
+        vm.etch(reputation, hex"00"); // the factory requires code at the registry address (audit I-03)
         cfg = FactoryConfig({
             usdc: address(usdc),
             forwarder: address(forwarder),
@@ -36,7 +39,8 @@ contract HuiFactoryTest is BaseTest {
             maxMembers: 30,
             maxContribution: uint96(10_000 * USDC)
         });
-        impl = new HuiCircle(address(forwarder));
+        lens = new HuiCircleLens();
+        impl = new HuiCircle(address(forwarder), address(lens));
         factory = new HuiFactory(admin, address(impl), cfg);
     }
 
@@ -164,7 +168,7 @@ contract HuiFactoryTest is BaseTest {
         assertEq(uint8(c.state()), uint8(CircleState.Forming));
         assertEq(c.trustedForwarder(), address(forwarder));
 
-        CircleParams memory got = c.params();
+        CircleParams memory got = IHuiCircle(address(c)).params();
         assertEq(uint8(got.mode), uint8(p.mode));
         assertEq(got.memberCount, p.memberCount);
         assertEq(got.contribution, p.contribution);
@@ -268,6 +272,7 @@ contract HuiFactoryTest is BaseTest {
         p.roundDuration = 120;
         p.commitWindow = 60;
         p.revealWindow = 60; // sum == roundDuration
+        p.graceSeconds = 119; // strictly below roundDuration
         _create(p);
         p.commitWindow = 30;
         p.revealWindow = 30;
@@ -304,7 +309,7 @@ contract HuiFactoryTest is BaseTest {
         p.commitWindow = 0;
         p.revealWindow = 0;
         address circle = _create(p);
-        assertEq(uint8(HuiCircle(circle).params().mode), uint8(CircleMode.Fixed));
+        assertEq(uint8(IHuiCircle(circle).params().mode), uint8(CircleMode.Fixed));
     }
 
     function test_CreateCircle_NonCommissionWithZeroFee() public {
@@ -471,6 +476,44 @@ contract HuiFactoryTest is BaseTest {
         _expectInvalid(p, 13);
     }
 
+    function test_InvalidParams_14_GraceMustBeShorterThanTheRound() public {
+        // audit M-02: a late payment of round k must run out of grace before round k + 1 can settle
+        CircleParams memory p = _params();
+        p.graceSeconds = p.roundDuration; // 180 == 180
+        _expectInvalid(p, 14);
+        p.graceSeconds = p.roundDuration + 1;
+        _expectInvalid(p, 14);
+        p.graceSeconds = 172_800; // the real-life default needs a real-life round (30 days)
+        _expectInvalid(p, 14);
+
+        // one second shorter is fine, also at the smallest legal round
+        p = _params();
+        p.graceSeconds = p.roundDuration - 1;
+        _create(p);
+        p = _params();
+        p.roundDuration = 120;
+        p.commitWindow = 60;
+        p.revealWindow = 60;
+        p.graceSeconds = 119;
+        _create(p);
+        p.graceSeconds = 120;
+        _expectInvalid(p, 14);
+
+        p = _params();
+        p.roundDuration = 30 days;
+        p.commitWindow = 28 days;
+        p.revealWindow = 1 days;
+        p.graceSeconds = 172_800;
+        _create(p); // docs/03 section 3.1 real-life defaults
+    }
+
+    function test_InvalidParams_14_IsCheckedAfter13() public {
+        CircleParams memory p = _params();
+        p.joinDeadline = uint64(block.timestamp); // code 13
+        p.graceSeconds = p.roundDuration; // code 14
+        _expectInvalid(p, 13);
+    }
+
     function test_InvalidParams_FirstFailureInTableOrderWins() public {
         CircleParams memory p = _params();
         p.memberCount = 2; // code 1
@@ -506,7 +549,7 @@ contract HuiFactoryTest is BaseTest {
         p.roundDuration = uint32(bound(round, 120, 31 days));
         p.commitWindow = uint32(bound(commitW, 30, p.roundDuration - 30));
         p.revealWindow = uint32(bound(uint256(p.roundDuration) - p.commitWindow, 30, p.roundDuration - p.commitWindow));
-        p.graceSeconds = uint32(bound(grace, 60, 30 days));
+        p.graceSeconds = uint32(bound(grace, 60, p.roundDuration - 1));
         p.alphaBps = uint16(bound(alpha, 0, 10_000));
         p.feeBps = uint16(bound(fee, 0, 300));
         p.reserveBps = uint16(bound(reserveBps, 0, 300));
@@ -644,8 +687,34 @@ contract HuiFactoryTest is BaseTest {
         new HuiFactory(admin, address(impl), c);
     }
 
+    function test_Constructor_RevertsWhenReputationHasNoCode() public {
+        // Circles call the registry inside `try`; a codeless address would make every call silently "succeed".
+        FactoryConfig memory c = cfg;
+        c.reputation = makeAddr("eoaRegistry");
+        vm.expectRevert(HuiFactory.InvalidConfig.selector);
+        new HuiFactory(admin, address(impl), c);
+    }
+
+    function test_SetConfig_RevertsWhenReputationHasNoCode() public {
+        FactoryConfig memory c = cfg;
+        c.reputation = makeAddr("eoaRegistry");
+        vm.prank(admin);
+        vm.expectRevert(HuiFactory.InvalidConfig.selector);
+        factory.setConfig(c);
+
+        c.reputation = address(0); // zero stays its own error
+        vm.prank(admin);
+        vm.expectRevert(HuiFactory.ZeroAddress.selector);
+        factory.setConfig(c);
+
+        c.reputation = address(this); // any contract is accepted
+        vm.prank(admin);
+        factory.setConfig(c);
+        assertEq(factory.config().reputation, address(this));
+    }
+
     function test_Constructor_RevertsOnImplementationForwarderMismatch() public {
-        HuiCircle other = new HuiCircle(makeAddr("otherForwarder"));
+        HuiCircle other = new HuiCircle(makeAddr("otherForwarder"), address(lens));
         vm.expectRevert(HuiFactory.InvalidConfig.selector);
         new HuiFactory(admin, address(other), cfg);
     }
@@ -717,11 +786,52 @@ contract HuiFactoryTest is BaseTest {
         factory.onFinished(organizer);
     }
 
-    function test_OnFinished_RevertsOnUnderflow() public {
+    function test_OnFinished_RevertsBeforeOnActivated() public {
         (HuiFactory f,) = _stubFactory();
         StubCircle a = _createStub(f);
-        vm.expectRevert(); // arithmetic underflow: finished without being activated
+        vm.expectRevert(abi.encodeWithSelector(HuiFactory.NotActivated.selector, address(a)));
         a.notifyFinished();
+        assertEq(f.activeCirclesOf(organizer), 0);
+    }
+
+    function test_OnFinished_TwiceRevertsAndDoesNotTouchTheCounter() public {
+        (HuiFactory f,) = _stubFactory();
+        StubCircle a = _createStub(f);
+        StubCircle b = _createStub(f);
+        a.notifyActivated();
+        b.notifyActivated();
+        assertEq(f.activeCirclesOf(organizer), 2);
+        a.notifyFinished();
+        assertEq(f.activeCirclesOf(organizer), 1);
+        vm.expectRevert(abi.encodeWithSelector(HuiFactory.NotActivated.selector, address(a)));
+        a.notifyFinished(); // would otherwise eat the slot of circle b
+        assertEq(f.activeCirclesOf(organizer), 1);
+        b.notifyFinished();
+        assertEq(f.activeCirclesOf(organizer), 0);
+    }
+
+    function test_OnActivated_TwiceFromTheSameCircleReverts() public {
+        (HuiFactory f,) = _stubFactory();
+        StubCircle a = _createStub(f);
+        a.notifyActivated();
+        vm.expectRevert(abi.encodeWithSelector(HuiFactory.AlreadyActivated.selector, address(a)));
+        a.notifyActivated();
+        assertEq(f.activeCirclesOf(organizer), 1, "counted once");
+    }
+
+    function test_OnActivated_EachCircleCountsOnce_PerOrganizer() public {
+        (HuiFactory f,) = _stubFactory();
+        address other = makeAddr("otherOrganizer");
+        StubCircle a = _createStub(f);
+        vm.prank(other);
+        StubCircle b = StubCircle(f.createCircle(_params()));
+        a.notifyActivated();
+        b.notifyActivated();
+        assertEq(f.activeCirclesOf(organizer), 1);
+        assertEq(f.activeCirclesOf(other), 1);
+        vm.expectRevert(abi.encodeWithSelector(HuiFactory.AlreadyActivated.selector, address(b)));
+        b.notifyActivated();
+        assertEq(f.activeCirclesOf(other), 1);
     }
 
     function test_ActiveCircles_CircleOfAnotherFactoryCannotCall() public {

@@ -61,7 +61,7 @@ Thêm nếu đúng với bản demo: dùng `MockUSDC` thay USDC của Circle; d�
 ## 5. Quy tắc câu chữ
 
 - Tiếng Việt chuẩn, câu ngắn (dưới 20 chữ trên màn hình), thuật ngữ đời thường (bảng ở docs/02 mục 8). Không emoji.
-- Không hứa: không "lợi nhuận", "đầu tư", "an toàn tuyệt đối", "không bao giờ mất tiền", "bảo hiểm". Nói "được bảo chứng X%" và nêu điều kiện (CI 100% che rủi ro người đã hốt bỏ đóng; người chưa hốt bỏ đóng thì ký quỹ chỉ ứng thanh khoản).
+- Không hứa: không "lợi nhuận", "đầu tư", "an toàn tuyệt đối", "không bao giờ mất tiền", "bảo hiểm". Nói "được bảo chứng X%" và nêu điều kiện (CI 100% = ký quỹ chịu được cú sốc lớn nhất, mọi người đã hốt cùng bỏ đóng một lúc; bỏ đóng lần lượt qua nhiều kỳ có thể vượt ký quỹ; người chưa hốt bỏ đóng thì ký quỹ chỉ ứng thanh khoản). Câu chuẩn: "Chỉ số bảo chứng 100% nghĩa là ký quỹ chịu được cú sốc lớn nhất: mọi người đã hốt cùng bỏ đóng một lúc.".
 - Không gọi trợ lý là "luật sư AI"; không mô tả dịch vụ là "tư vấn". Câu miễn trừ của trợ lý: "Đây là thông tin tham khảo, không phải tư vấn tài chính hay pháp lý."
 - Mọi số liệu có nguồn và ngày; số mô phỏng ghi rõ là mô phỏng với tham số giả định (seed, kịch bản); chưa chắc thì ghi "cần kiểm tra". Không bịa số.
 - Nhắc luật thì dẫn điều, khoản. Diễn giải Điều 21 luôn kèm "đề xuất, cần luật sư xác nhận".

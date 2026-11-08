@@ -508,10 +508,10 @@ contract HuiCircleBiddingTest is CircleFixture {
     }
 
     function test_Winner_TieBrokenByFewerLates() public {
-        // docs/03 section 8 round 2 shape: same bid, nobody late => earliest commit; here M2 has a late count.
+        // Same bid; actors[0] committed first but has one late payment in the registry, so actors[1] wins.
         _commit(actors[0], 3 * USDC, _salt(0)); // earlier commit
         _commit(actors[1], 3 * USDC, _salt(1));
-        c.exposed_setLateCount(actors[0], 1);
+        rep.setLate(actors[0], 1);
         _toReveal();
         _reveal(actors[0], 3 * USDC, _salt(0));
         _reveal(actors[1], 3 * USDC, _salt(1));
@@ -519,7 +519,7 @@ contract HuiCircleBiddingTest is CircleFixture {
         assertEq(w, actors[1], "fewer late payments beats earlier commit");
     }
 
-    function test_Winner_GlobalLatenessCounts() public {
+    function test_Winner_LatenessSnapshotIgnoresRevealOrder() public {
         _commit(actors[0], 3 * USDC, _salt(0));
         _commit(actors[1], 3 * USDC, _salt(1));
         rep.setLate(actors[0], 2);
@@ -530,17 +530,32 @@ contract HuiCircleBiddingTest is CircleFixture {
         assertEq(w, actors[1]);
     }
 
-    function test_Winner_LocalPlusGlobalLateness() public {
-        // actors[0]: local 1 + global 0 = 1. actors[1]: local 0 + global 2 = 2. actors[0] has fewer.
+    function test_Winner_RegistryLateIsNotAddedToLocalCounter() public {
+        // D-C: the registry already includes this circle's late payments, so the local counter is NOT added.
+        // actors[0]: local 3, registry 1. actors[1]: local 0, registry 2. Registry only: actors[0] (1) beats actors[1] (2).
         _commit(actors[1], 3 * USDC, _salt(1)); // earlier commit
         _commit(actors[0], 3 * USDC, _salt(0));
-        c.exposed_setLateCount(actors[0], 1);
+        c.exposed_setLateCount(actors[0], 3);
+        rep.setLate(actors[0], 1);
         rep.setLate(actors[1], 2);
         _toReveal();
         _reveal(actors[1], 3 * USDC, _salt(1));
         _reveal(actors[0], 3 * USDC, _salt(0));
         (address w,) = _winner();
         assertEq(w, actors[0]);
+    }
+
+    function test_Winner_LocalCounterIsFallbackWhenRegistryFails() public {
+        _commit(actors[0], 3 * USDC, _salt(0)); // earlier commit, but one local late payment
+        _commit(actors[1], 3 * USDC, _salt(1));
+        c.exposed_setLateCount(actors[0], 1);
+        rep.setLate(actors[1], 9); // ignored while the registry is broken
+        _toReveal();
+        _reveal(actors[0], 3 * USDC, _salt(0));
+        _reveal(actors[1], 3 * USDC, _salt(1));
+        rep.setBroken(true);
+        (address w,) = _winner();
+        assertEq(w, actors[1], "local counter used because the registry reverts");
     }
 
     function test_Winner_EqualLatenessFallsToCommitIndex() public {

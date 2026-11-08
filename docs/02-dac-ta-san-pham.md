@@ -31,7 +31,7 @@ Chủ hụi truyền thống có hai vai trò: **giữ tiền** (gốc của ôm
 
 | Mục tiêu | Đo bằng |
 |---|---|
-| G1. Người góp trung thực không mất tiền khi người đã hốt bỏ đóng, nếu chỉ số bảo chứng 100% | INV-08; dây demo nhánh B có `uncovered = 0` |
+| G1. Người góp trung thực nhận đủ pot khi mọi người đã hốt cùng bỏ đóng trong một kỳ (cú sốc đồng thời lớn nhất), nếu chỉ số bảo chứng 100%; bỏ đóng lần lượt thì có thể vượt ký quỹ (03 mục 7.3) | INV-08 (dạng cú sốc đồng thời); dây demo nhánh B có `uncovered = 0` |
 | G2. Không ai cầm tiền góp giữa các kỳ | INV-01, INV-07 |
 | G3. Luật NĐ 19 chạy trong code: trần lãi, lãi chậm góp, hoa hồng, sổ họ, ngưỡng thông báo | US-01, US-08, INV-03 |
 | G4. Người lớn tuổi dùng được: đăng nhập Google, không cần AVAX, chữ to | Số đo thử nghiệm (mục 10) |
@@ -170,7 +170,7 @@ flowchart TD
 
 1. Câu dưới 20 chữ, lời đời thường.
 2. Màn hình chính không dùng: gas, smart contract, on-chain, allowance, permit, commit, reveal, token, APY.
-3. Không hứa: không "lợi nhuận", "đầu tư", "an toàn tuyệt đối", "không bao giờ mất tiền", "bảo hiểm". Nói "được bảo chứng X%".
+3. Không hứa: không "lợi nhuận", "đầu tư", "an toàn tuyệt đối", "không bao giờ mất tiền", "bảo hiểm". Nói "được bảo chứng X%" và nêu điều kiện: ký quỹ chịu được cú sốc lớn nhất, mọi người đã hốt cùng bỏ đóng một lúc (bỏ đóng lần lượt có thể vượt ký quỹ; 03 mục 7.3).
 4. Không gọi trợ lý là "luật sư AI", không dùng chữ "tư vấn".
 5. Mọi con số kèm đơn vị; VND luôn ghi "quy đổi tham khảo".
 

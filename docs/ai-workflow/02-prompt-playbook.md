@@ -157,7 +157,7 @@ Ràng buộc:
 - Frozen: không kéo, cộng debt. Cọc không reveal vào quỹ dự phòng, +1 trễ.
 - pot, fee (escrow theo kỳ, chỉ khi commissionMode), premium, H = min(holdbackFor(k), pot − fee − premium), payout; chi an toàn (claimable khi chuyển lỗi); nhả α·C cho người đã hốt đóng đúng hạn.
 - Cập nhật RoundInfo, ReputationRegistry, settledRounds; INV-01 và INV-05 đúng sau mỗi lần gọi.
-- Gas: settleRound N = 5 ≤ 600.000, N = 30 ≤ 3.000.000 (đo bằng test/integration/GasBudget.t.sol khung).
+- Gas: settleRound N = 5 ≤ 600.000, N = 30 ≤ 3.000.000 (đo bằng test/gas/GasBudget.t.sol khung).
 Tiêu chí chấp nhận: test cho: không ai thiếu; một người đã hốt thiếu (bù bằng holdback rồi ký quỹ); cạn ký quỹ và quỹ dự phòng → uncovered; người hốt bị chặn địa chỉ → claimable; Frozen; dư lẻ về người hốt. Fuzz số người thiếu và thăm ngẫu nhiên giữ INV-05.
 Sau khi xanh: chạy /audit diff.
 ```
@@ -225,10 +225,10 @@ Dùng: `/deploy-fuji` (người duyệt lệnh broadcast). Kiểm chứng: link 
 /implement C10: script/Deploy.s.sol theo thứ tự docs/05 mục 3.3, chạy thử trên anvil
 
 Ràng buộc:
-- Đọc khóa bằng vm.envUint("DEPLOYER_PRIVATE_KEY"); chainid 31337 thì deploy MockUSDC và ghi deployments/local.json; 43113 thì dùng USDC 0x5425890298aed601595a70AB815c96711a31Bc65 và ghi deployments/fuji.json đúng schema docs/05 mục 6.2 (kèm gitCommit).
+- Đọc khóa bằng vm.envUint("DEPLOYER_PRIVATE_KEY"); chainid 31337 thì deploy MockUSDC và ghi deployments/anvil.json; 43113 thì dùng USDC 0x5425890298aed601595a70AB815c96711a31Bc65 và ghi deployments/fuji.json đúng schema docs/05 mục 6.2 (kèm gitCommit).
 - Thứ tự: ERC2771Forwarder("HuiSafeForwarder") → ReputationRegistry(admin) → HuiCircle(forwarder) → HuiFactory(admin, implementation, config) → registry.setFactory(factory).
 - Thử: anvil --block-time 1 ở terminal khác (người chạy), rồi forge script script/Deploy.s.sol --rpc-url http://127.0.0.1:8545 --broadcast.
-Tiêu chí chấp nhận: deploy local thành công, local.json đúng schema, registry.factory() == factory. Không chạy lên Fuji trong việc này.
+Tiêu chí chấp nhận: deploy local thành công, anvil.json đúng schema, registry.factory() == factory. Không chạy lên Fuji trong việc này.
 ```
 
 Sau khi PR merge: chạy `/deploy-fuji all` từ `main`.
@@ -389,7 +389,7 @@ Ràng buộc:
 - huisim/model.py chạy đúng luật docs/03 cho thiết kế huisafe (thác bù, holdback, ký quỹ, quỹ dự phòng, Frozen); policies.py mô hình chủ hụi truyền thống (bỏ trốn, khả năng bù) và mô hình thăm; scenarios.py kiểm cấu hình; metrics.py sáu chỉ số; cli.py có run, sweep, vectors.
 - scenarios/baseline.json đúng mẫu docs/05 mục 11.1; hazard lấy cảm hứng Klonner & Rai (2008) ghi rõ là giả định.
 - numpy.random.default_rng(seed); outputs/<id>.json + <id>.meta.json (seed, số dây, commit) + PNG nhãn tiếng Việt, chú thích "Mô phỏng, tham số giả định".
-Tiêu chí chấp nhận: pytest xanh (gồm kiểm tra hợp lý: CI 100% và chỉ người đã hốt bỏ đóng thì uncovered = 0); bảng kết quả ba thiết kế; 2-3 câu kết luận dùng được cho pitch kèm giới hạn.
+Tiêu chí chấp nhận: pytest xanh (gồm kiểm tra hợp lý: CI 100% và chỉ người đã hốt bỏ đóng đồng thời trong một kỳ thì uncovered = 0; bỏ đóng lần lượt thì không, docs/03 mục 7.3); bảng kết quả ba thiết kế; 2-3 câu kết luận dùng được cho pitch kèm giới hạn.
 ```
 
 ### P4.2 Server trợ lý chủ hụi với 6 tool tất định (P3, T3-T4)

@@ -49,6 +49,9 @@ interface IHuiCircle {
 
     event LatePaid(uint32 indexed round, address indexed member, uint256 amount, uint256 lateFee);
     event DebtRepaid(address indexed member, uint256 principal, uint256 lateFee);
+    /// @dev Late fee that could not be collected because the pot or holdback ran out (docs/03 section 6.8): not
+    /// stored as debt, only announced as a public off-chain claim.
+    event LateFeeUnpaid(address indexed member, uint256 amount);
     /// @dev Each restored part follows docs/03 section 6.8. source = Uncovered means paid straight to the round winner;
     /// the other sources are reserve, bond, holdback refills.
     event ShortfallRestored(uint32 indexed round, address indexed member, CoverSource source, uint256 amount);
@@ -69,6 +72,8 @@ interface IHuiCircle {
     error NotAdmin();
     error NotMember();
     error AlreadyMember();
+    /// @dev join() after leave() on the same circle (docs/03 section 5.1).
+    error AlreadyLeft();
     error WrongState(CircleState expected, CircleState actual);
     /// @dev Codes in docs/05 section 4.3.
     error InvalidParams(uint8 code);

@@ -442,7 +442,22 @@ contract HuiCircleFormingTest is CircleFixture {
         (MemberAttestation memory att, bytes memory sig) = _validAtt(actors[0]);
         PermitSig memory permit = _signPermit(actors[0], address(c), c.requiredAllowance(), block.timestamp + 1 hours);
         vm.prank(actors[0]);
-        vm.expectRevert(IHuiCircle.AttestationUsed.selector);
+        vm.expectRevert(IHuiCircle.AlreadyLeft.selector);
+        c.join(att, sig, permit);
+    }
+
+    function test_Leave_CannotRejoinEvenWithFreshAttestation() public {
+        // D-E: the on-chain hasLeft flag holds even if the off-chain attestation id were different.
+        _join(c, actors[0]);
+        vm.prank(actors[0]);
+        c.leave();
+        assertTrue(c.hasLeft(actors[0]));
+        MemberAttestation memory att = _attestation(actors[0], address(c), uint64(block.timestamp + 1 hours));
+        att.attestationId = keccak256("a different id");
+        bytes memory sig = _signAttestation(att, ATTESTER_KEY);
+        PermitSig memory permit = _signPermit(actors[0], address(c), c.requiredAllowance(), block.timestamp + 1 hours);
+        vm.prank(actors[0]);
+        vm.expectRevert(IHuiCircle.AlreadyLeft.selector);
         c.join(att, sig, permit);
     }
 

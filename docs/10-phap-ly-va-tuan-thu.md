@@ -113,3 +113,5 @@ Câu nên nói thêm ở đầu pitch:
 13. Trợ lý chủ hụi ở mức rủi ro nào theo Luật AI Điều 9; cần thủ tục gì ngoài nhãn AI?
 14. Bản USDC cho người Việt ở nước ngoài cần giấy phép gì ở từng nước? Chặn theo khu vực có đủ không?
 15. Nếu chạy USDC thật, thuế 0,1% (TT 32/2026) có áp cho từng lần góp và chi không?
+
+16. `emergencyUnwind` (sau 48 giờ tạm dừng) trả holdback về chủ của nó kể cả người đã vỡ nợ, không áp thứ tự hoàn như `finalize` (03 mục 5.4); khoản vỡ nợ còn lại thành khoản đòi công khai ngoài chuỗi. Cách này có phù hợp với nghĩa vụ hoàn trả giữa các thành viên không, hay cần bù trừ trước khi trả?

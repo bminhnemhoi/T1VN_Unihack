@@ -25,7 +25,7 @@ Câu hỏi cần trả lời (ví dụ "CI 100% giảm tổn thất người h�
 3. Kịch bản ở `sim/scenarios/<id>.json` đúng schema docs/05 mục 11.1; kiểm hợp lệ trong `scenarios.py`. Hazard mặc định lấy cảm hứng từ Klonner & Rai (2008) (hốt sớm 2,04%, hốt muộn 0,59%) là THAM SỐ GIẢ ĐỊNH, phải ghi rõ.
 4. Mô phỏng: `numpy.random.default_rng(seed)`; mỗi dây chạy đủ luật docs/03 (thác bù, holdback, ký quỹ, quỹ dự phòng, Frozen) cho thiết kế `huisafe`; mô hình chủ hụi cho `traditional`; không bảo lãnh cho `naive_onchain`.
 5. Chạy: `python -m huisim.cli run --scenario baseline --seed 42`; quét: `python -m huisim.cli sweep ...`. Ghi `outputs/<id>.json` (sáu chỉ số: `lateReceiverExpectedLossPct`, `lateReceiverP95LossPct`, `circleFailureProb`, `uncoveredMeanUsdc`, `bondUsageMeanPct`, `organizerNetReturnPct`), `outputs/<id>.meta.json` (seed, số dây, commit git, thời gian chạy) và PNG.
-6. Kiểm: `pytest -q` (toán, ví dụ docs/03 mục 8, kiểm tra hợp lý: CI 100% và chỉ người đã hốt bỏ đóng thì `uncovered = 0`), chạy lại cùng seed phải ra cùng số.
+6. Kiểm: `pytest -q` (toán, ví dụ docs/03 mục 8, kiểm tra hợp lý: CI 100% và chỉ người đã hốt bỏ đóng đồng thời trong một kỳ thì `uncovered = 0`; bỏ đóng lần lượt thì không bắt buộc, xem docs/03 mục 7.3), chạy lại cùng seed phải ra cùng số.
 7. Biểu đồ: nhãn tiếng Việt, đơn vị rõ, chú thích "Mô phỏng, tham số giả định, seed = ...", đọc được khi chiếu slide.
 
 ## Đầu ra

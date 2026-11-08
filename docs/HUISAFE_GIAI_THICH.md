@@ -105,7 +105,7 @@ Câu chốt: *"Chủ hụi không cầm tiền, nhưng vẫn phải bảo lãnh.
   - Ví dụ N = 5, C = 100: O_max = 2·3·100 = 600 USDC.
 - **Tổng phần giữ lại** luôn bằng α·O(k), tức tự che được α phần rủi ro.
 - **Chỉ số bảo chứng:** CI = α + (ký quỹ + quỹ dự phòng) / O_max, tối đa 100%.
-- **CI = 100% thì người trung thực không lỗ đồng nào**, kể cả khi mọi người đã hốt cùng bỏ đóng đúng lúc rủi ro đỉnh. Lý do: phần giữ lại che α·O, ký quỹ che phần (1−α)·O còn lại. Ký quỹ cần cho 100% là B = (1−α)·O_max = 0,8·O_max.
+- **CI = 100% nghĩa là ký quỹ chịu được cú sốc lớn nhất**: mọi người đã hốt cùng bỏ đóng một lúc, đúng lúc rủi ro đỉnh, mà người trung thực vẫn nhận đủ. Nếu họ bỏ đóng lần lượt qua nhiều kỳ thì tổng thiếu có thể vượt ký quỹ (dây 5 người ví dụ: 1000 so với O_max 600); bù đủ cả trường hợp đó cần B_seq = (1−α)·N(N−1)/2·C, tùy chọn ở roadmap (03 mục 7.3). Lý do: phần giữ lại che α·O, ký quỹ che phần (1−α)·O còn lại. Ký quỹ cần cho 100% là B = (1−α)·O_max = 0,8·O_max.
 - **Trần thăm theo Nghị định 19 Điều 21** (nhóm tự diễn giải, cần luật sư xác nhận): maxBid(k) = 20% × C × (N−k) × P / 365 ngày, với P là chu kỳ.
   - Ví dụ hụi tháng 5 người × 100 USDC, kỳ 1: tối đa 6,58 USDC.
 
