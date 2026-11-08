@@ -554,7 +554,7 @@ pnpm --filter keeper start
 
 | Job | Việc | Chặn merge khi |
 |---|---|---|
-| `contracts` | `forge fmt --check`, `forge build --sizes --skip "test/**" --skip "script/**"` (harness test vượt 24.576 byte là bình thường), test trừ invariant, `forge snapshot --check`, `forge coverage --report summary --ir-minimum` (cần vì `via_ir`) | fmt sai, contract quá 24.576 byte, test đỏ, gas tăng |
+| `contracts` | `forge fmt --check`, `forge build --sizes --skip "test/**" --skip "script/**"` (harness test vượt 24.576 byte là bình thường), test trừ invariant, `forge snapshot --check --no-match-path "test/{fuzz,gas,invariant}/*" --no-match-test "testFuzz_"` (`.gas-snapshot` đã commit; loại fuzz, invariant và `GasBudget`, vốn có trần riêng), `forge coverage --report summary --ir-minimum` (cần vì `via_ir`) | fmt sai, contract quá 24.576 byte, test đỏ, gas tăng |
 | `invariant` | `forge test --match-path "test/invariant/*"` với profile `ci` | invariant hỏng |
 | `slither` | `crytic/slither-action` với `fail-on: high` | có phát hiện mức cao |
 | `web` | build contracts, `pnpm --filter sdk generate`, kiểm ABI không lệch, lint, typecheck, test, build | ABI chép tay lệch, lỗi kiểu |
@@ -654,20 +654,28 @@ ADR-01 đến ADR-15 là các quyết định gốc của thiết kế. ADR-16 t
 
 ### 7.1. Gas
 
-| Hàm | Ngân sách | Đo bằng |
-|---|---|---|
-| `settleRound` N = 30, trường hợp xấu nhất | ≤ 3.000.000 gas; cảnh báo từ 2.500.000 | `test/gas/GasBudget.t.sol` + `forge snapshot --check` |
-| `settleRound` N = 5 (demo) | ≤ 600.000 gas | như trên |
-| `finalize` N = 30 | ≤ 2.500.000 gas | như trên |
-| `join` | ≤ 250.000 gas | `.gas-snapshot` |
-| `commitBid` / `revealBid` | ≤ 200.000 / ≤ 100.000 gas (A5: `commitBid` lần đầu mỗi kỳ ~130.000 đến 180.000 vì kéo cọc mở thăm; giữ cọc để chống phá rối) | `.gas-snapshot` |
-| `createCircle` | ≤ 500.000 gas | `.gas-snapshot` |
+Ngân sách dưới đây là gas THỰC THI (`gasleft()` trước và sau lời gọi, không gồm 21.000 gas intrinsic của giao dịch). Số đo lấy từ `test/gas/GasBudget.t.sol` trên clone thật (A6/A7); các trần trong test giữ làm cột chống tăng gas.
+
+| Hàm | Ngân sách (thực thi) | Số đo A7 | Đo bằng |
+|---|---|---|---|
+| `settleRound` N = 30, trường hợp xấu nhất | ≤ 3.000.000 gas; cảnh báo từ 2.500.000 | kỳ cuối ai cũng đóng ~1.486.000; kỳ 29 với 3 khoản thiếu ~1.711.000; kỳ cuối 10 khoản thiếu ~2.256.000 | `test/gas/GasBudget.t.sol` |
+| `settleRound` N = 5 (demo), không hoặc một khoản thiếu | ≤ 600.000 gas | không thiếu ~520.000; một khoản thiếu ~495.000 | như trên |
+| `settleRound` N = 5 (demo), 4 khoản thiếu | ≤ 800.000 gas (ca xấu của demo; nới từ 600.000 theo số đo) | ~746.000 | như trên |
+| `settleRound` N = 30, kỳ 1 cả 29 người cùng thiếu (ca cực đoan) | ≤ 5.000.000 gas (trần relay/keeper) | ~4.158.000 | như trên |
+| `finalize` N = 30, đường thường (khoản thiếu đã `markDefault`) | ≤ 2.500.000 gas | sạch ~1.171.000; 5 người đã đánh dấu ~1.456.000; 29 người đã đánh dấu trước ~2.009.000 | như trên |
+| `finalize` N = 30, 29 người chưa `markDefault` (chỉ khi keeper bỏ lỡ) | KHÔNG nằm trong ngân sách; có thể vượt 5.000.000 | ~5.502.000 | trần chống tăng 5.600.000 trong test |
+| `join` | ≤ 250.000 gas | ~203.000 (người đầu), ~186.000 (người thứ 30) | `test/gas/GasBudget.t.sol` + `.gas-snapshot` |
+| `commitBid` | ≤ 200.000 gas (lần đầu mỗi kỳ vì kéo cọc mở thăm; giữ cọc để chống phá rối) | ~191.000 lần đầu | như trên |
+| `revealBid` | ≤ 100.000 gas | ~92.000 | như trên |
+| `createCircle` | ≤ 500.000 gas | ~405.000 (N = 30) | như trên |
 
 Trường hợp xấu nhất của `settleRound` ở N = 30 là kỳ cuối: 29 lần `transferFrom`, 28 lần nhả holdback, 29 lần ghi ReputationRegistry, cộng vài khoản thiếu (mỗi khoản thiếu ghi struct `Shortfall` mới). Ước tính thô mỗi thành viên 60.000 đến 90.000 gas, cộng khoảng 200.000 gas cố định, ra khoảng 1,9 đến 2,8 triệu gas. Đây là ước tính, phải thay bằng số đo. Cách giảm nếu vượt: dùng `ReentrancyGuardTransient` (C-Chain có EIP-1153 qua ACP-131, cần kiểm tra), gộp ghi ReputationRegistry, đóng gói struct chặt hơn.
 
 Giới hạn khối: theo ACP-176, sức chứa gas tối đa C = 10·T. Mục tiêu T của C-Chain được nâng lên 2,1 triệu gas/giây (08/2025), nên C khoảng 21 triệu gas (suy ra). Một giao dịch 3 triệu gas nằm trong giới hạn. Kiểm lại bằng `cast block latest gasLimit --rpc-url fuji`. Keeper gửi `settleRound` trực tiếp với gas limit = ước tính × 1,2, trần cứng 5.000.000.
 
-Số đo thực (A3, `HuiCircle` C6): N = 30 kỳ 29 với 3 khoản thiếu tốn 1,68 triệu gas; ca cực đoan N = 30 kỳ 1 mà cả 29 người cùng thiếu tốn khoảng 4,14 triệu gas (mỗi khoản thiếu 100.000 đến 140.000 gas vì ghi `Shortfall` 3 slot và 4 đến 5 event). Quyết định: chấp nhận ca cực đoan, không đóng gói lại storage; `/api/relay` cho phép `gas` đến 5.000.000 riêng với `settleRound` (các hàm khác giữ 3.000.000), keeper dùng trần cứng 5.000.000. Ca này không khóa tiền: ai cũng gửi trực tiếp được. Tương tự, `finalize` N = 30 sạch tốn khoảng 1,1 triệu gas, nhưng nếu 29 người cùng thiếu ở kỳ cuối mà chưa ai gọi `markDefault` (keeper phải gọi trong ân hạn) thì tự đánh dấu 29 người trong `finalize` tốn khoảng 5 triệu gas (A4 audit M-03), vượt ngân sách 2,5 triệu ở trên; `/api/relay` cho `finalize` trần 5.000.000 như `settleRound`.
+Số đo thực (A3, `HuiCircle` C6): N = 30 kỳ 29 với 3 khoản thiếu tốn 1,7 triệu gas; ca cực đoan N = 30 kỳ 1 mà cả 29 người cùng thiếu tốn khoảng 4,14 triệu gas (mỗi khoản thiếu 100.000 đến 140.000 gas vì ghi `Shortfall` 3 slot và 4 đến 5 event). Quyết định: chấp nhận ca cực đoan, không đóng gói lại storage; `/api/relay` cho phép `gas` đến 5.000.000 riêng với `settleRound` (các hàm khác giữ 3.000.000), keeper dùng trần cứng 5.000.000. Ca này không khóa tiền: ai cũng gửi trực tiếp được. Tương tự, `finalize` N = 30 sạch tốn khoảng 1,1 triệu gas, nhưng nếu 29 người cùng thiếu ở kỳ cuối mà chưa ai gọi `markDefault` (keeper phải gọi trong ân hạn) thì tự đánh dấu 29 người trong `finalize` tốn khoảng 5 triệu gas (A4 audit M-03), vượt ngân sách 2,5 triệu ở trên; `/api/relay` cho `finalize` trần 5.000.000 như `settleRound`.
+
+**Quy tắc keeper/vận hành (quyết định A7).** Keeper phải gọi `markDefault` cho MỌI khoản thiếu quá hạn trong và ngay sau ân hạn, TRƯỚC khi gọi `finalize`. Trên đường thường `finalize` N = 30 tốn khoảng 1,2 triệu gas (sạch) đến 2,0 triệu gas (29 người đã đánh dấu trước), trong ngân sách 2,5 triệu; mỗi `markDefault` là một giao dịch riêng, rẻ. Nếu bỏ qua bước này và nhiều người chưa bị đánh dấu (ca 29 người, ~5,5 triệu gas) thì `finalize` có thể vượt trần 5.000.000 của relayer và keeper; khi đó phải đánh dấu từng nhóm bằng `markDefault` rồi mới `finalize`. Hợp đồng không đổi: không khóa tiền, vì `markDefault` là hàm ai cũng gọi được và rẻ.
 
 ### 7.2. Độ trễ
 

@@ -691,12 +691,13 @@ Trả file JSON kết quả mô phỏng đã sinh sẵn trong `sim/outputs/` (m�
 |---|---|---|
 | Chi kỳ | dây Active, `now ≥ deadline(currentRound)`, kỳ chưa chi | `settleRound()` |
 | Đánh dấu vỡ nợ | có `Shortfall` chưa `resolved` và `now > since + grace` | `markDefault(member)` |
-| Kết thúc | kỳ N đã chi, qua ân hạn, không còn khoản thiếu đang trong ân hạn | `finalize()` |
+| Kết thúc | kỳ N đã chi, qua ân hạn, không còn khoản thiếu đang trong ân hạn, và MỌI khoản thiếu quá hạn đã được `markDefault` ở dòng trên | `finalize()` |
 | Hủy | Forming và `now > joinDeadline` | `cancel()` |
 | Nhắc hụi (bonus) | 24 giờ (demo: 60 giây) trước cửa sổ commit đóng; 6 giờ trước `deadline` nếu ví không đủ số dư | gửi Telegram cho người đã đăng ký |
 
 - Chu kỳ quét: 15 giây ở chế độ demo, 5 phút ở bản thật.
 - Mọi lệnh đều idempotent: mô phỏng bằng `eth_call` trước, bỏ qua khi revert vì "đã làm".
+- Thứ tự bắt buộc: `markDefault` cho mọi khoản thiếu quá hạn TRƯỚC `finalize`. `finalize` tự đánh dấu người chưa bị đánh dấu nhưng với nhiều người (N = 30, 29 người) có thể tốn hơn 5.000.000 gas và vượt trần relayer/keeper; đường thường khoảng 1,2 đến 2,0 triệu gas (04, mục 7.1).
 - Keeper chỉ là tiện ích: ai cũng gọi được các hàm trên.
 
 ---

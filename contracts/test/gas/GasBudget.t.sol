@@ -17,15 +17,13 @@ import {CircleParams, CircleState, MemberAttestation, PermitSig} from "../../src
 /// @dev Method. The figure compared with a budget is the EXECUTION gas of the call, read with `gasleft()` around it
 /// (what `forge snapshot` reports, which docs/04 names as the measuring tool). The accounts the call touches are
 /// marked cold first with `vm.cool`. The 21,000 intrinsic gas of a transaction is NOT part of the compared figure
-/// but every test also prints `tx total` (execution + 21,000) and flags it when that is above the budget, because
-/// the documents do not say whether a budget includes it (reported to the coordinator, task A6).
+/// but every test also prints `tx total` (execution + 21,000) and flags it when that is above the budget. Decision A7
+/// (docs/04 7.1): the budgets are EXECUTION gas, so that flag is information only.
 ///
-/// The budgets are copied from the table with no margin. Two measurements are above what the documents promise and
-/// are pinned below as regression ceilings (`OBSERVED_*`), not as budgets, so that the suite stays green while the
-/// overrun is on record:
-///  - `finalize` N = 30 with 29 unmarked defaulters: docs/04 and docs/05 section 8.2 say about 5,000,000 and a relay
-///    and keeper cap of 5,000,000; measured 5.50 million.
-///  - `settleRound` N = 5 with four shortfalls in one round: the table budget is 600,000; measured 746,000.
+/// Decisions A7 recorded in docs/04 7.1 and docs/05 section 9:
+///  - `settleRound` N = 5 with four shortfalls in one round has its own budget, 800,000 (measured 746,000).
+///  - `finalize` N = 30 with 29 unmarked defaulters (about 5.50 million) is outside the budget and only pinned as a
+///    regression ceiling (`OBSERVED_*`); the keeper marks defaulters before calling `finalize`, which stays in budget.
 /// The extreme `settleRound` N = 30 case (all 29 fail) is above the 3,000,000 table budget by documented decision
 /// (docs/04 7.1 "Số đo thực"); it is asserted against the 5,000,000 cap.
 contract GasBudgetTest is CircleFixture {
@@ -33,6 +31,7 @@ contract GasBudgetTest is CircleFixture {
     uint256 internal constant BUDGET_SETTLE_N30 = 3_000_000;
     uint256 internal constant WARN_SETTLE_N30 = 2_500_000;
     uint256 internal constant BUDGET_SETTLE_N5 = 600_000;
+    uint256 internal constant BUDGET_SETTLE_N5_WORST = 800_000; // 4 shortfalls, measured ~746,000 (A7: docs/04 7.1)
     uint256 internal constant BUDGET_FINALIZE_N30 = 2_500_000;
     uint256 internal constant BUDGET_JOIN = 250_000;
     uint256 internal constant BUDGET_COMMIT = 200_000; // decision Q5 (A5): keeps the reveal bond
@@ -41,9 +40,8 @@ contract GasBudgetTest is CircleFixture {
     // ---- docs/04 section 7.1 "Số đo thực" + docs/05 section 8.2: hard cap of relay and keeper for the extreme cases
     uint256 internal constant CAP_EXTREME = 5_000_000;
     uint256 internal constant TX_BASE = 21_000;
-    // ---- measured above the documents (A6): ceilings to catch further regressions, NOT budgets
-    uint256 internal constant OBSERVED_FINALIZE_29_UNMARKED = 5_600_000; // docs promise <= 5,000,000
-    uint256 internal constant OBSERVED_SETTLE_N5_FOUR_SHORTFALLS = 800_000; // table budget is 600,000
+    // ---- outside the budget by decision (A7): keeper must `markDefault` before `finalize`; ceiling catches regressions
+    uint256 internal constant OBSERVED_FINALIZE_29_UNMARKED = 5_600_000; // docs/04 7.1: not a budget, may exceed 5M
 
     ReputationRegistry internal registry;
     HuiCircle internal realImpl;
@@ -268,9 +266,9 @@ contract GasBudgetTest is CircleFixture {
         assertLe(used, BUDGET_SETTLE_N5, "settleRound N=5 with one shortfall over budget (docs/04 7.1)");
     }
 
-    /// @dev Four of the four payers of round 2 fail at once. Above the 600,000 of the table (measured 746,000): see
-    /// the header. Pinned as a regression ceiling only.
-    function test_Gas_settleRound_N5_fourShortfalls_aboveTableBudget_pinned() public {
+    /// @dev Four of the four payers of round 2 fail at once: the worst demo case. Budget 800,000 (docs/04 7.1, A7),
+    /// measured about 746,000.
+    function test_Gas_settleRound_N5_fourShortfalls_withinWorstBudget() public {
         HuiCircleHarness c = _workedExample();
         _settleNext(c); // round 1: M1 wins
         _revoke(c, 0, 0); // M1 (already received, holdback 80)
@@ -279,9 +277,8 @@ contract GasBudgetTest is CircleFixture {
         uint256 used = _tx(c, address(this), address(c), abi.encodeCall(c.settleRound, ()));
         assertEq(c.roundInfo(2).winner, actors[1]);
         assertGt(c.shortfallOf(2, actors[0]).amount, 0, "shortfalls were recorded");
-        _report("settleRound N=5, four shortfalls (holdback and bond cascade)", used, BUDGET_SETTLE_N5);
-        if (used > BUDGET_SETTLE_N5) console.log("OVER the 600,000 table budget (A6 finding, see report)");
-        assertLe(used, OBSERVED_SETTLE_N5_FOUR_SHORTFALLS, "settleRound N=5 with four shortfalls got more expensive");
+        _report("settleRound N=5, four shortfalls (holdback and bond cascade)", used, BUDGET_SETTLE_N5_WORST);
+        assertLe(used, BUDGET_SETTLE_N5_WORST, "settleRound N=5 with four shortfalls over budget (docs/04 7.1)");
     }
 
     // ================================================================== settleRound N = 30
@@ -369,9 +366,10 @@ contract GasBudgetTest is CircleFixture {
     }
 
     /// @dev Documented extreme (docs/04 7.1, audit A4 M-03): 29 members short in the last round and nobody called
-    /// `markDefault`, so `finalize` marks them all itself. The documents say about 5,000,000 and a relay/keeper cap of
-    /// 5,000,000; measured 5.50 million, which is OVER that cap (A6 finding). Pinned as a regression ceiling only.
-    function test_Gas_finalize_N30_all29UnmarkedDefaulters_aboveRelayCap_pinned() public {
+    /// `markDefault`, so `finalize` marks them all itself. Measured 5.50 million, OVER the 5,000,000 relay/keeper cap.
+    /// Decision A7: not a budget; the keeper must `markDefault` first (docs/04 7.1, docs/05 section 9), see the next
+    /// test. Pinned as a regression ceiling only.
+    function test_Gas_finalize_N30_all29UnmarkedDefaulters_outsideBudget_pinned() public {
         HuiCircleHarness c = _active30();
         _settleUpTo(c, 29);
         _revoke(c, 0, 28);
@@ -379,8 +377,27 @@ contract GasBudgetTest is CircleFixture {
         vm.warp(uint256(c.roundInfo(30).settledAt) + 121);
         uint256 used = _tx(c, address(this), address(c), abi.encodeCall(c.finalize, ()));
         assertEq(uint8(c.state()), uint8(CircleState.Completed));
-        _report("finalize N=30, 29 unmarked defaulters (documented extreme)", used, CAP_EXTREME);
-        if (used > CAP_EXTREME) console.log("OVER the 5,000,000 relay/keeper cap (A6 finding, see report)");
+        _report("finalize N=30, 29 unmarked defaulters (outside budget, keeper must mark first)", used, CAP_EXTREME);
         assertLe(used, OBSERVED_FINALIZE_29_UNMARKED, "finalize with 29 unmarked defaulters got more expensive");
+    }
+
+    /// @dev The keeper rule (A7): the same 29 defaulters, but `markDefault` was called for each one first. Then
+    /// `finalize` stays inside the table budget and every `markDefault` is cheap enough for the 3,000,000 relay cap.
+    function test_Gas_finalize_N30_all29MarkedFirst_withinBudget() public {
+        HuiCircleHarness c = _active30();
+        _settleUpTo(c, 29);
+        _revoke(c, 0, 28);
+        _settleNext(c);
+        vm.warp(uint256(c.roundInfo(30).settledAt) + 121);
+        uint256 worstMark;
+        for (uint256 i = 0; i < 29; i++) {
+            uint256 m = _tx(c, address(this), address(c), abi.encodeCall(c.markDefault, (actors[i])));
+            if (m > worstMark) worstMark = m;
+        }
+        assertLe(worstMark, 3_000_000, "markDefault over the relay cap");
+        uint256 used = _tx(c, address(this), address(c), abi.encodeCall(c.finalize, ()));
+        assertEq(uint8(c.state()), uint8(CircleState.Completed));
+        _report("finalize N=30, 29 defaulters marked first", used, BUDGET_FINALIZE_N30);
+        assertLe(used, BUDGET_FINALIZE_N30, "finalize N=30 after marking over budget (docs/04 7.1)");
     }
 }

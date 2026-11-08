@@ -31,7 +31,7 @@ jobs:
       - run: forge fmt --check
       - run: forge build --sizes --skip "test/**" --skip "script/**"
       - run: forge test -vvv --no-match-path "test/invariant/*"
-      - run: forge snapshot --check
+      - run: forge snapshot --check --no-match-path "test/{fuzz,gas,invariant}/*" --no-match-test "testFuzz_"
       - run: forge coverage --report summary --ir-minimum --no-match-path "test/{gas,invariant}/*" --no-match-test test_ImplementationFitsEip170
 
   invariant:
