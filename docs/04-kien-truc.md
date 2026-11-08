@@ -682,6 +682,7 @@ Giới hạn khối: theo ACP-176, sức chứa gas tối đa C = 10·T. Mục t
 ### 7.4. Quan sát, log và bí mật
 
 - **Log:** JSON một dòng. Relayer ghi `requestId`, `from`, `to`, selector, gas, kết quả mô phỏng, `txHash`, thời gian xử lý. Keeper ghi `circle`, `round`, hành động, kết quả mô phỏng, `txHash`, `gasUsed`, lỗi đã giải mã. Không bao giờ ghi khóa, chữ ký đầy đủ, access token, email.
+- **Trợ lý chủ hụi (`app/api/copilot`):** log chỉ có `requestId`, tên tool, độ trễ, số token, không có nội dung chat. Biến không bí mật: `COPILOT_ENABLED` (đặt `0` để tắt), `COPILOT_DAILY_LIMIT` (trần số câu mỗi ngày, mặc định 500), `COPILOT_MOCK=1` (chỉ ngoài production, dùng mô hình kịch bản cho curl và demo không khóa). `ANTHROPIC_API_KEY` chỉ đọc ở route này và ở lệnh eval do con người chạy.
 - **Cảnh báo:** số dư relayer < 1 AVAX (05, mục 8.2); keeper trễ quá 2 chu kỳ; tỷ lệ lỗi RPC tăng. Kênh: log của nền tảng chạy web, Telegram nếu làm bonus.
 - **Bí mật:** chỉ trong `.env.local` (không commit) và biến môi trường của nền tảng deploy. Có `.env.example` chỉ chứa tên. Hook của Claude Code chặn ghi file khóa. Ngoài các biến cơ bản liệt kê trong `CLAUDE.md`, cần thêm: `KEEPER_PRIVATE_KEY` (ADR-21), `ATTESTATION_ID_SECRET` (secret tạo `attestationId`, 05 mục 8.1) và `FUJI_RPC_URL_FALLBACK`. Mọi khóa là ví testnet, nạp tối thiểu. Nghi lộ thì xoay khóa (runbook ở 09, mục 13).
 

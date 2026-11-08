@@ -655,7 +655,7 @@ Dựng sổ họ (mục 10) từ event. `format=pdf` trả file PDF tiếng Vi�
 
 ### 8.4. `POST /api/copilot`
 
-- Body: `{ "messages": [{ "role": "user"|"assistant", "content": "..." }], "draft"?: CircleDraft }`.
+- Body: `{ "messages": [{ "role": "user"|"assistant", "content": "..." }], "draft"?: CircleDraft, "circle"?: "0x..." }`. `circle` là dây đang xem, địa chỉ ví duy nhất mô hình được thấy (07, mục 3.8) và là đầu vào của `draft_ubnd_notice`. Tối đa 12 tin, 2.000 ký tự mỗi tin, 16 KB mỗi yêu cầu, 20 câu mỗi giờ mỗi IP; trả luồng NDJSON gồm các dòng `status`, `tool`, `answer` hoặc `error`.
 - Trả: stream văn bản kèm kết quả tool.
 - Server gọi Claude API với các tool ở mục 12. Không có tool nào ký giao dịch hay chuyển tiền.
 
@@ -830,9 +830,9 @@ Mọi số tiền trả về là chuỗi USDC thập phân 6 chữ số, tính b
 | Tool | Đầu ra |
 |---|---|
 | `compute_exposure` | `{ "exposure": ["0", "400", ...], "maxExposure": "600", "peakRound": 2 }`, trong đó `exposure[k]` là O(k), k = 0..N |
-| `recommend_bond` | `{ "maxExposure": "600", "bond": "480", "guaranteedCoverageBps": 10000 }` |
+| `recommend_bond` | `{ "maxExposure": "600", "bond": "480", "guaranteedCoverageBps": 10000, "guaranteedCoveragePercent": "100" }` (trường phần trăm để mô hình không tự đổi bps) |
 | `max_bid_table` | `{ "rows": [{ "k": 1, "payers": 4, "maxBid": "6.575342" }, ...] }` |
-| `simulate_circle` | Bản ghi `results` của 05 mục 11.2 ứng với cấu hình gần nhất đã chạy, kèm `scenario` và `matched: { N, alphaBps, bondRatio }`; nếu chưa có thì `{ "status": "no_results" }` |
+| `simulate_circle` | `{ "status": "ok", "matched": { N, alphaBps, bondRatio }, "runs": [{ "scenario", "seed", "circles", "deadDefaultHazardPerRound", "generatedAt", "results": [bản ghi `results` của 05 mục 11.2] }] }` cho mọi kịch bản đã chạy khớp đúng ba tham số (nhiều kịch bản khớp thì liệt kê hết, kèm giả định hazard); nếu chưa có thì `{ "status": "no_results" }` |
 | `explain_rule` | `{ "topic": "...", "text": "...", "citation": "NĐ 19/2019/NĐ-CP Điều ...", "url": "...", "checkedAt": "2026-11-06" }`, văn bản đã duyệt nằm trong repo |
 | `draft_ubnd_notice` | `{ "markdown": "...", "placeholders": ["[HỌ TÊN]", "[SỐ GIẤY TỜ]", "[NGÀY SINH]", "[NƠI CƯ TRÚ]"] }`; người dùng tự điền trên máy, không gửi lên server, không đưa vào LLM |
 
