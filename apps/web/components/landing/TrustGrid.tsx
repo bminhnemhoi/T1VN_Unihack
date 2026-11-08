@@ -25,11 +25,11 @@ function Cell({ className, children, dark }: { className?: string; children: Rea
 export function TrustGrid() {
   return (
     <section aria-labelledby="tin-cay" className="mx-auto max-w-6xl px-4 py-8">
-      <h2 id="tin-cay" className="font-display text-4xl font-bold md:text-5xl">
+      <h2 id="tin-cay" className="font-display text-h1 font-bold">
         Vì sao tin được
       </h2>
       <div className="mt-8 grid gap-5 md:grid-cols-6">
-        <Cell dark className="md:col-span-4">
+        <Cell dark className="md:col-span-3">
           <h3 className="font-display text-3xl font-bold">Không ai cầm tiền</h3>
           <p className="mt-2 max-w-prose text-xl text-[#dfe5f0]">
             Tiền nằm trong ví từng người cho đến hạn. Đến kỳ, hệ thống kéo đúng phần góp và trả cho người hốt trong cùng một giao dịch.
@@ -41,7 +41,7 @@ export function TrustGrid() {
           </div>
           <p className="mt-3 font-hand text-2xl text-nghe">chủ hụi không nằm giữa đường này</p>
         </Cell>
-        <Cell className="md:col-span-2">
+        <Cell className="md:col-span-3">
           <ShieldCheck aria-hidden className="size-9 text-ngoc" />
           <h3 className="mt-2 font-display text-2xl font-bold">Áp các mức trần của NĐ 19/2019</h3>
           <Ticks items={['Trần lãi 20%/năm (Điều 21)', 'Lãi chậm góp 10%/năm (Điều 22)', 'Nhắc thông báo UBND (Điều 14)']} />
@@ -69,9 +69,9 @@ export function TrustGrid() {
         <Cell className="md:col-span-2">
           <h3 className="font-display text-2xl font-bold">Sổ hụi công khai</h3>
           <ul aria-hidden className="mt-3 rounded-lg border border-border bg-background px-3 py-1 leading-8">
-            <li className="so-ke flex justify-between"><span>Kỳ 1 hốt</span><span>288,48</span></li>
-            <li className="so-ke flex justify-between"><span>Kỳ 2 hốt</span><span>323,18</span></li>
-            <li className="so-ke flex justify-between"><span>Ký quỹ còn</span><span>460,00</span></li>
+            <li className="so-ke flex justify-between"><span>Kỳ 1 hốt</span><span>288,48 USDC</span></li>
+            <li className="so-ke flex justify-between"><span>Kỳ 2 hốt</span><span>323,18 USDC</span></li>
+            <li className="so-ke flex justify-between"><span>Ký quỹ còn</span><span>460,00 USDC</span></li>
           </ul>
           <p className="mt-auto pt-2 text-muted-foreground">Ai cũng kiểm lại được. Xuất ra PDF khi cần.</p>
         </Cell>

@@ -13,7 +13,7 @@ export function Faq() {
   return (
     <section aria-labelledby="hoi-dap" className="mx-auto grid max-w-6xl gap-8 px-4 py-16 lg:grid-cols-[1fr_2fr] lg:gap-16">
       <div>
-        <h2 id="hoi-dap" className="font-display text-4xl font-bold md:text-5xl">
+        <h2 id="hoi-dap" className="font-display text-h1 font-bold">
           Hay hỏi
         </h2>
         <p className="mt-3 max-w-prose text-xl text-muted-foreground">Những điều nên biết trước khi vào dây.</p>

@@ -17,10 +17,12 @@ interface Props {
   /** Ceiling for this round in USDC base units (docs/03 section 2.4). */
   maxBid: bigint;
   revealBond: bigint;
+  /** Seconds left in the commit window (sample). */
+  commitSeconds?: number;
 }
 
 /** Mock of the bid room. State is local; nothing is sent anywhere. */
-export function SealedBidCard({ phase, round, maxBid, revealBond }: Props) {
+export function SealedBidCard({ phase, round, maxBid, revealBond, commitSeconds = 74 }: Props) {
   const [text, setText] = useState('2');
   const [sealed, setSealed] = useState<bigint | undefined>();
   const [opened, setOpened] = useState(false);
@@ -29,9 +31,9 @@ export function SealedBidCard({ phase, round, maxBid, revealBond }: Props) {
 
   return (
     <section aria-labelledby="bid-title" className="to-giay p-6">
-      <h2 id="bid-title" className="font-display text-3xl font-bold">
+      <h3 id="bid-title" className="font-display text-h3 font-bold">
         Thăm của bạn, kỳ {round}
-      </h2>
+      </h3>
 
       {phase === 'commit' && !sealed && (
         <form onSubmit={(e) => { e.preventDefault(); if (bid !== undefined && !error) setSealed(bid); }} noValidate className="mt-4 space-y-4">
@@ -91,7 +93,7 @@ export function SealedBidCard({ phase, round, maxBid, revealBond }: Props) {
       )}
 
       <p className="mt-5 border-t border-border pt-3 text-muted-foreground">
-        {phase === 'commit' && <>Hết giờ nộp thăm sau <Countdown seconds={74} className="font-semibold text-foreground" />.</>}
+        {phase === 'commit' && <>Hết giờ nộp thăm sau <Countdown seconds={commitSeconds} className="font-semibold text-foreground" />.</>}
         {phase === 'reveal' && <>Hết giờ mở thăm sau <Countdown seconds={48} className="font-semibold text-foreground" />.</>}
         {phase === 'settle' && <>Kỳ {round} chốt được từ bây giờ.</>}
         {' '}Dữ liệu mẫu.

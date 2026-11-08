@@ -12,7 +12,7 @@ export function Hero() {
     <section className="nen-muc overflow-hidden">
       <div className="mx-auto grid max-w-6xl items-center gap-12 px-4 py-14 md:py-20 lg:grid-cols-[1.1fr_0.9fr] lg:gap-16 [&>*]:min-w-0">
         <div className="vien-le-do">
-          <h1 className="vao font-display text-[clamp(2.75rem,8vw,5.5rem)] leading-[1.02] font-bold tracking-tight" style={{ ['--i' as string]: 0 }}>
+          <h1 className="vao font-display text-display font-bold tracking-tight" style={{ ['--i' as string]: 0 }}>
             Chơi hụi không sợ giựt.
           </h1>
           <p className="vao mt-6 max-w-prose font-display text-[1.6rem] leading-snug text-[#dfe5f0]" style={{ ['--i' as string]: 1 }}>

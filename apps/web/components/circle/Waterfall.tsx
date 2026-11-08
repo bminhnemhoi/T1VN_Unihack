@@ -39,11 +39,11 @@ function Stack({ segs, title }: { segs: Seg[]; title: string }) {
 /** Result of kỳ 2 in the worked example (docs/03 section 8, branch B): who covered the missing 100 USDC and how the pot was split. */
 export function Waterfall() {
   return (
-    <section aria-labelledby="wf-title" className="to-giay p-6">
-      <h2 id="wf-title" className="font-display text-3xl font-bold">
+    <section aria-labelledby="wf-title" className="to-giay p-6 md:p-8">
+      <h2 id="wf-title" className="font-display text-h2 font-bold">
         Kỳ 2: có người không đóng
       </h2>
-      <p className="mt-1 text-xl text-muted-foreground">Thành viên 4 không đóng phần 100 USDC. Dây bù lần lượt, người hốt vẫn nhận đủ.</p>
+      <p className="mt-1 text-lead text-muted-foreground">Thành viên 4 không đóng phần 100 USDC. Dây bù lần lượt, người hốt vẫn nhận đủ.</p>
 
       <ol className="mt-5 flex flex-col gap-1 md:flex-row md:items-stretch md:gap-0">
         {[
@@ -62,15 +62,7 @@ export function Waterfall() {
         ))}
       </ol>
 
-      <div className="mt-8 space-y-6">
-        <Stack
-          title="Một phần hụi thiếu 100 USDC được bù từ"
-          segs={[
-            { label: 'Tiền giữ lại', value: usdc(80), color: 'bg-primary' },
-            { label: 'Ký quỹ', value: usdc(20), color: 'bg-le-do' },
-            { label: 'Quỹ dự phòng', value: 0n, color: 'bg-ngoc' },
-          ]}
-        />
+      <div className="mt-8">
         <Stack
           title="Tiền hốt của kỳ 2 là 391 USDC, chia ra"
           segs={[

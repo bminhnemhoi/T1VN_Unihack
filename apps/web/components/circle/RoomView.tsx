@@ -2,48 +2,55 @@
 
 import { useState } from 'react';
 import { formatUsdc, previewCircle } from 'sdk';
-import { Countdown } from '@/components/brand/Countdown';
-import { ProgressRing } from '@/components/brand/ProgressRing';
-import { MemberTable } from '@/components/circle/MemberTable';
+import { LedgerGrid } from '@/components/circle/LedgerGrid';
+import { RoundStrip } from '@/components/circle/RoundStrip';
 import { RoundTimeline, type Phase } from '@/components/circle/RoundTimeline';
 import { SealedBidCard } from '@/components/circle/SealedBidCard';
 import { Waterfall } from '@/components/circle/Waterfall';
+import { LedgerList } from '@/components/LedgerList';
 import { Badge } from '@/components/ui/badge';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
-import { DEMO_MEMBERS, usdc } from '@/lib/sample';
+import { DEMO_LEDGER, DEMO_MEMBERS, SAMPLE_CIRCLES, VIEWER, usdc } from '@/lib/sample';
 import { TOGGLE_ON } from '@/lib/utils';
 
 const preview = previewCircle({ n: 5n, c: usdc(100), periodDays: 30n, alphaBps: 2000n, bond: usdc(480), capBps: 2000n });
 const MAX_BID_K3 = preview.bidRows[2]!.maxBid; // 3,287671 USDC (docs/03 section 8)
+const CIRCLE = SAMPLE_CIRCLES[0]!;
+// Only members who have not received may bid (docs/03 section 6.1).
+const BIDDERS = DEMO_MEMBERS.flatMap((m, i) => (m.status === 'live' ? [i === VIEWER ? `${m.name} (bạn)` : m.name] : []));
 
-/** S04 + S06 mock: circle detail and bid room in one page. The phase switch only exists to let reviewers see each state. */
+/**
+ * S04 + S06 mock: one circle's room. Order follows the job: where the circle is (round strip), what to do in this round
+ * (timeline + sealed bid + the round's rules), then the shared ledger and what happened when someone did not pay.
+ */
 export function RoomView() {
   const [phase, setPhase] = useState<Phase>('commit');
   return (
     <main id="noi-dung" className="mx-auto max-w-6xl px-4 py-10">
-      <div className="flex flex-wrap items-center gap-5">
-        <ProgressRing value={2} total={5} size={104} label="Đã chi 2 trên 5 kỳ">
-          <span className="so-ke font-display text-4xl leading-none font-bold">2</span>
-          <span className="text-base text-muted-foreground">/5 kỳ</span>
-        </ProgressRing>
-        <div className="min-w-0 flex-1">
-          <h1 className="font-display text-4xl leading-tight font-bold md:text-5xl">Hụi tổ dân phố 7</h1>
+      <div className="flex flex-wrap items-end justify-between gap-x-8 gap-y-4">
+        <div className="min-w-0">
+          <h1 className="font-display text-h1 font-bold">{CIRCLE.label}</h1>
           <div className="mt-2 flex flex-wrap items-center gap-2">
-            <Badge>Đang chạy</Badge>
-            <Badge variant="outline">Bạn là thành viên 1</Badge>
+            <Badge variant="secondary">Đang chạy</Badge>
+            <Badge variant="outline">Bạn là thành viên {VIEWER + 1}</Badge>
             <Badge variant="secondary">Dữ liệu mẫu</Badge>
           </div>
-          <p className="so-ke mt-2 text-xl text-muted-foreground">
-            5 người, mỗi kỳ góp {formatUsdc(usdc(100))}. Kỳ 3 chốt sau <Countdown seconds={4 * 3600 + 12 * 60 + 9} className="font-semibold text-foreground" />.
+          <p className="so-ke mt-2 text-lead text-muted-foreground">
+            5 người, mỗi kỳ góp {formatUsdc(CIRCLE.contribution)}. Đã chi 2 trên 5 kỳ.
           </p>
         </div>
+        <RoundStrip n={5} done={2} running winners={CIRCLE.winners} />
       </div>
 
       <section aria-labelledby="ky3" className="mt-10">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <h2 id="ky3" className="font-display text-3xl font-bold">Kỳ 3 đang diễn ra</h2>
+        <div className="flex flex-wrap items-end justify-between gap-3">
+          <h2 id="ky3" className="font-display text-h2 font-bold">
+            Kỳ 3 đang diễn ra
+          </h2>
           <div>
-            <p id="pha-label" className="text-muted-foreground">Xem thử từng giai đoạn (chỉ có ở bản mẫu)</p>
+            <p id="pha-label" className="text-muted-foreground">
+              Xem thử từng giai đoạn (chỉ có ở bản mẫu)
+            </p>
             <ToggleGroup type="single" variant="outline" value={phase} onValueChange={(v) => v && setPhase(v as Phase)} aria-labelledby="pha-label" className="mt-1 flex-wrap">
               <ToggleGroupItem value="commit" className={TOGGLE_ON}>Nộp thăm</ToggleGroupItem>
               <ToggleGroupItem value="reveal" className={TOGGLE_ON}>Mở thăm</ToggleGroupItem>
@@ -54,18 +61,32 @@ export function RoomView() {
         <div className="mt-4">
           <RoundTimeline phase={phase} />
         </div>
-        <div className="mt-6 grid gap-6 lg:grid-cols-2 lg:items-start [&>*]:min-w-0">
-          <SealedBidCard phase={phase} round={3} maxBid={MAX_BID_K3} revealBond={usdc(1)} />
-          <div>
-            <h2 className="font-display text-2xl font-bold">Thành viên</h2>
-            <div className="mt-2">
-              <MemberTable members={DEMO_MEMBERS} />
-            </div>
-          </div>
+        <div className="mt-6 grid gap-6 lg:grid-cols-[3fr_2fr] lg:items-start [&>*]:min-w-0">
+          <SealedBidCard phase={phase} round={3} maxBid={MAX_BID_K3} revealBond={usdc(1)} commitSeconds={CIRCLE.secondsLeft} />
+          <section aria-labelledby="luat-ky" className="o-phang p-6">
+            <h3 id="luat-ky" className="font-display text-h3 font-bold">
+              Luật của kỳ này
+            </h3>
+            <LedgerList
+              className="mt-2"
+              items={[
+                { label: 'Trần thăm kỳ 3', value: formatUsdc(MAX_BID_K3) },
+                { label: 'Cọc mở thăm', value: formatUsdc(usdc(1)) },
+                { label: 'Được bỏ thăm', value: BIDDERS.join(', ') },
+              ]}
+            />
+            <p className="mt-3 text-muted-foreground">
+              Thăm cao nhất hốt. Bằng nhau thì người ít lần trễ hơn thắng, vẫn bằng thì ai nộp trước thắng. Không có may rủi.
+            </p>
+          </section>
         </div>
       </section>
 
-      <div className="mt-10">
+      <div className="mt-12">
+        <LedgerGrid members={DEMO_MEMBERS} rounds={DEMO_LEDGER} viewer={VIEWER} phase={phase} />
+      </div>
+
+      <div className="mt-12">
         <Waterfall />
       </div>
     </main>

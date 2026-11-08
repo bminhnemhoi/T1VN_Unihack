@@ -12,9 +12,13 @@ export interface SampleMember {
   note?: string;
 }
 
-/** State of the demo circle right after round 2 settles, branch B (M4 stopped paying). */
+/**
+ * State of the demo circle right after round 2 settles, branch B (M4 stopped paying).
+ * The viewer is Thành viên 2: still "live" (has not received), so they may bid in kỳ 3 (docs/03 section 6.1).
+ */
+export const VIEWER = 1; // index into DEMO_MEMBERS
 export const DEMO_MEMBERS: SampleMember[] = [
-  { name: 'Thành viên 1 (bạn)', status: 'dead', receivedRound: 2, holdback: usdc(60) },
+  { name: 'Thành viên 1', status: 'dead', receivedRound: 2, holdback: usdc(60) },
   { name: 'Thành viên 2', status: 'live', holdback: 0n },
   { name: 'Thành viên 3', status: 'live', holdback: 0n },
   { name: 'Thành viên 4', status: 'defaultedDead', receivedRound: 1, holdback: 0n, note: 'Ngừng đóng từ kỳ 2' },
@@ -55,8 +59,7 @@ export const SAMPLE_CIRCLES: SampleCircle[] = [
     todo: 'Nộp thăm kín cho kỳ 3',
     secondsLeft: 4 * 3600 + 12 * 60 + 9,
     href: '/circles/demo',
-    winners: ['Thành viên 4', 'Bạn'], // docs/03 section 8: M4 kỳ 1, M1 (you) kỳ 2
-    myRound: 2,
+    winners: ['Thành viên 4', 'Thành viên 1'], // docs/03 section 8: M4 kỳ 1, M1 kỳ 2; you are M2 and have not received
     action: 'Vào phòng thăm',
   },
   {
@@ -89,9 +92,54 @@ export const SAMPLE_CIRCLES: SampleCircle[] = [
   },
 ];
 
-/** What the viewer holds across the sample circles. Only facts from the circles above (docs/03 section 8 for "Hụi tổ dân phố 7"). */
+/** What the viewer (Thành viên 2 of "Hụi tổ dân phố 7") has put in so far. Numbers from docs/03 section 8. */
 export const SAMPLE_WALLET = {
   perRound: usdc(100), // only "Hụi tổ dân phố 7" is collecting now
-  received: usdc(323, 18), // kỳ 2 of "Hụi tổ dân phố 7"
-  heldBack: usdc(60), // 20% x 3 rounds left x 100, released 20 per round paid on time
+  paidSoFar: usdc(94) + usdc(97), // kỳ 1: 100 - bid 6; kỳ 2: 100 - bid 3
 };
+
+/** One cell of the ledger grid: what one member did in one settled round. */
+export type LedgerCell =
+  | { kind: 'paid'; amount: bigint }
+  | { kind: 'won' }
+  | { kind: 'short'; amount: bigint; fromHoldback: bigint; fromBond: bigint; fromReserve: bigint };
+
+export interface LedgerRound {
+  k: number;
+  state: 'settled' | 'running' | 'later';
+  /** Index into DEMO_MEMBERS. */
+  winner?: number;
+  bid?: bigint;
+  /** What the winner received after fee, reserve premium and holdback. */
+  payout?: bigint;
+  cells?: LedgerCell[];
+}
+
+/** "Bảng sổ hụi" of the demo circle, docs/03 section 8 branch B. Each settled row sums to its pot (376 and 391 USDC). */
+export const DEMO_LEDGER: LedgerRound[] = [
+  {
+    k: 1,
+    state: 'settled',
+    winner: 3,
+    bid: usdc(6),
+    payout: usdc(288, 48), // 376 - 3,76 fee - 3,76 reserve - 80 holdback
+    cells: [{ kind: 'paid', amount: usdc(94) }, { kind: 'paid', amount: usdc(94) }, { kind: 'paid', amount: usdc(94) }, { kind: 'won' }, { kind: 'paid', amount: usdc(94) }],
+  },
+  {
+    k: 2,
+    state: 'settled',
+    winner: 0,
+    bid: usdc(3),
+    payout: usdc(323, 18), // 391 - 3,91 - 3,91 - 60 holdback
+    cells: [
+      { kind: 'won' },
+      { kind: 'paid', amount: usdc(97) },
+      { kind: 'paid', amount: usdc(97) },
+      { kind: 'short', amount: usdc(100), fromHoldback: usdc(80), fromBond: usdc(20), fromReserve: 0n },
+      { kind: 'paid', amount: usdc(97) },
+    ],
+  },
+  { k: 3, state: 'running' },
+  { k: 4, state: 'later' },
+  { k: 5, state: 'later' },
+];

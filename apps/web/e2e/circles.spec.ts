@@ -50,8 +50,8 @@ test.describe('S02 /circles', () => {
     await page.goBack();
     const wallet = page.getByRole('region', { name: 'Sổ của bạn' });
     await expect(wallet).toContainText('100 USDC');
-    await expect(wallet).toContainText('323,18 USDC');
-    await expect(wallet).toContainText('60 USDC');
+    await expect(wallet).toContainText('191 USDC'); // 94 + 97 (docs/03 section 8)
+    await expect(wallet).toContainText('Chưa');
   });
 
   test('round strip says each round in words (not colour only)', async ({ page }) => {
@@ -59,13 +59,14 @@ test.describe('S02 /circles', () => {
     const strip = page.getByRole('list', { name: 'Các kỳ của dây: đã chi 2 trên 5' });
     await expect(strip.getByRole('listitem')).toHaveCount(5);
     await expect(strip).toContainText('Kỳ 1: đã chi, Thành viên 4 hốt');
-    await expect(strip).toContainText('Kỳ 2: đã chi, bạn hốt');
+    await expect(strip).toContainText('Kỳ 2: đã chi, Thành viên 1 hốt');
     await expect(strip).toContainText('Kỳ 3: đang diễn ra');
     await expect(strip).toContainText('Kỳ 5: chưa tới');
   });
 
   test('countdowns tick', async ({ page }) => {
-    await page.goto('/circles/demo'); // the bid-room countdown shows seconds
+    await page.goto('/circles/demo');
+    await page.getByRole('radio', { name: 'Mở thăm', exact: true }).click(); // the reveal countdown shows seconds
     const t = page.locator('time').last();
     const before = await t.textContent();
     await expect.poll(async () => t.textContent(), { timeout: 5000 }).not.toBe(before);

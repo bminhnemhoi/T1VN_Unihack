@@ -81,11 +81,11 @@ export function MyCirclesView() {
               className="mt-2"
               items={[
                 { label: 'Mỗi kỳ đang góp', value: formatUsdc(SAMPLE_WALLET.perRound) },
-                { label: 'Đã hốt', value: formatUsdc(SAMPLE_WALLET.received) },
-                { label: 'Đang được giữ lại', value: formatUsdc(SAMPLE_WALLET.heldBack) },
+                { label: 'Đã góp đến nay', value: formatUsdc(SAMPLE_WALLET.paidSoFar) },
+                { label: 'Đã hốt', value: 'Chưa' },
               ]}
             />
-            <p className="mt-3 text-muted-foreground">Tiền giữ lại được trả dần cho bạn sau mỗi kỳ bạn đóng đủ và đúng hạn.</p>
+            <p className="mt-3 text-muted-foreground">Bạn chưa hốt nên còn được bỏ thăm ở các kỳ tới. Kỳ nào không cần tiền thì cứ để người khác hốt trước.</p>
           </section>
 
           <section aria-labelledby="cac-day" className="lg:col-start-1">

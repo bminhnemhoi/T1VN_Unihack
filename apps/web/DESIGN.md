@@ -78,7 +78,10 @@ Transform/opacity only, 80-200ms for controls, decorative loops pause off-screen
 A paper sổ hụi is a grid: one row per round, one column per member. HụiSafe shows that structure as real, accessible UI:
 - `components/circle/RoundStrip.tsx`: one cell per round on every circle row (done / now / later, your round in seal red,
   each cell spoken in words).
-- Bid room (next step): the full "Bảng sổ hụi", rounds x members, built as a real `<table>`, never as ruled-paper decoration.
+- `components/circle/LedgerGrid.tsx`: the full "Bảng sổ hụi" in the bid room, rounds x members, a real `<table>` with row and
+  column headers (1024px+), and one expandable line per round below that width. Never ruled-paper decoration.
+- Every settled row comes from `DEMO_LEDGER` in `lib/sample.ts` (docs/03 section 8 branch B); the viewer is Thành viên 2,
+  a member who has not received yet, because only such members may bid (docs/03 section 6.1).
 
 ## 7. Banned (ship-stoppers)
 
