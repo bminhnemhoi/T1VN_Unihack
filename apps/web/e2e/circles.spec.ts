@@ -5,7 +5,7 @@ test.describe('S02 /circles', () => {
   test('three sample circles, each "Mở dây" opens its own circle', async ({ page }) => {
     const errs = watchErrors(page);
     await page.goto('/circles');
-    await expect(page.getByRole('heading', { level: 2 })).toHaveText(['Hụi tổ dân phố 7', 'Hụi bạn đại học', 'Hụi chị em văn phòng']);
+    await expect(page.getByRole('heading', { level: 3 })).toHaveText(['Hụi tổ dân phố 7', 'Hụi bạn đại học', 'Hụi chị em văn phòng']);
 
     await page.getByRole('link', { name: 'Mở Hụi tổ dân phố 7' }).click();
     await expect(page).toHaveURL(/\/circles\/demo$/);
@@ -32,9 +32,36 @@ test.describe('S02 /circles', () => {
     await expect(page.getByText('Bạn chưa tham gia dây nào.')).toBeVisible();
     await expect(page.getByRole('heading', { name: 'Sổ hụi của bạn còn trống' })).toBeVisible();
     await sw.click();
-    await expect(page.getByRole('heading', { level: 2 })).toHaveCount(3);
+    await expect(page.getByRole('heading', { level: 3 })).toHaveCount(3);
     await page.getByRole('link', { name: 'Tạo dây mới' }).click();
     await expect(page).toHaveURL(/\/circles\/new$/);
+  });
+
+  test('verdict first: the most urgent task, its deadline and one action; then the wallet ledger', async ({ page }) => {
+    await page.goto('/circles');
+    const now = page.getByRole('region', { name: 'Nộp thăm kín cho kỳ 3' });
+    await expect(now).toContainText('Việc gấp nhất của bạn, ở dây Hụi tổ dân phố 7');
+    await expect(now).toContainText('Trần thăm kỳ này khoảng 3,28 USDC'); // 3,287671 rounded DOWN
+    await now.getByRole('link', { name: 'Vào phòng thăm' }).click();
+    await expect(page).toHaveURL(/\/circles\/demo$/);
+    await page.goBack();
+    await page.getByRole('region', { name: 'Nộp thăm kín cho kỳ 3' }).getByRole('link', { name: 'Mời thêm người' }).click();
+    await expect(page).toHaveURL(/\/circles\/dang-gom$/);
+    await page.goBack();
+    const wallet = page.getByRole('region', { name: 'Sổ của bạn' });
+    await expect(wallet).toContainText('100 USDC');
+    await expect(wallet).toContainText('323,18 USDC');
+    await expect(wallet).toContainText('60 USDC');
+  });
+
+  test('round strip says each round in words (not colour only)', async ({ page }) => {
+    await page.goto('/circles');
+    const strip = page.getByRole('list', { name: 'Các kỳ của dây: đã chi 2 trên 5' });
+    await expect(strip.getByRole('listitem')).toHaveCount(5);
+    await expect(strip).toContainText('Kỳ 1: đã chi, Thành viên 4 hốt');
+    await expect(strip).toContainText('Kỳ 2: đã chi, bạn hốt');
+    await expect(strip).toContainText('Kỳ 3: đang diễn ra');
+    await expect(strip).toContainText('Kỳ 5: chưa tới');
   });
 
   test('countdowns tick', async ({ page }) => {

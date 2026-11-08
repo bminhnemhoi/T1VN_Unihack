@@ -47,6 +47,26 @@
   --color-card: var(--card);
   --color-foreground: var(--foreground);
   --color-background: var(--background);
+  /* Semantic roles (apps/web/DESIGN.md): action colour depends on the surface, state colours only mean state. */
+  --color-action: var(--action);
+  --color-action-ink: var(--action-ink);
+  --color-state-ok: var(--state-ok);
+  --color-state-warn: var(--state-warn);
+  --color-state-warn-bg: var(--state-warn-bg);
+  --color-state-bad: var(--state-bad);
+  /* Role type scale (1rem = 18px). Use text-display / text-h1 ... instead of one-off sizes. */
+  --text-display: clamp(2.75rem, 8vw, 5.5rem);
+  --text-display--line-height: 1.02;
+  --text-h1: clamp(2.25rem, 4.5vw, 3rem);
+  --text-h1--line-height: 1.1;
+  --text-h2: clamp(1.75rem, 3.2vw, 2.25rem);
+  --text-h2--line-height: 1.15;
+  --text-h3: 1.5rem;
+  --text-h3--line-height: 1.25;
+  --text-lead: 1.25rem;
+  --text-lead--line-height: 1.5;
+  --text-numeral: clamp(2.75rem, 7vw, 4.25rem);
+  --text-numeral--line-height: 1;
   --radius-sm: calc(var(--radius) * 0.6);
   --radius-md: calc(var(--radius) * 0.8);
   --radius-lg: var(--radius);
@@ -97,6 +117,13 @@
   --muc-dem: #0c1730; /* mực đêm: S01 dark band */
   --nghe: #e8b04a; /* nghệ: highlight on dark */
   --le-do-sang: #ff8a80; /* red on dark, 8:1 */
+  /* Semantic roles mapped onto the approved palette. */
+  --action: #1c4bb5; /* primary action on paper */
+  --action-ink: #e8b04a; /* primary action on the dark ink band (text #0c1730 on it, 9:1) */
+  --state-ok: #0a6246;
+  --state-warn: #5a3a00;
+  --state-warn-bg: #fff0bf;
+  --state-bad: #a91d1d;
 }
 
 @layer base {
@@ -207,7 +234,6 @@
   /* Paper sheet: layered ink-tinted shadows + hairline border + top highlight. */
   .to-giay {
     background: var(--card);
-    border: 1px solid var(--border);
     border-radius: 0.75rem;
     box-shadow:
       0 1px 0 rgb(255 255 255 / 0.9) inset,
@@ -219,6 +245,12 @@
       0 1px 0 rgb(255 255 255 / 0.9) inset,
       0 2px 4px rgb(17 32 63 / 0.1),
       0 24px 48px -16px rgb(17 32 63 / 0.4);
+  }
+  /* Flat panel for dense data (tables, ledgers): a hairline, no shadow. */
+  .o-phang {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 0.75rem;
   }
   .the-nang {
     transition-property: transform, box-shadow;

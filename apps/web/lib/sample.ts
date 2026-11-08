@@ -33,6 +33,14 @@ export interface SampleCircle {
   /** Seconds until the deadline of the next action (fixed so the countdown is the same on every render). */
   secondsLeft: number;
   href: string;
+  /** Who received the pot in each settled round (index 0 = kỳ 1), when known. "Bạn" = the viewer. */
+  winners?: string[];
+  /** The round the viewer received the pot in, if any. */
+  myRound?: number;
+  /** Forming circles: members joined so far. */
+  joined?: number;
+  /** Button text for the next action on this circle. */
+  action: string;
 }
 
 export const SAMPLE_CIRCLES: SampleCircle[] = [
@@ -47,6 +55,9 @@ export const SAMPLE_CIRCLES: SampleCircle[] = [
     todo: 'Nộp thăm kín cho kỳ 3',
     secondsLeft: 4 * 3600 + 12 * 60 + 9,
     href: '/circles/demo',
+    winners: ['Thành viên 4', 'Bạn'], // docs/03 section 8: M4 kỳ 1, M1 (you) kỳ 2
+    myRound: 2,
+    action: 'Vào phòng thăm',
   },
   {
     id: 'b',
@@ -59,6 +70,8 @@ export const SAMPLE_CIRCLES: SampleCircle[] = [
     todo: 'Chờ đủ người (3 trên 5), rồi bấm bắt đầu dây',
     secondsLeft: 6 * 86_400 + 3 * 3600,
     href: '/circles/dang-gom',
+    joined: 3,
+    action: 'Mời thêm người',
   },
   {
     id: 'c',
@@ -71,5 +84,14 @@ export const SAMPLE_CIRCLES: SampleCircle[] = [
     todo: 'Đã xong. Xem sổ hụi hoặc nhận lại phần còn lại',
     secondsLeft: 0,
     href: '/circles/da-xong',
+    myRound: 5,
+    action: 'Xem lại dây',
   },
 ];
+
+/** What the viewer holds across the sample circles. Only facts from the circles above (docs/03 section 8 for "Hụi tổ dân phố 7"). */
+export const SAMPLE_WALLET = {
+  perRound: usdc(100), // only "Hụi tổ dân phố 7" is collecting now
+  received: usdc(323, 18), // kỳ 2 of "Hụi tổ dân phố 7"
+  heldBack: usdc(60), // 20% x 3 rounds left x 100, released 20 per round paid on time
+};
