@@ -68,7 +68,7 @@ Luật áp dụng cho HụiSafe:
 2. **Đồng ý** tách theo mục đích (xác thực, nhắc hụi qua Telegram, Trợ lý AI); không tick sẵn; lưu bản ghi; cho rút lại.
 3. **Tối thiểu hóa:** chỉ tài khoản Privy (Google hoặc email) và tự xác nhận đủ 18 tuổi; MVP không thu CCCD.
 4. **Dữ liệu tài chính:** lịch sử góp, hốt theo ví là công khai và không xóa được, nên không đưa thông tin nhận dạng lên chuỗi; liên kết ví với tài khoản chỉ attester biết, bảo vệ như dữ liệu nhạy cảm.
-5. **AI là thông tin, không phải tư vấn:** nhãn "Trợ lý AI"; câu "Đây là thông tin tham khảo, không phải tư vấn tài chính hay pháp lý"; giải thích cách tính và dẫn điều luật (đáp ứng NĐ 356 Điều 10 khoản 3); không đưa dữ liệu cá nhân vào prompt; không dùng dữ liệu người dùng để huấn luyện.
+5. **AI là thông tin, không phải tư vấn:** nhãn "Trợ lý AI"; câu "Đây là thông tin tham khảo, không phải tư vấn tài chính hay pháp lý"; giải thích cách tính và dẫn điều luật (đáp ứng NĐ 356 Điều 10 khoản 3); không đưa dữ liệu cá nhân vào prompt (dù dùng nhà cung cấp mô hình nào: router của nhóm chạy Gemini hay Claude API; địa chỉ router và khóa chỉ nằm ở biến môi trường phía server); không dùng dữ liệu người dùng để huấn luyện.
 6. **Đánh giá tuân thủ** 1 năm/lần khi chạy thật.
 
 ## 5. Luật cuộc thi phải nêu khi pitch (4 điểm BTC)

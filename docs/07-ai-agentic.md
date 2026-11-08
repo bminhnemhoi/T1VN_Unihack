@@ -58,7 +58,7 @@ Luật khi dùng agent lúc làm: agent không bao giờ thấy khóa riêng hay
 sequenceDiagram
     participant U as Trình duyệt chủ hụi
     participant A as /api/copilot
-    participant M as Claude API
+    participant M as Mô hình (Gemini qua router hoặc Claude)
     participant T as Bộ chạy tool tất định
     participant V as Bộ kiểm đầu ra
     U->>A: messages + draft (tham số dây)
@@ -73,7 +73,7 @@ sequenceDiagram
     V-->>U: stream câu trả lời đã kiểm (hoặc bảng kết quả tool)
 ```
 
-1. **Mô hình:** Claude API với tool use; mặc định `claude-sonnet-5-5` (ID hiện hành, kiểm tại [trang models, 06/11/2026](https://platform.claude.com/docs/en/models/overview)). Đổi model chỉ khi model mới cũng đạt ngưỡng eval ở mục 6.
+1. **Mô hình và nhà cung cấp:** cấu hình được bằng biến môi trường phía server (05 mục 8.4, docs/04 mục 7.4). Backend mặc định `openai-compatible` (router OpenAI-compatible của nhóm, model Gemini; `COPILOT_BASE_URL`, `COPILOT_API_KEY`, `COPILOT_MODEL`); lựa chọn thứ hai là `anthropic` (SDK chính thức; gợi ý `claude-sonnet-5-5`, kiểm tại [trang models, 06/11/2026](https://platform.claude.com/docs/en/models/overview)). Không đặt cứng ID model trong code. Đổi nhà cung cấp hoặc model chỉ khi cấu hình mới cũng đạt ngưỡng eval ở mục 6. Backend `openai-compatible` gửi `temperature: 0`; backend `anthropic` dùng mặc định của model (Sonnet 5.5 không nhận tham số lấy mẫu). Các vòng tool không stream (như bot Goblin của nhóm); sự kiện `status` và `tool` được đẩy cho trình duyệt theo từng bước. Tool call của router có thể khác chuẩn: tham số là chuỗi hoặc đối tượng đều được nhận, tham số hỏng JSON thì trả lỗi cho mô hình tự gọi lại (không ném lỗi), mọi tham số kiểm lại bằng schema, các tool chạy song song vì đều chỉ đọc. Tối đa 4 vòng tool; vòng cuối gửi `tool_choice: none` để ép mô hình trả lời. Tin nhắn của trợ lý được gửi lại nguyên bản (`rawMessage`) trước các tin `tool`, để giữ thought signature của Gemini. Phần suy luận nội bộ (`<think>`, `<thinking>`, `<thought>`) bị loại trước khi hiện cho người dùng. Log mỗi yêu cầu có model đã xin và model được trả về, số token, tên tool, thời gian, `requestId`; không có nội dung chat hay khóa. Prompt không chứa dữ liệu cá nhân dù dùng nhà cung cấp nào (mục 3.8).
 2. **Dữ kiện tính sẵn:** từ `draft`, server dùng `huiMath` (TS, khớp Solidity từng đơn vị) tính O_max, chỉ số bảo chứng (quỹ dự phòng = 0), allowance cần ký, bảng trần thăm, giá trị một kỳ quy đổi VND, cờ NĐ 19 Điều 14. Khối này đưa cho mô hình như dữ kiện đáng tin. Kiểu `CircleDraft` ở 05 mục 12.1.
 3. **Bộ chạy tool:** đúng 6 tool ở 05 mục 12, hàm thuần trên server, không gọi mạng, không ghi. Kết quả chỉ giữ các trường đã khai báo; chuỗi tự do bị bỏ, trừ văn bản đã duyệt của `explain_rule` và mẫu của `draft_ubnd_notice`.
 4. **Bộ kiểm đầu ra:** chạy trước khi người dùng thấy câu trả lời (mục 3.6). Trượt thì thử lại một lần, trượt nữa thì hiện bảng kết quả tool kèm câu miễn trừ.
@@ -262,7 +262,8 @@ Mỗi ca lưu một dòng JSONL: `id`, `category`, `input`, `draft`, `expectTool
 ### 6.3. Cách chạy (tên lệnh đề xuất, P3 tạo khi dựng harness)
 
 ```bash
-# Người tự export ANTHROPIC_API_KEY trước; agent không đọc .env
+# Người tự export biến COPILOT_PROVIDER, COPILOT_BASE_URL, COPILOT_API_KEY, COPILOT_MODEL (hoặc ANTHROPIC_API_KEY + COPILOT_MODEL
+# cho backend anthropic) trước; agent không đọc file env. Báo cáo ghi nhà cung cấp và model đã dùng, không ghi khóa hay địa chỉ.
 pnpm --filter web test -- copilot          # test tất định: bộ lọc, bộ chạy tool, bộ kiểm (không gọi API)
 pnpm --filter web eval:copilot -- --cases apps/web/lib/copilot/evals/cases.vi.jsonl --runs 3
 # Kết quả: apps/web/lib/copilot/evals/reports/<ngày>.json và .md (dán bảng vào README)
@@ -272,7 +273,7 @@ Chạy eval đầy đủ ở M4 (16/11) và trước khi nộp. Kết quả là 
 
 ## 7. Chi phí và độ trễ (ước tính)
 
-Giá kiểm ngày 06/11/2026 tại [trang giá của Anthropic](https://platform.claude.com/docs/en/about-claude/pricing): Claude Sonnet 5.5 giá 2 USD/1 triệu token vào, 10 USD/1 triệu token ra, đọc cache 0,10 USD; Claude Haiku 5.5 từ 0,10 và 0,50 USD; tool use thêm 286 token hệ thống mỗi lời gọi.
+Phần này tính cho backend `anthropic`; với router Gemini giá tùy router, đo bằng `usage` thật của harness. Giá kiểm ngày 06/11/2026 tại [trang giá của Anthropic](https://platform.claude.com/docs/en/about-claude/pricing): Claude Sonnet 5.5 giá 2 USD/1 triệu token vào, 10 USD/1 triệu token ra, đọc cache 0,10 USD; Claude Haiku 5.5 từ 0,10 và 0,50 USD; tool use thêm 286 token hệ thống mỗi lời gọi.
 
 Giả định cho một câu trả lời: 2 lời gọi API (chọn tool, rồi viết câu trả lời); system prompt 1.500 token; định nghĩa tool 900; dữ kiện 300; lịch sử và câu hỏi 600; kết quả tool 400; đầu ra 550 token, cộng tới 1.000 token suy nghĩ (adaptive thinking, cần đo). Token tiếng Việt cần đo bằng `usage` thật.
 
