@@ -1,0 +1,36 @@
+{
+  "scenario": "baseline",
+  "generatedAt": "2026-11-08T08:26:37Z",
+  "results": [
+    {
+      "design": "traditional",
+      "lateReceiverExpectedLossPct": 4.987086,
+      "lateReceiverP95LossPct": 24.040256,
+      "circleFailureProb": 0.2333,
+      "uncoveredMeanUsdc": 58.422336,
+      "bondUsageMeanPct": 42.743936,
+      "organizerNetReturnPct": -16.869551
+    },
+    {
+      "design": "naive_onchain",
+      "lateReceiverExpectedLossPct": 6.37065,
+      "lateReceiverP95LossPct": 23.901354,
+      "circleFailureProb": 0.6246,
+      "uncoveredMeanUsdc": 313.88571,
+      "bondUsageMeanPct": null,
+      "organizerNetReturnPct": null
+    },
+    {
+      "design": "huisafe",
+      "lateReceiverExpectedLossPct": 0.000324,
+      "lateReceiverP95LossPct": 0.0,
+      "circleFailureProb": 0.0001,
+      "uncoveredMeanUsdc": 0.031831,
+      "bondUsageMeanPct": 17.037362,
+      "organizerNetReturnPct": -8.601185
+    }
+  ],
+  "charts": [
+    "outputs/baseline_loss.png"
+  ]
+}

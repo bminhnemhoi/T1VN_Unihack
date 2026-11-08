@@ -1,12 +1,13 @@
 """Command line entry: ``python -m huisim.cli <command>``.
 
-Only ``vectors`` exists for now (docs/08 section 5.2); ``run`` and ``sweep`` arrive with
-the simulation model.
+``vectors`` writes the shared HuiMath vectors; ``run`` simulates a scenario (E1);
+``inv08`` measures sequential versus same-round receiver defaults. ``sweep`` is cut for now.
 """
 
 from __future__ import annotations
 
 import argparse
+import dataclasses
 import json
 import sys
 from collections.abc import Callable, Sequence
@@ -17,6 +18,7 @@ import numpy as np
 
 from . import math as hm
 from .hashing import commit_hash
+from .scenarios import load_scenario
 
 VECTOR_VERSION = 1
 DEFAULT_SEED = 7
@@ -336,6 +338,37 @@ def _cmd_vectors(args: argparse.Namespace) -> int:
     return 0
 
 
+def _scenario_from_args(args: argparse.Namespace) -> tuple[Any, str]:
+    sc, sha = load_scenario(args.scenario)
+    if args.seed is not None:
+        sc = dataclasses.replace(sc, seed=args.seed)
+    if args.circles is not None:
+        sc = dataclasses.replace(sc, circles=args.circles)
+    return sc, sha
+
+
+def _cmd_run(args: argparse.Namespace) -> int:
+    from .experiments import run_scenario
+
+    sc, sha = _scenario_from_args(args)
+    run_scenario(sc, sha, Path(args.out_dir), charts=not args.no_charts)
+    print(
+        f"wrote {args.out_dir}/{sc.id}.json (+ .meta.json) for {sc.circles} circles, seed {sc.seed}"
+    )
+    return 0
+
+
+def _cmd_inv08(args: argparse.Namespace) -> int:
+    from .experiments import run_inv08
+
+    sc, sha = _scenario_from_args(args)
+    run_inv08(sc, sha, Path(args.out_dir), charts=not args.no_charts)
+    print(
+        f"wrote {args.out_dir}/inv08.json (+ .meta.json) for {sc.circles} circles, seed {sc.seed}"
+    )
+    return 0
+
+
 def main(argv: Sequence[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="huisim.cli", description="HuiSafe simulation room")
     sub = parser.add_subparsers(dest="command", required=True)
@@ -343,6 +376,17 @@ def main(argv: Sequence[str] | None = None) -> int:
     p_vec.add_argument("--seed", type=int, default=DEFAULT_SEED)
     p_vec.add_argument("--out", required=True, help="e.g. ../contracts/test/vectors/huimath.json")
     p_vec.set_defaults(func=_cmd_vectors)
+    for name, fn, text in (
+        ("run", _cmd_run, "simulate a scenario and write outputs"),
+        ("inv08", _cmd_inv08, "sequential versus same-round receiver defaults"),
+    ):
+        p = sub.add_parser(name, help=text)
+        p.add_argument("--scenario", default="baseline")
+        p.add_argument("--seed", type=int, default=None, help="overrides the scenario seed")
+        p.add_argument("--circles", type=int, default=None, help="overrides the scenario circles")
+        p.add_argument("--out-dir", default="outputs")
+        p.add_argument("--no-charts", action="store_true")
+        p.set_defaults(func=fn)
     args = parser.parse_args(argv)
     return int(args.func(args))
 
