@@ -2,6 +2,7 @@
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
 
+@custom-variant dark (&:is(.dark *));
 
 @theme inline {
   --font-heading: var(--font-sans);
@@ -15,6 +16,11 @@
   --color-sidebar-foreground: var(--sidebar-foreground);
   --color-sidebar: var(--sidebar);
   --color-ngoc: var(--ngoc);
+  --color-muc-dem: var(--muc-dem);
+  --color-nghe: var(--nghe);
+  --color-le-do-sang: var(--le-do-sang);
+  --font-display: var(--font-display);
+  --font-hand: var(--font-hand);
   --color-nghe-bg: var(--nghe-bg);
   --color-nghe-fg: var(--nghe-fg);
   --color-le-do: var(--le-do);
@@ -41,6 +47,26 @@
   --color-card: var(--card);
   --color-foreground: var(--foreground);
   --color-background: var(--background);
+  /* Semantic roles (apps/web/DESIGN.md): action colour depends on the surface, state colours only mean state. */
+  --color-action: var(--action);
+  --color-action-ink: var(--action-ink);
+  --color-state-ok: var(--state-ok);
+  --color-state-warn: var(--state-warn);
+  --color-state-warn-bg: var(--state-warn-bg);
+  --color-state-bad: var(--state-bad);
+  /* Role type scale (1rem = 18px). Use text-display / text-h1 ... instead of one-off sizes. */
+  --text-display: clamp(2.75rem, 8vw, 5.5rem);
+  --text-display--line-height: 1.02;
+  --text-h1: clamp(2.25rem, 4.5vw, 3rem);
+  --text-h1--line-height: 1.1;
+  --text-h2: clamp(1.75rem, 3.2vw, 2.25rem);
+  --text-h2--line-height: 1.15;
+  --text-h3: 1.5rem;
+  --text-h3--line-height: 1.25;
+  --text-lead: 1.25rem;
+  --text-lead--line-height: 1.5;
+  --text-numeral: clamp(2.75rem, 7vw, 4.25rem);
+  --text-numeral--line-height: 1;
   --radius-sm: calc(var(--radius) * 0.6);
   --radius-md: calc(var(--radius) * 0.8);
   --radius-lg: var(--radius);
@@ -88,6 +114,16 @@
   --nghe-bg: #fff0bf;
   --nghe-fg: #5a3a00;
   --le-do: #a91d1d;
+  --muc-dem: #0c1730; /* mực đêm: S01 dark band */
+  --nghe: #e8b04a; /* nghệ: highlight on dark */
+  --le-do-sang: #ff8a80; /* red on dark, 8:1 */
+  /* Semantic roles mapped onto the approved palette. */
+  --action: #1c4bb5; /* primary action on paper */
+  --action-ink: #e8b04a; /* primary action on the dark ink band (text #0c1730 on it, 9:1) */
+  --state-ok: #0a6246;
+  --state-warn: #5a3a00;
+  --state-warn-bg: #fff0bf;
+  --state-bad: #a91d1d;
 }
 
 @layer base {
@@ -105,7 +141,6 @@
   html {
     font-size: 18px; /* body text >= 18px (docs/02 section 7) */
     line-height: 1.6;
-    scroll-behavior: smooth;
   }
   body {
     font-feature-settings: "tnum" 0;
@@ -120,8 +155,18 @@
     outline-offset: 2px;
   }
   h1, h2, h3 {
-    letter-spacing: -0.01em;
+    letter-spacing: -0.02em;
     text-wrap: balance;
+  }
+  /* Taps respond at once: no 300 ms double-tap wait, no grey flash, our own pressed state instead. */
+  a, button, summary, label, input, [role="switch"], [role="checkbox"], [role="radio"] {
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+  }
+  /* Pressed state: the transition lives only on :active, so hover never animates under a scrolling finger. */
+  a:active, button:not(:disabled):active, summary:active, [role="radio"]:active, [role="checkbox"]:active {
+    transform: scale(0.97);
+    transition: transform 80ms ease-out;
   }
 }
 
@@ -170,4 +215,113 @@
     transition: none !important;
     scroll-behavior: auto !important;
   }
+}
+
+/* ---------- Sổ hụi, rich version (DESIGN-BRIEF v2): texture, depth, stamp, entrance ---------- */
+@layer base {
+  body {
+    background-image:
+      repeating-linear-gradient(to bottom, transparent 0 35px, rgb(17 32 63 / 0.045) 35px 36px);
+  }
+  h1, h2, h3 { text-wrap: balance; }
+  p, li { text-wrap: pretty; }
+}
+
+@layer components {
+  .font-display { font-family: var(--font-display), Georgia, serif; }
+  .font-hand { font-family: var(--font-hand), cursive; }
+
+  /* Paper sheet: layered ink-tinted shadows + hairline border + top highlight. */
+  .to-giay {
+    background: var(--card);
+    border-radius: 0.75rem;
+    box-shadow:
+      0 1px 0 rgb(255 255 255 / 0.9) inset,
+      0 1px 2px rgb(17 32 63 / 0.08),
+      0 8px 24px -8px rgb(17 32 63 / 0.18);
+  }
+  .to-giay-nang {
+    box-shadow:
+      0 1px 0 rgb(255 255 255 / 0.9) inset,
+      0 2px 4px rgb(17 32 63 / 0.1),
+      0 24px 48px -16px rgb(17 32 63 / 0.4);
+  }
+  /* Flat panel for dense data (tables, ledgers): a hairline, no shadow. */
+  .o-phang {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 0.75rem;
+  }
+  .the-nang {
+    transition-property: transform, box-shadow;
+    transition-duration: 180ms;
+    transition-timing-function: ease-out;
+  }
+  .the-nang:hover { transform: translateY(-2px); }
+
+  /* Dark ink band with film grain (inline SVG noise) and faint ruling. */
+  .nen-muc {
+    position: relative;
+    isolation: isolate;
+    background-color: var(--muc-dem);
+    color: #f5f7fa;
+  }
+  .nen-muc::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    opacity: 0.5;
+    background-image: repeating-linear-gradient(to bottom, transparent 0 39px, rgb(245 247 250 / 0.05) 39px 40px);
+  }
+  .vien-le-do { position: relative; padding-left: 1.25rem; }
+  .vien-le-do::before {
+    content: ""; position: absolute; inset-block: 0; left: 0; width: 5px;
+    border-inline: 1px solid var(--le-do); opacity: 0.85;
+  }
+  .nen-muc .vien-le-do::before { border-color: var(--le-do-sang); }
+
+  /* One orchestrated hero entrance: children with .vao rise in sequence. */
+  .vao { transform: translateY(12px); animation: vao 500ms cubic-bezier(0.16, 1, 0.3, 1) forwards; animation-delay: calc(var(--i, 0) * 70ms); }
+
+  /* Slider (native range, styled, 48px hit area). */
+  .thanh-keo { appearance: none; width: 100%; height: 3rem; background: transparent; cursor: pointer; }
+  .thanh-keo::-webkit-slider-runnable-track { height: 10px; border-radius: 999px; background: linear-gradient(to right, var(--ngoc) var(--fill, 0%), var(--secondary) var(--fill, 0%)); box-shadow: inset 0 0 0 1px var(--input); }
+  .thanh-keo::-moz-range-track { height: 10px; border-radius: 999px; background: var(--secondary); box-shadow: inset 0 0 0 1px var(--input); }
+  .thanh-keo::-moz-range-progress { height: 10px; border-radius: 999px; background: var(--ngoc); }
+  .thanh-keo::-webkit-slider-thumb { appearance: none; width: 2rem; height: 2rem; margin-top: -11px; border-radius: 999px; background: var(--card); border: 3px solid var(--foreground); box-shadow: 0 2px 6px rgb(17 32 63 / 0.35); transition: transform 150ms ease-out; }
+  .thanh-keo::-moz-range-thumb { width: 1.7rem; height: 1.7rem; border-radius: 999px; background: var(--card); border: 3px solid var(--foreground); box-shadow: 0 2px 6px rgb(17 32 63 / 0.35); }
+  .thanh-keo:active::-webkit-slider-thumb { transform: scale(1.12); }
+
+  /* FAQ: details with a rotating mark. */
+  details.hoi > summary { list-style: none; cursor: pointer; }
+  details.hoi > summary::-webkit-details-marker { display: none; }
+  details.hoi[open] .dau-cong { transform: rotate(45deg); }
+}
+
+/* Border beam: a conic wedge that rotates (transform only) behind a masked 2 px ring. */
+.beam-ring {
+  position: absolute; inset: 0; border-radius: inherit; pointer-events: none; overflow: hidden;
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor; mask-composite: exclude;
+}
+.beam-ring::before {
+  content: ""; position: absolute; left: 50%; top: 50%; width: 250%; height: 250%; translate: -50% -50%;
+  background: conic-gradient(from 0deg, transparent 0 90%, var(--beam-1) 96%, var(--beam-2) 100%);
+  animation: beam-spin var(--beam-d, 9s) linear infinite; animation-play-state: var(--beam-state, running);
+  will-change: rotate;
+}
+@keyframes beam-spin { to { rotate: 360deg; } }
+
+@keyframes vao { to { transform: none; } }
+@keyframes dau-xuong {
+  0% { transform: rotate(-9deg) scale(1.5); opacity: 0; }
+  60% { transform: rotate(-4deg) scale(0.96); opacity: 1; }
+  100% { transform: rotate(-4deg) scale(1); opacity: 1; }
+}
+.dau-xuong { animation: dau-xuong 320ms cubic-bezier(0.16, 1, 0.3, 1) both; }
+
+@media (prefers-reduced-motion: reduce) {
+  .vao { transform: none !important; }
+  .beam-ring { display: none; }
 }

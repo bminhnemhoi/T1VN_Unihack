@@ -5,6 +5,9 @@ const nextConfig: NextConfig = {
   transpilePackages: ['sdk', 'config'],
   // Monorepo root (silences the multiple-lockfile warning); `next` runs with cwd = apps/web.
   outputFileTracingRoot: path.resolve(process.cwd(), '../..'),
+  poweredByHeader: false,
+  // The umbrella `radix-ui` package otherwise ships every primitive (menubar, accordion, ...) to the landing page.
+  experimental: { optimizePackageImports: ['radix-ui', 'lucide-react'] },
   // Lint runs through `pnpm -r lint` (root flat config), not through `next build`.
   eslint: { ignoreDuringBuilds: true },
 };

@@ -1,9 +1,14 @@
+import { memo } from 'react';
 import { formatBps, formatUsdc, MIN_COVERAGE_BPS, type Preview } from 'sdk';
+import { Seal } from '@/components/brand/Seal';
 import { LedgerList } from '@/components/LedgerList';
 import { Button } from '@/components/ui/button';
+import { NumberTicker } from '@/components/ui/number-ticker';
 import { vi } from '@/lib/vi';
 
 interface Props {
+  /** Makes element ids unique when the panel is rendered twice (desktop column and mobile sheet). */
+  idPrefix?: string;
   preview: Preview;
   bond: bigint;
   alphaBps: bigint;
@@ -11,45 +16,41 @@ interface Props {
 }
 
 /**
- * Live "Chỉ số bảo chứng". The one bold element of the screen: a big numeral, a ruler with the 50% line,
- * and a seal that stamps once the circle may start. State is always written in words, never colour only.
+ * Live "Chỉ số bảo chứng" for the wizard: a big numeral that ticks, a ruler with the 50% line, and a red seal that
+ * drops once the circle may start. State is always in words too, never colour alone.
  */
-export function CoverageMeter({ preview, bond, alphaBps, onFillBond }: Props) {
+export const CoverageMeter = memo(function CoverageMeter({ idPrefix = 'cov', preview, bond, alphaBps, onFillBond }: Props) {
   const pct = Math.min(100, Number(preview.coverageBps) / 100);
   const minPct = Number(MIN_COVERAGE_BPS) / 100;
   const ok = preview.canActivate;
   return (
     <div>
-      <h2 id="cov-title" className="text-2xl font-bold">
+      <h2 id={`${idPrefix}-title`} className="font-display text-2xl font-bold">
         Chỉ số bảo chứng
       </h2>
       <p className="text-muted-foreground">{vi.help.coverage}</p>
 
       <div className="mt-3 flex items-center justify-between gap-3">
-        <p className="so-ke text-[3.5rem] leading-none font-bold" aria-live="polite" aria-atomic="true">
-          {formatBps(preview.coverageBps)}
+        <p className="font-display flex items-baseline leading-none font-bold" aria-label={formatBps(preview.coverageBps)}>
+          <NumberTicker value={pct} decimalPlaces={Number.isInteger(pct) ? 0 : 1} className="text-[3.75rem] sm:text-[4.5rem]" />
+          <span className="text-4xl">%</span>
         </p>
-        {ok && (
-          // key restarts the stamp animation each time the state flips to "enough"
-          <p key="dau" className="dau-do -rotate-[4deg] rounded-sm border-[3px] border-ngoc px-3 py-1 text-center text-lg leading-tight font-bold text-ngoc">
-            Đủ để
-            <br />
-            bắt đầu dây
-          </p>
-        )}
+        <div className="grid size-24 shrink-0 place-content-center">
+          {ok && <Seal key="dau" size={84} center="Đủ" ring="ĐỦ BẢO CHỨNG · BẮT ĐẦU DÂY · " className="dau-xuong text-ngoc" />}
+        </div>
       </div>
 
       <div
         role="meter"
-        aria-labelledby="cov-title"
+        aria-labelledby={`${idPrefix}-title`}
         aria-valuemin={0}
         aria-valuemax={100}
         aria-valuenow={pct}
         aria-valuetext={`${formatBps(preview.coverageBps)}, ${ok ? 'đủ để bắt đầu dây' : 'chưa đủ để bắt đầu dây'}`}
-        className="relative mt-4 h-5 rounded-sm bg-secondary"
+        className="relative mt-4 h-4 rounded-full bg-secondary shadow-[inset_0_0_0_1px_var(--input)]"
       >
-        <div className={`h-full rounded-sm transition-[width] duration-200 ${ok ? 'bg-ngoc' : 'bg-nghe-fg'}`} style={{ width: `${pct}%` }} />
-        <div aria-hidden className="absolute -top-1 -bottom-1 w-0.5 bg-foreground" style={{ left: `${minPct}%` }} />
+        <div className={`h-full origin-left rounded-full transition-transform duration-200 ease-out ${ok ? 'bg-ngoc' : 'bg-nghe-fg'}`} style={{ transform: `scaleX(${pct / 100})` }} />
+        <div aria-hidden className="absolute -top-1.5 -bottom-1.5 w-0.5 bg-foreground" style={{ left: `${minPct}%` }} />
       </div>
       <div aria-hidden className="so-ke relative mt-1 h-6 text-base text-muted-foreground">
         <span className="absolute left-0">0%</span>
@@ -83,4 +84,4 @@ export function CoverageMeter({ preview, bond, alphaBps, onFillBond }: Props) {
       )}
     </div>
   );
-}
+});
