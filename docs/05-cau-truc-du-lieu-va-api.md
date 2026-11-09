@@ -649,24 +649,26 @@ Tất cả nhận và trả JSON; số tiền gửi dưới dạng chuỗi (bigi
 ### 8.1. `POST /api/attest`
 
 - Header: `Authorization: Bearer <Privy access token>`.
-- Body: `{ "circle": "0x..." }`.
-- Kiểm: token Privy hợp lệ (SDK server của Privy); địa chỉ embedded wallet của user; user đã tick xác nhận đủ 18 tuổi; giới hạn một ví mỗi người và 20 yêu cầu mỗi giờ; `factory.isCircle(circle)`.
+- Body: `{ "circle": "0x...", "ageConfirmed": true }`. `ageConfirmed` là ô tự xác nhận đủ 18 tuổi trên giao diện; khác `true` thì trả `AgeNotConfirmed`. Địa chỉ thành viên KHÔNG nằm trong body: server lấy từ ví nhúng Ethereum của chính user ở Privy, nên không xin được xác nhận cho ví khác.
+- Kiểm: token Privy hợp lệ (SDK server `@privy-io/node`, qua một interface để test giả lập); địa chỉ embedded wallet của user; user đã tick xác nhận đủ 18 tuổi; giới hạn một ví mỗi người và 20 yêu cầu mỗi giờ; `factory.isCircle(circle)`.
 - `attestationId = keccak256(serverSecret ‖ privyUserId ‖ circle)` (không đảo ngược được, không lưu dữ liệu cá nhân).
-- Trả: `{ "attestation": { member, circle, attestationId, expiry }, "signature": "0x..." }`, `expiry` = now + 1 giờ.
+- Trả: `{ "attestation": { member, circle, attestationId, expiry }, "signature": "0x..." }`, `expiry` = now + 1 giờ (chuỗi số). Lỗi trả `{ "error": { "code", "message" } }` (401 chưa đăng nhập, 400 `AgeNotConfirmed`, 404 `NotCircle`, 409 `NoWallet`, 429 `RateLimited`, 503 `NotConfigured`). Giới hạn thêm 120 yêu cầu/giờ mỗi IP.
 
 ### 8.2. `POST /api/relay`
 
 - Body: `{ "request": { from, to, value: "0", gas, deadline, data }, "signature": "0x..." }`.
+- Trước các bước kiểm: giới hạn 300 yêu cầu/giờ mỗi IP và ngân sách chung 1.500 yêu cầu/giờ cho cả dịch vụ (chặn cạn ví relayer); vượt thì 429 hoặc 503 `RelayBusy`.
 - Kiểm, theo thứ tự:
   1. `to` là factory hoặc `factory.isCircle(to)`.
-  2. Selector của `data` nằm trong danh sách cho phép:
+  2. Selector của `data` nằm trong danh sách cho phép, theo loại đích (`createCircle` chỉ gửi tới factory, các hàm còn lại chỉ tới dây; `pause`, `unpause`, `emergencyUnwind`, `initialize` không bao giờ):
      - Người dùng: `createCircle`, `depositBond`, `withdrawBond`, `join`, `leave`, `activate`, `commitBid`, `revealBid`, `payLate`, `repayDebt`, `claim`.
      - Hàm ai cũng gọi được, để nút "Chốt kỳ" trên web chạy không tốn gas khi keeper chậm: `settleRound`, `markDefault`, `finalize`, `cancel`.
   3. `value == 0`; `gas` ≤ 3.000.000, riêng `settleRound` và `finalize` ≤ 5.000.000 (ca cực đoan N = 30 cả dây cùng thiếu tốn khoảng 4,1 đến 5 triệu gas, xem 04 mục 7.1).
-  4. Rate limit 30 yêu cầu/giờ mỗi `from`.
-  5. `forwarder.verify(request)` bằng `eth_call`.
-  6. Mô phỏng `execute` bằng `eth_call`.
-- Gửi bằng ví relayer (nạp AVAX testnet, cảnh báo khi số dư < 1 AVAX).
+  4. `forwarder.verify(request)` bằng `eth_call`.
+  5. Rate limit 30 yêu cầu/giờ mỗi `from`, chỉ tính cho yêu cầu đã qua bước 4 (chữ ký sai không làm hao hạn mức của người khác).
+  6. Riêng `createCircle` (ai ký cũng gửi được, mỗi dây tốn gas): cần header `Authorization: Bearer <Privy access token>` của chính tài khoản có ví nhúng trùng `from`, tối đa 5 dây/giờ mỗi tài khoản.
+  7. Mô phỏng `execute` bằng `eth_call`. Forwarder chỉ báo `FailedCall` khi lệnh con lỗi, nên khi mô phỏng thất bại relay chạy lại lệnh con (nối thêm địa chỉ người ký theo ERC-2771) để giải mã custom error thật.
+- Gửi bằng ví relayer (nạp AVAX testnet, cảnh báo khi số dư < 1 AVAX; dưới 0,05 AVAX thì dừng gửi và trả 503 `RelayUnavailable`). Các lệnh gửi đi qua một khóa tuần tự để không trùng nonce, và bộ giới hạn nằm trong bộ nhớ nên relay phải chạy như MỘT tiến trình Node liên tục (không serverless nhiều bản); cần nhiều bản thì chuyển bộ giới hạn và nonce sang kho dùng chung.
 - Trả: `{ "txHash": "0x..." }` hoặc `{ "error": { "code", "message" } }` (mã lỗi custom error đã giải mã).
 
 ### 8.3. `GET /api/circles/[address]/so-ho?format=json|pdf`

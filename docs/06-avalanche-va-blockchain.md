@@ -176,6 +176,16 @@ cast call 0x5425890298aed601595a70AB815c96711a31Bc65 "version()(string)" --rpc-u
 8. `/sync-abi`, rồi `forge script script/CreateDemoCircle.s.sol --rpc-url fuji --broadcast`. Mở trang của dây demo trên Snowtrace. Clone EIP-1167 thường được explorer nhận là minimal proxy; cần kiểm tra trên trang contract của một dây.
 9. Commit `fuji.json`, ghi địa chỉ và tx hash vào README.
 
+### 6.2a. Chạy thử toàn bộ trên anvil (trước khi deploy Fuji)
+
+Kịch bản A8: deploy, tạo dây demo C = 10 USDC, 5 thành viên vào qua `/api/attest` + permit + `/api/relay` (không tốn gas), thăm kín, keeper chi 5 kỳ, nhánh B (M4 vỡ nợ), `finalize`; kiểm từng con số của docs/03 mục 8 chia 10 (M4 nhận 28,848; M1 nhận 32,318; ký quỹ còn 16). Chỉ dùng mnemonic mặc định công khai của anvil, không đọc file bí mật, không chạm Fuji:
+
+```bash
+pnpm --filter web e2e:anvil        # tự bật anvil ở 127.0.0.1:8545, ghi contracts/deployments/anvil.json (git bỏ qua)
+```
+
+Chạy từng phần bằng tay: `anvil`, rồi `forge script script/Deploy.s.sol --rpc-url http://127.0.0.1:8545 --broadcast` và `forge script script/CreateDemoCircle.s.sol --rpc-url http://127.0.0.1:8545 --broadcast` (đặt `DEPLOYER_PRIVATE_KEY`, `DEMO_ORGANIZER_PRIVATE_KEY`, `ATTESTER_ADDRESS`; trên anvil các biến này dùng khóa mặc định của anvil). Web, relay và keeper đọc `HUISAFE_NETWORK=anvil`. Deploy lên Fuji giữ nguyên lệnh ở mục 6.2 bước 5; verify trên Snowtrace chỉ chạy lúc deploy Fuji, không chạy trong A8.
+
 ### 6.3. Checklist triển khai
 
 - [ ] `cast chain-id` in 43113. Không lệnh nào trỏ tới `api.avax.network` (hook `guard-bash.sh` chặn mainnet).

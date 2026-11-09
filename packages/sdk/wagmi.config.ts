@@ -10,6 +10,7 @@ export default defineConfig({
       include: [
         'HuiFactory.sol/**',
         'HuiCircle.sol/**',
+        'IHuiCircle.sol/**',
         'MockUSDC.sol/**',
         'IReputationRegistry.sol/**',
         'IUSDCPermit.sol/**',
