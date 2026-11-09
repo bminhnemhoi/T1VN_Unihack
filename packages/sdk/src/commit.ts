@@ -74,7 +74,20 @@ export const indexedDbSaltStore: SaltStore = {
   },
   async set(key, value) {
     const db = await openDb();
-    await req(db.transaction(STORE, 'readwrite').objectStore(STORE).put(value, key));
+    // Wait for the transaction itself (not just the request) with strict durability: a salt must be on disk before the
+    // commit is sent, or a tab closed right after sending could lose it.
+    await new Promise<void>((resolve, reject) => {
+      const tx = db.transaction(STORE, 'readwrite', { durability: 'strict' });
+      tx.objectStore(STORE).put(value, key);
+      tx.oncomplete = () => {
+        db.close();
+        resolve();
+      };
+      tx.onerror = tx.onabort = () => {
+        db.close();
+        reject(tx.error ?? new Error('IndexedDB write failed'));
+      };
+    });
   },
   async list() {
     const db = await openDb();
