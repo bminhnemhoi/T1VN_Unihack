@@ -66,7 +66,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
           <HuiWalletProvider>
             <ToastProvider>
               <FontSizeInit />
-              <DemoBanner />
+              <DemoBanner sample={chain === null} />
               {chain === null && <SampleModeLabel />}
               <SiteHeader />
               {children}

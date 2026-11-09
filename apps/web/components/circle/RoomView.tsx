@@ -80,7 +80,7 @@ export function RoomView({ c }: { c: SampleCircleData }) {
           <RoundTimeline phase={phase} />
         </div>
         <div className="mt-6 grid gap-6 lg:grid-cols-[3fr_2fr] lg:items-start [&>*]:min-w-0">
-          <SealedBidCard c={c} phase={phase} round={k} maxBid={maxBid} revealBond={revealBond} commitSeconds={c.roundSecondsLeft} />
+          <SealedBidCard key={k} c={c} phase={phase} round={k} maxBid={maxBid} revealBond={revealBond} commitSeconds={c.roundSecondsLeft} />
           <section aria-labelledby="luat-ky" className="o-phang p-6">
             <h3 id="luat-ky" className="font-display text-h3 font-bold">
               Luật của kỳ này
