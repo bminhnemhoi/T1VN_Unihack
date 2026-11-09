@@ -22,6 +22,8 @@ export interface Addresses {
   attester?: Address;
   relayer?: Address;
   deployedAt?: string;
+  /** Lower bound block for event scans. */
+  deployBlock?: number;
   gitCommit?: string;
 }
 
@@ -59,6 +61,7 @@ export function parseDeployment(text: string, allowedChainIds: readonly number[]
     if (isAddress(r[key])) out[key] = r[key];
   }
   if (typeof r.deployedAt === 'string') out.deployedAt = r.deployedAt;
+  if (typeof r.deployBlock === 'number' && Number.isSafeInteger(r.deployBlock) && r.deployBlock >= 0) out.deployBlock = r.deployBlock;
   if (typeof r.gitCommit === 'string') out.gitCommit = r.gitCommit;
   out.deployed = Boolean(out.factory && out.forwarder && out.usdc && out.reputation);
   return out.deployed ? out : NOT_DEPLOYED;

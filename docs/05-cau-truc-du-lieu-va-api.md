@@ -556,11 +556,12 @@ export const FUJI = {
   "attester": "0x...",
   "relayer": "0x...",
   "deployedAt": "2026-11-11T13:00:00Z",
+  "deployBlock": 12345678,
   "gitCommit": "abcdef1"
 }
 ```
 
-Trường `"wired": false` chỉ xuất hiện khi deploy với `ADMIN` khác deployer và `ALLOW_UNWIRED=true` (admin còn phải gọi `registry.setFactory` một lần); thiếu trường nghĩa là đã nối xong. Trên Fuji, script chỉ ghi file khi `WRITE_DEPLOYMENT=true`.
+`deployBlock` là mốc dưới cho việc quét event của SDK (RPC công khai giới hạn khoảng block, quét theo đoạn từ đây). Trường `"wired": false` chỉ xuất hiện khi deploy với `ADMIN` khác deployer và `ALLOW_UNWIRED=true` (admin còn phải gọi `registry.setFactory` một lần); thiếu trường nghĩa là đã nối xong. Trên Fuji, script chỉ ghi file khi `WRITE_DEPLOYMENT=true`.
 
 ---
 

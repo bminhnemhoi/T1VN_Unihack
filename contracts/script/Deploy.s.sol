@@ -208,6 +208,7 @@ contract Deploy is Script {
         vm.serializeAddress(k, "attester", d.attester);
         vm.serializeAddress(k, "relayer", d.relayer);
         vm.serializeString(k, "deployedAt", _iso(block.timestamp));
+        vm.serializeUint(k, "deployBlock", block.number); // lower bound for event scans (docs/05 section 6.2)
         if (!d.wired) vm.serializeBool(k, "wired", false);
         string memory json = vm.serializeString(k, "gitCommit", p.gitCommit);
         vm.writeJson(json, p.outPath);

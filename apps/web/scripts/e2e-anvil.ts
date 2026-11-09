@@ -34,7 +34,10 @@ import {
   huiFactoryAbi,
   iReputationRegistryAbi,
   mockUsdcAbi,
+  listCircles,
   newSalt,
+  quoteRepay,
+  readCircle,
   signForwardRequest,
   signPermit,
   type SignContext,
@@ -299,6 +302,8 @@ async function scenario(): Promise<void> {
   const roundInfo = (k: number) =>
     rd<{ winner: Address; winningBid: bigint; pot: bigint; payout: bigint; holdback: bigint; fee: bigint; premium: bigint; uncovered: bigint; settledAt: bigint; feeForfeited: boolean }>('roundInfo', [k]);
 
+  const view = () => readCircle(pub, circle, { factory, fromBlock: 0n });
+
   step('5. round 1: M2 bids 0.4, M4 bids 0.6 (sealed), reveal, keeper settles');
   await warpTo(await roundStart(1));
   await commit(1, 1, 400_000n);
@@ -319,6 +324,14 @@ async function scenario(): Promise<void> {
   check('round 1 holdback kept from M4', r1.holdback, 8n * ONE);
   check('M4 receives', r1.payout, 28_848_000n);
   check('M4 wallet balance rose by exactly that', (await bal(M[3]!.address)) - m4Before1, 28_848_000n);
+  const v1 = await view();
+  check('readCircle: one circle in the directory', (await listCircles(pub, factory)).length, 1);
+  check('readCircle: state active, 5 members', `${v1.state}/${v1.members.length}`, 'active/5');
+  check('readCircle: coverage 10000 bps', v1.coverageBps, 10000);
+  check('readCircle: round 1 done, winner M4, payout 28,848', `${v1.rounds[0]!.phase}/${v1.rounds[0]!.winner}/${v1.rounds[0]!.payout}`, `done/${M[3]!.address}/28848000`);
+  check('readCircle: round 1 holdback 8, bid 0,6', `${v1.rounds[0]!.holdback}/${v1.rounds[0]!.bid}`, '8000000/600000');
+  check('readCircle: M4 is dead (received) with 8 USDC holdback', `${v1.members[3]!.status}/${v1.members[3]!.holdback}`, 'dead/8000000');
+  check('readCircle: currentRound 2, Decree 19 flag off (5 x 10 USDC)', `${v1.currentRound}/${v1.ndc19.mustNotifyCommune}`, '2/false');
 
   step('6. round 2: M4 revokes the allowance; M1 and M2 both bid 0.3, M1 commits first');
   await waitTx(await wallet(M[3]!).writeContract({ address: usdc, abi: mockUsdcAbi, functionName: 'approve', args: [circle, 0n] }));
@@ -338,6 +351,17 @@ async function scenario(): Promise<void> {
   check('M4 shortfall from his own holdback', sf2.fromHoldback, 8n * ONE);
   check('M4 shortfall from the bond', sf2.fromBond, 2n * ONE);
   check('nothing uncovered', sf2.uncovered, 0n);
+  const v2 = await view();
+  check('readCircle: round 2 winner M1, payout 32,318', `${v2.rounds[1]!.winner}/${v2.rounds[1]!.payout}`, `${M[0]!.address}/32318000`);
+  check('readCircle: bond 46', v2.bondRemaining, 46n * ONE);
+  const sfv = v2.rounds[1]!.shortfalls[0]!;
+  check('readCircle: M4 shortfall 10 = 8 holdback + 2 bond, open', `${sfv.member}/${sfv.amount}/${sfv.fromHoldback}/${sfv.fromBond}/${sfv.resolved}`, `${M[3]!.address}/10000000/8000000/2000000/false`);
+  check('readCircle: grace end = settledAt + grace', sfv.graceEndsAt, Number(r2.settledAt) + params.graceSeconds);
+  const nowChain = await chainNow();
+  const quote = quoteRepay(v2, M[3]!.address, nowChain, { round: 2 });
+  const feeOnChain = await rd<bigint>('lateFeeOf', [M[3]!.address, 2]);
+  check('quoteRepay principal = 10 USDC', quote.principal, 10n * ONE);
+  check('quoteRepay late fee equals lateFeeOf on chain', quote.lateFee, feeOnChain);
 
   step('7. branch B: M4 never pays. Keeper waits out the grace period, then marks him BEFORE settling round 3');
   const settled2 = Number(r2.settledAt);
@@ -348,6 +372,9 @@ async function scenario(): Promise<void> {
   const before3 = await keeperTick();
   check('keeper sent markDefault + settleRound', before3.sent, 2);
   check('M4 is marked defaulted', (await rd<{ defaulted: boolean }>('memberInfo', [M[3]!.address])).defaulted, true);
+  const v3 = await view();
+  check('readCircle: M4 is defaultedDead, 3 rounds done', `${v3.members[3]!.status}/${v3.settledRounds}`, 'defaultedDead/3');
+  check('readCircle: M4 reputation has 1 default', v3.members[3]!.reputation.defaults, 1);
   const again = await keeperTick();
   check('a second tick sends nothing (idempotent)', again.sent, 0);
   check('bond after round 3', await rd<bigint>('bondRemaining'), 36n * ONE);
@@ -358,6 +385,9 @@ async function scenario(): Promise<void> {
     check(`bond after round ${k}`, await rd<bigint>('bondRemaining'), bond * ONE);
   }
   check('rounds settled', await rd<number>('settledRounds'), 5);
+  const v5 = await view();
+  check('readCircle: bond 16 after round 5', v5.bondRemaining, 16n * ONE);
+  check('readCircle: all 5 rounds done', v5.rounds.every((r) => r.phase === 'done'), true);
   const winners = await Promise.all([3, 4, 5].map(async (k) => (await roundInfo(k)).winner));
   check('winners of rounds 3, 4, 5', winners.join(','), [memberAddrs[1], memberAddrs[2], memberAddrs[4]].join(','));
 
@@ -375,6 +405,11 @@ async function scenario(): Promise<void> {
   const rep = await pub.readContract({ address: reputation, abi: iReputationRegistryAbi, functionName: 'reputationOf', args: [M[3]!.address] });
   check('M4 has one default on record', rep.defaults, 1);
   check('circle holds no USDC any more', await bal(circle), 0n);
+  const vf = await view();
+  check('readCircle after finalize: completed', vf.state, 'completed');
+  check('readCircle after finalize: M4 defaultedDead, reputation 1 default', `${vf.members[3]!.status}/${vf.members[3]!.reputation.defaults}`, 'defaultedDead/1');
+  check('readCircle after finalize: M1 completed count 1', vf.members[0]!.reputation.completed, 1);
+  check('readCircle after finalize: round 2 fee forfeited visible as payout of M1 unchanged', vf.rounds[1]!.payout, 32_318_000n);
 
   step('9. the real keeper process starts and scans once (entry point smoke test)');
   const child = spawn('pnpm', ['--filter', 'keeper', 'start'], {
