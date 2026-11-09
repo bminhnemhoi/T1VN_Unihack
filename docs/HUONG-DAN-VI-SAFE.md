@@ -16,7 +16,7 @@ Người đọc: leader. Làm một lần, khoảng 20 phút. Cần xong **trư�
 | Số người ký | 3 |
 | Số chữ ký cần cho mỗi lệnh | 2 |
 | Người ký 1 | Towfienes |
-| Người ký 2 | Minh |
+| Người ký 2 | Minh (leader) |
 | Người ký 3 | Ví dự phòng tạm, do Towfienes hoặc Minh giữ. Khi chọn được thành viên đóng góp tốt nhất thì thay bằng ví của người đó (xem bước 5) |
 
 ## Các bước

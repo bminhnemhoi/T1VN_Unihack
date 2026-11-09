@@ -3,6 +3,7 @@
 | Mục | Nội dung |
 |---|---|
 | Người gửi | Towfienes (soạn cùng Claude Code) |
+| Người nhận | Minh (leader) |
 | Trạng thái | Đề xuất. Các thay đổi contract ở mục 11 chờ leader duyệt; sửa tài liệu trước (03 rồi 05), code sau |
 | Nguồn số liệu | Máy tính số nguyên `tools/hui-economics/`, đã kiểm khớp từng đơn vị với các con số mà test contract `WorkedExample.t.sol` khẳng định (mục 3). Chạy lại được bằng 4 lệnh ở README của thư mục đó |
 | Quy ước | Tiền VND minh họa với mức góp 1 triệu/kỳ, tính bằng số nguyên đồng, làm tròn xuống như contract. Trên Fuji, demo thu nhỏ 1 triệu ↔ 10 USDC. Dấu phẩy là dấu thập phân |
@@ -396,7 +397,7 @@ Kiểm sổ: tiền vào (góp + cọc) **24.756.273đ** = tiền ra (con hụi 
 - **Chỉ testnet** (Avalanche Fuji, chainId 43113). Không nhận tiền thật, không bán token.
 - **Quỹ gom chung phải nằm sau multisig** → admin là Safe 2/3.
 - **Repo** public, hoặc private nhưng mời `tuantqse90`, nếu không sẽ bị loại.
-- **Đội tối đa 3 người.** Đang có thêm `khanhle1406`, `yuutosolonely` góp PR: cần chốt ai đứng tên đội, và hỏi BTC người ngoài đội góp code có được không.
+- **Đội tối đa 3 người.** Đang có thêm `khanhle1406`, `yuutosolonely` góp PR: đội 3 người là Towfienes, Minh và một trong hai bạn; cần chốt người thứ ba, và hỏi BTC người ngoài đội góp code có được không.
 - **Mọi dev toggle** (chế độ demo 3 phút mỗi kỳ, lãi giả lập) phải khai báo đầu pitch.
 
 ### 10.2. Bốn ví vai trò của dự án (ADR-21: mỗi vai một ví)
@@ -429,7 +430,7 @@ Kiểm sổ: tiền vào (góp + cọc) **24.756.273đ** = tiền ra (con hụi 
 | Mục | Giá trị |
 |---|---|
 | Người ký 1 | Towfienes |
-| Người ký 2 | Minh |
+| Người ký 2 | Minh (leader) |
 | Người ký 3 | Ví dự phòng tạm (Towfienes hoặc Minh giữ). Khi chọn được thành viên đóng góp tốt nhất thì thay bằng ví người đó |
 | Ngưỡng | 2 trên 3 |
 
