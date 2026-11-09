@@ -28,11 +28,39 @@ export interface ForwardRequestJson {
   data: Hex;
 }
 
+/** Anything that can sign EIP-712 typed data for one address: a Privy embedded wallet, a dev wallet, a viem account. */
+export interface TypedDataSigner {
+  address: Address;
+  signTypedData(args: {
+    domain: Record<string, unknown>;
+    types: Record<string, readonly { name: string; type: string }[]>;
+    primaryType: string;
+    message: Record<string, unknown>;
+  }): Promise<Hex>;
+}
+
 export interface SignContext {
   publicClient: PublicClient;
-  walletClient: WalletClient;
-  account: Account;
+  /** Either `signer`, or `walletClient` + `account` (the original form, still used by tests). */
+  signer?: TypedDataSigner;
+  walletClient?: WalletClient;
+  account?: Account;
   chainId?: number;
+}
+
+const signerAddress = (ctx: SignContext): Address => {
+  const a = ctx.signer?.address ?? ctx.account?.address;
+  if (!a) throw new Error('SignContext needs a signer or an account');
+  return a;
+};
+
+async function signTyped(
+  ctx: SignContext,
+  args: Parameters<TypedDataSigner['signTypedData']>[0],
+): Promise<Hex> {
+  if (ctx.signer) return ctx.signer.signTypedData(args);
+  if (!ctx.walletClient || !ctx.account) throw new Error('SignContext needs a signer or an account');
+  return ctx.walletClient.signTypedData({ account: ctx.account, ...args } as never);
 }
 
 /** Sign a permit that lets `circle` pull `value` USDC base units from the account. The domain is read from the token. */
@@ -44,14 +72,13 @@ export async function signPermit(
   deadlineSec: bigint,
 ): Promise<PermitArg> {
   const chainId = ctx.chainId ?? FUJI_CHAIN_ID;
-  const owner = ctx.account.address;
+  const owner = signerAddress(ctx);
   const [name, version, nonce] = await Promise.all([
     ctx.publicClient.readContract({ address: usdc, abi: mockUsdcAbi, functionName: 'name' }),
     ctx.publicClient.readContract({ address: usdc, abi: mockUsdcAbi, functionName: 'version' }),
     ctx.publicClient.readContract({ address: usdc, abi: mockUsdcAbi, functionName: 'nonces', args: [owner] }),
   ]);
-  const signature = await ctx.walletClient.signTypedData({
-    account: ctx.account,
+  const signature = await signTyped(ctx, {
     domain: usdcPermitDomain(usdc, name, version, chainId),
     types: permitTypes,
     primaryType: 'Permit',
@@ -73,7 +100,7 @@ export async function signForwardRequest(
   opts: { gas?: bigint; deadlineSec: number },
 ): Promise<{ request: ForwardRequestJson; signature: Hex }> {
   const chainId = ctx.chainId ?? FUJI_CHAIN_ID;
-  const from = ctx.account.address;
+  const from = signerAddress(ctx);
   const nonce = await ctx.publicClient.readContract({
     address: forwarder,
     abi: erc2771ForwarderAbi,
@@ -81,8 +108,7 @@ export async function signForwardRequest(
     args: [from],
   });
   const gas = opts.gas ?? 500_000n;
-  const signature = await ctx.walletClient.signTypedData({
-    account: ctx.account,
+  const signature = await signTyped(ctx, {
     domain: forwarderDomain(forwarder, chainId),
     types: forwardRequestTypes,
     primaryType: 'ForwardRequest',

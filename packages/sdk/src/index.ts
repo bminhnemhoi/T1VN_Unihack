@@ -12,3 +12,5 @@ export * from './read';
 export * from './repay';
 export * from './reputation';
 export * from './standing';
+export * from './saltBackup';
+export * from './relayClient';
