@@ -2,7 +2,9 @@
 
 import { useState } from 'react';
 import { formatUsdc, previewCircle } from 'sdk';
+import { BidCalculator } from '@/components/circle/BidCalculator';
 import { LedgerGrid } from '@/components/circle/LedgerGrid';
+import { RepBadge, RepDisclaimer } from '@/components/circle/RepBadge';
 import { RoundStrip } from '@/components/circle/RoundStrip';
 import { RoundTimeline, type Phase } from '@/components/circle/RoundTimeline';
 import { SealedBidCard } from '@/components/circle/SealedBidCard';
@@ -11,11 +13,14 @@ import { LedgerList } from '@/components/LedgerList';
 import { Badge } from '@/components/ui/badge';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { DEMO_LEDGER, DEMO_MEMBERS, SAMPLE_CIRCLES, VIEWER, usdc } from '@/lib/sample';
+import { getSampleCircle } from '@/lib/sample-circles';
 import { TOGGLE_ON } from '@/lib/utils';
 
 const preview = previewCircle({ n: 5n, c: usdc(100), periodDays: 30n, alphaBps: 2000n, bond: usdc(480), capBps: 2000n });
 const MAX_BID_K3 = preview.bidRows[2]!.maxBid; // 3,287671 USDC (docs/03 section 8)
 const CIRCLE = SAMPLE_CIRCLES[0]!;
+const DEMO = getSampleCircle('demo');
+const PAST = DEMO.winnerByRound.map((w, i) => ({ k: i + 1, winner: DEMO.seats[w]!.name, bid: DEMO.bids[i]! }));
 // Only members who have not received may bid (docs/03 section 6.1).
 const BIDDERS = DEMO_MEMBERS.flatMap((m, i) => (m.status === 'live' ? [i === VIEWER ? `${m.name} (bạn)` : m.name] : []));
 
@@ -81,6 +86,28 @@ export function RoomView() {
           </section>
         </div>
       </section>
+
+      <div className="mt-6 grid gap-6 lg:grid-cols-[3fr_2fr] lg:items-start [&>*]:min-w-0">
+        <BidCalculator terms={DEMO.terms} round={3} past={PAST} />
+        <section aria-labelledby="nguoi-trong-day" className="o-phang p-6">
+          <h3 id="nguoi-trong-day" className="font-display text-h3 font-bold">
+            Người trong dây
+          </h3>
+          <ul className="mt-2">
+            <li className="dong-ke flex flex-wrap items-center justify-between gap-x-3 gap-y-1 py-2.5">
+              <span className="font-semibold">Chủ hụi {DEMO.organizerAddr}</span>
+              <RepBadge rep={DEMO.organizerRep} who="organizer" />
+            </li>
+            {DEMO.seats.map((s, i) => (
+              <li key={i} className="dong-ke flex flex-wrap items-center justify-between gap-x-3 gap-y-1 py-2.5 last:border-b-0">
+                <span className="font-semibold">{i === VIEWER ? `${s.name} (bạn)` : s.name}</span>
+                <RepBadge rep={s.rep} showNext={i === VIEWER} />
+              </li>
+            ))}
+          </ul>
+          <RepDisclaimer className="mt-3" />
+        </section>
+      </div>
 
       <div className="mt-12">
         <LedgerGrid members={DEMO_MEMBERS} rounds={DEMO_LEDGER} viewer={VIEWER} phase={phase} />

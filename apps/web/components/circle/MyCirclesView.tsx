@@ -7,12 +7,17 @@ import { formatUsdc, previewCircle } from 'sdk';
 import { Countdown } from '@/components/brand/Countdown';
 import { Seal } from '@/components/brand/Seal';
 import { CircleCard } from '@/components/circle/CircleCard';
+import { LateBanner } from '@/components/circle/LateBanner';
 import { RoundStripLegend } from '@/components/circle/RoundStrip';
 import { LedgerList } from '@/components/LedgerList';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { SAMPLE_CIRCLES, SAMPLE_WALLET, usdc } from '@/lib/sample';
+import { getSampleCircle } from '@/lib/sample-circles';
+
+const FIXED = getSampleCircle('co-dinh');
+const MY_SHORTFALL = FIXED.shortfalls.find((s) => s.member === FIXED.viewer)!;
 
 // Round-3 ceiling of the demo circle (docs/03 section 8: 3,287671 USDC), shown rounded DOWN to cents so it never overstates the cap.
 const CAP_K3 = previewCircle({ n: 5n, c: usdc(100), periodDays: 30n, alphaBps: 2000n, bond: usdc(480), capBps: 2000n }).bidRows[2]!.maxBid;
@@ -38,6 +43,13 @@ export function MyCirclesView() {
       <p className="mt-2 text-lead text-muted-foreground" aria-live="polite">
         {list.length === 0 ? 'Bạn chưa tham gia dây nào.' : `Bạn có ${open.length} dây đang cần chú ý trên ${list.length} dây.`}
       </p>
+
+      {!empty && (
+        <div className="mt-6">
+          <LateBanner circle={FIXED} shortfall={MY_SHORTFALL} payHref="/circles/co-dinh/thieu" />
+          <p className="mt-2 text-muted-foreground">Khoản thiếu này thuộc dây {FIXED.label}.</p>
+        </div>
+      )}
 
       {list.length > 0 ? (
         <div className="mt-8 grid gap-8 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)] lg:items-start">

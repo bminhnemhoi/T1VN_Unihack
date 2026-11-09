@@ -4,17 +4,19 @@ import { ChevronUp, RotateCcw } from 'lucide-react';
 import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
 import { formatBps, formatUsdc, formatUsdcNumber, parseUsdc, previewCircle } from 'sdk';
 import { BidTable } from '@/components/BidTable';
+import { RiskTable } from '@/components/circle/RiskTable';
 import { CoverageMeter } from '@/components/CoverageMeter';
 import { Nd19Panel } from '@/components/Nd19Panel';
 import { useToast } from '@/components/shell/Toast';
 import { Button } from '@/components/ui/button';
-import { Field, FieldGroup, FieldLabel, FieldLegend, FieldSet } from '@/components/ui/field';
+import { Field, FieldDescription, FieldGroup, FieldLabel, FieldLegend, FieldSet } from '@/components/ui/field';
 import { Switch } from '@/components/ui/switch';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { ContractPreview } from '@/components/wizard/ContractPreview';
+import { FairnessMeter } from '@/components/wizard/FairnessMeter';
 import { NumberField } from '@/components/wizard/NumberField';
 import { Stepper } from '@/components/wizard/Stepper';
-import { DEFAULTS, validateForm, type FieldName, type FormState } from '@/lib/circleForm';
+import { DEFAULTS, termsOf, validateForm, type FieldName, type FormState } from '@/lib/circleForm';
 import { TOGGLE_ON } from '@/lib/utils';
 import { vi } from '@/lib/vi';
 
@@ -146,6 +148,23 @@ export function CreateWizard() {
   }, [sheet]);
 
   const { value, errors } = useMemo(() => validateForm(f), [f]);
+
+  // The assistant drawer's "Điền vào form": it only proposes values, the person's click applies them (docs/02 AC-11.3).
+  useEffect(() => {
+    const onFill = (e: Event) => {
+      const d = (e as CustomEvent<Record<string, string>>).detail ?? {};
+      const bond = d.bondUsdc ?? d.bond;
+      const alphaBps = d.alphaBps;
+      setF((s) => ({
+        ...s,
+        ...(bond !== undefined && parseUsdc(bond) !== undefined ? { bond: bond.replace(',', '.') } : {}),
+        ...(alphaBps !== undefined && /^\d{1,5}$/.test(alphaBps) ? { alpha: String(Number(alphaBps) / 100) } : {}),
+      }));
+      show('Đã điền gợi ý của trợ lý vào form. Bạn xem lại trước khi tạo dây.');
+    };
+    window.addEventListener('huisafe:fill-form', onFill);
+    return () => window.removeEventListener('huisafe:fill-form', onFill);
+  }, [show]);
   // Typing stays instant; the heavy side (tables, ruler) may trail one frame behind.
   const slowValue = useDeferredValue(value);
   const preview = useMemo(
@@ -155,6 +174,7 @@ export function CreateWizard() {
         : undefined,
     [slowValue],
   );
+  const terms = useMemo(() => (value ? termsOf(f, value) : undefined), [f, value]);
   const bad = STEP_FIELDS[step]!.filter((k) => errors[k]);
   const stepBad = bad.length > 0;
   const showStepError = stepBad && (tried || bad.some((k) => touched[k]));
@@ -243,15 +263,22 @@ export function CreateWizard() {
               <FieldLegend className="font-display data-[variant=legend]:text-3xl font-bold">Dây hụi</FieldLegend>
               <FieldGroup className="gap-5">
                 <Field>
-                  <FieldLabel id="mode-label">Kiểu họ</FieldLabel>
+                  <FieldLabel id="mode-label">Kiểu chia</FieldLabel>
                   <ToggleGroup type="single" variant="outline" value={f.mode} onValueChange={(v) => v && setMode(v as FormState['mode'])} aria-labelledby="mode-label" className="flex-wrap">
-                    <ToggleGroupItem value="bidding" className={TOGGLE_ON}>Bỏ thăm (họ có lãi)</ToggleGroupItem>
-                    <ToggleGroupItem value="fixed" className={TOGGLE_ON}>Hốt lần lượt (họ không lãi)</ToggleGroupItem>
+                    <ToggleGroupItem value="bidding" className={TOGGLE_ON}>Bỏ thăm</ToggleGroupItem>
+                    <ToggleGroupItem value="fixed" className={TOGGLE_ON}>Cố định (hốt lần lượt)</ToggleGroupItem>
                   </ToggleGroup>
                 </Field>
                 <NumberField id="n" label="Số phần hụi" hint="Mỗi người một phần, từ 3 đến 30." unit="phần" value={f.n} error={shown('n')} onChange={onChange} onBlur={touch} />
                 <NumberField id="c" label="Mức góp mỗi kỳ" unit="USDC" value={f.c} error={shown('c')} echo={echoOf(f.c)} decimal onChange={onChange} onBlur={touch} />
-                <NumberField id="periodDays" label="Độ dài một kỳ" hint="Dùng để tính trần lãi và lãi chậm góp." unit="ngày" value={f.periodDays} error={shown('periodDays')} last onChange={onChange} onBlur={touch} />
+                <Field>
+                  <FieldLabel id="cycle-label">Chu kỳ</FieldLabel>
+                  <ToggleGroup type="single" variant="outline" value={f.periodDays === '7' ? '7' : '30'} onValueChange={(v) => v && onChange('periodDays', v)} aria-labelledby="cycle-label" className="flex-wrap">
+                    <ToggleGroupItem value="7" className={TOGGLE_ON}>Tuần (7 ngày)</ToggleGroupItem>
+                    <ToggleGroupItem value="30" className={TOGGLE_ON}>Tháng (30 ngày)</ToggleGroupItem>
+                  </ToggleGroup>
+                  <FieldDescription>Dùng để tính trần lãi và lãi chậm góp. Hụi tuần có trần thăm rất nhỏ, đồng hồ công bằng ở bước 3 sẽ báo.</FieldDescription>
+                </Field>
               </FieldGroup>
             </FieldSet>
           )}
@@ -280,6 +307,8 @@ export function CreateWizard() {
                 <>
                   <ContractPreview form={f} value={value} preview={preview} />
                   {bidding ? <BidTable rows={preview.bidRows} /> : <p className="text-muted-foreground">Họ hốt lần lượt không bỏ thăm, nên không có trần thăm.</p>}
+                  {terms && <FairnessMeter terms={terms} bond={value.bond} />}
+                  {terms && <RiskTable terms={terms} bond={value.bond} />}
                   <Nd19Panel perRoundUsdc={value.n * value.c} hasActiveCircle={hasActive} onHasActiveCircle={setHasActive} over18={over18} onOver18={setOver18} />
                 </>
               ) : (

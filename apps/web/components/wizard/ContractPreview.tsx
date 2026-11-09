@@ -28,10 +28,10 @@ export function ContractPreview({ form, value, preview }: { form: FormState; val
       <LedgerList
         className="mt-2"
         items={[
-          { label: 'Kiểu họ', value: bidding ? 'Bỏ thăm (họ có lãi)' : 'Hốt lần lượt (họ không lãi)' },
+          { label: 'Kiểu chia', value: bidding ? 'Bỏ thăm' : 'Cố định (hốt lần lượt)' },
           { label: 'Số phần hụi', value: `${value.n} phần` },
           { label: 'Mức góp mỗi kỳ', value: formatUsdc(value.c) },
-          { label: 'Độ dài một kỳ', value: `${value.periodDays} ngày` },
+          { label: 'Chu kỳ', value: `${value.periodDays === 7n ? 'Tuần, ' : value.periodDays === 30n ? 'Tháng, ' : ''}${value.periodDays} ngày` },
           { label: 'Tiền giữ lại của người hốt', value: formatBps(value.alphaBps) },
           { label: 'Ký quỹ của chủ hụi', value: formatUsdc(value.bond) },
           { label: 'Quỹ dự phòng', value: formatBps(value.reserveBps) },
