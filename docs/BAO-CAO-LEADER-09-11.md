@@ -233,7 +233,7 @@ bid_k   ≤ (1 − φ) × maxBid(k)                  thăm được phép (contr
 | Tháng, 10 người | 30% | 17,50 triệu | 5.620k (2.700k) | 939k (6,5%/năm) | 28%/năm |
 | Tuần, 10 người | 30% | 17,50 triệu | 5.978k (2.700k) | −2k (−0,1%/năm) | 50%/năm |
 
-Giữ lại nhiều hơn: chủ hụi cần ít cọc hơn và ít rủi ro hơn, nhưng người hốt sớm cầm ít tiền hơn và chịu lãi thực cao hơn. **Demo giữ 20%**, vì mọi số trong docs/03 và test đang tính theo mức này. Giao diện cho chọn 20–50%, có nút "giữ đúng 1 kỳ góp".
+Giữ lại nhiều hơn: chủ hụi cần ít cọc hơn và ít rủi ro hơn, nhưng người hốt sớm cầm ít tiền hơn và chịu lãi thực cao hơn. **Demo giữ 20%**, vì mọi số trong docs/03 và test đang tính theo mức này. Bảng này để tham khảo; quyết định là giữ cố định 20%, không cho chỉnh (mục 6, ý 10).
 
 **D. Mức góp** (hụi tháng, 10 người, φ = 50%):
 
@@ -272,15 +272,14 @@ Tỷ lệ lời giữ nguyên 5,2%/năm. Góp lớn thì lời tuyệt đối l�
    - Trích 1% mỗi lần hốt, cộng tiền phạt chảy vào (lãi chậm góp, cọc mở thăm bị mất, hoa hồng của kỳ có vỡ nợ).
    - Là lớp bù thứ 3, sau tiền giữ lại và cọc.
    - Cuối dây chia lại **theo số kỳ đóng đúng hạn** (ADR-24). Không phải tiền của chủ hụi hay của HụiSafe.
-10. **Tiền giữ lại:** mặc định 20%, chọn được 20–50%.
+10. **Tiền giữ lại:** cố định 20% cho mọi dây (mọi số trong docs/03, test và cách tính cọc dựa trên mức này). Đã xét cho chủ hụi chỉnh 20–50% và **bỏ**: chỉ là núm vặn nhỏ (giữ 30% giảm cọc dây 5 người từ 4,8 xuống 4,2 triệu, gian bằng 1 ví ảo không đổi, 2 ví ảo giảm lời từ khoảng 415 xuống 316 nghìn), đổi lại người hốt sớm cầm ít tiền hơn.
 11. **Chống bỏ chạy (5 lớp):** tiền giữ lại → cọc của chủ hụi → xác thực mỗi người một tài khoản → nợ có bằng chứng (sổ họ có chữ ký, mang ra tòa được) → mất uy tín công khai. Tiền chỉ chặn được một phần; **chủ hụi gánh rủi ro nên phải tự chọn người đàng hoàng**, như ngoài đời.
-12. **Bậc uy tín (roadmap):**
-    - Mới: cọc 100%, dây ≤ 10 người.
-    - Tin cậy: cọc 80%, dây ≤ 20 người.
-    - Lâu năm: cọc 60%, dây ≤ 30 người, được hốt kỳ đầu.
-    - Con hụi có lịch sử tốt thì bị giữ lại ít hơn.
-    - Không bậc nào được cầm tiền. Cọc dưới 100% chỉ mở khi có màn cam kết "bạn có thể mất tối đa X".
-    - Bản thi chỉ làm **huy hiệu uy tín**.
+12. **Bậc uy tín:**
+    - **Bản thi: huy hiệu chỉ để thể hiện, không mở khóa quyền gì về tiền.** Cọc vẫn 100% với mọi bậc, nên kẻ gian có cày lên bậc cao cũng không gian được nhiều hơn. Web tự tính bậc từ sổ uy tín đã có trên chuỗi (`ReputationRegistry`: completed, onTime, late, defaults, repaid) và từ event của các dây chủ hụi đã chạy; không sửa contract.
+    - Cách tính (bản thi): 🌱 Mới: chưa xong dây nào. 🌿 Tin cậy: con hụi xong 3 dây, không vỡ nợ, đúng hạn từ 95%; chủ hụi chạy xong 3 dây, chưa phải dùng cọc vì người vỡ nợ. 🌳 Lâu năm: xong 10 dây và hoạt động hơn 6 tháng, không còn nợ. Một lần vỡ nợ chưa trả hiện cảnh báo đỏ ở mọi bậc.
+    - Hiện ở màn vào dây, danh sách thành viên, hồ sơ chủ hụi, kèm dòng "còn X dây sạch nữa để lên bậc" (tạo thi đua) và câu "Huy hiệu là lịch sử, không phải bảo đảm. Bảo đảm của bạn là cọc của chủ hụi."
+    - Demo: ví mới trên Fuji đều ở bậc 🌱; chuẩn bị vài ví có lịch sử từ các dây chạy trước, ghi rõ là dữ liệu dựng sẵn cho demo.
+    - **Roadmap: lên bậc được giảm cọc** (Tin cậy CI 80%, Lâu năm CI 60%, dây to hơn). Luật chống lạm dụng: không nhảy cóc quy mô (dây mới tối đa gấp 2 dây lớn nhất từng chạy sạch); cọc không bao giờ dưới CI 60%; chỉ tính dây có đủ người thật khác nhau (xác thực số điện thoại), một nhóm người chơi lặp lại không cộng điểm; phải hoạt động đủ thời gian; vỡ nợ hoặc để cọc bị dùng vì chọn người ẩu thì rớt bậc ngay và có thời gian chờ. Không bậc nào được cầm tiền.
 13. **Chủ hụi chơi một chân:** được (contract đã hỗ trợ `organizerIsMember`). Chân đó đóng tiền và bỏ thăm như người thường; bỏ đóng thì cọc của chính chủ hụi bù. Đề xuất: **chân của chủ hụi hốt thì kỳ đó không thu hoa hồng**.
 14. **Một người nhiều chân:** ngoài đời có. Đưa vào roadmap (mỗi chân một ví con, chủ hụi duyệt, công khai "cùng một người", tối đa 2 chân). Hỏi thêm ban giám khảo (mục 12).
 15. **Xác thực:** **OTP số điện thoại qua Privy**, một số một ví (bonus chống tài khoản ảo, cần kiểm gói Privy). CCCD/eKYC để roadmap (cần đối tác, Nghị định 13/2023). Không đưa dữ liệu cá nhân lên chuỗi.
@@ -477,7 +476,7 @@ Câu pitch: *"Tiền nằm trong contract không có hàm rút. Quyền khẩn c
 | Leader | Duyệt các quyết định ở mục 12 | 10/11 |
 | Agent `contracts` | Xong A8 → deploy Fuji (M2): admin = Safe, `minCoverageBps` = 10.000 | 11/11 |
 | Agent `contracts` | **Gói A9** (sau khi leader duyệt, tài liệu trước): (1) hoa hồng nằm trong trần (tham số φ; `revealBid` chặn thăm ≤ (1 − φ) × trần); (2) chia quỹ dự phòng theo đúng hạn (ADR-24); (3) chân của chủ hụi không tự thu hoa hồng; (4) `termsHash` (ADR-27); (5) tùy chọn: trả hoa hồng ngay khi kỳ không có ai thiếu. Kèm unit, fuzz, invariant, audit; sửa vector V1; thêm ví dụ số mới vào docs/03 mục 8 (giữ nguyên ví dụ cũ để không phá test) | 12–13/11 |
-| Agent `sim-ai` | Nối web với ví và contract (W5); 4 màn mới; form 4 ô + Fixed + banner phạt trễ + tất toán; kịch bản mô phỏng ví ảo và kinh tế chủ hụi | 12–15/11 |
+| Agent `sim-ai` | Nối web với ví và contract (W5); 4 màn mới (huy hiệu uy tín theo mục 6 ý 12: bậc, tiến độ lên bậc, cảnh báo vỡ nợ); form 4 ô + Fixed + banner phạt trễ + tất toán; kịch bản mô phỏng ví ảo và kinh tế chủ hụi | 12–15/11 |
 | Member | Slide, kịch bản pitch, rà văn bản luật của trợ lý, README | 15–19/11 |
 
 ## 12. Câu hỏi cần quyết
