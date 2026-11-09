@@ -1,15 +1,16 @@
-import { notFound } from 'next/navigation';
-import { SampleCircleView } from '@/components/circle/SampleCircleView';
+import { DoneView } from '@/components/circle/DoneView';
+import { FixedRoomView } from '@/components/circle/FixedRoomView';
+import { FormingView } from '@/components/circle/FormingView';
 import { RoomView } from '@/components/circle/RoomView';
+import { circleParam, type CirclePageProps } from '@/lib/circle-page';
 
-/** Sample circle pages (S04 + S06 mock). The three known ids are prerendered; any other id is a Vietnamese 404. */
-const IDS = ['demo', 'dang-gom', 'da-xong'] as const;
-export const generateStaticParams = () => IDS.map((id) => ({ id }));
 export const metadata = { title: 'Chi tiết dây (mẫu)' };
 
-export default async function SampleCircle({ params }: { params: Promise<{ id: string }> }) {
-  const { id } = await params;
+/** Overview of one sample circle (S04 forming, S06 bid room, Fixed room, finished). Section pages live in the folders next to this file. */
+export default async function SampleCircle({ params }: CirclePageProps) {
+  const id = await circleParam(params);
   if (id === 'demo') return <RoomView />;
-  if (id === 'dang-gom' || id === 'da-xong') return <SampleCircleView kind={id} />;
-  notFound();
+  if (id === 'co-dinh') return <FixedRoomView id={id} />;
+  if (id === 'dang-gom') return <FormingView id={id} />;
+  return <DoneView id={id} />;
 }

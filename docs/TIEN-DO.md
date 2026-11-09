@@ -5,8 +5,8 @@ Cập nhật: 09/11/2026 (Towfienes). Báo cáo gửi leader: `docs/BAO-CAO-LEAD
 <!-- TOM-TAT -->
 - M0 Setup: XONG. M1 Contract lõi: XONG 08/11 (536 test, 44 invariant, Slither high 0).
 - M2 Fuji + SDK (hạn 11/11): ĐANG LÀM. Script dây demo, /api/relay, /api/attest, keeper, chạy thử trên anvil. Deploy Fuji chờ khóa + app Privy.
-- M3 MVP E2E (hạn 14/11): giao diện S01-S06 xong (dữ liệu mẫu). Chưa nối ví và contract (W5 SDK, W7-W9, W11).
-- M4 AI + thử thật (hạn 16/11): mô phỏng XONG; /api/copilot XONG (9router/Gemini hoặc Anthropic), chưa chạy eval live; ngăn kéo trợ lý T6 chưa làm.
+- M3 MVP E2E (hạn 14/11): giao diện S01-S16 xong trên dữ liệu mẫu (B8, 09/11), gồm dây Cố định chạy hết luồng. Chưa nối ví và contract (W5 SDK, W7-W9, W11); chưa tối ưu giao diện.
+- M4 AI + thử thật (hạn 16/11): mô phỏng XONG; /api/copilot XONG (9router/Gemini hoặc Anthropic), chưa chạy eval live; ngăn kéo trợ lý T6 XONG (gọi /api/copilot thật, có tab máy tính).
 - Phản hồi v1.2 + tối ưu dòng tiền: XONG thảo luận 09/11, báo cáo `docs/BAO-CAO-LEADER-09-11.md` (hoa hồng nằm trong trần lãi, gói contract A9, roadmap). CHỜ Minh (leader) DUYỆT. Máy tính kiểm khớp contract: `tools/hui-economics/`.
 - M5-M7: chưa tới (đóng băng 17/11, pitch 19/11, nộp 20/11).
 - Đang giữ: contracts/, apps/keeper, apps/web/app/api/{relay,attest} (luồng A); apps/web giao diện, sim/, copilot (luồng B). Muốn sửa các chỗ này thì báo Towfienes trước.

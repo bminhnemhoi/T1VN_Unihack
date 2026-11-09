@@ -1,7 +1,8 @@
 import { DEFAULT_VND_PER_USDC, ND19_ARTICLE14_THRESHOLD_VND } from 'config';
 import { formatUsdc, formatVnd, usdcToVnd } from 'sdk';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { SoonButton } from '@/components/shell/SoonButton';
+import Link from 'next/link';
+import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Field, FieldLabel } from '@/components/ui/field';
 
@@ -43,9 +44,9 @@ export function Nd19Panel({ perRoundUsdc, hasActiveCircle, onHasActiveCircle, ov
           <AlertDescription className="text-nghe-fg">
             Cần thông báo bằng văn bản cho UBND cấp xã (NĐ 19 Điều 14).
           </AlertDescription>
-          <SoonButton variant="outline" className="mt-2 w-fit" message="Bản nháp thông báo gửi UBND cấp xã sẽ có khi nối ví. Hiện là màn hình mẫu.">
-            Soạn thông báo
-          </SoonButton>
+          <Button asChild variant="outline" className="mt-2 w-fit">
+            <Link href="/thong-bao-ubnd">Soạn thông báo</Link>
+          </Button>
         </Alert>
       )}
       <p className="mt-3 text-muted-foreground">Lãi chậm góp: 10%/năm (Điều 22 khoản 1).</p>

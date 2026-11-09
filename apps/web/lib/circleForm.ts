@@ -1,4 +1,5 @@
 import { parseUsdc } from 'sdk';
+import type { Terms } from '@/lib/hui-calc';
 
 /** Form state is kept as strings so people can type freely; `validateForm` turns it into numbers. */
 export interface FormState {
@@ -81,5 +82,19 @@ export function validateForm(f: FormState): { value?: Valid; errors: Partial<Rec
       reserveBps: reserveBps!,
       bond: bond!,
     },
+  };
+}
+
+/** The rules of a valid form as `Terms` for the pure calculations (fairness meter, risk table). */
+export function termsOf(f: FormState, v: Valid): Terms {
+  return {
+    mode: f.mode,
+    n: v.n,
+    c: v.c,
+    periodDays: v.periodDays,
+    alphaBps: v.alphaBps,
+    feeBps: v.feeBps,
+    reserveBps: v.reserveBps,
+    capBps: f.mode === 'fixed' ? 0n : 2000n,
   };
 }

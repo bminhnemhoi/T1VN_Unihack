@@ -4,6 +4,7 @@ import localFont from 'next/font/local';
 import type { ReactNode } from 'react';
 import { BottomNav } from '@/components/shell/BottomNav';
 import { DemoBanner } from '@/components/shell/DemoBanner';
+import { FontSizeInit } from '@/components/shell/FontSizeInit';
 import { SiteFooter } from '@/components/shell/SiteFooter';
 import { SiteHeader } from '@/components/shell/SiteHeader';
 import { ToastProvider } from '@/components/shell/Toast';
@@ -56,6 +57,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
           Bỏ qua, đến nội dung chính
         </a>
         <ToastProvider>
+          <FontSizeInit />
           <DemoBanner />
           <SiteHeader />
           {children}

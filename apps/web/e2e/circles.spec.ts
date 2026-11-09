@@ -2,14 +2,19 @@ import { expect, test } from '@playwright/test';
 import { toast, watchErrors } from './helpers';
 
 test.describe('S02 /circles', () => {
-  test('three sample circles, each "Mở dây" opens its own circle', async ({ page }) => {
+  test('four sample circles, each "Mở dây" opens its own circle', async ({ page }) => {
     const errs = watchErrors(page);
     await page.goto('/circles');
-    await expect(page.getByRole('heading', { level: 3 })).toHaveText(['Hụi tổ dân phố 7', 'Hụi bạn đại học', 'Hụi chị em văn phòng']);
+    await expect(page.getByRole('heading', { level: 3 })).toHaveText(['Hụi tổ dân phố 7', 'Hụi cố định gia đình', 'Hụi bạn đại học', 'Hụi chị em văn phòng']);
 
     await page.getByRole('link', { name: 'Mở Hụi tổ dân phố 7' }).click();
     await expect(page).toHaveURL(/\/circles\/demo$/);
     await expect(page.getByRole('heading', { level: 1 })).toHaveText('Hụi tổ dân phố 7');
+
+    await page.goto('/circles');
+    await page.getByRole('link', { name: 'Mở Hụi cố định gia đình' }).click();
+    await expect(page).toHaveURL(/\/circles\/co-dinh$/);
+    await expect(page.getByRole('heading', { level: 1 })).toHaveText('Hụi cố định gia đình');
 
     await page.goto('/circles');
     await page.getByRole('link', { name: 'Mở Hụi bạn đại học' }).click();
@@ -32,7 +37,7 @@ test.describe('S02 /circles', () => {
     await expect(page.getByText('Bạn chưa tham gia dây nào.')).toBeVisible();
     await expect(page.getByRole('heading', { name: 'Sổ hụi của bạn còn trống' })).toBeVisible();
     await sw.click();
-    await expect(page.getByRole('heading', { level: 3 })).toHaveCount(3);
+    await expect(page.getByRole('heading', { level: 3 })).toHaveCount(4);
     await page.getByRole('link', { name: 'Tạo dây mới' }).click();
     await expect(page).toHaveURL(/\/circles\/new$/);
   });
@@ -56,7 +61,7 @@ test.describe('S02 /circles', () => {
 
   test('round strip says each round in words (not colour only)', async ({ page }) => {
     await page.goto('/circles');
-    const strip = page.getByRole('list', { name: 'Các kỳ của dây: đã chi 2 trên 5' });
+    const strip = page.getByRole('list', { name: 'Các kỳ của dây: đã chi 2 trên 5' }).first();
     await expect(strip.getByRole('listitem')).toHaveCount(5);
     await expect(strip).toContainText('Kỳ 1: đã chi, Thành viên 4 hốt');
     await expect(strip).toContainText('Kỳ 2: đã chi, Thành viên 1 hốt');
@@ -80,19 +85,20 @@ test.describe('other sample circles answer for themselves', () => {
     await expect(page.getByRole('heading', { name: 'Đang chờ đủ người: 3 trên 5' })).toBeVisible();
     await page.getByRole('button', { name: 'Sao chép đường dẫn mời' }).click();
     await expect(toast(page, /đường dẫn mời|sao chép/i)).toBeVisible();
-    await page.getByRole('button', { name: 'Bắt đầu dây' }).click();
+    const start = page.getByRole('button', { name: 'Bắt đầu dây' });
+    await expect(start).toHaveAttribute('aria-disabled', 'true'); // closed, but it still answers when pressed
+    await start.click({ force: true });
     await expect(toast(page, 'mới có 3 trên 5 người')).toBeVisible();
     await page.getByRole('link', { name: '← Dây của tôi' }).click();
     await expect(page).toHaveURL(/\/circles$/);
   });
 
-  test('finished circle: both actions answer', async ({ page }) => {
+  test('finished circle: both actions are real links', async ({ page }) => {
     await page.goto('/circles/da-xong');
-    await page.getByRole('button', { name: 'Xem sổ hụi' }).click();
-    await expect(toast(page, 'Sổ hụi dạng PDF')).toBeVisible();
-    await page.getByRole('button', { name: 'Nhận lại phần còn lại' }).click();
-    await expect(toast(page, 'Nhận lại phần còn lại cần nối ví')).toBeVisible();
-    await page.getByRole('link', { name: 'dây Hụi tổ dân phố 7' }).click();
-    await expect(page).toHaveURL(/\/circles\/demo$/);
+    await page.getByRole('link', { name: 'Xem sổ hụi' }).click();
+    await expect(page).toHaveURL(/\/circles\/da-xong\/so-ho$/);
+    await page.goBack();
+    await page.getByRole('link', { name: 'Xem tất toán và nhận tiền' }).click();
+    await expect(page).toHaveURL(/\/circles\/da-xong\/tat-toan$/);
   });
 });

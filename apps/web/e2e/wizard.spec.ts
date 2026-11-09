@@ -25,7 +25,8 @@ test.describe('S03 /circles/new', () => {
     await expect(step(page, 1)).toBeVisible();
     await expect(page.getByLabel('Số phần hụi')).toHaveValue('5');
     await expect(page.getByLabel('Mức góp mỗi kỳ')).toHaveValue('100');
-    await expect(page.getByLabel('Độ dài một kỳ')).toHaveValue('30');
+    await expect(page.getByRole('radio', { name: 'Tháng (30 ngày)' })).toBeChecked();
+    await expect(page.getByRole('radio', { name: 'Bỏ thăm' })).toBeChecked();
     await next(page).click();
 
     await expect(step(page, 2)).toBeVisible();
@@ -71,8 +72,8 @@ test.describe('S03 /circles/new', () => {
     await expect(page.getByText('Cần thông báo bằng văn bản cho UBND')).toHaveCount(0);
     await page.getByRole('checkbox', { name: /đang làm chủ hụi một dây khác/ }).click();
     await expect(page.getByText('Cần thông báo bằng văn bản cho UBND')).toBeVisible();
-    await page.getByRole('button', { name: 'Soạn thông báo' }).click();
-    await expect(toast(page, 'Bản nháp thông báo')).toBeVisible();
+    await page.getByRole('link', { name: 'Soạn thông báo' }).click();
+    await expect(page).toHaveURL(/\/thong-bao-ubnd$/);
   });
 
   test('inline validation in Vietnamese, and a blocked "Tiếp tục" explains itself and focuses the bad field', async ({ page }) => {
@@ -110,7 +111,7 @@ test.describe('S03 /circles/new', () => {
     await page.goto('/circles/new');
     await page.getByLabel('Số phần hụi').fill('8');
     await page.getByLabel('Mức góp mỗi kỳ').fill('250');
-    await page.getByLabel('Độ dài một kỳ').press('Enter');
+    await page.getByLabel('Mức góp mỗi kỳ').press('Enter');
     await expect(step(page, 2)).toBeVisible();
     await page.getByLabel('Ký quỹ của chủ hụi').fill('900');
 
@@ -144,6 +145,44 @@ test.describe('S03 /circles/new', () => {
     await expect(page.getByLabel('Số phần hụi')).toHaveValue('1');
   });
 
+  test('four fields of the brief: số người, mức góp, chu kỳ Tuần/Tháng, kiểu chia; weekly warns that the ceiling is tiny', async ({ page }) => {
+    await page.goto('/circles/new');
+    await expect(page.getByRole('radio', { name: 'Tuần (7 ngày)' })).not.toBeChecked();
+    await page.getByRole('radio', { name: 'Tuần (7 ngày)' }).click();
+    await expect(page.getByRole('radio', { name: 'Tuần (7 ngày)' })).toBeChecked();
+    await next(page).click();
+    await next(page).click();
+    await expect(step(page, 3)).toBeVisible();
+    await expect(page.getByRole('list', { name: 'Cảnh báo về cấu hình dây' })).toContainText('Trần thăm kỳ 1 chỉ bằng');
+  });
+
+  test('review step: fairness meter follows the bid assumption, risk table lists every seat', async ({ page }) => {
+    await page.goto('/circles/new?buoc=2');
+    await page.getByLabel('Ký quỹ của chủ hụi').fill('480');
+    await closeMobileSheet(page);
+    await next(page).click();
+    const fair = page.getByRole('region', { name: 'Đồng hồ công bằng' });
+    await expect(fair).toBeVisible();
+    await expect(fair.getByRole('listitem').filter({ hasText: /^Kỳ \d/ })).toHaveCount(5);
+    await fair.getByRole('radio', { name: 'Ai cũng đặt trần' }).click();
+    await expect(fair).toContainText('Chênh lệch giữa');
+    await fair.getByRole('radio', { name: 'Không ai bỏ thăm' }).click();
+    const risk = page.getByRole('table', { name: /Số tiền tối đa mỗi chỗ/ });
+    await expect(risk.getByRole('row')).toHaveCount(6);
+    await expect(risk).toContainText('304 USDC'); // docs/03 section 7.3: the last seat if receivers stop one after another
+    await expect(page.getByText('chịu được 4 người đã hốt cùng bỏ đóng')).toBeVisible();
+  });
+
+  test('Fixed mode: no bid assumption, every seat pays the same', async ({ page }) => {
+    await page.goto('/circles/new');
+    await page.getByRole('radio', { name: 'Cố định (hốt lần lượt)' }).click();
+    await next(page).click();
+    await next(page).click();
+    const fair = page.getByRole('region', { name: 'Đồng hồ công bằng' });
+    await expect(fair).toContainText('mọi chỗ ngồi chịu như nhau');
+    await expect(fair).toContainText('chênh nhau 0');
+  });
+
   test('"Nhập lại từ đầu" clears the form; Fixed mode hides the bid table; commission switch toggles the fee field', async ({ page }) => {
     await page.goto('/circles/new');
     await page.getByLabel('Số phần hụi').fill('12');
@@ -151,7 +190,7 @@ test.describe('S03 /circles/new', () => {
     await expect(page.getByLabel('Số phần hụi')).toHaveValue('5');
     await expect(toast(page, 'Đã xóa các ô đã nhập')).toBeVisible();
 
-    await page.getByRole('radio', { name: 'Hốt lần lượt (họ không lãi)' }).click();
+    await page.getByRole('radio', { name: 'Cố định (hốt lần lượt)' }).click();
     await next(page).click();
     const sw = page.getByRole('switch', { name: /Họ hưởng hoa hồng/ });
     await expect(page.getByLabel('Tiền công trên mỗi kỳ')).toBeEnabled();

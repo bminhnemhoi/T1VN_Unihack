@@ -141,6 +141,9 @@
   html {
     font-size: 18px; /* body text >= 18px (docs/02 section 7) */
     line-height: 1.6;
+    /* The sticky header must never cover what scrolls or gets focus (WCAG 2.2 focus not obscured). */
+    scroll-padding-top: 5.5rem;
+    scroll-padding-bottom: 5rem;
   }
   body {
     font-feature-settings: "tnum" 0;

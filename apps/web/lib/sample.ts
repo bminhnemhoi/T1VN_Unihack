@@ -63,6 +63,21 @@ export const SAMPLE_CIRCLES: SampleCircle[] = [
     action: 'Vào phòng thăm',
   },
   {
+    id: 'd',
+    label: 'Hụi cố định gia đình',
+    role: 'member',
+    state: 'active',
+    round: 2,
+    n: 5,
+    contribution: usdc(20),
+    todo: 'Trả khoản thiếu 20 USDC của kỳ 2',
+    secondsLeft: 36 * 3600,
+    href: '/circles/co-dinh',
+    winners: ['Thành viên 1', 'Thành viên 2'], // Fixed: order of joining; you are Thành viên 3 and receive in kỳ 3
+    myRound: 3,
+    action: 'Xem và trả ngay',
+  },
+  {
     id: 'b',
     label: 'Hụi bạn đại học',
     role: 'organizer',
