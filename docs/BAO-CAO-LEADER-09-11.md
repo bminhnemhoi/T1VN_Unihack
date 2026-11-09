@@ -286,6 +286,7 @@ Tỷ lệ lời giữ nguyên 5,2%/năm. Góp lớn thì lời tuyệt đối l�
 16. **Bảng rủi ro tối đa** cho từng vị trí: "dây chịu được X người hốt rồi bỏ; trường hợp xấu nhất bạn mất tối đa Y".
 17. **Demo dựng quanh cảnh "chủ hụi gian lận thất bại":** ví ảo hốt rồi bỏ → tiền giữ lại và cọc bù → người hốt cuối vẫn nhận đủ → sổ uy tín ghi tên.
 18. **Thiếu sót mới phát hiện:** hoa hồng hiện **nằm trong escrow tới cuối dây** mới trả chủ hụi (ngoài đời nhận mỗi kỳ). Đề xuất: kỳ nào không có ai thiếu thì trả hoa hồng ngay lúc chốt kỳ; kỳ có người thiếu thì giữ tới khi người đó trả hoặc bị đánh dấu vỡ nợ.
+19. **Kỳ 2–3 tháng:** hợp lệ theo Nghị định 19 (kỳ do các bên thỏa thuận; trần Điều 21 và lãi Điều 22 tính theo thời gian nên tự đúng). Máy tính kiểm: dây 10 người, chủ hụi khoảng 3,4%/năm (2 tháng) và 2,5%/năm (3 tháng) sau rủi ro, người để dành lời nhiều hơn, mọi cấu hình trong trần. Contract hiện chặn kỳ > 31 ngày. **Để roadmap**, không làm cho bản thi.
 
 ## 7. Flow tối ưu
 
@@ -311,7 +312,7 @@ flowchart TD
 | Nhóm | Mục |
 |---|---|
 | **Làm cho bản thi** | Cọc 100%; Safe 2/3; giao diện ADR-28 (form 4 ô, Fixed chạy được, bảng chi phí, banner phạt trễ, màn tất toán); 4 màn mới (máy tính thăm, đồng hồ công bằng, bảng rủi ro tối đa, huy hiệu uy tín); gói contract A9 (mục 11); OTP số điện thoại nếu Privy cho miễn phí; mô phỏng thêm `organizer_sybil` và `organizer_economics`; trợ lý trên web; repo private |
-| **Roadmap (nói trên slide)** | Bậc uy tín; chủ hụi hốt kỳ đầu cho bậc cao; một người nhiều chân; CCCD/eKYC; chế độ "giảm dần 3% → 0" nếu luật sư cho phép; bảo chứng toàn phần (cọc B_seq); sang phần; chế độ VND; mainnet |
+| **Roadmap (nói trên slide)** | Bậc uy tín; chủ hụi hốt kỳ đầu cho bậc cao; một người nhiều chân; CCCD/eKYC; chế độ "giảm dần 3% → 0" nếu luật sư cho phép; bảo chứng toàn phần (cọc B_seq); kỳ 2–3 tháng cho hụi để dành dài hạn (hợp lệ, công thức trong trần tự co giãn; chỉ cần nâng giới hạn kỳ 31 ngày lên khoảng 92 ngày, mã lỗi `InvalidParams(3)`); sang phần; chế độ VND; mainnet |
 | **Làm nếu còn thời gian (P2)** | Lãi trên cọc (ADR-25, giả lập trên Fuji) |
 | **Không làm** | Chủ hụi giữ tiền dưới mọi hình thức; ngẫu nhiên; hụi năm, hụi ngày; token; tiền thật |
 
