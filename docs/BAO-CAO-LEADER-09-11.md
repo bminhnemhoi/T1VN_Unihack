@@ -12,7 +12,7 @@
 
 ## 0. Tóm tắt một trang
 
-1. **v1.2 đi đúng hướng.** Đồng ý ADR-22 (cọc 100%), ADR-24 (thưởng đúng hạn), ADR-26 (Safe 2/3), ADR-27 (băm thỏa thuận), ADR-28 (giao diện bám MVP), ADR-29 (attestation Team1). Đề xuất **bỏ ADR-23** (chủ hụi hốt kỳ đầu) khỏi bản thi. **ADR-25** (lãi trên cọc) để làm sau cùng nếu còn thời gian.
+1. **v1.2 đi đúng hướng.** Đồng ý ADR-22 (cọc 100%), ADR-24 (thưởng đúng hạn), ADR-26 (Safe 2/3), ADR-27 (băm thỏa thuận), ADR-28 (giao diện bám MVP), ADR-29 (attestation Team1). Đề xuất **bỏ ADR-23** (chủ hụi hốt kỳ đầu) khỏi bản thi. **ADR-25** (lãi trên cọc) **chỉ để roadmap**, không làm cho bản thi (mục 6, ý 23).
 2. **Bốn chỗ cần sửa trong v1.2:**
    - Câu "người góp trung thực không mất tiền ở mọi dây, không còn điều kiện" **sai khi chủ hụi dùng 2 ví ảo**. Chủ hụi lời 41,47 USDC, người hốt cuối thiếu 55,43 USDC (mục 4.2).
    - Mã lỗi `InvalidParams(14)` **đã dùng** cho lỗi ân hạn ≥ thời lượng kỳ (sửa audit A4). Phải dời thành 15 và 16.
@@ -32,8 +32,9 @@
 6. **Mức góp lớn hay nhỏ không đổi tỷ lệ lời.** Mọi khoản tiền tỷ lệ thuận với mức góp. Chỉ có 2 thứ không tỷ lệ:
    - **Ngưỡng báo UBND** (Điều 14): dây có N·C ≥ 100 triệu mỗi kỳ.
    - **Tiền cọc là vốn thật** của chủ hụi: 10 người × 10 triệu cần cọc 200 triệu.
-7. **Không ai giữ tiền, kể cả chủ hụi uy tín.** Đây là ràng buộc của đề thi. Uy tín chỉ mở khóa cọc thấp hơn, dây to hơn (roadmap), không bao giờ cho cầm tiền.
-8. **Phải làm ngay:**
+7. **Chủ hụi lời ít nhưng vẫn phải cọc.** Hụi tháng khoảng 5%/năm trên cọc, sạch và đúng luật; hụi tuần dây nhỏ thì gần như không lời. Bỏ cọc (chỉ điều phối ăn hoa hồng) là đẩy hết rủi ro sang con hụi và trái Điều 18 khoản 4, nên không làm. Cách tăng lời cho chủ hụi đều để roadmap: bậc uy tín (giảm cọc), người bảo lãnh (người có vốn góp cọc thay, chia hoa hồng), lãi trên cọc khi lên mạng thật (mục 6, ý 21–23).
+8. **Không ai giữ tiền, kể cả chủ hụi uy tín.** Đây là ràng buộc của đề thi. Uy tín chỉ mở khóa cọc thấp hơn, dây to hơn (roadmap), không bao giờ cho cầm tiền.
+9. **Phải làm ngay:**
    - Chuyển repo sang **private** rồi mới push, sau đó mời `tuantqse90`.
    - Tạo **Safe 2/3** (hướng dẫn ở mục 10).
    - Tạo app Privy.
@@ -96,7 +97,7 @@ Chi tiết từng ngày ở `docs/TIEN-DO.md`.
 | ADR-22 Cọc tối thiểu 100% | **Giữ** | Đúng, nhưng sửa câu cam kết (mục 4.2). Là mức của chủ hụi mới; bậc uy tín cao được giảm cọc ở roadmap (mục 6.12) |
 | ADR-23 Chủ hụi hốt kỳ đầu | **Bỏ khỏi bản thi** | Dây chính là hụi hoa hồng. Dây 5 người thì người hốt cuối gần như hết lời. Điều 20 chưa chắc. Chuyển thành quyền của bậc "lâu năm" ở roadmap |
 | ADR-24 Chia quỹ dự phòng theo số kỳ đúng hạn | **Giữ** (gói A9) | Làm phạt trễ thấy được: trong mô phỏng tuần (mục 9), người trễ 1 lần nhận ít hơn mỗi người đúng hạn 10.518đ, gấp khoảng 38 lần lãi chậm góp 273đ |
-| ADR-25 Lãi trên cọc | **Làm sau cùng (P2)** | Lãi trên Fuji là giả lập, phải khai báo đầu pitch và nói nguồn lãi thật |
+| ADR-25 Lãi trên cọc | **Chỉ để roadmap** | Trên Fuji không có người vay thật nên lãi chỉ là số giả; thêm contract đụng đúng chỗ giữ tiền; khung luật Việt Nam cho việc gửi tiền số lấy lãi chưa rõ; làm loãng câu chuyện "hụi". Ý 23 ở mục 6 |
 | ADR-26 Safe 2/3 | **Giữ** | Người ký: Towfienes, Minh, một ví dự phòng tạm (đổi sau, địa chỉ Safe không đổi). Hướng dẫn ở mục 10.3 |
 | ADR-27 Băm thỏa thuận | **Giữ** (gói A9) | Đưa thêm φ hoa hồng, mức giữ lại, thứ tự dự phòng vào văn bản |
 | ADR-28 Giao diện bám MVP | **Giữ** + thêm 4 màn | Máy tính trước khi bỏ thăm, đồng hồ công bằng, bảng rủi ro tối đa, huy hiệu uy tín |
@@ -287,6 +288,11 @@ Tỷ lệ lời giữ nguyên 5,2%/năm. Góp lớn thì lời tuyệt đối l�
 17. **Demo dựng quanh cảnh "chủ hụi gian lận thất bại":** ví ảo hốt rồi bỏ → tiền giữ lại và cọc bù → người hốt cuối vẫn nhận đủ → sổ uy tín ghi tên.
 18. **Thiếu sót mới phát hiện:** hoa hồng hiện **nằm trong escrow tới cuối dây** mới trả chủ hụi (ngoài đời nhận mỗi kỳ). Đề xuất: kỳ nào không có ai thiếu thì trả hoa hồng ngay lúc chốt kỳ; kỳ có người thiếu thì giữ tới khi người đó trả hoặc bị đánh dấu vỡ nợ.
 19. **Kỳ 2–3 tháng:** hợp lệ theo Nghị định 19 (kỳ do các bên thỏa thuận; trần Điều 21 và lãi Điều 22 tính theo thời gian nên tự đúng). Máy tính kiểm: dây 10 người, chủ hụi khoảng 3,4%/năm (2 tháng) và 2,5%/năm (3 tháng) sau rủi ro, người để dành lời nhiều hơn, mọi cấu hình trong trần. Contract hiện chặn kỳ > 31 ngày. **Để roadmap**, không làm cho bản thi.
+20. **Ai cũng đặt kịch trần thăm:** khi nhiều người cùng cần tiền, ai cũng đặt đúng mức thăm tối đa, tiền thăm không còn phân thắng thua. Giữ luật hòa hiện tại: **ít lần trễ hơn thắng** (đóng đúng hạn thành lợi thế để được hốt sớm), vẫn hòa thì **nộp phong bì trước thắng**. Đã xét phương án "ưu tiên xoay vòng" theo tuần và **bỏ**. Hạn chế còn lại: lớp cuối thành cuộc đua bấm nhanh; giao diện nhắc trước "nhiều người có thể cùng đặt mức tối đa". Không bỏ trần được, vì trần là luật và bảo vệ chính người cần tiền gấp.
+21. **Chủ hụi không cọc, chỉ điều phối ăn hoa hồng: không làm.** (a) Rủi ro dồn hết sang con hụi, giống thiết kế "on-chain thường" trong mô phỏng: người hốt sau mất trung bình 6,4%, 62,5% dây có người bị nhận thiếu. (b) Điều 18 khoản 4 bắt chủ hụi góp thay khi thành viên không góp; cọc chỉ làm nghĩa vụ đó tự động. (c) Mất câu chốt "chủ hụi không cầm tiền, nhưng vẫn phải bảo lãnh". (d) Contract đã làm việc thu, ghi sổ, chi; không bảo lãnh thì hoa hồng khó biện minh.
+22. **Người bảo lãnh (roadmap):** tách vai chủ hụi làm hai. Người điều phối (rủ người, chọn người) không cần vốn; người bảo lãnh góp cọc; hai bên chia hoa hồng theo thỏa thuận. Cọc của người bảo lãnh bù khi có người bỏ, con hụi vẫn được bảo vệ. Cần luật sư xem người khác có gánh thay nghĩa vụ Điều 18 khoản 4 được không.
+23. **Lãi trên cọc (roadmap):** cọc vừa làm bảo đảm vừa gửi vào quỹ cho vay có thế chấp (ví dụ Aave trên Avalanche); lãi đến từ người vay, thuộc về chủ hụi; cần bù thì rút ra. Ước tính tay: dây tháng 10 người cọc 20 triệu, lãi giả định 4%/năm thêm khoảng 667k, đưa chủ hụi từ khoảng 5% lên khoảng 9%/năm (chưa chạy máy tính). Không làm cho bản thi (mục 4.1). Câu trên slide: "Khi lên mạng thật, cọc của chủ hụi được gửi vào quỹ cho vay uy tín, lãi thuộc về chủ hụi."
+24. **Câu trả lời cho giám khảo về lời của chủ hụi:** "Chủ hụi ngoài đời lời nhiều vì cầm tiền của cả dây, đó cũng là cái làm vỡ hụi. Trên HụiSafe chủ hụi không cầm tiền, lời khoảng 5%/năm trên cọc, không phải thu tiền, ghi sổ, đòi nợ, và có uy tín công khai."
 
 ## 7. Flow tối ưu
 
@@ -312,9 +318,8 @@ flowchart TD
 | Nhóm | Mục |
 |---|---|
 | **Làm cho bản thi** | Cọc 100%; Safe 2/3; giao diện ADR-28 (form 4 ô, Fixed chạy được, bảng chi phí, banner phạt trễ, màn tất toán); 4 màn mới (máy tính thăm, đồng hồ công bằng, bảng rủi ro tối đa, huy hiệu uy tín); gói contract A9 (mục 11); OTP số điện thoại nếu Privy cho miễn phí; mô phỏng thêm `organizer_sybil` và `organizer_economics`; trợ lý trên web; repo private |
-| **Roadmap (nói trên slide)** | Bậc uy tín; chủ hụi hốt kỳ đầu cho bậc cao; một người nhiều chân; CCCD/eKYC; chế độ "giảm dần 3% → 0" nếu luật sư cho phép; bảo chứng toàn phần (cọc B_seq); kỳ 2–3 tháng cho hụi để dành dài hạn (hợp lệ, công thức trong trần tự co giãn; chỉ cần nâng giới hạn kỳ 31 ngày lên khoảng 92 ngày, mã lỗi `InvalidParams(3)`); sang phần; chế độ VND; mainnet |
-| **Làm nếu còn thời gian (P2)** | Lãi trên cọc (ADR-25, giả lập trên Fuji) |
-| **Không làm** | Chủ hụi giữ tiền dưới mọi hình thức; ngẫu nhiên; hụi năm, hụi ngày; token; tiền thật |
+| **Roadmap (nói trên slide)** | Bậc uy tín; chủ hụi hốt kỳ đầu cho bậc cao; một người nhiều chân; CCCD/eKYC; chế độ "giảm dần 3% → 0" nếu luật sư cho phép; người bảo lãnh tách khỏi chủ hụi; lãi trên cọc (ADR-25) khi lên mạng thật; bảo chứng toàn phần (cọc B_seq); kỳ 2–3 tháng cho hụi để dành dài hạn (hợp lệ, công thức trong trần tự co giãn; chỉ cần nâng giới hạn kỳ 31 ngày lên khoảng 92 ngày, mã lỗi `InvalidParams(3)`); sang phần; chế độ VND; mainnet |
+| **Không làm** | Chủ hụi giữ tiền dưới mọi hình thức; dây không cọc; ưu tiên xoay vòng khi hòa thăm; ngẫu nhiên; hụi năm, hụi ngày; token; tiền thật |
 
 ---
 
@@ -490,6 +495,8 @@ Câu pitch: *"Tiền nằm trong contract không có hàm rút. Quyền khẩn c
 3. Chia quỹ dự phòng theo số kỳ đúng hạn có cần ghi như một điều khoản phạt riêng không?
 4. Mã băm thỏa thuận kèm chữ ký ví có đáp ứng yêu cầu văn bản và chữ ký (Điều 8, Điều 12) không?
 5. Một người giữ nhiều phần họ trong một dây có hợp lệ không?
+6. Người khác (không phải chủ hụi) góp cọc bảo lãnh thay và chia hoa hồng có hợp lệ, có thay được nghĩa vụ Điều 18 khoản 4 không? (roadmap)
+7. Gửi cọc của chủ hụi vào quỹ cho vay tiền số để lấy lãi có vướng quy định nào không? (roadmap)
 
 **BTC / ban giám khảo:**
 1. Team1 có dịch vụ attestation nào để tích hợp không?
