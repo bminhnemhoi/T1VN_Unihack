@@ -1,14 +1,12 @@
-import { notFound } from 'next/navigation';
 import type { ReactNode } from 'react';
 import { CircleTabs } from '@/components/circle/CircleTabs';
-import { CIRCLE_IDS, isCircleId } from '@/lib/sample-circles';
+import { circleParam, circleStaticParams } from '@/lib/circle-page';
 
-export const generateStaticParams = () => CIRCLE_IDS.map((id) => ({ id }));
+export const generateStaticParams = circleStaticParams;
 
 /** Every page of one circle shares the section bar. Unknown ids are a Vietnamese 404. */
 export default async function CircleLayout({ children, params }: { children: ReactNode; params: Promise<{ id: string }> }) {
-  const { id } = await params;
-  if (!isCircleId(id)) notFound();
+  const id = await circleParam(params);
   return (
     <>
       <CircleTabs id={id} />

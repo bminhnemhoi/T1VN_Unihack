@@ -5,25 +5,20 @@ import { useMemo, useState } from 'react';
 import { formatBps, formatUsdc, huiMath } from 'sdk';
 import { keccak256, toHex } from 'viem';
 import { CirclePageHead } from '@/components/circle/CirclePageHead';
+import { EXPLORER_TX } from '@/components/chain/useTx';
 import { LedgerList } from '@/components/LedgerList';
+import { useChain } from '@/lib/chain/provider';
+import { eventsToLines, type BookKind, type BookLine } from '@/lib/live/bookLines';
+import { useCircleEvents } from '@/lib/live/useCircleEvents';
 import { SoonButton } from '@/components/shell/SoonButton';
 import { useToast } from '@/components/shell/Toast';
 import { Button } from '@/components/ui/button';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
-import { formatVnTime, getSampleCircle, settledAtMs, settledRound, type CircleId, type SampleCircleData } from '@/lib/sample-circles';
+import { formatVnTime, settledAtMs, settledRound, type SampleCircleData } from '@/lib/sample-circles';
 import { TOGGLE_ON } from '@/lib/utils';
 
-type Kind = 'Góp' | 'Thiếu' | 'Bù' | 'Hốt' | 'Nhả tiền giữ lại' | 'Vỡ nợ';
-
-interface Line {
-  ms: number;
-  round: number;
-  member: string;
-  kind: Kind;
-  detail?: string;
-  amount: bigint;
-  tx: string;
-}
+type Kind = BookKind;
+type Line = BookLine;
 
 const txOf = (id: string, key: string): string => {
   const h = keccak256(toHex(`${id}:${key}`));
@@ -61,11 +56,16 @@ function buildLines(c: SampleCircleData): Line[] {
 }
 
 /** S11: the "sổ họ" table with a round filter. JSON export downloads what is on screen; PDF waits for the server. */
-export function BookView({ id }: { id: CircleId }) {
-  const c = getSampleCircle(id);
+export function BookView({ c }: { c: SampleCircleData }) {
   const { show } = useToast();
   const [round, setRound] = useState('all');
-  const lines = useMemo(() => buildLines(c), [c]);
+  const chain = useChain();
+  const events = useCircleEvents(c.live?.address);
+  const lines = useMemo(
+    () => (c.live ? eventsToLines(events.data ?? [], (a) => c.seats.find((s) => s.address?.toLowerCase() === a.toLowerCase())?.name ?? 'Chủ hụi hoặc ví khác') : buildLines(c)),
+    [c, events.data],
+  );
+  const liveLoading = Boolean(c.live) && events.isPending;
   const shown = round === 'all' ? lines : lines.filter((l) => l.round === Number(round));
   const sum = (kind: Kind) => lines.filter((l) => l.kind === kind).reduce((a, l) => a + l.amount, 0n);
   const claims = c.shortfalls.reduce((a, s) => a + s.uncovered, 0n);
@@ -73,9 +73,9 @@ export function BookView({ id }: { id: CircleId }) {
 
   const exportJson = () => {
     const payload = {
-      circle: { label: c.label, mode: t.mode, members: Number(t.n), contribution: t.c.toString(), sample: true },
+      circle: { label: c.label, mode: t.mode, members: Number(t.n), contribution: t.c.toString(), sample: !c.live, ...(c.live ? { address: c.live.address } : {}) },
       lines: shown.map((l) => ({ time: formatVnTime(l.ms), round: l.round, member: l.member, kind: l.kind, detail: l.detail ?? null, amountUsdc: formatUsdc(l.amount), tx: l.tx })),
-      note: 'Dữ liệu mẫu. Bản thật dựng từ sự kiện trên mạng.',
+      note: c.live ? 'Dựng từ sự kiện trên mạng tại thời điểm tải.' : 'Dữ liệu mẫu. Bản thật dựng từ sự kiện trên mạng.',
     };
     try {
       const url = URL.createObjectURL(new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' }));
@@ -84,7 +84,7 @@ export function BookView({ id }: { id: CircleId }) {
       a.download = `so-ho-${c.id}${round === 'all' ? '' : `-ky-${round}`}.json`;
       a.click();
       URL.revokeObjectURL(url);
-      show(`Đã tải ${shown.length} dòng sổ họ dạng JSON (dữ liệu mẫu).`);
+      show(`Đã tải ${shown.length} dòng sổ hụi dạng JSON${c.live ? '' : ' (dữ liệu mẫu)'}.`);
     } catch {
       show('Máy không cho tải file. Thử lại bằng trình duyệt khác.', 'error');
     }
@@ -135,7 +135,9 @@ export function BookView({ id }: { id: CircleId }) {
         <h2 id="cac-dong" className="font-display text-h2 font-bold">
           Các dòng
         </h2>
-        {c.settled === 0 ? (
+        {liveLoading ? (
+          <p role="status" className="o-phang mt-4 p-6 text-lead text-muted-foreground">Đang đọc sự kiện của dây từ mạng…</p>
+        ) : c.settled === 0 ? (
           <p className="o-phang mt-4 p-6 text-lead text-muted-foreground">Chưa có dòng nào vì chưa kỳ nào được chi.</p>
         ) : (
           <>
@@ -163,7 +165,7 @@ export function BookView({ id }: { id: CircleId }) {
                     <th scope="col" className="p-3 font-semibold">Thành viên</th>
                     <th scope="col" className="p-3 font-semibold">Loại</th>
                     <th scope="col" className="p-3 text-right font-semibold">Số tiền</th>
-                    <th scope="col" className="p-3 font-semibold">Giao dịch (mã mẫu)</th>
+                    <th scope="col" className="p-3 font-semibold">{c.live ? 'Giao dịch' : 'Giao dịch (mã mẫu)'}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -177,7 +179,19 @@ export function BookView({ id }: { id: CircleId }) {
                         {l.detail ? ` (${l.detail})` : ''}
                       </td>
                       <td className="so-ke p-3 text-right font-semibold whitespace-nowrap">{formatUsdc(l.amount)}</td>
-                      <td className="so-ke p-3 text-muted-foreground">{l.tx}</td>
+                      <td className="so-ke p-3 text-muted-foreground">
+                        {c.live ? (
+                          chain?.chainId === 43113 ? (
+                            <a href={`${EXPLORER_TX}${l.tx}`} target="_blank" rel="noreferrer" className="underline underline-offset-4">
+                              {l.tx.slice(0, 10)}…{l.tx.slice(-6)}
+                            </a>
+                          ) : (
+                            <span title={l.tx}>{l.tx.slice(0, 10)}…{l.tx.slice(-6)}</span>
+                          )
+                        ) : (
+                          l.tx
+                        )}
+                      </td>
                     </tr>
                   ))}
                 </tbody>
@@ -200,7 +214,7 @@ export function BookView({ id }: { id: CircleId }) {
             { label: 'Khoản đòi còn lại', value: formatUsdc(claims) },
           ]}
         />
-        <p className="mt-3 text-muted-foreground">Bản in này dựng từ dữ liệu trên mạng tại thời điểm in. Màn hình này đang dùng số liệu mẫu.</p>
+        <p className="mt-3 text-muted-foreground">Bản in này dựng từ dữ liệu trên mạng tại thời điểm in. {c.live ? '' : 'Màn hình này đang dùng số liệu mẫu.'}</p>
       </section>
     </main>
   );

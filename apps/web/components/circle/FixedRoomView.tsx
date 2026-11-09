@@ -7,17 +7,17 @@ import { LateBanner } from '@/components/circle/LateBanner';
 import { RepBadge, RepDisclaimer } from '@/components/circle/RepBadge';
 import { RoundStrip } from '@/components/circle/RoundStrip';
 import { LedgerList } from '@/components/LedgerList';
-import { SoonButton } from '@/components/shell/SoonButton';
+import { SettleButton } from '@/components/chain/SettleButton';
 import { Badge } from '@/components/ui/badge';
 import { roundSplit } from '@/lib/hui-calc';
-import { getSampleCircle, type CircleId } from '@/lib/sample-circles';
+import { type SampleCircleData } from '@/lib/sample-circles';
 
 /**
  * Overview of an ACTIVE Fixed circle: no sealed bids, the order of receiving was set when people joined (docs/03 section 6.4).
  * Shows the same things as the bid room that still apply: where the circle is, what happens this round, who is owed what.
  */
-export function FixedRoomView({ id }: { id: CircleId }) {
-  const c = getSampleCircle(id);
+export function FixedRoomView({ c }: { c: SampleCircleData }) {
+  const id = c.id;
   const t = c.terms;
   const n = Number(t.n);
   const k = c.settled + 1;
@@ -32,15 +32,15 @@ export function FixedRoomView({ id }: { id: CircleId }) {
           <h1 className="font-display text-h1 font-bold">{c.label}</h1>
           <div className="mt-2 flex flex-wrap items-center gap-2">
             <Badge variant="secondary">Đang chạy</Badge>
-            <Badge variant="outline">Bạn là thành viên {c.viewer + 1}</Badge>
+            {c.viewer >= 0 ? <Badge variant="outline">Bạn là thành viên {c.viewer + 1}</Badge> : c.live && <Badge variant="outline">Bạn đang xem, chưa ở trong dây</Badge>}
             <Badge variant="secondary">Cố định, không bỏ thăm</Badge>
-            <Badge variant="secondary">Dữ liệu mẫu</Badge>
+            {!c.live && <Badge variant="secondary">Dữ liệu mẫu</Badge>}
           </div>
           <p className="so-ke mt-2 text-lead text-muted-foreground">
             {n} người, mỗi kỳ ({t.periodDays} ngày) góp {formatUsdc(t.c)}. Đã chi {c.settled} trên {n} kỳ.
           </p>
         </div>
-        <RoundStrip n={n} done={c.settled} running myRound={c.viewer + 1} winners={c.winnerByRound.map((w) => c.seats[w]!.name)} />
+        <RoundStrip n={n} done={c.settled} running myRound={c.viewer >= 0 ? c.viewer + 1 : undefined} winners={c.winnerByRound.map((w) => c.seats[w]!.name)} />
       </div>
 
       {mine && (
@@ -65,9 +65,7 @@ export function FixedRoomView({ id }: { id: CircleId }) {
           <p className="so-ke mt-1 text-[#c9d2e0]">
             Nếu mọi người góp đủ, người hốt nhận khoảng {formatUsdc(next.payout)}, bị giữ lại {formatUsdc(next.holdback)} (nhả dần mỗi kỳ).
           </p>
-          <SoonButton size="lg" className="mt-5 bg-action-ink text-muc-dem hover:bg-action-ink/90" message={`Chốt kỳ ${k} cần nối mạng và chỉ bấm được sau giờ chốt. Hiện là màn hình mẫu, chưa chốt gì.`}>
-            Chốt kỳ {k}
-          </SoonButton>
+          <SettleButton c={c} round={k} size="lg" className="mt-5 bg-action-ink text-muc-dem hover:bg-action-ink/90" />
         </section>
 
         <section aria-labelledby="thu-tu" className="o-phang p-6">

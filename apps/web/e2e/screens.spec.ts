@@ -266,7 +266,7 @@ test.describe('09/11 decisions in the screens', () => {
     await expect(people).toContainText('Bậc Lâu năm');
     await expect(people).toContainText('Bậc Tin cậy');
     await expect(people).toContainText('Có nợ chưa trả'); // Thành viên 4 defaulted and has not repaid
-    await expect(people).toContainText('Còn 2 dây sạch nữa để lên bậc Tin cậy.');
+    await expect(people).toContainText('Để lên bậc Tin cậy: Hoàn thành thêm 2 dây');
     await expect(people).toContainText('Huy hiệu là lịch sử, không phải bảo đảm. Bảo đảm của bạn là cọc của chủ hụi.');
   });
 

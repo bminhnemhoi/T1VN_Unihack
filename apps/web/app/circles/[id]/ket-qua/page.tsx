@@ -1,8 +1,8 @@
-import { ResultView } from '@/components/circle/ResultView';
+import { CircleScreen } from '@/components/circle/CircleScreen';
 import { circleParam, type CirclePageProps } from '@/lib/circle-page';
 
 export const metadata = { title: 'Kết quả kỳ (mẫu)' };
 
 export default async function Page({ params }: CirclePageProps) {
-  return <ResultView id={await circleParam(params)} />;
+  return <CircleScreen id={await circleParam(params)} screen="ket-qua" />;
 }

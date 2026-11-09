@@ -5,12 +5,11 @@ import { formatUsdc, huiMath } from 'sdk';
 import { CirclePageHead } from '@/components/circle/CirclePageHead';
 import { LedgerList } from '@/components/LedgerList';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
-import { getSampleCircle, type CircleId } from '@/lib/sample-circles';
+import { type SampleCircleData } from '@/lib/sample-circles';
 import { TOGGLE_ON } from '@/lib/utils';
 
 /** S10: how much of a pot is held back and how it comes back, one instalment per round paid on time (docs/03 section 2.2). */
-export function HoldbackView({ id }: { id: CircleId }) {
-  const c = getSampleCircle(id);
+export function HoldbackView({ c }: { c: SampleCircleData }) {
   const t = c.terms;
   const n = Number(t.n);
   const myRound = c.winnerByRound.indexOf(c.viewer) + 1; // 0 when the viewer has not received
@@ -27,6 +26,9 @@ export function HoldbackView({ id }: { id: CircleId }) {
     return { r, released: each, left, done: r <= c.settled };
   });
   const nowHeld = (i: number): bigint => {
+    // Chain data: the real amount the contract holds for this seat.
+    const real = c.live?.view.members.find((m) => m.joinIndex === i);
+    if (real) return real.holdback;
     const r = c.winnerByRound.indexOf(i) + 1;
     const defaulted = c.shortfalls.some((s) => s.member === i && s.status === 'defaulted');
     return r > 0 && !defaulted ? huiMath.holdbackFor(t.alphaBps, t.n, BigInt(c.settled), t.c) : 0n;

@@ -13,7 +13,7 @@ export function CirclePageHead({ circle, title, children }: { circle: SampleCirc
         <Badge variant="outline">{circle.label}</Badge>
         <Badge variant="secondary">{STATE[circle.state]}</Badge>
         <Badge variant="secondary">{circle.terms.mode === 'fixed' ? 'Cố định' : 'Bỏ thăm'}</Badge>
-        <Badge variant="secondary">Dữ liệu mẫu</Badge>
+        {!circle.live && <Badge variant="secondary">Dữ liệu mẫu</Badge>}
       </div>
       {children && <div className="mt-3 max-w-prose text-lead text-muted-foreground">{children}</div>}
     </header>

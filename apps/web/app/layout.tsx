@@ -4,10 +4,14 @@ import localFont from 'next/font/local';
 import type { ReactNode } from 'react';
 import { BottomNav } from '@/components/shell/BottomNav';
 import { DemoBanner } from '@/components/shell/DemoBanner';
+import { SampleModeLabel } from '@/components/shell/SampleModeLabel';
 import { FontSizeInit } from '@/components/shell/FontSizeInit';
 import { SiteFooter } from '@/components/shell/SiteFooter';
 import { SiteHeader } from '@/components/shell/SiteHeader';
 import { ToastProvider } from '@/components/shell/Toast';
+import { ChainProvider } from '@/lib/chain/provider';
+import { loadChainConfig } from '@/lib/chain/server';
+import { HuiWalletProvider } from '@/lib/chain/walletProvider';
 import { cn } from '@/lib/utils';
 import './globals.css';
 
@@ -47,6 +51,8 @@ export const viewport: Viewport = {
 };
 
 export default function RootLayout({ children }: { children: ReactNode }) {
+  // `null` = nothing deployed on this network: every screen keeps showing sample data and says so.
+  const chain = loadChainConfig();
   return (
     <html lang="vi" className={cn('font-sans', sans.variable, display.variable, hand.variable)}>
       <body className="min-h-screen bg-background pb-16 text-foreground antialiased md:pb-0">
@@ -56,14 +62,19 @@ export default function RootLayout({ children }: { children: ReactNode }) {
         >
           Bỏ qua, đến nội dung chính
         </a>
-        <ToastProvider>
-          <FontSizeInit />
-          <DemoBanner />
-          <SiteHeader />
-          {children}
-          <SiteFooter />
-          <BottomNav />
-        </ToastProvider>
+        <ChainProvider config={chain}>
+          <HuiWalletProvider>
+            <ToastProvider>
+              <FontSizeInit />
+              <DemoBanner />
+              {chain === null && <SampleModeLabel />}
+              <SiteHeader />
+              {children}
+              <SiteFooter />
+              <BottomNav />
+            </ToastProvider>
+          </HuiWalletProvider>
+        </ChainProvider>
       </body>
     </html>
   );

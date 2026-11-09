@@ -372,37 +372,8 @@ export interface Reputation {
   monthsActive: number;
   /** Organizers only: circles where the bond had to cover someone. */
   bondUsedCircles?: number;
+  /** Chain data only: the wallet, so the badge can read its real record from the registry. */
+  address?: `0x${string}`;
 }
 
-export type Tier = 'new' | 'trusted' | 'veteran';
-
-export interface TierInfo {
-  tier: Tier;
-  label: string;
-  /** Unpaid default: shown in red at every tier. */
-  redFlag: boolean;
-  /** Clean circles still needed for the next tier, or undefined at the top. */
-  toNext?: number;
-  nextLabel?: string;
-}
-
-export const TIER_LABEL: Record<Tier, string> = { new: 'Mới', trusted: 'Tin cậy', veteran: 'Lâu năm' };
 export const REP_DISCLAIMER = 'Huy hiệu là lịch sử, không phải bảo đảm. Bảo đảm của bạn là cọc của chủ hụi.';
-
-/**
- * TODO(B9): temporary tier rule for the sample screens, same criteria as the report (section 6 item 12). Replace the body
- * with `reputationTier` from `sdk` (task A10, worktree contracts) when merging; keep the `TierInfo` shape the screens use.
- */
-export function tierOf(rep: Reputation, who: 'member' | 'organizer'): TierInfo {
-  const redFlag = rep.defaults > rep.repaid;
-  const total = rep.onTime + rep.late;
-  const punctual = total === 0 ? true : rep.onTime * 100 >= total * 95;
-  const clean = who === 'member' ? rep.defaults === 0 && punctual : (rep.bondUsedCircles ?? 0) === 0 && rep.defaults === 0;
-  const veteran = rep.completed >= 10 && rep.monthsActive > 6 && !redFlag && clean;
-  const trusted = rep.completed >= 3 && clean;
-  if (veteran) return { tier: 'veteran', label: TIER_LABEL.veteran, redFlag };
-  if (trusted) {
-    return { tier: 'trusted', label: TIER_LABEL.trusted, redFlag, toNext: Math.max(1, 10 - rep.completed), nextLabel: TIER_LABEL.veteran };
-  }
-  return { tier: 'new', label: TIER_LABEL.new, redFlag, toNext: Math.max(1, 3 - rep.completed), nextLabel: TIER_LABEL.trusted };
-}

@@ -1,8 +1,6 @@
-import Link from 'next/link';
 import { HeroMeter } from '@/components/landing/HeroMeter';
 import { Seal } from '@/components/brand/Seal';
-import { SoonButton } from '@/components/shell/SoonButton';
-import { Button } from '@/components/ui/button';
+import { HeroActions } from '@/components/landing/HeroActions';
 
 const FACTS = ['Không ai cầm tiền', 'Chủ hụi khóa ký quỹ', 'Sổ hụi công khai'];
 
@@ -25,24 +23,7 @@ export function Hero() {
               </li>
             ))}
           </ul>
-          <div className="vao mt-8 flex max-w-md flex-col gap-2" style={{ ['--i' as string]: 3 }}>
-            <Button asChild size="lg" className="bg-nghe text-muc-dem hover:bg-nghe/90">
-              <Link href="/circles">Xem thử màn hình mẫu</Link>
-            </Button>
-            <p className="text-[#c9d2e0]">Không cần đăng nhập, không cần ví.</p>
-            <SoonButton
-              variant="outline"
-              size="lg"
-              aria-describedby="dang-nhap-ghi-chu"
-              message="Đăng nhập bằng Google hoặc email sẽ có khi nối ví. Hiện là màn hình mẫu, bạn xem thử các màn hình bằng nút Xem thử màn hình mẫu."
-              className="mt-1 border-[#c9d2e0] bg-transparent text-white hover:bg-white/10 hover:text-white"
-            >
-              Đăng nhập bằng Google hoặc email
-            </SoonButton>
-            <p id="dang-nhap-ghi-chu" className="text-[#c9d2e0]">
-              Đăng nhập sẽ có sau khi nối ví.
-            </p>
-          </div>
+          <HeroActions />
         </div>
         <div className="vao relative" style={{ ['--i' as string]: 2 }}>
           <Seal size={92} className="absolute -top-10 -left-6 z-10 hidden -rotate-12 md:block text-le-do-sang opacity-90" />
