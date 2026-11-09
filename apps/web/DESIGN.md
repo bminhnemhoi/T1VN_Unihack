@@ -88,3 +88,28 @@ A paper sổ hụi is a grid: one row per round, one column per member. HụiSaf
 Eyebrow labels above headings; gradient text; purple-blue gradients; glass or glow as decoration; identical card grids as page
 structure; a 1px border under a wide shadow; colour as the only signal; text lighter than `--muted-foreground`; emoji as icons;
 round made-up statistics; two primary buttons of equal weight; animating width/height.
+
+## 8. Layout references (09/11/2026): what we learn, what we do not take
+
+Full notes with observed vs inferred labels: `docs/design-research/layout-references-09-11.md`. Raw captures stay in `.handover/refs/` (git-excluded).
+
+| Reference (link) | Captured at | Measured |
+|---|---|---|
+| https://www.roscash.org/ | 1440, 768, 390 | dembrandt |
+| https://thesusu.app/ | 1440, 768, 390 | dembrandt |
+| https://cosayv.com/ | 1440, 768, 390 | dembrandt |
+| https://huio.vn/ | 1440, 768, 390 | dembrandt |
+| https://www.moneyfellows.com/en-us/ | 1440, 768, 390 | looked at 1440 only |
+| https://mercury.com/ , https://wise.com/ | 1440, 768, 390 | looked at 1440; numbers from section 1. Mercury capture partly broken (scripted scroll), only the top is usable |
+| https://monzo.com/ | 1440, 768, 390 | captured, not analysed |
+
+Dashboards sit behind login, so dashboard patterns are inferred from the product screenshots on the public pages.
+
+**Learned (layout, order, rhythm, buttons):** hero opens with a worked number example, not a slogan; one primary button plus a text link;
+alternate light and night-ink bands to pace the page; "title left, content right" two-column blocks for FAQ and trust; a receipt-style card
+for fees and the shortfall waterfall; the hero object is the real product (our coverage card, the Sổ hụi table), not an illustration;
+spacing on a 4/8px scale with roughly 100 to 140px between sections at 1440 (inferred from screenshots, not measured);
+dashboard: one headline number, one clear next action, circles as status rows, payout order shown as progress.
+
+**Not taken:** logos, photos, illustrations, mascots, copy, brand colours (blue, yellow, lime, orange, green) and brand fonts of any reference.
+HụiSafe keeps its own paper, blue-black ink, red seal and the roles in section 2.
