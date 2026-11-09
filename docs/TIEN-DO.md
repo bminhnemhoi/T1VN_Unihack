@@ -17,10 +17,10 @@ Cập nhật: 09/11/2026 (Towfienes). Báo cáo gửi leader: `docs/BAO-CAO-LEAD
 
 | GitHub | Vai trò | Đang làm |
 |---|---|---|
-| Minh | Leader, duyệt đặc tả, người ký Safe | Tạo Safe 2/3, duyệt báo cáo 09/11 |
+| bminhnemhoi (Minh) | Leader, duyệt đặc tả, người ký Safe | Tạo Safe 2/3, duyệt báo cáo 09/11 |
 | Towfienes | Điều phối, review và merge, người ký Safe | M2 |
-| khanhle1406 | Thành viên | (chưa nhận) |
-| yuutosolonely | Thành viên | (chưa nhận) |
+| khanhle1406 | Đang cân nhắc (chưa mời vào repo) | (chưa nhận) |
+| yuutosolonely | Đang cân nhắc (chưa mời vào repo) | (chưa nhận) |
 
 ## Cách làm việc
 
