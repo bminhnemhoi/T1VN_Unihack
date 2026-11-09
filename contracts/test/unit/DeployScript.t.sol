@@ -119,6 +119,14 @@ contract DeployScriptTest is Test {
         _cleanup();
     }
 
+    /// @dev 09/11 decision (ADR-22): Fuji deploys with a 100% coverage floor by default; anvil keeps docs/03 2.3 (5000).
+    function test_Execute_Fuji_DefaultMinCoverageIs10000() public {
+        Deploy.Params memory p = _fujiParams("fujiMinCoverage");
+        Deploy.Deployment memory d = script.execute(p);
+        assertEq(HuiFactory(d.factory).config().minCoverageBps, 10_000);
+        _cleanup();
+    }
+
     function test_Execute_AdminDifferentFromDeployer_SkipsWiring() public {
         vm.chainId(31337);
         address safe = makeAddr("safe");
@@ -228,6 +236,7 @@ contract DeployScriptTest is Test {
         vm.setEnv("USDC", "");
         vm.setEnv("WRITE_DEPLOYMENT", "");
         vm.setEnv("ALLOW_UNWIRED", "");
+        vm.setEnv("MIN_COVERAGE_BPS", "");
         vm.chainId(31337);
 
         Deploy.Deployment memory d = script.run();
