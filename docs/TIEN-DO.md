@@ -1,12 +1,13 @@
 # Tiến độ HụiSafe
 
-Cập nhật: 09/11/2026 (Towfienes). Ai xong một việc đáng kể thì sửa phần TÓM TẮT trong cùng PR (giữ dưới 15 dòng).
+Cập nhật: 09/11/2026 (Towfienes). Báo cáo gửi leader: `docs/BAO-CAO-LEADER-09-11.md`. Ai xong một việc đáng kể thì sửa phần TÓM TẮT trong cùng PR (giữ dưới 15 dòng).
 
 <!-- TOM-TAT -->
 - M0 Setup: XONG. M1 Contract lõi: XONG 08/11 (536 test, 44 invariant, Slither high 0).
 - M2 Fuji + SDK (hạn 11/11): ĐANG LÀM. Script dây demo, /api/relay, /api/attest, keeper, chạy thử trên anvil. Deploy Fuji chờ khóa + app Privy.
 - M3 MVP E2E (hạn 14/11): giao diện S01-S06 xong (dữ liệu mẫu). Chưa nối ví và contract (W5 SDK, W7-W9, W11).
 - M4 AI + thử thật (hạn 16/11): mô phỏng XONG; /api/copilot XONG (9router/Gemini hoặc Anthropic), chưa chạy eval live; ngăn kéo trợ lý T6 chưa làm.
+- Tối ưu dòng tiền (phản hồi v1.2): đề xuất hoa hồng nằm trong trần lãi, gói contract A9; CHỜ LEADER DUYỆT. Máy tính kiểm khớp contract: `tools/hui-economics/`.
 - M5-M7: chưa tới (đóng băng 17/11, pitch 19/11, nộp 20/11).
 - Đang giữ: contracts/, apps/keeper, apps/web/app/api/{relay,attest} (luồng A); apps/web giao diện, sim/, copilot (luồng B). Muốn sửa các chỗ này thì báo Towfienes trước.
 - Việc mở cho member: T8 slide + kịch bản pitch, T4 rà văn bản luật (apps/web/lib/copilot/rules), T10 README, W12 kiểm tiếng Việt/accessibility. Nhận việc nào thì ghi tên vào bảng dưới.
