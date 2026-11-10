@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { RowCards, WideTable } from '@/components/RowCards';
 import { OrganizerEconomics, OrganizerSybil } from '@/components/lab/OrganizerLab';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import type { LabData, LabDesign } from '@/lib/lab-data';
@@ -127,7 +128,17 @@ export function LabView({ data }: { data: LabData }) {
           <p className="mt-2 max-w-prose text-lead">
             Ký quỹ chịu được cú sốc lớn nhất (mọi người đã hốt cùng bỏ một lúc, rủi ro đỉnh {usdc(data.inv08.maxExposureUsdc)}). Nếu họ bỏ lần lượt qua nhiều kỳ, tổng khoản thiếu có thể tới {usdc(data.inv08.worstCaseSequentialShortfallUsdc)} và vượt ký quỹ.
           </p>
-          <div className="o-phang mt-4 overflow-x-auto" tabIndex={0} role="region" aria-label="Bảng cú sốc, kéo ngang để xem hết">
+          <RowCards
+            label="Tỷ lệ dây còn khoản chưa bù được theo kiểu bỏ đóng"
+            items={data.inv08.rows.map((r) => ({
+              title: `${NAME[r.design] ?? r.design}${r.design === 'huisafe' ? ` (ký quỹ ${r.bondRatio.toLocaleString('vi-VN')}×)` : ''}: ${PLAN[r.plan] ?? r.plan}, ${pct(r.q * 100)} người hốt bỏ`,
+              rows: [
+                { k: 'Dây còn khoản chưa bù', v: pct(r.uncoveredShare * 100), strong: true },
+                { k: 'Khoản chưa bù trung bình', v: usdc(r.uncoveredEndMeanUsdc) },
+              ],
+            }))}
+          />
+          <WideTable label="Bảng cú sốc, kéo ngang để xem hết">
             <table className="w-full min-w-[40rem] text-base">
               <caption className="sr-only">Tỷ lệ dây còn khoản chưa bù được theo kiểu bỏ đóng</caption>
               <thead>
@@ -154,7 +165,7 @@ export function LabView({ data }: { data: LabData }) {
                 ))}
               </tbody>
             </table>
-          </div>
+          </WideTable>
         </section>
       )}
 

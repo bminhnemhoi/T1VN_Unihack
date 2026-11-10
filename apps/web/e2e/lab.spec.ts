@@ -1,7 +1,7 @@
 import { expect, test, type Page } from '@playwright/test';
 import { noHorizontalOverflow, noClippedContent, watchErrors } from './helpers';
 
-const isPhone = (page: Page): boolean => (page.viewportSize()?.width ?? 1440) < 768;
+const isPhone = (page: Page): boolean => (page.viewportSize()?.width ?? 1440) < 1024;
 
 test.describe('S16 /lab, v1.2 organizer scenarios', () => {
   test('dummy-wallet table shows the docs/03 section 7.3 numbers read from the output file, with the exact promise', async ({ page }) => {

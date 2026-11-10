@@ -1,5 +1,6 @@
 import { memo } from 'react';
 import { formatUsdc } from 'sdk';
+import { RowCards, WideTable } from '@/components/RowCards';
 import { riskTable, type Terms } from '@/lib/hui-calc';
 import { formatCents } from '@/lib/money';
 import { cn } from '@/lib/utils';
@@ -25,7 +26,20 @@ export const RiskTable = memo(function RiskTable({ terms, bond, highlight, class
           Nếu người đã hốt bỏ đóng lần lượt qua nhiều kỳ, tổng khoản thiếu có thể vượt ký quỹ, và người hốt cuối bị nhận thiếu. Khoản thiếu đó thành khoản đòi công khai, không biến mất.
         </p>
       )}
-      <div className="o-phang mt-4 overflow-x-auto" tabIndex={0} role="region" aria-label="Bảng số tiền tối đa mỗi chỗ có thể mất, kéo ngang để xem hết">
+      <RowCards
+        label="Số tiền tối đa mỗi chỗ có thể mất, theo kỳ hốt"
+        items={t.rows.map((r) => ({
+          title: `Kỳ ${r.k}${highlight === r.k ? ' (chỗ của bạn)' : ''}`,
+          me: highlight === r.k,
+          rows: [
+            { k: 'Người hốt trước', v: String(r.before) },
+            { k: 'Cùng bỏ một lúc', v: formatCents(r.together, 'up') },
+            { k: 'Bỏ lần lượt', v: formatCents(r.sequential, 'up') },
+            { k: 'Mất tối đa', v: formatCents(r.worst, 'up'), strong: true, bad: r.worst > 0n },
+          ],
+        }))}
+      />
+      <WideTable label="Bảng số tiền tối đa mỗi chỗ có thể mất, kéo ngang để xem hết">
         <table className="w-full min-w-[34rem] text-base">
           <caption className="sr-only">Số tiền tối đa mỗi chỗ có thể mất, theo kỳ hốt</caption>
           <thead>
@@ -52,7 +66,7 @@ export const RiskTable = memo(function RiskTable({ terms, bond, highlight, class
             ))}
           </tbody>
         </table>
-      </div>
+      </WideTable>
       <p className="mt-2 text-base text-muted-foreground">
         Giả định xấu nhất: không ai bỏ thăm, người đã hốt ngừng đóng từ kỳ sau khi hốt, người hốt kỳ đó trung thực. Ký quỹ {formatUsdc(bond)}.
       </p>
