@@ -15,6 +15,7 @@ CLAUDE.local.md
 # Node / Next.js
 node_modules/
 .next/
+.next-chain/
 .turbo/
 dist/
 coverage/

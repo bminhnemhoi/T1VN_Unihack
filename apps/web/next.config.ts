@@ -2,6 +2,8 @@ import path from 'node:path';
 import type { NextConfig } from 'next';
 
 const nextConfig: NextConfig = {
+  // The chain-mode check builds into its own folder (`playwright.chain.config.ts`) so it cannot overwrite the sample build.
+  distDir: process.env.NEXT_DIST_DIR || '.next',
   transpilePackages: ['sdk', 'config'],
   // Monorepo root (silences the multiple-lockfile warning); `next` runs with cwd = apps/web.
   outputFileTracingRoot: path.resolve(process.cwd(), '../..'),

@@ -10,6 +10,7 @@
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "test:e2e": "playwright test",
     "test:e2e:run": "E2E_SKIP_BUILD=1 playwright test",
+    "test:e2e:chain": "playwright test -c playwright.chain.config.ts",
     "test": "vitest run",
     "eval:copilot": "tsx lib/copilot/evals/run.ts",
     "e2e:anvil": "tsx scripts/e2e-anvil.ts",

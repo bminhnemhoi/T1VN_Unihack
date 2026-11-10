@@ -1,0 +1,16 @@
+{
+  "_comment": "MOCK for the chain-mode layout check (playwright.chain.config.ts). Not a deployment: the addresses are made up and the RPC is a dead local port, so nothing here ever reaches Fuji.",
+  "admin": "0x1000000000000000000000000000000000000001",
+  "attester": "0x1000000000000000000000000000000000000002",
+  "chainId": 43113,
+  "circleImplementation": "0x1000000000000000000000000000000000000003",
+  "circleLens": "0x1000000000000000000000000000000000000004",
+  "deployBlock": 1,
+  "deployedAt": "2026-11-11T00:00:00Z",
+  "factory": "0x1000000000000000000000000000000000000005",
+  "forwarder": "0x1000000000000000000000000000000000000006",
+  "gitCommit": "mock",
+  "relayer": "0x1000000000000000000000000000000000000007",
+  "reputation": "0x1000000000000000000000000000000000000008",
+  "usdc": "0x1000000000000000000000000000000000000009"
+}
