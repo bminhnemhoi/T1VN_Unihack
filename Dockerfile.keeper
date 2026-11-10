@@ -1,0 +1,18 @@
+# HuiSafe keeper (settleRound, markDefault, finalize, cancel). Run exactly ONE.
+#
+#   docker build -f Dockerfile.keeper -t huisafe-keeper .
+#   docker run --rm -e KEEPER_PRIVATE_KEY -e KEEPER_INTERVAL_SECONDS huisafe-keeper
+#
+# Installs only the keeper and the workspace packages it uses (config, sdk), not the web app's dependencies, and runs
+# the TypeScript source with tsx. Secrets are passed at run time, never baked in (docs/HOSTING.md).
+FROM node:22-slim
+ENV NODE_ENV=production
+# pnpm is fetched at build time into a directory the runtime user can read; keep the version in step with "packageManager".
+ENV COREPACK_HOME=/opt/corepack
+RUN corepack enable && corepack prepare pnpm@12.14.0 --activate && chmod -R a+rX /opt/corepack
+WORKDIR /app
+COPY . .
+# NODE_ENV=production would skip devDependencies, and tsx is one of the keeper's: install them explicitly.
+RUN NODE_ENV=development pnpm install --frozen-lockfile --filter "keeper..." && chown -R node:node /app
+USER node
+CMD ["pnpm", "--filter", "keeper", "start"]
