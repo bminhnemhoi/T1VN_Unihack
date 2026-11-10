@@ -3,14 +3,13 @@
 Cập nhật: 10/11/2026 (Towfienes). Báo cáo gửi leader: `docs/BAO-CAO-LEADER-09-11.md`. Ai xong một việc đáng kể thì sửa phần TÓM TẮT trong cùng PR (giữ dưới 15 dòng).
 
 <!-- TOM-TAT -->
-- M0 Setup: XONG. M1 Contract lõi: XONG 08/11 (536 test, 44 invariant, Slither high 0).
-- M2 Fuji + SDK (hạn 11/11): ĐANG LÀM. Script dây demo, /api/relay, /api/attest, keeper, chạy thử trên anvil; e2e thoát sạch (A12). Quy trình deploy: `docs/DEPLOY-FUJI.md` (minCoverage 10000, Safe gọi setFactory). Chờ Safe, khóa, app Privy, USDC faucet.
-- M3 MVP E2E (hạn 14/11): giao diện S01-S16 (B8) đã ghép với chain (B9), bấm thử trên anvil xong. B10 xong, chờ Towfienes duyệt giao diện: sàn bảo chứng đọc từ chain (Fuji 100%), khóa nút bỏ thăm khi còn nợ hoặc là người sống duy nhất, dải và khóa nút khi dây tạm dừng, Privy nạp lười (trang đầu 640 kB còn 253 kB, Lighthouse mobile 76-81 lên 89-90). Chưa thử Privy thật. B11 xong (chờ duyệt): sổ hụi in được (A4, QR Snowtrace) + `/api/circles/[address]/so-ho`, axe WCAG 2.2 AA mọi route, banner demo theo `NEXT_PUBLIC_HUISAFE_DEMO`, rà chữ tiếng Việt. B12 (máy tính thăm, đồng hồ công bằng) chờ A9. M-02 (trả trễ cần allowance): `docs/DE-XUAT-M02.md`, khuyến nghị relay nhận permit.
-- M4 AI + thử thật (hạn 16/11): mô phỏng XONG; /api/copilot XONG (9router/Gemini hoặc Anthropic), chưa chạy eval live; ngăn kéo trợ lý T6 XONG (gọi /api/copilot thật, có tab máy tính).
-- Phản hồi v1.2 + tối ưu dòng tiền: XONG thảo luận 09/11, báo cáo `docs/BAO-CAO-LEADER-09-11.md` (hoa hồng nằm trong trần lãi, gói contract A9, roadmap). Towfienes duyệt thay leader 10/11: làm gói A9. A13 XONG ở nhánh Towfienes/contracts (10/11, chưa push): hoa hồng trong trần φ, quỹ dự phòng theo đúng hạn, termsHash, trả hoa hồng ngay; forge 532 + 54 invariant xanh, E2E anvil 94, audit 0 Critical/High; relayer dừng dưới 0,005 AVAX. Việc tiếp: web B10 thêm ô φ/văn bản thỏa thuận, merge với main. Máy tính kiểm khớp contract: `tools/hui-economics/`.
+- M0 Setup: XONG. M1 Contract lõi: XONG 08/11. Gói v1.2 (A13) XONG và đã gộp main 10/11: hoa hồng nằm trong trần lãi (φ), quỹ dự phòng chia theo đúng hạn, chân chủ hụi không thu hoa hồng, termsHash, trả hoa hồng ngay kỳ sạch. 586 forge test (54 invariant), audit 0 Critical/High/Medium, Slither high 0, HuiCircle 23.128 B.
+- M2 Fuji + SDK (hạn 11/11): code xong, quy trình `docs/DEPLOY-FUJI.md` (minCoverage 10000). Ví testnet đủ AVAX + 800 USDC (`.handover/FAUCET.md`). Chờ: app Privy, khóa, Safe (hoặc ví deployer tạm).
+- M3 MVP E2E (hạn 14/11): S01-S16 nối chain (B9); B10 (sàn bảo chứng từ chain, khóa bỏ thăm sai, tạm dừng, Privy nạp lười 640 -> 253 kB) và B11 (sổ hụi in được + route JSON, axe a11y 0 lỗi, banner demo, chữ tiếng Việt) đã gộp main, giao diện CHỜ Towfienes duyệt. Đang làm: B12 giao diện v1.2 (ô φ, thỏa thuận, bảng chi phí, tất toán), A14 (M-02 relay nhận permit, readCircle đủ dữ liệu, văn bản thỏa thuận chuẩn).
+- M4 AI + thử thật (hạn 16/11): mô phỏng XONG (chưa phản ánh hoa hồng trong trần); /api/copilot XONG, chưa chạy eval live; ngăn kéo trợ lý XONG.
 - M5-M7: chưa tới (đóng băng 17/11, pitch 19/11, nộp 20/11).
-- Đang giữ: contracts/, apps/keeper, apps/web/app/api/{relay,attest} (luồng A); apps/web giao diện, sim/, copilot (luồng B). Muốn sửa các chỗ này thì báo Towfienes trước.
-- Việc mở cho member: T8 slide + kịch bản pitch, T4 rà văn bản luật (apps/web/lib/copilot/rules), T10 README, Nhận việc nào thì ghi tên vào bảng dưới.
+- Đang giữ: contracts/, apps/keeper, apps/web/app/api/{relay,attest}, lib/chain (luồng A); apps/web giao diện, lib/live, sim/, copilot (luồng B). Muốn sửa các chỗ này thì báo Towfienes trước.
+- Việc mở cho member: T8 slide + kịch bản pitch, T4 rà văn bản luật (apps/web/lib/copilot/rules), T10 README. Nhận việc nào thì ghi tên vào bảng dưới.
 <!-- /TOM-TAT -->
 
 ## Thành viên
