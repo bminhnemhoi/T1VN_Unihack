@@ -104,14 +104,22 @@ describe('POST /api/copilot', () => {
     expect(res.status).toBe(413);
   });
 
-  it('rate limits per IP at 20 requests per hour and sends Retry-After', async () => {
+  it('rate limits per IP at 20 requests per hour and sends Retry-After (TRUST_PROXY=true)', async () => {
     vi.stubEnv('COPILOT_MOCK', '1');
+    vi.stubEnv('TRUST_PROXY', 'true');
     const ip = freshIp();
     for (let i = 0; i < 20; i++) expect((await POST(post(ask('Rủi ro?'), ip))).status).not.toBe(429);
     const res = await POST(post(ask('Rủi ro?'), ip));
     expect(res.status).toBe(429);
     expect(Number(res.headers.get('retry-after'))).toBeGreaterThan(0);
     expect((await POST(post(ask('Rủi ro?'), freshIp()))).status).not.toBe(429);
+  });
+
+  it('without TRUST_PROXY a spoofed x-forwarded-for neither buys a fresh bucket nor blocks anyone (audit A15 M-01)', async () => {
+    vi.stubEnv('COPILOT_MOCK', '1');
+    vi.stubEnv('TRUST_PROXY', '');
+    for (let i = 0; i < 25; i++) expect((await POST(post(ask('Rủi ro?'), '6.6.6.6'))).status).not.toBe(429);
+    for (let i = 0; i < 25; i++) expect((await POST(post(ask('Rủi ro?'), freshIp()))).status).not.toBe(429);
   });
 
   it('refuses an action request even through the full route', async () => {

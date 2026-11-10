@@ -209,7 +209,7 @@ pnpm --filter web build && pnpm --filter web start      # relay và attest là r
   ```
 
   (Caddy mặc định bỏ `X-Forwarded-For` do client gửi và ghi địa chỉ thật.)
-- `/api/copilot` còn bộ đếm IP riêng lấy phần tử đầu của `x-forwarded-for` (né được bằng header giả); chưa đổi, chờ Towfienes quyết định (audit A15 M-01).
+- `/api/copilot` theo cùng quy tắc (A16): hạn mức 20 câu/giờ mỗi IP chỉ khi `TRUST_PROXY=true`, không thì chỉ còn trần ngày `COPILOT_DAILY_LIMIT`.
 - Relayer cảnh báo dưới 0,02 AVAX, dừng gửi dưới 0,005 AVAX (503 `RelayUnavailable`).
 
 ## 11. Kiểm tra sẵn sàng

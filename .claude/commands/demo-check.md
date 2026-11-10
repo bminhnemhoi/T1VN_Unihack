@@ -9,10 +9,13 @@ allowed-tools:
   - Bash(cast call *)
   - Bash(cast balance *)
   - Bash(gh run list *)
+  - Bash(bash scripts/demo-check.sh)
 ---
 
 Kiểm tra sẵn sàng demo. Web cần kiểm: $ARGUMENTS (trống thì bỏ phần web, chỉ kiểm chuỗi và repo).
 Chỉ đọc: không broadcast, không sửa file, không đọc `.env*`. Nguồn checklist: `docs/11-ke-hoach-trien-khai.md` mục 12, `docs/12-pitch-demo-nop-bai.md`.
+
+Bước 0 (chạy trước, chỉ đọc, không cần khóa): `bash scripts/demo-check.sh` in bảng Hạng mục | PASS/FAIL/INFO/CHECK | Bằng chứng cho mục 1-6 bên dưới (mạng, contract có code + verify Routescan, admin là Safe 2/3, minCoverage 10000, AVAX relayer/keeper/organizer, USDC ví demo, trạng thái từng dây demo của organizer, keeper chi đúng hạn). Đặt thêm `KEEPER_ADDRESS`, `SAFE_OWNER_1..3`, `FUJI_RPC_URL` (địa chỉ công khai) để kiểm đủ. Dùng bảng đó làm nền cho báo cáo, rồi làm các bước còn lại bằng tay (web, repo, nộp bài).
 
 Các bước:
 

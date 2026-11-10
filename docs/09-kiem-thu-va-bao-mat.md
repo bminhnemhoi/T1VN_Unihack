@@ -246,6 +246,21 @@ forge snapshot --check    # CI: lỗi nếu test nào tốn hơn bản đã ghi
 
 **Coverage:** `HuiMath` 100% dòng và nhánh. `HuiCircle`, `HuiFactory`, `ReputationRegistry` ≥ 90% dòng, ≥ 85% nhánh. Mọi lỗi custom của đường tiền có ít nhất một test revert. Lệnh: `forge coverage --report summary`; xem chi tiết bằng `forge coverage --report lcov`. Gặp lỗi "stack too deep" khi đo thì thử `--ir-minimum` (số dòng có thể lệch, cần kiểm tra). Ghi số test và coverage vào README.
 
+### 7.1. Kết quả kiểm thử (11/11/2026, commit `bc4ed07`, trước đóng băng M5)
+
+Mã `contracts/src` bằng đúng bản đã deploy lên Fuji (`git diff 494e923 HEAD -- contracts/src` rỗng).
+
+| Hạng mục | Kết quả | Lệnh |
+|---|---|---|
+| Test Foundry | **617 đạt, 0 đỏ**, 41 suite; gồm 54 invariant (INV-01..INV-13, mỗi cái một hàm, kèm `InvariantsTeeth` chứng minh từng cái đỏ khi bị phá) | `cd contracts && forge test` |
+| Test script triển khai | Fund 12, DemoCircles 13 (đủ `Create`, `Join`, dây Fixed chạy tới `finalize`), Deploy, CreateSafe; fork Fuji 2 + 4 (`HUISAFE_FORK_TESTS=true`) | `forge test --match-path "test/{unit,fork}/*Script*"` |
+| Coverage dòng / nhánh / hàm | `HuiCircle` 98,46% / 98,30% / 100%; `HuiCircleBase` 100%; `HuiCircleViews` 98,18% / 98,31% / 100%; `HuiFactory` 100% / 100% / 100%; `ReputationRegistry` 100%; `HuiMath` 100% / 100% / 100%; tổng 98,68% dòng, 98,61% câu lệnh, 100% hàm (`HuiCircleLens` 1/2 dòng: chỉ có constructor, các hàm view chạy qua `delegatecall` từ `HuiCircle`) | `forge coverage --ir-minimum --report summary --no-match-coverage "script\|test\|mocks"` |
+| Slither 0.11.6 | **High 0.** Medium 24: `reentrancy-no-eth` 17 (mọi hàm đều `nonReentrant`), `uninitialized-local` 5 (biến đếm), `divide-before-multiply` 1 (`HuiMath.maxExposure`, ⌊N/2⌋·⌈N/2⌉ theo docs/03 mục 2.1), `unused-return` 1 (`ECDSA.tryRecover` kiểm `err` riêng). Low 15, Informational 20, Optimization 19 (`constable-states` là báo nhầm do biến lưu trữ được ghi qua `delegatecall`/`initialize`) | `slither .` trong `contracts/` (cấu hình `slither.config.json`) |
+| Audit `security-auditor` (toàn bộ `src`, relay, attest, keeper) | **0 Critical, 0 High**; 1 Medium và 2 Low ngoài chuỗi (xem `.handover/REPORT-A16.md`), 7 Info | `/audit` |
+| Gas | xem 04 mục 7.1; số đo lại bằng `--gas-report` khớp bảng cũ trong 1% | `forge test --match-path test/gas/GasBudget.t.sol --gas-report` |
+
+Ghi chú coverage: `forge coverage` mặc định gặp "stack too deep" với `via_ir`, nên đo bằng `--ir-minimum` (mã không tối ưu, số dòng có thể lệch nhẹ). Dưới `--ir-minimum` các test ngân sách gas (`GasBudget`) báo đỏ vì gas không tối ưu (8 test); đó là hiện tượng của chế độ đo, không phải lỗi: `forge test` bình thường 617/617 đạt.
+
 ---
 
 ## 8. Phân tích tĩnh, fuzzer ngoài và job riêng tư

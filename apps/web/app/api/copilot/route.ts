@@ -7,6 +7,8 @@ import { LIMITS } from '../../../lib/copilot/config';
 import { runCopilot, type CopilotEvent, type ModelClient } from '../../../lib/copilot/engine';
 import { ConfigError, createModelClient, resolveProviderConfig } from '../../../lib/copilot/provider';
 import { RateLimiter } from '../../../lib/copilot/ratelimit';
+// Header parsing only (no relay or attest code, no keys): the same IP rule as the other API routes (audit A15 M-01).
+import { clientIp, trustProxyFrom } from '../../../lib/server/http';
 import { requestSchema } from '../../../lib/copilot/schemas';
 
 export const runtime = 'nodejs';
@@ -41,11 +43,6 @@ async function readLimited(req: Request, max: number): Promise<string | null> {
   return new TextDecoder().decode(Buffer.concat(chunks));
 }
 
-function clientIp(req: Request): string {
-  const fwd = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim();
-  return fwd || req.headers.get('x-real-ip') || 'unknown';
-}
-
 /** Dev-only scripted model for curl demos: refused in production builds. Otherwise the env selects the provider. */
 async function resolveModel(): Promise<ModelClient> {
   if (process.env.NODE_ENV !== 'production' && process.env.COPILOT_MOCK === '1') {
@@ -67,7 +64,7 @@ export async function POST(req: Request): Promise<Response> {
   const declared = Number(req.headers.get('content-length') ?? '0');
   if (declared > LIMITS.maxBodyBytes) return json(413, 'too_large', 'Nội dung gửi lên quá dài.');
 
-  const taken = limiter.take(clientIp(req));
+  const taken = limiter.take(clientIp(req, trustProxyFrom(process.env)));
   if (!taken.ok) {
     log({ requestId, event: 'rate_limited', reason: taken.reason });
     return json(429, 'rate_limited', 'Bạn hỏi nhiều quá, vui lòng thử lại sau ít phút.', {
