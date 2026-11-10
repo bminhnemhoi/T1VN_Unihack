@@ -38,10 +38,35 @@ export const toolInputSchemas = {
     .object({ N: nOfShares, C: amount, alphaBps, targetCoverageBps: z.number().int().min(5_000).max(10_000) })
     .strict(),
   max_bid_table: z
-    .object({ N: nOfShares, C: amount, periodDays: z.number().int().min(1).max(31), capBps: z.number().int().min(0).max(2_000).default(2_000) })
-    .strict(),
+    .object({
+      N: nOfShares,
+      C: amount,
+      periodDays: z.number().int().min(1).max(31),
+      capBps: z.number().int().min(0).max(2_000).default(2_000),
+      /** phi and the per-pot fee ceiling (docs/03 section 2.7): with phi > 0 the table adds the enforced ceiling and the commission of each round. */
+      commissionShareBps: z.number().int().min(0).max(5_000).default(0),
+      feeBps: z.number().int().min(0).max(300).default(0),
+    })
+    .strict()
+    .superRefine((d, ctx) => {
+      if (d.commissionShareBps > 0 && d.feeBps === 0) {
+        ctx.addIssue({ code: 'custom', path: ['feeBps'], message: 'InvalidParams(15): commissionShareBps > 0 needs feeBps > 0' });
+      }
+    }),
   simulate_circle: z
-    .object({ N: nOfShares, alphaBps, bondRatio: z.number().min(0).max(1) })
+    .object({
+      N: nOfShares,
+      alphaBps,
+      bondRatio: z.number().min(0).max(1),
+      /** Ask for one of the two organizer scenarios of v1.2 (docs/08 section 2.7) instead of the three-design baseline. */
+      organizer: z.enum(['economics', 'sybil']).optional(),
+      /** economics: only this period (7 or 30 days). */
+      periodDays: z.number().int().min(1).max(31).optional(),
+      /** economics: only this phi (0, 3333 or 5000). */
+      commissionShareBps: z.number().int().min(0).max(5_000).optional(),
+      /** sybil: only this many fake wallets (1 or 2). */
+      wallets: z.number().int().min(1).max(2).optional(),
+    })
     .strict(),
   explain_rule: z.object({ topic: z.enum(RULE_TOPICS) }).strict(),
   draft_ubnd_notice: z.object({ circle: z.string().regex(/^0x[0-9a-fA-F]{40}$/) }).strict(),
@@ -63,6 +88,8 @@ export const circleDraftSchema = z
     bondUsdc: decimalString,
     commissionMode: z.boolean(),
     feeBps: z.number().int().min(0).max(300),
+    /** phi, 0..5000 (docs/03 section 2.7); 0 or missing = fixed fee. */
+    commissionShareBps: z.number().int().min(0).max(5_000).optional(),
     reserveBps: z.number().int().min(0).max(300),
     revealBondBps: z.number().int().min(0).max(500),
     capBps: z.number().int().min(0).max(2_000),
@@ -72,6 +99,10 @@ export const circleDraftSchema = z
   .superRefine((d, ctx) => {
     if (!d.commissionMode && d.feeBps > 0) {
       ctx.addIssue({ code: 'custom', path: ['feeBps'], message: 'InvalidParams(9): feeBps > 0 without commissionMode' });
+    }
+    const phi = d.commissionShareBps ?? 0;
+    if (phi > 0 && (d.mode !== 'bidding' || !d.commissionMode || d.feeBps === 0)) {
+      ctx.addIssue({ code: 'custom', path: ['commissionShareBps'], message: 'InvalidParams(15): phi needs a bidding circle with a commission and feeBps > 0' });
     }
     const c = Number(d.C.replace(',', '.'));
     if (!(c >= 1 && c <= TESTNET_MAX_C_USDC)) {

@@ -175,3 +175,52 @@ describe('simulate_circle', () => {
     }
   });
 });
+
+describe('max_bid_table with phi (docs/03 section 2.7, 8.1)', () => {
+  type Row = { k: number; payers: number; maxBid: string; enforcedMaxBid?: string; commission?: string };
+  it('phi = 0 keeps the old table, no extra columns', async () => {
+    const r = (await runTool('max_bid_table', { N: 5, C: 100, periodDays: 30 })) as { rows: Row[] };
+    expect(r.rows[0]).toEqual({ k: 1, payers: 4, maxBid: '6.575342' });
+  });
+  it('phi 50%, ceiling 3%: enforced ceiling is half the legal one; commission is min(phi x room, 3% of the pot)', async () => {
+    const r = (await runTool('max_bid_table', { N: 5, C: 100, periodDays: 30, commissionShareBps: 5000, feeBps: 300 })) as { rows: Row[]; commissionTotal: string };
+    expect(r.rows.map((x) => x.enforcedMaxBid)).toEqual(['3.287671', '2.465753', '1.643835', '0.821917', '0']);
+    // 8.1: round 1 phi x room = 13.150684 but 3% of the largest pot (400) is 12; round 2 phi x room = 7.397259
+    expect(r.rows.map((x) => x.commission)).toEqual(['12', '7.397259', '3.287671', '0.821917', '0']);
+    expect(r.commissionTotal).toBe('23.506847');
+  });
+  it('phi without a fee ceiling is refused (InvalidParams 15)', async () => {
+    await expect(runTool('max_bid_table', { N: 5, C: 100, periodDays: 30, commissionShareBps: 5000 })).rejects.toBeInstanceOf(ToolError);
+    await expect(runTool('max_bid_table', { N: 5, C: 100, periodDays: 30, commissionShareBps: 6000, feeBps: 300 })).rejects.toBeInstanceOf(ToolError);
+  });
+});
+
+describe('simulate_circle, organizer scenarios (docs/08 section 2.7)', () => {
+  type Out = {
+    status: string;
+    organizerRuns: { scenario: string; economics?: { periodDays: number; shareBps: number; netAfterRiskUsdc: number; annualReturnPctByHazardScale: Record<string, number> }[]; sybil?: { wallets: number; organizerNetUsdc: number; uncoveredUsdc: number }[]; assumptions?: string }[];
+  };
+  it('sybil: the three cases of docs/03 section 7.3 by bond ratio and wallets', async () => {
+    const one = (await runTool('simulate_circle', { N: 5, alphaBps: 2000, bondRatio: 0.8, organizer: 'sybil', wallets: 1 })) as Out;
+    expect(one.status).toBe('ok');
+    expect(one.organizerRuns[0]!.sybil!.map((c) => c.organizerNetUsdc)).toEqual([-18.038354]);
+    const two = (await runTool('simulate_circle', { N: 5, alphaBps: 2000, bondRatio: 0.8, organizer: 'sybil', wallets: 2 })) as Out;
+    expect(two.organizerRuns[0]!.sybil![0]).toMatchObject({ organizerNetUsdc: 41.472772, uncoveredUsdc: 56.558906 });
+    const half = (await runTool('simulate_circle', { N: 5, alphaBps: 2000, bondRatio: 0.3, organizer: 'sybil' })) as Out;
+    expect(half.organizerRuns[0]!.sybil![0]!.organizerNetUsdc).toBe(120.756588);
+    expect(half.organizerRuns[0]!.assumptions).toMatch(/Assumptions, not measurements/);
+  });
+  it('economics: filter by period and phi, the report 5.5 numbers (monthly, 10 seats, phi 50%)', async () => {
+    const r = (await runTool('simulate_circle', { N: 10, alphaBps: 2000, bondRatio: 0.8, organizer: 'economics', periodDays: 30, commissionShareBps: 5000 })) as Out;
+    const cell = r.organizerRuns[0]!.economics![0]!;
+    expect(r.organizerRuns[0]!.economics).toHaveLength(1);
+    expect(cell.netAfterRiskUsdc).toBeCloseTo(86.16, 1);
+    expect(cell.annualReturnPctByHazardScale['1']).toBeCloseTo(5.24, 1);
+  });
+  it('a shape that was never simulated gives no_results; the baseline call is unchanged', async () => {
+    expect(await runTool('simulate_circle', { N: 6, alphaBps: 2000, bondRatio: 0.8, organizer: 'economics' })).toEqual({ status: 'no_results' });
+    expect(await runTool('simulate_circle', { N: 5, alphaBps: 1000, bondRatio: 0.8, organizer: 'sybil' })).toEqual({ status: 'no_results' });
+    const base = (await runTool('simulate_circle', { N: 10, alphaBps: 2000, bondRatio: 0.8 })) as { organizerRuns?: unknown };
+    expect(base.organizerRuns).toBeUndefined();
+  });
+});
