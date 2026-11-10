@@ -5,6 +5,7 @@
  */
 import { createPublicClient, defineChain, http, type PublicClient } from 'viem';
 import { avalancheFuji } from 'viem/chains';
+import { FUJI_EXPLORER_API, registerExplorerApi } from 'sdk';
 
 type Address = `0x${string}`;
 
@@ -38,6 +39,12 @@ const anvil = defineChain({
 /** Public RPC only: Fuji's public endpoint, or the local anvil node. */
 export function createChainConfig(json: ChainConfigJson): ChainConfig {
   const chain = json.network === 'anvil' ? anvil : avalancheFuji;
-  const client = createPublicClient({ chain, transport: http() }) as PublicClient;
+  // One HTTP request per burst of reads: JSON-RPC batching, and Multicall3 (on Fuji) for contract reads in the same tick.
+  // Fuji's public RPC answers a page that fires ~80 separate requests per refresh with throttling that reaches the
+  // browser as a CORS error (A18, measured 11/11/2026), and the page then never loads. Anvil has no Multicall3: viem
+  // skips it for chains without one.
+  const client = createPublicClient({ chain, transport: http(undefined, { batch: true }), batch: { multicall: true } }) as PublicClient;
+  // Events come from the explorer in one request; the chunked RPC scan is only the fallback (see `registerExplorerApi`).
+  if (json.network === 'fuji') registerExplorerApi(client, FUJI_EXPLORER_API);
   return { ...json, fromBlock: BigInt(json.fromBlock), client };
 }

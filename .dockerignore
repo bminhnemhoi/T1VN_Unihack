@@ -1,0 +1,23 @@
+.git
+.github
+**/node_modules
+**/.next
+**/.turbo
+**/dist
+**/coverage
+.playwright-cli
+.handover
+.claude
+# Foundry artefacts and libraries are not needed to run the web or the keeper (the ABI is generated into packages/sdk)
+contracts/lib
+contracts/out
+contracts/cache
+contracts/broadcast
+contracts/test
+contracts/deployments/rehearsal
+contracts/deployments/anvil.json
+# Local secret files never enter an image (only the template stays)
+.env*
+!.env.example
+**/*.pem
+**/*.key
