@@ -116,6 +116,9 @@ export function registerExplorerApi(client: PublicClient, url: string, fetchFn?:
   explorers.set(client, { url, fetchFn: fetchFn ?? ((u) => fetch(u) as unknown as ReturnType<FetchFn>) });
 }
 
+/** Etherscan-style hex quantities: Routescan writes zero as a bare "0x", which `BigInt` rejects. */
+const hexQty = (h: string): bigint => (h === '0x' || h === '' ? 0n : BigInt(h));
+
 interface ExplorerLog {
   topics: string[];
   data: string;
@@ -154,10 +157,10 @@ async function explorerEvents(
       out.push({
         eventName,
         args,
-        blockNumber: BigInt(l.blockNumber),
-        logIndex: Number(BigInt(l.logIndex)),
+        blockNumber: hexQty(l.blockNumber),
+        logIndex: Number(hexQty(l.logIndex)),
         txHash: l.transactionHash as ViemHex,
-        timestamp: Number(BigInt(l.timeStamp)),
+        timestamp: Number(hexQty(l.timeStamp)),
       });
     }
     if (j.result.length < EXPLORER_PAGE) break;

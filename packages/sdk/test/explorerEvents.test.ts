@@ -67,6 +67,14 @@ describe('getCircleEvents through an explorer API (Fuji public RPC throttles, A1
     expect(ev[0]!.txHash).toMatch(/^0x[0-9a-f]{64}$/);
   });
 
+  it('reads Routescan\'s bare "0x" as zero (a log at index 0), which BigInt alone rejects', async () => {
+    const zero = { ...claimed(1_000, 0, 1n), logIndex: '0x' };
+    const { client, rpc } = setup(2_000n, [zero, claimed(1_001, 1, 2n)]);
+    const ev = await getCircleEvents(client, circle, { fromBlock: 0n });
+    expect(ev.map((e) => e.logIndex)).toEqual([0, 1]);
+    expect(rpc.getLogs).toBe(0); // no silent fallback to the throttled RPC scan
+  });
+
   it('an empty range ("No records found") is an empty list, not an error and not a fallback', async () => {
     const { client, rpc } = setup(1_000n, []);
     expect(await getCircleEvents(client, circle, { fromBlock: 0n })).toEqual([]);
