@@ -15,8 +15,11 @@ export class RateLimiter {
     private readonly now: () => number = Date.now,
   ) {}
 
-  /** Returns `ok` and, when blocked, the reason and seconds to wait. */
-  take(key: string): { ok: true } | { ok: false; reason: 'ip' | 'daily'; retryAfterSec: number } {
+  /**
+   * Returns `ok` and, when blocked, the reason and seconds to wait. `key` null means no trustworthy client address
+   * (the proxy headers are client-controlled unless `TRUST_PROXY=true`): only the daily cap applies then.
+   */
+  take(key: string | null): { ok: true } | { ok: false; reason: 'ip' | 'daily'; retryAfterSec: number } {
     const t = this.now();
     const today = new Date(t).toISOString().slice(0, 10);
     if (today !== this.day) {
@@ -26,6 +29,10 @@ export class RateLimiter {
     if (this.dayCount >= this.perDay) {
       const tomorrow = Date.parse(`${today}T00:00:00Z`) + 86_400_000;
       return { ok: false, reason: 'daily', retryAfterSec: Math.max(1, Math.ceil((tomorrow - t) / 1000)) };
+    }
+    if (key === null) {
+      this.dayCount++;
+      return { ok: true };
     }
     const windowStart = t - 3_600_000;
     const recent = (this.hits.get(key) ?? []).filter((x) => x > windowStart);

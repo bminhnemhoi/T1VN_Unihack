@@ -20,4 +20,11 @@ describe('RateLimiter', () => {
     now = Date.parse('2026-11-09T00:00:01Z');
     expect(rl.take('d').ok).toBe(true);
   });
+  it('with no trustworthy address (null key) there is no per-IP block but the daily cap still counts', () => {
+    const now = Date.parse('2026-11-08T10:00:00Z');
+    const rl = new RateLimiter(2, 5, () => now);
+    for (let i = 0; i < 5; i++) expect(rl.take(null).ok).toBe(true);
+    expect(rl.take(null)).toMatchObject({ ok: false, reason: 'daily' });
+    expect(rl.take('1.1.1.1')).toMatchObject({ ok: false, reason: 'daily' });
+  });
 });
