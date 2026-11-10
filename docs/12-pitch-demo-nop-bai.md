@@ -95,7 +95,8 @@ flowchart LR
 
 ### 3.1. Chuẩn bị (từ 30 phút trước)
 
-1. **"Demo Hoàn Tất"**: chạy trọn nhánh B của 03 mục 8 sáng cùng ngày (khoảng 17 phút), bằng `script/CreateDemoCircle.s.sol`. Sau kỳ 1, ví M4 chuyển hết USDC sang ví phụ để giả lập bỏ đóng.
+1. **"Demo Hoàn Tất"**: chạy trọn nhánh B của 03 mục 8 sáng cùng ngày (khoảng 17 phút), bằng `script/CreateDemoCircles.s.sol` (bộ ba dây demo; `CreateDemoCircle.s.sol` số ít là bản cũ). Sau kỳ 1, ví M4 chuyển hết USDC sang ví phụ để giả lập bỏ đóng.
+   > **Thực tế trên Fuji (cập nhật 11/11/2026):** dây đã hoàn tất duy nhất là dây Fixed N = 3 `0xABA89dFfA4e157927710419b01C32bD307bF2461` (3 kỳ chi + `finalize`), không ai bỏ đóng. Chưa có dây vỡ nợ thật trên Fuji (đang làm ở A20). Cho tới khi có, đoạn "kỳ 2, M4 không đóng, bù 80 + 20, vỡ nợ" ở bảng 3.2 (phút 1:50 đến 2:40) chỉ được chiếu từ anvil cục bộ hoặc dữ liệu mẫu và phải nói đúng như vậy ("chạy cục bộ" hoặc "dữ liệu mẫu"), không được nói là dây thật trên Fuji. Hai dây Bidding trên Fuji còn `Forming` và hết hạn vào dây 17/11/2026 17:20 UTC; xem `docs/pitch/van-hanh-demo-day.md`.
 2. **"Demo Sống"**: 5/5 người, ký quỹ 480, chưa bắt đầu; `joinDeadline` đặt +24 giờ vì mặc định demo chỉ +30 phút. Thêm 2 bản dự phòng.
 3. **"Demo Mời"**: 4/5 người, để người thứ 5 vào live.
 4. Thiết bị: Laptop A chiếu (chủ hụi, thêm cửa sổ ẩn danh); Điện thoại B là M4, phản chiếu màn hình; Laptop C là M2, P1 cầm, không chiếu.
@@ -120,7 +121,7 @@ Cửa sổ của kỳ 1: nộp thăm [0:00, 1:30), mở thăm [1:30, 2:30), ch�
 | Ví | Cần có |
 |---|---|
 | Chủ hụi, mỗi dây demo | 480 USDC (ký quỹ = 0,8 × 600) |
-| M1..M5, mỗi dây | Tối đa 404 USDC (cận trên) và ít AVAX để "Gửi trực tiếp" khi relayer lỗi |
+| M1..M5, mỗi dây | Tối đa 404 USDC (cận trên) và ít AVAX (dự phòng cho nút "Gửi trực tiếp" khi relayer lỗi, ROADMAP: chưa có trong web) |
 | Relayer, keeper | Relayer ≥ 0,02 AVAX (05 mục 8.2); keeper có AVAX, ví riêng (04 ADR-21) |
 
 Faucet Circle chỉ cho 20 USDC mỗi 2 giờ mỗi ví ([faucet.circle.com](https://faucet.circle.com/)), nên gom từ M0 (R5 ở 11). Mỗi lần chạy nhánh B, ký quỹ mất 320 USDC sang người khác: chuyển trả lại sau mỗi lần tập.
@@ -139,8 +140,8 @@ Câu khai báo đầu pitch thêm vế "demo thu nhỏ 10 lần vì giới hạn
 
 | Sự cố | Dấu hiệu | Làm ngay |
 |---|---|---|
-| RPC Fuji chậm, lỗi | Không có receipt sau 10 giây | Transport chuyển sang `FUJI_RPC_URL_FALLBACK`; vẫn lỗi thì phát đoạn quay sẵn tương ứng; mở ảnh chụp, PDF Snowtrace của "Demo Hoàn Tất" |
-| Relayer lỗi | `/api/relay` báo lỗi | Bấm "Gửi trực tiếp" từ ví demo có AVAX (04 mục 8) |
+| RPC Fuji chậm, lỗi | Không có receipt sau 10 giây | Thử lại một lần. RPC dự phòng tự động (`FUJI_RPC_URL_FALLBACK`) là ROADMAP, web chưa đọc biến này: đổi RPC nghĩa là đặt `FUJI_RPC_URL` rồi khởi động lại web. Vẫn lỗi thì phát đoạn quay sẵn tương ứng; mở ảnh chụp, PDF Snowtrace của "Demo Hoàn Tất" |
+| Relayer lỗi | `/api/relay` báo lỗi | Nút "Gửi trực tiếp" là ROADMAP (chưa có trong web). Nạp AVAX cho relayer (`docs/pitch/van-hanh-demo-day.md` mục 6); thành viên có ví AVAX gọi hàm trực tiếp trên dây; không thì phát đoạn quay sẵn |
 | Keeper không chốt | Quá 3:30 chưa có kết quả | P1 bấm "Chốt kỳ" (`SettleButton`) trên Laptop C |
 | Privy không đăng nhập (Wi-Fi chặn) | Popup Google lỗi | Chuyển hotspot 4G; dùng phiên đã đăng nhập; bỏ đoạn vào dây, phát clip |
 | Bị gọi lên sớm hoặc muộn | "Demo Sống" đã qua kỳ 1 | Dùng bản dự phòng; P3 nói câu mở demo rồi mới bấm "Bắt đầu dây" |
