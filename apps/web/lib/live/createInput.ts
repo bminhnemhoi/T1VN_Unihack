@@ -43,7 +43,7 @@ export function buildCreateInput(f: FormState, v: Valid, o: { nowSec: number; de
     joinDeadline: BigInt(o.nowSec + (o.demo ? JOIN_WINDOW_DEMO : JOIN_WINDOW_REAL)),
     organizerIsMember: false,
     label: stringToHex(circleLabel(v.n, v.c), { size: 32 }),
-    commissionShareBps: 0,
+    commissionShareBps: Number(v.shareBps),
     termsHash: termsHashOf(
       buildTermsText({
         mode: bidding ? 'bidding' : 'fixed',
@@ -53,7 +53,7 @@ export function buildCreateInput(f: FormState, v: Valid, o: { nowSec: number; de
         alphaBps: Number(v.alphaBps),
         commissionMode: f.commission,
         feeBps: f.commission ? Number(v.feeBps) : 0,
-        commissionShareBps: 0,
+        commissionShareBps: Number(v.shareBps),
         reserveBps: Number(v.reserveBps),
         capBps: bidding ? 2000 : 0,
         graceSeconds: o.demo ? DEMO.graceSeconds : REAL_GRACE,

@@ -9,10 +9,14 @@ export interface FormState {
   periodDays: string;
   alpha: string; // percent
   commission: boolean;
-  fee: string; // percent
+  fee: string; // percent; with a commission share it is the ceiling of each pot (docs/03 section 2.7)
+  share: string; // percent, phi: the organizer's share of the interest room (0..50)
   reserve: string; // percent
   bond: string; // USDC
 }
+
+/** The demo build keeps phi = 0 so the old fixed-fee numbers (docs/03 section 8) stay on screen. */
+const DEMO_BUILD = process.env.NEXT_PUBLIC_HUISAFE_DEMO === 'true';
 
 export const DEFAULTS: FormState = {
   mode: 'bidding',
@@ -21,12 +25,15 @@ export const DEFAULTS: FormState = {
   periodDays: '30',
   alpha: '20',
   commission: true,
-  fee: '1',
+  fee: DEMO_BUILD ? '1' : '3',
+  share: DEMO_BUILD ? '0' : '50',
   reserve: '1',
   bond: '0',
 };
 
-export type FieldName = 'n' | 'c' | 'periodDays' | 'alpha' | 'fee' | 'reserve' | 'bond';
+export type FieldName = 'n' | 'c' | 'periodDays' | 'alpha' | 'fee' | 'share' | 'reserve' | 'bond';
+
+export const MAX_SHARE_BPS = 5000n;
 
 export interface Valid {
   n: bigint;
@@ -34,6 +41,8 @@ export interface Valid {
   periodDays: bigint;
   alphaBps: bigint;
   feeBps: bigint;
+  /** phi in bps; 0 unless the circle bids, has a commission and a fee ceiling above 0. */
+  shareBps: bigint;
   reserveBps: bigint;
   bond: bigint;
 }
@@ -63,8 +72,14 @@ export function validateForm(f: FormState): { value?: Valid; errors: Partial<Rec
   let feeBps = 0n;
   if (f.commission) {
     const v = parsePercentBps(f.fee);
-    if (v === undefined || v > 300n) errors.fee = 'Tiền công chủ hụi phải từ 0% đến 3%.';
+    if (v === undefined || v > 300n) errors.fee = f.mode === 'bidding' ? 'Trần hoa hồng mỗi lần hốt phải từ 0% đến 3%.' : 'Tiền công chủ hụi phải từ 0% đến 3%.';
     else feeBps = v;
+  }
+  let shareBps = 0n;
+  if (f.mode === 'bidding' && f.commission) {
+    const v = parsePercentBps(f.share);
+    if (v === undefined || v > MAX_SHARE_BPS) errors.share = 'Phần hoa hồng phải từ 0% đến 50%.';
+    else if (feeBps > 0n) shareBps = v;
   }
   const reserveBps = parsePercentBps(f.reserve);
   if (reserveBps === undefined || reserveBps > 300n) errors.reserve = 'Quỹ dự phòng phải từ 0% đến 3%.';
@@ -79,6 +94,7 @@ export function validateForm(f: FormState): { value?: Valid; errors: Partial<Rec
       periodDays: periodDays!,
       alphaBps: alphaBps!,
       feeBps,
+      shareBps,
       reserveBps: reserveBps!,
       bond: bond!,
     },
@@ -94,6 +110,7 @@ export function termsOf(f: FormState, v: Valid): Terms {
     periodDays: v.periodDays,
     alphaBps: v.alphaBps,
     feeBps: v.feeBps,
+    shareBps: v.shareBps,
     reserveBps: v.reserveBps,
     capBps: f.mode === 'fixed' ? 0n : 2000n,
   };
