@@ -27,7 +27,7 @@ Deploy (`Deploy.s.sol`):
 | `RELAYER_ADDRESS` | nên có | chỉ ghi vào `fuji.json` |
 | `GIT_COMMIT` | nên có | `export GIT_COMMIT=$(git rev-parse --short HEAD)` |
 | `WRITE_DEPLOYMENT` | có, đặt `true` | trên Fuji script chỉ ghi `deployments/fuji.json` khi biến này là `true` |
-| `MIN_COVERAGE_BPS` | không | mặc định 10000 trên Fuji (xem mục 4); chỉ đặt khi muốn khác |
+| `MIN_COVERAGE_BPS` | không | mặc định 10000 trên Fuji và BẮT BUỘC 10000 ở đó (xem mục 4); đừng đặt khi deploy Fuji |
 | `SNOWTRACE_API_KEY` | không | thiếu thì dùng chuỗi giữ chỗ `verifyContract` (Routescan không đòi khóa thật) |
 
 Dây demo (`CreateDemoCircle.s.sol`): `DEMO_ORGANIZER_PRIVATE_KEY` (bắt buộc), `JOIN_WINDOW_SECONDS` (mặc định 7 ngày), `DEMO_LABEL` (mặc định `huisafe-demo`, không ghi tên người), `DEPLOY_FILE` (mặc định `deployments/fuji.json`).
@@ -49,19 +49,19 @@ for v in FUJI_RPC_URL DEPLOYER_PRIVATE_KEY ADMIN ATTESTER_ADDRESS RELAYER_ADDRES
 
 | Ví | AVAX testnet | USDC (Circle) | Vì sao |
 |---|---|---|---|
-| Deployer | 1 | 0 | Mô phỏng ước 12,1 triệu gas (khoảng 0,024 AVAX ở 2 gwei; phí Fuji thực có thể cao hơn nhiều lần). 1 AVAX là dư an toàn |
+| Deployer | 0,02 | 0 | Deploy ước 12,1 triệu gas. Gas Fuji hiện khoảng 160 wei nên tốn dưới 0,000001 AVAX; 0,02 là dư rất rộng cho cả đợt thử lại |
 | Attester | 0 | 0 | Chỉ ký, không gửi giao dịch |
-| Relayer | 2 | 0 | Cảnh báo dưới 1 AVAX, **dừng gửi dưới 0,05 AVAX** (`relay.ts`). Trả gas thay M1..M5 |
-| Keeper | 1 | 0 | Trả gas `settleRound`, `markDefault`, `finalize` |
-| Organizer demo | 0,2 | 48 | Tự gửi `createCircle` và `depositBond`; bond = 0,8 × O_max = 0,8 × 60 |
+| Relayer | ≥ 0,02 | 0 | Cảnh báo dưới 0,02 AVAX, **dừng gửi dưới 0,005 AVAX** (`relay.ts`). Trả gas thay M1..M5 |
+| Keeper | 0,005 | 0 | Trả gas `settleRound`, `markDefault`, `finalize` |
+| Organizer demo | 0,005 | 48 | Tự gửi `createCircle` và `depositBond`; bond = 0,8 × O_max = 0,8 × 60 |
 | M1..M5 (mỗi ví) | 0 | khoảng 41 | Relay trả gas. Allowance lúc vào dây = (N − 1) × (C + cọc mở thăm) = 4 × 10,1 = 40,4 USDC, số dư cần xấp xỉ bấy nhiêu cho tới khi hốt |
-| Safe (người thực thi) | 0,05 | 0 | Một người ký trả phí cho lệnh `setFactory` |
+| Safe (người thực thi) | 0,005 | 0 | Một người ký trả phí cho lệnh `setFactory` |
 
-Tổng USDC: 48 + 5 × 41 = khoảng 253 USDC. Faucet Circle cấp 20 USDC mỗi 2 giờ mỗi ví (kiểm lại tại faucet.circle.com), nên cần xin từ nhiều ví rồi chuyển, bắt đầu sớm hơn một ngày. Nếu không gom đủ USDC thì báo Towfienes để chọn cách giảm quy mô dây demo. AVAX lấy ở faucet chính thức của Avalanche.
+Tổng USDC: 48 + 5 × 41 = khoảng 253 USDC. Faucet Circle cấp 20 USDC mỗi 2 giờ mỗi ví (kiểm lại tại faucet.circle.com), nên cần xin từ nhiều ví rồi chuyển, bắt đầu sớm hơn một ngày. Cả đội chỉ có khoảng 0,05 AVAX (faucet BTC 0,05 AVAX/lần/ví/24 giờ), nên bảng AVAX trên chia vừa đủ: 0,02 + 0,02 + 0,005 × 3 = 0,055; xin thêm từ nhiều ví nếu thiếu. Nếu không gom đủ USDC thì báo Towfienes để chọn cách giảm quy mô dây demo. AVAX lấy ở faucet chính thức của Avalanche.
 
 ## 4. Quyết định 09/11: `minCoverageBps = 10000`
 
-`Deploy.s.sol` trước đây gắn cứng 5000. Đã đổi (chỉ script, không đụng contract): mặc định 10000 trên Fuji, 5000 trên anvil (bản diễn tập local giữ docs/03 mục 2.3), đọc thêm biến `MIN_COVERAGE_BPS` để đổi; script từ chối giá trị lớn hơn 10000 và, trên Fuji, tự kiểm sau deploy rằng `factory.config().minCoverageBps == 10000`. Có test `test_Execute_Fuji_DefaultMinCoverageIs10000`. `activate()` của dây demo (bond 48 cho O_max 60, α = 20%) cho CI đúng 100%, đạt sàn.
+`Deploy.s.sol` trước đây gắn cứng 5000. Đã đổi (chỉ script, không đụng contract): mặc định 10000 trên Fuji, 5000 trên anvil (bản diễn tập local giữ docs/03 mục 2.3), đọc thêm biến `MIN_COVERAGE_BPS` để đổi; script từ chối giá trị lớn hơn 10000 và, trên Fuji, tự kiểm sau deploy rằng `factory.config().minCoverageBps == 10000`. **Trên Fuji giá trị này bắt buộc là 10000** (ADR-22): đặt `MIN_COVERAGE_BPS` khác thì script revert `SanityCheckFailed("config.minCoverageBps")` ngay sau deploy, nên đừng đặt biến này khi deploy Fuji. Có test `test_Execute_Fuji_DefaultMinCoverageIs10000`. `activate()` của dây demo (bond 48 cho O_max 60, α = 20%) cho CI đúng 100%, đạt sàn.
 
 ## 5. Trình tự deploy (lệnh broadcast luôn chờ người duyệt)
 
