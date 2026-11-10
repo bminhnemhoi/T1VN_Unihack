@@ -103,7 +103,7 @@ CI = min(100%, α + (B + R)/O_max)     R = quỹ dự phòng; con số "bảo đ
 
 - Ví dụ: N = 10, C = 2 triệu → O_max = 50 triệu. N = 5, C = 100 USDC → O_max = 600 USDC.
 - `alphaBps = 2000` (α = 20%) nên B cho 100% là 0,8·O_max (ví dụ thứ hai: 480 USDC).
-- `activate()` chỉ chạy khi `coverageIndexBps ≥ minCoverageBps` (mặc định 5000). Ví dụ thứ hai với B = 180 USDC: CI = 20% + 30% = 50%, vừa đủ.
+- `activate()` chỉ chạy khi `coverageIndexBps ≥ minCoverageBps` (bản nghiên cứu ban đầu: 5000; từ v1.2 Fuji ép 10000, ADR-22). Ví dụ thứ hai với B = 180 USDC: CI = 20% + 30% = 50%, chỉ vừa đủ ở mức sàn cũ 5000, nay chưa đủ trên Fuji.
 - CI 100% cam kết cho rủi ro chính là người đã hốt bỏ đóng. Người chưa hốt bỏ đóng không gây lỗ ròng vì nợ trừ vào pot của chính họ; ký quỹ chỉ ứng trước.
 
 ### 4.2. Thác bù, ân hạn, lãi chậm góp

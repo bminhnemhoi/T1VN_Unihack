@@ -121,7 +121,7 @@ struct FactoryConfig {
     address attester;
     uint16  maxCapBps;        // 2000
     uint16  lateRateBps;      // 1000
-    uint16  minCoverageBps;   // 5000
+    uint16  minCoverageBps;   // Fuji 10000 (ADR-22); 5000 chỉ anvil và test
     uint16  maxFeeBps;        // 300
     uint16  maxReserveBps;    // 300
     uint8   minMembers;       // 3

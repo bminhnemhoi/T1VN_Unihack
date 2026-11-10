@@ -73,7 +73,7 @@ Câu chốt: *"Chủ hụi không cầm tiền, nhưng vẫn phải bảo lãnh.
 ### 4.3. Vòng đời một dây
 
 1. **Gom người (Forming):** chủ hụi tạo dây với các tham số N, C, chu kỳ, α, phí, trần lãi..., rồi nạp ký quỹ. Thành viên vào dây bằng giấy xác nhận của attester cộng chữ ký permit. Được rời dây trước khi dây chạy.
-2. **Kích hoạt (Active):** cần đủ N người và **Chỉ số bảo chứng ≥ 50%**. Sau đó mọi tham số bị khóa.
+2. **Kích hoạt (Active):** cần đủ N người và **Chỉ số bảo chứng đạt mức sàn của factory (Fuji: 100%, bắt buộc)**. Sau đó mọi tham số bị khóa.
 3. **Mỗi kỳ:** cửa sổ nộp thăm kín, rồi cửa sổ mở thăm, rồi đến hạn thì ai cũng gọi được hàm chốt kỳ (`settleRound`).
 4. **Kết thúc:** sau kỳ N và hết thời gian ân hạn. Trả lại phần giữ lại, tiền công cho chủ hụi, ký quỹ còn lại cho chủ hụi, quỹ dự phòng chia đều cho thành viên không vỡ nợ.
 5. Ngoài ra có trạng thái Hủy (không đủ người trước hạn), Tạm dừng và Giải thể khẩn cấp.

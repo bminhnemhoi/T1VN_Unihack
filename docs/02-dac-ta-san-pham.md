@@ -65,10 +65,11 @@ Mỗi tiêu chí là một ca test E2E. Giao dịch người dùng đi qua relay
 ### US-01. Tạo dây (chủ hụi)
 Là chủ hụi, tôi muốn tạo dây và thấy ngay mức bảo chứng, để mời người khác bằng con số rõ ràng.
 - **AC-01.1** Given form mặc định (Bỏ thăm, N = 5, C = 100, kỳ 30 ngày, giữ lại 20%, tiền công 1%, quỹ dự phòng 1%, cọc 1%), When nhập ký quỹ 480, Then đồng hồ "Chỉ số bảo chứng" hiện **100%** (rủi ro đỉnh 600 USDC), tính bằng `huiMath` trong trình duyệt, cập nhật ngay khi sửa.
-- **AC-01.2** Given ký quỹ 0, Then hiện 20% và "Chưa đủ để bắt đầu dây (tối thiểu 50%). Cần thêm 180 USDC ký quỹ." Vẫn tạo được dây; nút "Bắt đầu dây" (`activate`) khóa tới khi đạt 50%.
+- **AC-01.2** Given ký quỹ 0, Then hiện 20% và "Chưa đủ để bắt đầu dây (tối thiểu 100%). Cần thêm 480 USDC ký quỹ." Vẫn tạo được dây; nút "Bắt đầu dây" (`activate`) khóa tới khi đạt mức sàn của factory (Fuji: 100% bắt buộc, ADR-22; 50% chỉ ở anvil và test, docs/03 mục 2.3). Giao diện đọc mức sàn từ factory, không ghi cứng.
 - **AC-01.3** Then bảng "Trần thăm từng kỳ" hiện: 6,575342 / 4,931506 / 3,287671 / 1,643835 / 0 USDC, kèm "Trần lãi 20%/năm theo NĐ 19 Điều 21 (cách hiểu của HụiSafe, cần luật sư xác nhận)".
 - **AC-01.4** Then khung "Nghị định 19" hiện: (a) ô tự xác nhận đủ 18 tuổi (Điều 6); (b) giá trị một kỳ = N × C quy đổi theo tỷ giá cấu hình (mặc định 26.000): 500 USDC ≈ 13.000.000 đ; (c) nếu chủ hụi đã có ≥ 1 dây đang chạy (`activeCirclesOf`) hoặc giá trị một kỳ ≥ 100.000.000 đ (≈ 3.846 USDC): cảnh báo "Cần thông báo bằng văn bản cho UBND cấp xã (NĐ 19 Điều 14)" và nút "Soạn thông báo"; (d) ô tiền công chỉ bật khi chọn "Họ hưởng hoa hồng" (Điều 4 khoản 8); (e) lãi chậm góp 10%/năm (Điều 22 khoản 1).
 - **AC-01.5** Given tham số sai, Then form chặn trước khi gửi, báo lỗi tiếng Việt theo mã `InvalidParams` 1..13 (05 mục 4.3), ví dụ mã 1: "Số phần phải từ 3 đến 30."
+- **AC-01.5b** Given tiền giữ lại α > 50% (form hoặc bản nháp gửi trợ lý), Then form chặn trước khi gửi với lời giải thích tiếng Việt ngắn (giữ lại quá nhiều thì người hốt nhận quá ít và chỉ số bảo chứng mất ý nghĩa; α = 100% với ký quỹ 0 vẫn hiện CI 100% nhưng holdback bị cắt theo pot, audit A16 L-02). Mặc định vẫn 20%. Đây là giới hạn của giao diện và trợ lý; contract còn nhận tới 100% (roadmap).
 - **AC-01.6** When "Tạo dây", Then hiện "Đang tạo…" rồi "Đã tạo" kèm link Snowtrace. When nạp ký quỹ, Then ký một lần (permit) rồi gửi `depositBond`; số liệu cập nhật từ event `BondDeposited`.
 
 ### US-02. Mời và vào dây
@@ -133,7 +134,7 @@ Là hụi sống, tôi muốn bỏ thăm kín và biết trước mình nhận b
 flowchart TD
     M["S05 Trang mời"] --> L["S01 Đăng nhập"] --> H["S02 Dây của tôi"]
     H --> T["S03 Tạo dây + S13 Trợ lý"] --> F["S04 Dây đang gom người"]
-    F -->|"đủ người, chỉ số ≥ 50%"| R["S06 Phòng bỏ thăm"] --> K["S07 Kết quả kỳ"]
+    F -->|"đủ người, chỉ số ≥ mức sàn (Fuji 100%)"| R["S06 Phòng bỏ thăm"] --> K["S07 Kết quả kỳ"]
     K -->|"có khoản thiếu"| S["S08 Khoản thiếu"] -->|"quá ân hạn"| V["S09 Bảo chứng"]
     K -->|"kỳ tiếp"| R
     K -->|"kỳ cuối xong"| Z["S12 Tổng kết"]

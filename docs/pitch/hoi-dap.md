@@ -23,7 +23,7 @@ Nguồn: docs/10 mục 1 (bảng điều khoản) và mục 7 (câu hỏi mở);
 Nguồn: docs/10 mục 3 (bảng văn bản) và mục 5, 6.
 
 **3. Bỏ bốc thăm có trái Điều 20 không? Trần thăm có đúng Điều 21 không?**
-Điều 20 cho phép "thỏa thuận khác" thay vì bốc thăm, và luật cuộc thi cấm yếu tố ngẫu nhiên. Vì vậy khi thăm bằng nhau, HụiSafe chia hòa tất định (ít lần trễ hơn thắng, rồi nộp thăm sớm hơn) và ghi vào thỏa thuận dây (mã băm `termsHash`). Công thức trần thăm là cách hiểu đề xuất của nhóm, tách riêng trong `HuiMath.maxBid` để thay được ngay; cả hai điểm cần luật sư xác nhận. Kiểm tra bằng Bản án 48/2024/DS-ST: thăm 450.000 đồng nằm dưới trần ước tính 657.534 đồng của dây hụi tháng 25 phần x 2 triệu đồng (ví dụ vụ án, không phải số tiền của sản phẩm).
+Điều 20 cho phép "thỏa thuận khác" thay vì bốc thăm, và luật cuộc thi cấm yếu tố ngẫu nhiên. Vì vậy khi thăm bằng nhau, HụiSafe chia hòa tất định (ít lần trễ hơn thắng, rồi nộp thăm sớm hơn) và ghi vào thỏa thuận dây (mã băm `termsHash`). Công thức trần thăm là cách hiểu đề xuất của nhóm, tách riêng trong `HuiMath.maxBid` để thay được ngay; cả hai điểm cần luật sư xác nhận. Kiểm tra bằng Bản án 48/2024/DS-ST (trích bản án, đơn vị VND): thăm 450.000 VND nằm dưới trần ước tính 657.534 VND của dây hụi tháng 25 phần x 2.000.000 VND. Đây là số của vụ án dùng để kiểm công thức; sản phẩm HụiSafe chỉ dùng USDC.
 Nguồn: docs/03 mục 2.4, 6.4; docs/10 mục 1 (dòng Điều 20, 21) và mục 7 (câu 1, 2).
 
 **4. Tiền và lãi đến từ đâu? Có token không? HụiSafe kiếm tiền thế nào?**
@@ -77,7 +77,7 @@ Nguồn: docs/02 (US-11); docs/05 mục 8.4, 12; docs/TIEN-DO.md (M4); docs/10 m
 ## Nhóm hiện trạng
 
 **15. Hôm nay cái gì chạy thật? Người dùng thử nói gì?**
-Đã chạy: hợp đồng triển khai và xác minh trên Fuji ngày 10/11/2026 (`HuiFactory` 0x5004…8b21), 617 test. Giao diện đang trong giai đoạn duyệt nội bộ. Chưa có: lãi thật, passkey, chế độ VND, mainnet, audit độc lập, ý kiến luật sư. Thử với người dùng thật dự kiến 15-16/11 (5-10 người, không bỏ tiền thật, có phiếu đồng ý); chưa diễn ra nên chưa có số về thời gian vào dây, tỷ lệ tự làm được, điểm tin tưởng: chưa đo.
+Đã chạy: hợp đồng triển khai và xác minh trên Fuji ngày 10/11/2026 (`HuiFactory` 0x5004…8b21), 617 test hợp đồng; thêm dây Fixed N = 3 `0xABA89dFfA4e157927710419b01C32bD307bF2461` chạy trọn trên Fuji ngày 11/11/2026: vào dây qua relay (thành viên không cần AVAX), keeper chốt 3 kỳ (`0xecfcfaeb…4669`, `0xc7e8f352…c4bb`, `0xba1208d7…79d6`) và `finalize` (`0x7159ec48…b290`); trạng thái Completed, 3 kỳ đã chi, số dư USDC của dây về 0 (đọc lại bằng lệnh chỉ đọc). Hash viết tắt theo `docs/TIEN-DO.md`; tra đủ trên Snowtrace theo địa chỉ dây; test ứng dụng: sdk 105, web 352, keeper 18. Giao diện đang trong giai đoạn duyệt nội bộ. Chưa có: lãi thật, passkey, chế độ VND, mainnet, audit độc lập, ý kiến luật sư. Thử với người dùng thật dự kiến 15-16/11 (5-10 người, không bỏ tiền thật, có phiếu đồng ý); chưa diễn ra nên chưa có số về thời gian vào dây, tỷ lệ tự làm được, điểm tin tưởng: chưa đo.
 Nguồn: contracts/deployments/fuji.json; docs/TIEN-DO.md; docs/11 mục 11.
 
 ---
@@ -87,7 +87,7 @@ Nguồn: contracts/deployments/fuji.json; docs/TIEN-DO.md; docs/11 mục 11.
 | Số | Câu | Nguồn |
 |---|---|---|
 | 100 triệu đồng, 18 tuổi, 50%, 10% | 1 | docs/10 mục 1; docs/03 mục 2.5 |
-| 450.000; 657.534; 25 phần x 2 triệu | 3 | docs/03 mục 2.4 (Bản án 48/2024/DS-ST) |
+| 450.000 VND; 657.534 VND; 25 phần x 2.000.000 VND (trích bản án, đơn vị VND) | 3 | docs/03 mục 2.4 (Bản án 48/2024/DS-ST) |
 | 3%, 1% | 4 | docs/03 mục 3.1 |
 | 150,37; 86,16; 5,24; 7,19; -15,51; 2.000 | 5 | sim/outputs/organizer_economics.json |
 | -18,04; 392; 41,47; 56,56; 336,57 | 6 | sim/outputs/organizer_sybil.json |
@@ -98,6 +98,7 @@ Nguồn: contracts/deployments/fuji.json; docs/TIEN-DO.md; docs/11 mục 11.
 | 3.000.000; 5.000.000; 30 yêu cầu | 11 | docs/05 mục 8.2 |
 | 404 | 13 | docs/03 mục 2.6 |
 | 617; 54 | 13, 15 | docs/TIEN-DO.md (10/11/2026) |
+| sdk 105, web 352, keeper 18; dây Fixed Completed trên Fuji (3 kỳ + finalize, hash viết tắt) | 15 | docs/TIEN-DO.md dòng M3 và dòng Kiểm thử (11/11/2026); trạng thái dây đọc lại bằng `cast call state()` |
 | 33/33 | 14 | docs/TIEN-DO.md (M4) |
 | 0x5004…8b21; 10/11/2026 | 15 | contracts/deployments/fuji.json |
 

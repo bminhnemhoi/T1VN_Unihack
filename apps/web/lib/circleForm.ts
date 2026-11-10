@@ -35,6 +35,14 @@ export type FieldName = 'n' | 'c' | 'periodDays' | 'alpha' | 'fee' | 'share' | '
 
 export const MAX_SHARE_BPS = 5000n;
 
+/**
+ * The UI caps the holdback at 50% (audit A16 L-02): with alpha = 100% and no bond the coverage meter still reads 100%,
+ * but the holdback is cut to the pot, so the guarantee means nothing. The contract still accepts up to 100% (roadmap).
+ */
+export const MAX_ALPHA_BPS = 5000n;
+export const ALPHA_LIMIT_MESSAGE =
+  'Tiền giữ lại không được quá 50%: giữ lại quá nhiều thì người hốt nhận quá ít, và chỉ số bảo chứng mất ý nghĩa.';
+
 export interface Valid {
   n: bigint;
   c: bigint;
@@ -68,7 +76,8 @@ export function validateForm(f: FormState): { value?: Valid; errors: Partial<Rec
   const periodDays = parseInt10(f.periodDays);
   if (periodDays === undefined || periodDays < 1n || periodDays > 31n) errors.periodDays = 'Kỳ phải từ 1 đến 31 ngày.';
   const alphaBps = parsePercentBps(f.alpha);
-  if (alphaBps === undefined || alphaBps > 10_000n) errors.alpha = 'Tiền giữ lại phải từ 0% đến 100%.';
+  if (alphaBps === undefined) errors.alpha = 'Tiền giữ lại phải từ 0% đến 50%.';
+  else if (alphaBps > MAX_ALPHA_BPS) errors.alpha = ALPHA_LIMIT_MESSAGE;
   let feeBps = 0n;
   if (f.commission) {
     const v = parsePercentBps(f.fee);

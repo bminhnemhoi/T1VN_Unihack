@@ -195,7 +195,7 @@ Chạy từng phần bằng tay: `anvil`, rồi `forge script script/Deploy.s.so
 - [ ] Gọi `initialize` trên implementation phải revert (đã `_disableInitializers()`).
 - [ ] `isTrustedForwarder(forwarder)` trả `true`; `FactoryConfig.forwarder` đúng địa chỉ đó.
 - [ ] `admin()` là ví deployer; `attester` đúng địa chỉ của `ATTESTER_PRIVATE_KEY`.
-- [ ] `FactoryConfig`: `maxCapBps` 2000, `lateRateBps` 1000, `minCoverageBps` 5000, `maxFeeBps` 300, `maxReserveBps` 300, `minMembers` 3, `maxMembers` 30, `maxContribution` 10.000 USDC.
+- [ ] `FactoryConfig`: `maxCapBps` 2000, `lateRateBps` 1000, `minCoverageBps` 10000 trên Fuji (ADR-22; 5000 chỉ anvil và test), `maxFeeBps` 300, `maxReserveBps` 300, `minMembers` 3, `maxMembers` 30, `maxContribution` 10.000 USDC.
 - [ ] Mọi contract hiện "verified" trên testnet.snowtrace.io.
 - [ ] `fuji.json` có `deployedAt`, `gitCommit`; đã sinh lại ABI; web đã build lại.
 - [ ] Relayer ≥ 0,02 AVAX, keeper ≥ 0,005 AVAX; keeper đã chạy.
