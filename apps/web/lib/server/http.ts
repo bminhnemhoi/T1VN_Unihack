@@ -35,9 +35,26 @@ export async function readLimited(req: Request, max: number): Promise<string | n
   return new TextDecoder().decode(Buffer.concat(chunks));
 }
 
-export function clientIp(req: Request): string {
-  const fwd = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim();
-  return fwd || req.headers.get('x-real-ip') || 'unknown';
+/** Key of the single shared bucket used when the proxy is not trusted (audit A14 H-01). */
+export const UNTRUSTED_IP_KEY = 'untrusted-shared';
+
+/**
+ * Key for the per-IP rate limit. `x-forwarded-for` and `x-real-ip` are client-controlled unless a trusted reverse
+ * proxy overwrites them, so they are read only when `trustProxy` is true (server variable `TRUST_PROXY=true`, set
+ * when the web runs behind exactly one proxy that REPLACES the header). Otherwise every request shares one bucket:
+ * a client cannot dodge the limit by inventing addresses, at the price of a global cap per route. Next route
+ * handlers do not expose the socket address, so there is no per-socket fallback.
+ */
+export function clientIp(req: Request, trustProxy = false): string {
+  if (!trustProxy) return UNTRUSTED_IP_KEY;
+  const parts = req.headers.get('x-forwarded-for')?.split(',').map((s) => s.trim()).filter(Boolean);
+  // The last entry is the one the (single) trusted proxy observed.
+  return parts?.[parts.length - 1] || req.headers.get('x-real-ip')?.trim() || UNTRUSTED_IP_KEY;
+}
+
+/** `TRUST_PROXY=true` (exactly) turns proxy headers on; anything else, or unset, is off. */
+export function trustProxyFrom(env: Record<string, string | undefined>): boolean {
+  return env.TRUST_PROXY === 'true';
 }
 
 /** Deterministic id (time + counter): only for log correlation, no randomness in the product (CLAUDE.md rule 3). */

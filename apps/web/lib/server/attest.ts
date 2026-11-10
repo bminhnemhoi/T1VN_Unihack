@@ -43,6 +43,8 @@ export interface AttestDeps {
   isCircle(circle: Address): Promise<boolean>;
   userLimiter: SlidingWindowLimiter;
   ipLimiter: SlidingWindowLimiter;
+  /** Read the client IP from proxy headers (`TRUST_PROXY=true`); default false = one shared bucket. */
+  trustProxy?: boolean;
   now: () => number;
   requestId: () => string;
   log: Logger;
@@ -66,7 +68,7 @@ export function createAttestHandler(deps: AttestDeps): (req: Request) => Promise
       return res;
     };
 
-    const ip = deps.ipLimiter.take(clientIp(req));
+    const ip = deps.ipLimiter.take(clientIp(req, deps.trustProxy));
     if (!ip.ok) {
       return done(
         errorResponse(429, 'RateLimited', 'Bạn gửi quá nhiều yêu cầu. Hãy thử lại sau.', {

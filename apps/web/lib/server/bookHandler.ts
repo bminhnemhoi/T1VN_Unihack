@@ -5,7 +5,7 @@ import { resolveNetwork } from 'config/network';
 import { buildBook } from './book';
 import { BOOK_PER_HOUR_PER_IP, createBookHandler } from './bookRoute';
 import { ConfigError, loadDeployment, makePublicClient } from './chain';
-import { consoleLogger, makeRequestIdGenerator } from './http';
+import { consoleLogger, makeRequestIdGenerator, trustProxyFrom } from './http';
 import { SlidingWindowLimiter } from './ratelimit';
 
 export async function buildBookHandler(vars: Record<string, string | undefined> = process.env) {
@@ -19,6 +19,7 @@ export async function buildBookHandler(vars: Record<string, string | undefined> 
     isCircle: (a) => client.readContract({ address: deployment.factory, abi: huiFactoryAbi, functionName: 'isCircle', args: [a] }),
     build: (a) => buildBook(client, a, { factory: deployment.factory, fromBlock, chainId: network.chainId }),
     ipLimiter: new SlidingWindowLimiter(BOOK_PER_HOUR_PER_IP),
+    trustProxy: trustProxyFrom(vars),
     now: Date.now,
     requestId: makeRequestIdGenerator(),
     log: consoleLogger,
