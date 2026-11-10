@@ -34,6 +34,12 @@ export interface ShortfallView {
   fromBond: bigint;
   fromReserve: bigint;
   uncovered: bigint;
+  /**
+   * Principal that was covered when the round settled, per source (from `ShortfallCovered` events). The `from*` and
+   * `uncovered` fields above shrink as the debtor repays; this one never does, so "Đã bù" can always be shown.
+   * Always set by `readCircle`; optional in the type only so hand-built fixtures keep compiling.
+   */
+  covered?: { holdback: bigint; bond: bigint; reserve: bigint; uncovered: bigint };
   since: number;
   resolved: boolean;
   /** `pausedTotal` at the moment the round settled (rebuilt from `CircleUnpaused` events). */
@@ -88,10 +94,20 @@ export interface CircleView {
     revealBondBps: number;
     capBps: number;
     joinDeadline: number;
+    /** phi in bps of the interest room (docs/03 2.7); 0 = fixed fee. Always set by `readCircle` (optional for fixtures). */
+    commissionShareBps?: number;
+    /** keccak256 of the agreement text (ADR-27); compare with `verifyTerms`. Always set by `readCircle`. */
+    termsHash?: `0x${string}`;
   };
   startTime?: number;
   currentRound: number;
   settledRounds: number;
+  /**
+   * The fields from here to `claimable` (and `params.commissionShareBps`/`termsHash`, `ShortfallView.covered`) are
+   * always set by `readCircle`; they are optional in the type only so hand-built fixtures keep compiling (A14).
+   */
+  /** Total bond the organizer has deposited (never decreases; `bondRemaining` does). */
+  bondDeposited?: bigint;
   bondRemaining: bigint;
   reserve: bigint;
   totalHoldback: bigint;
@@ -100,6 +116,15 @@ export interface CircleView {
   coverageBps: number;
   guaranteedCoverageBps: number;
   requiredAllowance: bigint;
+  /** Reveal bond one commit pulls, USDC base units (`revealBondBps` x C). */
+  revealBond?: bigint;
+  /** The factory's minimum coverage for `activate()` (10_000 on Fuji, ADR-22). */
+  minCoverageBps?: number;
+  /**
+   * `claimable(address)` for the organizer, every member, anybody who got a `PaymentDeferred` and `opts.viewer`;
+   * keys are lowercase addresses, zero balances are left out.
+   */
+  claimable?: Record<string, bigint>;
   ndc19: { perRoundVnd: number; organizerActiveCircles: number; mustNotifyCommune: boolean };
   members: MemberView[];
   rounds: RoundView[];
