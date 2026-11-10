@@ -7,14 +7,16 @@
  *   1. `to` is the factory or `factory.isCircle(to)`          4. `forwarder.verify(request)` by eth_call
  *   2. selector is on the allowlist for that target           5. rate limit 30 requests/hour per `from`, charged
  *   3. value == 0 and gas within the cap (3M; 5M for             ONLY for a valid signature (audit H-01)
- *      settleRound and finalize)                              6. `createCircle` needs a Privy login of that wallet
- *                                                             7. simulate `forwarder.execute` by eth_call
+ *      settleRound and finalize); depositBond amount > 0     6. `createCircle` needs a Privy login of that wallet
+ *   3b. anyone-can-call functions (settleRound, markDefault,   7. simulate `forwarder.execute` by eth_call
+ *      finalize, cancel) only for a circle with a bond AND a signer that is a member or the organizer
+ *      of that circle (audit A16 M-01: no free gas for unbonded spam circles or strangers)
  * then a hard stop when the relayer is nearly out of AVAX, and the send, serialised through a mutex so concurrent
  * requests cannot reuse one relayer nonce.
  */
-import { concat, getAbiItem, toFunctionSelector, type Abi, type AbiFunction, type PublicClient } from 'viem';
+import { concat, decodeFunctionData, getAbiItem, toFunctionSelector, type Abi, type AbiFunction, type PublicClient } from 'viem';
 import { z } from 'zod';
-import { decodeError, erc2771ForwarderAbi, huiCircleAbi, huiFactoryAbi } from 'sdk';
+import { decodeError, erc2771ForwarderAbi, huiCircleAbi, huiCircleFullAbi, huiFactoryAbi } from 'sdk';
 import { takeIp, errorResponse, jsonResponse, readLimited, type Logger } from './http';
 import { InvalidTokenError, NoWalletError, type PrivyVerifier } from './privy';
 import type { SlidingWindowLimiter } from './ratelimit';
@@ -55,6 +57,7 @@ export const CIRCLE_SELECTORS: ReadonlyMap<Hex, string> = new Map(
 );
 export const FACTORY_SELECTORS: ReadonlyMap<Hex, string> = new Map([[selectorOf(huiFactoryAbi, 'createCircle'), 'createCircle']]);
 const HEAVY = new Set(['settleRound', 'finalize']);
+const PUBLIC_FNS = new Set<string>(CIRCLE_PUBLIC);
 
 const hex = z.string().regex(/^0x([0-9a-fA-F]{2})*$/);
 const addr = z.string().regex(/^0x[0-9a-fA-F]{40}$/);
@@ -203,6 +206,42 @@ export function createRelayHandler(deps: RelayDeps): (req: Request) => Promise<R
     const cap = HEAVY.has(fn) ? GAS_CAP_HEAVY : GAS_CAP;
     if (request.gas === 0n || request.gas > cap) {
       return done(errorResponse(400, 'GasTooHigh', `Mức gas vượt trần ${cap.toString()}.`), 'gas');
+    }
+
+    // 3b. depositBond(0) is a free, endless loop on a spam circle: refuse it before any chain read or simulation.
+    if (fn === 'depositBond') {
+      let amount: bigint | undefined;
+      try {
+        const decoded = decodeFunctionData({ abi: huiCircleAbi, data: request.data });
+        amount = decoded.functionName === 'depositBond' ? (decoded.args[0] as bigint) : undefined;
+      } catch {
+        amount = undefined;
+      }
+      if (amount === undefined) return done(errorResponse(400, 'BadRequest', 'Yêu cầu không hợp lệ.'), 'bad-body');
+      if (amount === 0n) return done(errorResponse(400, 'ZeroAmount', 'Số tiền ký quỹ phải lớn hơn 0.'), 'zero-deposit');
+    }
+
+    // 3c. Anyone-can-call functions: the keeper serves everybody, so the free relay only serves members and the organizer
+    // of a circle that has a bond (audit A16 M-01). A circle nobody bonded cannot pass the 100% coverage floor unless
+    // alpha = 100%, i.e. it is spam, and its rounds can cost millions of gas.
+    if (PUBLIC_FNS.has(fn)) {
+      try {
+        const circleRead = <T,>(functionName: string, args: readonly unknown[] = []) =>
+          deps.publicClient.readContract({ address: request.to, abi: huiCircleFullAbi, functionName, args } as never) as Promise<T>;
+        const [deposited, joined, organizer] = await Promise.all([
+          circleRead<bigint>('bondDeposited'),
+          circleRead<{ joined: boolean }>('memberInfo', [request.from]),
+          circleRead<Address>('organizer'),
+        ]);
+        if (deposited === 0n) {
+          return done(errorResponse(403, 'TargetNotAllowed', 'Dây này chưa có ký quỹ nên dịch vụ miễn phí không chốt hộ.'), 'unbonded-circle');
+        }
+        if (!joined.joined && organizer.toLowerCase() !== request.from.toLowerCase()) {
+          return done(errorResponse(403, 'TargetNotAllowed', 'Chỉ thành viên hoặc chủ hụi của dây này mới gửi được thao tác này qua dịch vụ miễn phí.'), 'not-member');
+        }
+      } catch {
+        return done(errorResponse(502, 'ChainUnavailable', 'Chưa đọc được dữ liệu từ mạng. Hãy thử lại.'), 'chain-error');
+      }
     }
 
     // 4. The forwarder accepts the signature, nonce and deadline.
