@@ -70,7 +70,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
               {chain === null && <SampleModeLabel />}
               <SiteHeader />
               {children}
-              <SiteFooter />
+              <SiteFooter inChain={chain !== null} />
               <BottomNav />
             </ToastProvider>
           </HuiWalletProvider>

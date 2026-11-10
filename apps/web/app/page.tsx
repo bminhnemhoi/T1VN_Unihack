@@ -3,6 +3,7 @@ import { FinalCta } from '@/components/landing/FinalCta';
 import { Hero } from '@/components/landing/Hero';
 import { HowItWorks } from '@/components/landing/HowItWorks';
 import { TrustGrid } from '@/components/landing/TrustGrid';
+import { loadChainConfig } from '@/lib/chain/server';
 
 /** S01: landing. Art direction in .handover/DESIGN-BRIEF.md (direction A, "Sổ hụi, bản in sang"). */
 export default function Home() {
@@ -12,7 +13,7 @@ export default function Home() {
       <HowItWorks />
       <TrustGrid />
       <Faq />
-      <FinalCta />
+      <FinalCta sample={loadChainConfig() === null} />
     </main>
   );
 }

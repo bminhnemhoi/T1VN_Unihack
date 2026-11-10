@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import { Seal } from '@/components/brand/Seal';
-import { NAV } from '@/components/shell/nav';
+import { navFor } from '@/components/shell/nav';
 import { vi } from '@/lib/vi';
 
 const MORE = [
@@ -10,7 +10,8 @@ const MORE = [
   { href: '/dang-nhap', label: 'Đăng nhập' },
 ];
 
-export function SiteFooter() {
+/** `inChain`: a real deployment is loaded, so the sample room is not offered (see `navFor`). */
+export function SiteFooter({ inChain = false }: { inChain?: boolean }) {
   return (
     <footer className="nen-muc mt-16">
       <div className="mx-auto grid max-w-6xl gap-8 px-4 py-12 md:grid-cols-[2fr_1fr]">
@@ -26,7 +27,7 @@ export function SiteFooter() {
         </div>
         <nav aria-label="Liên kết chân trang">
           <ul>
-            {NAV.map((l) => (
+            {navFor(inChain).map((l) => (
               <li key={l.href}>
                 <Link href={l.href} className="inline-flex min-h-12 items-center font-semibold underline-offset-4 hover:underline">
                   {l.label}

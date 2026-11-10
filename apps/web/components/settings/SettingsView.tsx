@@ -7,6 +7,7 @@ import { useHuiWallet } from '@/lib/chain/walletProvider';
 import { Button } from '@/components/ui/button';
 import { RepBadge, RepDisclaimer } from '@/components/circle/RepBadge';
 import { applyFontSize, FONT_KEY, readFontSize, type FontSize } from '@/components/shell/FontSizeInit';
+import { CopyAddressButton } from '@/components/shell/CopyAddress';
 import { SoonButton } from '@/components/shell/SoonButton';
 import { useToast } from '@/components/shell/Toast';
 import { Field, FieldDescription, FieldLabel } from '@/components/ui/field';
@@ -79,7 +80,28 @@ export function SettingsView() {
       <h1 className="font-display text-h1 font-bold">Cài đặt</h1>
       <p className="mt-2 text-lead text-muted-foreground">Mọi lựa chọn ở đây chỉ nằm trên trình duyệt này.</p>
 
-      <section aria-labelledby="co-chu" className="to-giay mt-8 p-6">
+      {live && (
+        <section aria-labelledby="dia-chi-vi" className="o-phang mt-8 p-6">
+          <h2 id="dia-chi-vi" className="font-display text-h2 font-bold">
+            Địa chỉ ví của bạn
+          </h2>
+          {wallet?.address ? (
+            <>
+              <p className="mt-1 max-w-prose text-muted-foreground">Ví này do HụiSafe tạo cho bạn khi đăng nhập. Gửi địa chỉ cho đội hoặc chủ hụi khi họ cần chuyển USDC thử nghiệm cho bạn.</p>
+              <p className="so-ke mt-3 rounded-lg bg-secondary p-3 break-all" data-testid="wallet-address-full">
+                {wallet.address}
+              </p>
+              <div className="mt-3">
+                <CopyAddressButton address={wallet.address} />
+              </div>
+            </>
+          ) : (
+            <p className="mt-1 max-w-prose text-muted-foreground">Hãy đăng nhập để thấy địa chỉ ví của bạn.</p>
+          )}
+        </section>
+      )}
+
+      <section aria-labelledby="co-chu" className={live ? 'to-giay mt-6 p-6' : 'to-giay mt-8 p-6'}>
         <h2 id="co-chu" className="font-display text-h2 font-bold">
           Cỡ chữ
         </h2>

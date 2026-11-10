@@ -2,7 +2,8 @@ import Link from 'next/link';
 import { Seal } from '@/components/brand/Seal';
 import { Button } from '@/components/ui/button';
 
-export function FinalCta() {
+/** `sample`: no deployment is loaded. Only then does the sample bidding room exist, so only then is it offered. */
+export function FinalCta({ sample }: { sample: boolean }) {
   return (
     <section className="mx-auto max-w-6xl px-4 pb-4">
       <div className="to-giay to-giay-nang relative overflow-hidden p-8 md:p-12">
@@ -13,9 +14,11 @@ export function FinalCta() {
           <Button asChild size="lg">
             <Link href="/circles/new">Tạo dây thử</Link>
           </Button>
-          <Button asChild size="lg" variant="outline">
-            <Link href="/circles/demo">Xem phòng bỏ thăm mẫu</Link>
-          </Button>
+          {sample && (
+            <Button asChild size="lg" variant="outline">
+              <Link href="/circles/demo">Xem phòng bỏ thăm mẫu</Link>
+            </Button>
+          )}
         </div>
       </div>
     </section>

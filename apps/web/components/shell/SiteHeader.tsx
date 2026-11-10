@@ -5,9 +5,10 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { Seal } from '@/components/brand/Seal';
 import { CopilotDrawer } from '@/components/copilot/CopilotDrawer';
-import { NAV, isActive } from '@/components/shell/nav';
+import { isActive, navFor } from '@/components/shell/nav';
 import { useChain } from '@/lib/chain/provider';
 import { useHuiWallet } from '@/lib/chain/walletProvider';
+import { useCopyAddress } from '@/components/shell/CopyAddress';
 import { shortAddress } from '@/lib/live/circleData';
 import { vi } from '@/lib/vi';
 import { cn } from '@/lib/utils';
@@ -16,6 +17,7 @@ import { cn } from '@/lib/utils';
 export function SiteHeader() {
   const pathname = usePathname();
   const chain = useChain();
+  const copyAddress = useCopyAddress();
   const { status, wallet, login, logout } = useHuiWallet();
   const signedIn = chain !== null && status === 'ready' && wallet !== undefined;
   const canLogin = chain !== null && (status === 'logged-out' || status === 'loading');
@@ -29,7 +31,7 @@ export function SiteHeader() {
           <span className="font-display text-2xl font-bold tracking-tight">{vi.appName}</span>
         </Link>
         <nav aria-label="Điều hướng chính" className="hidden items-center gap-1 lg:flex">
-          {NAV.map((l) => {
+          {navFor(chain !== null).map((l) => {
             const on = isActive(pathname, l.href);
             return (
               <Link
@@ -50,9 +52,16 @@ export function SiteHeader() {
           <CopilotDrawer />
           {signedIn ? (
             <>
-              <span className="so-ke hidden px-2 text-base text-muted-foreground sm:inline" data-testid="wallet-address" title={wallet.address}>
+              <button
+                type="button"
+                onClick={() => void copyAddress(wallet.address)}
+                className="so-ke hidden min-h-12 items-center px-2 text-base text-muted-foreground sm:inline-flex"
+                data-testid="wallet-address"
+                title={`${wallet.address} (bấm để sao chép)`}
+                aria-label={`Sao chép địa chỉ ví ${shortAddress(wallet.address)}`}
+              >
                 {shortAddress(wallet.address)}
-              </span>
+              </button>
               <button type="button" onClick={logout} className={loginClass}>
                 <LogOut aria-hidden className="size-5" />
                 <span className="hidden sm:inline">Đăng xuất</span>
