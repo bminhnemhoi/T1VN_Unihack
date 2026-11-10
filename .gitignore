@@ -49,3 +49,6 @@ apps/web/playwright-report/
 
 # Foundry cache run from the repo root by mistake
 /cache/
+
+# Fuji-fork rehearsal output (A15): never committed
+contracts/deployments/rehearsal/
