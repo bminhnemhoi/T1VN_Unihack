@@ -855,13 +855,13 @@ Tất cả là hàm tất định chạy trên server (bản TS của `HuiMath` 
   },
   {
     "name": "max_bid_table",
-    "description": "Bảng trần tiền thăm theo từng kỳ theo NĐ 19 Điều 21 (diễn giải của HụiSafe).",
-    "input_schema": { "type": "object", "properties": { "N": { "type": "integer" }, "C": { "type": "number" }, "periodDays": { "type": "integer" }, "capBps": { "type": "integer", "default": 2000 } }, "required": ["N", "C", "periodDays"] }
+    "description": "Bảng trần tiền thăm theo từng kỳ theo NĐ 19 Điều 21 (diễn giải của HụiSafe). Có commissionShareBps (φ) và feeBps (trần hoa hồng mỗi lần hốt) thì thêm cột trần thăm thực thi và hoa hồng tối đa của từng kỳ.",
+    "input_schema": { "type": "object", "properties": { "N": { "type": "integer" }, "C": { "type": "number" }, "periodDays": { "type": "integer" }, "capBps": { "type": "integer", "default": 2000 }, "commissionShareBps": { "type": "integer", "minimum": 0, "maximum": 5000, "default": 0 }, "feeBps": { "type": "integer", "minimum": 0, "maximum": 300, "default": 0 } }, "required": ["N", "C", "periodDays"] }
   },
   {
     "name": "simulate_circle",
-    "description": "Tra kết quả mô phỏng gần nhất cho cấu hình (tổn thất người hốt sau, xác suất vỡ dây) ở ba thiết kế.",
-    "input_schema": { "type": "object", "properties": { "N": { "type": "integer" }, "alphaBps": { "type": "integer" }, "bondRatio": { "type": "number" } }, "required": ["N", "alphaBps", "bondRatio"] }
+    "description": "Tra kết quả mô phỏng gần nhất cho cấu hình (tổn thất người hốt sau, xác suất vỡ dây) ở ba thiết kế. Có organizer thì tra hai kịch bản chủ hụi của v1.2: economics (lời của chủ hụi theo chu kỳ và φ) hoặc sybil (chủ hụi dùng một hay hai ví ảo).",
+    "input_schema": { "type": "object", "properties": { "N": { "type": "integer" }, "alphaBps": { "type": "integer" }, "bondRatio": { "type": "number" }, "organizer": { "type": "string", "enum": ["economics", "sybil"] }, "periodDays": { "type": "integer", "minimum": 1, "maximum": 31 }, "commissionShareBps": { "type": "integer", "minimum": 0, "maximum": 5000 }, "wallets": { "type": "integer", "minimum": 1, "maximum": 2 } }, "required": ["N", "alphaBps", "bondRatio"] }
   },
   {
     "name": "explain_rule",
@@ -907,8 +907,8 @@ Mọi số tiền trả về là chuỗi USDC thập phân 6 chữ số, tính b
 |---|---|
 | `compute_exposure` | `{ "exposure": ["0", "400", ...], "maxExposure": "600", "peakRound": 2 }`, trong đó `exposure[k]` là O(k), k = 0..N |
 | `recommend_bond` | `{ "maxExposure": "600", "bond": "480", "guaranteedCoverageBps": 10000, "guaranteedCoveragePercent": "100" }` (trường phần trăm để mô hình không tự đổi bps) |
-| `max_bid_table` | `{ "rows": [{ "k": 1, "payers": 4, "maxBid": "6.575342" }, ...] }` |
-| `simulate_circle` | `{ "status": "ok", "matched": { N, alphaBps, bondRatio }, "runs": [{ "scenario", "seed", "circles", "deadDefaultHazardPerRound", "generatedAt", "results": [bản ghi `results` của 05 mục 11.2] }] }` cho mọi kịch bản đã chạy khớp đúng ba tham số (nhiều kịch bản khớp thì liệt kê hết, kèm giả định hazard); nếu chưa có thì `{ "status": "no_results" }` |
+| `max_bid_table` | φ = 0 (hoặc không truyền): `{ "rows": [{ "k": 1, "payers": 4, "maxBid": "6.575342" }, ...] }`. φ > 0 (cần `feeBps` > 0, nếu không bị từ chối như `InvalidParams(15)`): thêm `commissionShareBps`, `feeBps`, `commissionTotal` và mỗi dòng có `enforcedMaxBid` (trần thăm thực thi = `bidCapAfterShare`) và `commission` (hoa hồng tối đa của kỳ, tính trên pot lớn nhất (N − 1)·C, bằng `commission(pot, feeBps, φ, room_k)`), ví dụ dây ví dụ mục 8.1: `enforcedMaxBid` 3.287671 / 2.465753 / 1.643835 / 0.821917 / 0, `commission` 12 / 7.397259 / 3.287671 / 0.821917 / 0, `commissionTotal` 23.506847 |
+| `simulate_circle` | `{ "status": "ok", "matched": { N, alphaBps, bondRatio }, "runs": [{ "scenario", "seed", "circles", "deadDefaultHazardPerRound", "generatedAt", "results": [bản ghi `results` của 05 mục 11.2] }] }` cho mọi kịch bản đã chạy khớp đúng ba tham số (nhiều kịch bản khớp thì liệt kê hết, kèm giả định hazard); nếu chưa có thì `{ "status": "no_results" }`. Có `organizer` (`economics` hoặc `sybil`): không đọc kịch bản ba thiết kế mà trả `{ "status": "ok", "matched": { organizer, N, alphaBps, bondRatio }, "organizerRuns": [{ "scenario", "kind", "seed", "generatedAt", "assumptions", "economics"?: [ô theo chu kỳ, N, φ: `schedule`, `periodDays`, `members`, `shareBps`, `feeBps`, `bondUsdc`, `grossFeeUsdc`, `expectedLossUsdc`, `netAfterRiskUsdc`, `annualReturnPctByHazardScale`, `seatNetUsdc`, `firstSeatNetUsdc`, `lastSeatNetUsdc`, `lastThirdNeverLoses`, `insideInterestCap`], "sybil"?: [trường hợp: `label`, `wallets`, `bondUsdc`, `bondBps`, `coverageBps`, `organizerNetUsdc`, `walletsNetUsdc`, `uncoveredUsdc`, `lastReceiverPayoutUsdc`, `lastReceiverNormalUsdc`] }] }`. `economics` khớp khi N nằm trong danh sách của kịch bản `organizer_economics`, `alphaBps` đúng và `bondRatio` = (10000 − alphaBps)/10000 (ký quỹ cho CI 100%); `periodDays` và `commissionShareBps` lọc thêm; `sybil` khớp N và `alphaBps` của `organizer_sybil`, `bondRatio` = `bondBps`/10000 (0.8 hoặc 0.3), `wallets` lọc thêm. Số tiền ở đây là số JSON (USDC), không phải chuỗi. `assumptions` là câu giả định của kịch bản (hazard Klonner & Rai, tỷ lệ thăm) và trợ lý phải nói ra khi nêu số (docs/08 mục 2.7). Không khớp thì `{ "status": "no_results" }` |
 | `explain_rule` | `{ "topic": "...", "text": "...", "citation": "NĐ 19/2019/NĐ-CP Điều ...", "url": "...", "checkedAt": "2026-11-06" }`, văn bản đã duyệt nằm trong repo |
 | `draft_ubnd_notice` | `{ "markdown": "...", "placeholders": ["[HỌ TÊN]", "[SỐ GIẤY TỜ]", "[NGÀY SINH]", "[NƠI CƯ TRÚ]"] }`; người dùng tự điền trên máy, không gửi lên server, không đưa vào LLM |
 
