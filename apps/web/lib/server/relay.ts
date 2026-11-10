@@ -15,7 +15,7 @@
 import { concat, getAbiItem, toFunctionSelector, type Abi, type AbiFunction, type PublicClient } from 'viem';
 import { z } from 'zod';
 import { decodeError, erc2771ForwarderAbi, huiCircleAbi, huiFactoryAbi } from 'sdk';
-import { clientIp, errorResponse, jsonResponse, readLimited, type Logger } from './http';
+import { takeIp, errorResponse, jsonResponse, readLimited, type Logger } from './http';
 import { InvalidTokenError, NoWalletError, type PrivyVerifier } from './privy';
 import type { SlidingWindowLimiter } from './ratelimit';
 
@@ -137,7 +137,7 @@ export function createRelayHandler(deps: RelayDeps): (req: Request) => Promise<R
       return res;
     };
 
-    const ip = deps.ipLimiter.take(clientIp(req, deps.trustProxy));
+    const ip = takeIp(deps.ipLimiter, req, deps.trustProxy);
     if (!ip.ok) {
       return done(
         errorResponse(429, 'RateLimited', 'Bạn gửi quá nhiều yêu cầu. Hãy thử lại sau.', {

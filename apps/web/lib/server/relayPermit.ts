@@ -16,7 +16,7 @@
 import { BaseError, HttpRequestError, TimeoutError, type PublicClient } from 'viem';
 import { z } from 'zod';
 import { decodeError, huiCircleFullAbi, huiFactoryAbi, mockUsdcAbi } from 'sdk';
-import { clientIp, errorResponse, jsonResponse, readLimited, type Logger } from './http';
+import { takeIp, errorResponse, jsonResponse, readLimited, type Logger } from './http';
 import { HARD_STOP_WEI, LOW_BALANCE_WEI } from './relay';
 import type { SlidingWindowLimiter } from './ratelimit';
 
@@ -102,7 +102,7 @@ export function createRelayPermitHandler(deps: RelayPermitDeps): (req: Request) 
     };
     const chainDown = () => done(errorResponse(502, 'ChainUnavailable', 'Chưa đọc được dữ liệu từ mạng. Hãy thử lại.'), 'chain-error');
 
-    const ip = deps.ipLimiter.take(clientIp(req, deps.trustProxy));
+    const ip = takeIp(deps.ipLimiter, req, deps.trustProxy);
     if (!ip.ok) {
       return done(
         errorResponse(429, 'RateLimited', 'Bạn gửi quá nhiều yêu cầu. Hãy thử lại sau.', { 'retry-after': String(ip.retryAfterSec) }),

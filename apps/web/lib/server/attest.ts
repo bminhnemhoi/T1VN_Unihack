@@ -7,7 +7,7 @@
 import { encodePacked, keccak256, type Hex } from 'viem';
 import { z } from 'zod';
 import { attestationTypes, huiSafeDomain } from 'sdk';
-import { errorResponse, jsonResponse, readLimited, clientIp, type Logger } from './http';
+import { errorResponse, jsonResponse, readLimited, takeIp, type Logger } from './http';
 import { InvalidTokenError, NoWalletError, type PrivyVerifier } from './privy';
 import type { SlidingWindowLimiter } from './ratelimit';
 
@@ -68,7 +68,7 @@ export function createAttestHandler(deps: AttestDeps): (req: Request) => Promise
       return res;
     };
 
-    const ip = deps.ipLimiter.take(clientIp(req, deps.trustProxy));
+    const ip = takeIp(deps.ipLimiter, req, deps.trustProxy);
     if (!ip.ok) {
       return done(
         errorResponse(429, 'RateLimited', 'Bạn gửi quá nhiều yêu cầu. Hãy thử lại sau.', {

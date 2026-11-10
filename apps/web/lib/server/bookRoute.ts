@@ -3,7 +3,7 @@
  * dependencies are injected so the route can be tested without a chain. `format=pdf` was cut (the printable page
  * `/circles/<address>/so-ho` replaces it).
  */
-import { clientIp, errorResponse, jsonResponse, type Logger } from './http';
+import { takeIp, errorResponse, jsonResponse, type Logger } from './http';
 import type { BookJson } from './book';
 import type { SlidingWindowLimiter } from './ratelimit';
 
@@ -33,7 +33,7 @@ export function createBookHandler(deps: BookDeps): (req: Request) => Promise<Res
   return async (req) => {
     const id = deps.requestId();
     if (req.method !== 'GET') return errorResponse(405, 'MethodNotAllowed', 'Chỉ hỗ trợ GET.', { allow: 'GET' });
-    const limit = deps.ipLimiter.take(clientIp(req, deps.trustProxy));
+    const limit = takeIp(deps.ipLimiter, req, deps.trustProxy);
     if (!limit.ok) {
       return errorResponse(429, 'RateLimited', 'Bạn xem sổ hụi quá nhiều lần. Hãy thử lại sau.', { 'retry-after': String(limit.retryAfterSec) });
     }

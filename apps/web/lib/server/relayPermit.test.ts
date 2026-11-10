@@ -232,17 +232,18 @@ describe('POST /api/relay/permit', () => {
 
     const t3 = harness();
     t3.deps.ipLimiter = new SlidingWindowLimiter(1, 3_600_000, () => NOW);
-    const h3 = createRelayPermitHandler(t3.deps);
-    expect((await post(h3, permitBody())).status).toBe(200);
-    expect((await post(h3, permitBody())).status).toBe(429);
+    const h3 = createRelayPermitHandler({ ...t3.deps, trustProxy: true });
+    const ip = { 'x-forwarded-for': '1.2.3.4' };
+    expect((await post(h3, permitBody(), ip)).status).toBe(200);
+    expect((await post(h3, permitBody(), ip)).status).toBe(429);
   });
 
-  it('without TRUST_PROXY a spoofed x-forwarded-for shares one IP bucket; with it the header counts (audit A14 H-01)', async () => {
+  it('without TRUST_PROXY there is no IP gate to exhaust; with it the header counts (audit A14 H-01, A15 H-01)', async () => {
     const t = harness();
     t.deps.ipLimiter = new SlidingWindowLimiter(1, 3_600_000, () => NOW);
     const untrusted = createRelayPermitHandler(t.deps);
+    for (let i = 0; i < 3; i++) expect((await post(untrusted, '{}', { 'x-forwarded-for': `6.6.6.${i}` })).status).toBe(400);
     expect((await post(untrusted, permitBody(), { 'x-forwarded-for': '1.2.3.4' })).status).toBe(200);
-    expect((await post(untrusted, permitBody(), { 'x-forwarded-for': '5.6.7.8' })).status).toBe(429);
 
     const t2 = harness();
     t2.deps.ipLimiter = new SlidingWindowLimiter(1, 3_600_000, () => NOW);

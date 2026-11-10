@@ -205,10 +205,11 @@ describe('book route', () => {
     expect((await get(handler, circle, '', { headers: { 'x-forwarded-for': '5.6.7.8' } })).status).toBe(200);
   });
 
-  it('without TRUST_PROXY every caller shares one IP bucket, whatever x-forwarded-for says (audit A14 H-01)', async () => {
+  it('without TRUST_PROXY there is no IP gate, whatever x-forwarded-for says (audit A14 H-01, A15 H-01)', async () => {
     const { handler } = make({ ipLimiter: new SlidingWindowLimiter(1, 3_600_000, () => NOW) });
-    expect((await get(handler, circle, '', { headers: { 'x-forwarded-for': '1.2.3.4' } })).status).toBe(200);
-    expect((await get(handler, circle, '', { headers: { 'x-forwarded-for': '5.6.7.8' } })).status).toBe(429);
+    for (const ip of ['1.2.3.4', '5.6.7.8', '1.2.3.4']) {
+      expect((await get(handler, circle, '', { headers: { 'x-forwarded-for': ip } })).status).toBe(200);
+    }
   });
 
   it('caches a book briefly so reloads do not rescan the chain', async () => {
