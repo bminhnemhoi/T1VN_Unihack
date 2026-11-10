@@ -17,7 +17,7 @@ Cách đọc: "Agent" là việc Claude Code đã làm trong repo và có bằng
 | Mở link Snowtrace của HuiFactory bằng tab ẩn danh và thấy "Contract verified" | Người | CHƯA KIỂM: README và form dùng link `testnet.snowtrace.io`, nhưng chỉ biết verify trên Routescan. Nếu Snowtrace chưa hiện, đổi link trong form sang trang đã verify | [ ] |
 | `forge test` xanh (unit, fuzz, invariant) | Agent | Đạt: 617 test, 0 lỗi (463 unit, 36 fuzz, 54 invariant) ngày 11/11 | [ ] |
 | Bằng chứng Fuji thật: dây Fixed Completed (3 kỳ + `finalize`) | Agent | Đạt 11/11: dây `0xABA89dFfA4e157927710419b01C32bD307bF2461` state = Completed, `settledRounds` = 3, số dư USDC của dây = 0 (lệnh chỉ đọc); hash giao dịch viết tắt ở `docs/TIEN-DO.md`, cần lấy đủ từ Snowtrace khi dán vào form | [ ] |
-| `pnpm -r lint`, `typecheck`, `test` xanh | Agent | Đạt (sdk 105, web 352, keeper 18, config 10); `pytest` 71 đạt | [ ] |
+| `pnpm -r lint`, `typecheck`, `test` xanh | Agent | Đạt (sdk 105, web 359, keeper 18, config 10); `pytest` 71 đạt | [ ] |
 | CI xanh trên commit cuối | Người | CHƯA KIỂM: CI chỉ chạy sau khi push; xem tab Actions | [ ] |
 | Slither không còn mức high | Người | `docs/TIEN-DO.md` ghi Slither high 0 ở lần A13; chạy lại `slither .` trên commit cuối trước khi nộp | [ ] |
 | Không có bí mật trong repo (khóa, `.env*`, token, secret Privy) | Người | CHƯA KIỂM: agent bị hook chặn không quét. Chạy gitleaks hoặc skill `security-gate` trên toàn lịch sử trước khi push. Lưu ý: secret Privy cũ đã lộ (docs/TIEN-DO.md), phải dùng secret mới và không để secret cũ trong lịch sử | [ ] |

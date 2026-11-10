@@ -5,6 +5,7 @@
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { z } from 'zod';
+import { buildEconomics, buildSybil, type LabEconomics, type LabSybil } from './lab-organizer';
 
 const design = z.object({
   design: z.string(),
@@ -54,9 +55,14 @@ export interface LabRun {
   results: LabDesign[];
 }
 export type LabInv08 = z.infer<typeof inv08>;
+export type { LabEconCell, LabEconomics, LabSybil, LabSybilCase } from './lab-organizer';
 export interface LabData {
   runs: LabRun[];
   inv08?: LabInv08;
+  /** v1.2: what the organizer earns by commission schedule (docs/08 section 2.7). */
+  economics?: LabEconomics;
+  /** v1.2: one or two dummy wallets at CI 50% and 100% (docs/03 section 7.3). */
+  sybil?: LabSybil;
 }
 
 const simRoot = (): string => path.resolve(process.cwd(), '..', '..', 'sim');
@@ -102,5 +108,14 @@ export function loadLab(): LabData {
   } catch {
     inv = undefined;
   }
-  return { runs, ...(inv ? { inv08: inv } : {}) };
+  const tryRead = (rel: string): unknown => {
+    try {
+      return read(rel);
+    } catch {
+      return undefined;
+    }
+  };
+  const economics = buildEconomics(tryRead('outputs/organizer_economics.json'));
+  const sybil = buildSybil(tryRead('outputs/organizer_sybil.json'));
+  return { runs, ...(inv ? { inv08: inv } : {}), ...(economics ? { economics } : {}), ...(sybil ? { sybil } : {}) };
 }

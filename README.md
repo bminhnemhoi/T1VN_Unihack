@@ -99,7 +99,7 @@ Số liệu đo ngày 10 đến 11/11/2026 trên nhánh `Towfienes/sim-ai` (sau 
 |---|---|
 | `cd contracts && forge test` | 617 test đạt, 0 lỗi (463 unit, 36 fuzz, 54 invariant, phần còn lại là integration, gas, fork) |
 | `forge test --match-path "test/invariant/*"` | 54 đạt (bất biến tiền INV-01..INV-09, INV-11..INV-13; INV-10 kiểm tĩnh ở CI) |
-| `pnpm -r test` | sdk 105, web 352, keeper 18, config 10: đều đạt |
+| `pnpm -r test` | sdk 105, web 359, keeper 18, config 10: đều đạt |
 | `pnpm -r lint` và `pnpm -r typecheck` | sạch |
 | `pnpm --filter web test:e2e` (Playwright, gồm kiểm axe về khả năng truy cập; mobile 390 và desktop 1440) | 335 đạt, 7 bỏ qua có chủ đích (test bàn phím chỉ chạy trên desktop) |
 | `pnpm --filter web e2e:anvil` | 106 kiểm tra đạt |

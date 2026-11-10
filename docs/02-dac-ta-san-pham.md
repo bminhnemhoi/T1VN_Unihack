@@ -158,7 +158,7 @@ flowchart TD
 | S13 | Trợ lý chủ hụi | Ngăn kéo chat, câu gợi ý, bảng số từ tool, "Điền vào form" |
 | S14 | Cài đặt | Cỡ chữ, sao lưu thăm, nhắc hụi Telegram (bonus, tự chọn) |
 | S15 | Mẫu thông báo UBND | Bản nháp từ `draft_ubnd_notice`, chỗ trống tự điền họ tên, địa chỉ |
-| S16 | Phòng mô phỏng (`/lab`) | Biểu đồ so sánh 3 thiết kế từ `sim/outputs`, ghi rõ giả định; chưa chạy thì ghi "chưa có kết quả" |
+| S16 | Phòng mô phỏng (`/lab`) | Biểu đồ so sánh 3 thiết kế từ `sim/outputs`, ghi rõ giả định; chưa chạy thì ghi "chưa có kết quả". v1.2: thêm "Chủ hụi kiếm được bao nhiêu" (chọn chu kỳ tuần hoặc tháng, số người; ba cách tính hoa hồng; USDC và %/năm; giả định hazard ghi ngay trên bảng) và "Chủ hụi dùng ví ảo" (1 hoặc 2 ví, CI 50% và 100%, kèm câu cam kết của docs/03 mục 7.3); dưới 768px mỗi dòng là một thẻ |
 
 **Yêu cầu chung:**
 1. Mobile-first, chuẩn bề rộng 360 px, `lang="vi"`, một hành động chính mỗi màn hình.
