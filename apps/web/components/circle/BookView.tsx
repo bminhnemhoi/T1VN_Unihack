@@ -94,7 +94,7 @@ export function BookView({ c }: { c: SampleCircleData }) {
         ? eventsToLines(events.data ?? [], (a) => {
             const seat = c.seats.find((s) => s.address?.toLowerCase() === a.toLowerCase());
             return nick[a.toLowerCase()] ?? seat?.name ?? 'Chủ hụi hoặc ví khác';
-          })
+          }, { organizer: c.live.view.organizer, commission: c.live.view.params.commissionMode })
         : buildLines(c),
     [c, events.data, nick],
   );

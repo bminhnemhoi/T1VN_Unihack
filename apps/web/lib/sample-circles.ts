@@ -100,8 +100,8 @@ export const SAMPLE_NOW_MS = vnTime(2026, 11, 9, 10, 10);
 
 const DEMO_TERMS: Terms = { mode: 'bidding', n: 5n, c: usdc(100), periodDays: 30n, alphaBps: 2000n, feeBps: 100n, reserveBps: 100n, capBps: 2000n };
 const FIXED_TERMS: Terms = { mode: 'fixed', n: 5n, c: usdc(20), periodDays: 7n, alphaBps: 2000n, feeBps: 100n, reserveBps: 100n, capBps: 0n };
-const GATHER_TERMS: Terms = { mode: 'bidding', n: 5n, c: usdc(10), periodDays: 30n, alphaBps: 2000n, feeBps: 100n, reserveBps: 100n, capBps: 2000n };
-const DONE_TERMS: Terms = { mode: 'bidding', n: 8n, c: usdc(50), periodDays: 30n, alphaBps: 2000n, feeBps: 100n, reserveBps: 100n, capBps: 2000n };
+const GATHER_TERMS: Terms = { mode: 'bidding', n: 5n, c: usdc(10), periodDays: 30n, alphaBps: 2000n, feeBps: 300n, shareBps: 5000n, reserveBps: 100n, capBps: 2000n };
+const DONE_TERMS: Terms = { mode: 'bidding', n: 8n, c: usdc(50), periodDays: 30n, alphaBps: 2000n, feeBps: 300n, shareBps: 5000n, reserveBps: 100n, capBps: 2000n };
 
 const named = (names: string[], reps: Reputation[], joined = names.length): SampleSeat[] =>
   names.map((name, i) => ({ name, rep: reps[i] ?? rep({}), joined: i < joined }));

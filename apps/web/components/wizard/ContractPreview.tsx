@@ -35,7 +35,12 @@ export function ContractPreview({ form, value, preview }: { form: FormState; val
           { label: 'Tiền giữ lại của người hốt', value: formatBps(value.alphaBps) },
           { label: 'Ký quỹ của chủ hụi', value: formatUsdc(value.bond) },
           { label: 'Quỹ dự phòng', value: formatBps(value.reserveBps) },
-          { label: 'Tiền công chủ hụi', value: form.commission ? formatBps(value.feeBps) : 'Không có' },
+          ...(form.commission && value.shareBps > 0n
+            ? [
+                { label: 'Hoa hồng chủ hụi', value: `${formatBps(value.shareBps)} quỹ lãi mỗi kỳ, tối đa ${formatBps(value.feeBps)} tiền hốt` },
+                { label: 'Thăm cộng hoa hồng', value: 'Không vượt trần lãi luật cho phép' },
+              ]
+            : [{ label: 'Tiền công chủ hụi', value: form.commission ? formatBps(value.feeBps) : 'Không có' }]),
           { label: 'Chỉ số bảo chứng', value: formatBps(preview.coverageBps) },
           { label: 'Mức tối thiểu để bắt đầu dây', value: formatBps(preview.minCoverageBps) },
         ]}

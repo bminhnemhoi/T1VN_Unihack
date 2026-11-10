@@ -4,7 +4,18 @@
  */
 import type { CircleEvent } from 'sdk';
 
-export type BookKind = 'Góp' | 'Thiếu' | 'Bù' | 'Hốt' | 'Nhả tiền giữ lại' | 'Vỡ nợ' | 'Trả trễ' | 'Hoàn' | 'Trả nợ';
+export type BookKind =
+  | 'Góp'
+  | 'Thiếu'
+  | 'Bù'
+  | 'Hốt'
+  | 'Nhả tiền giữ lại'
+  | 'Vỡ nợ'
+  | 'Trả trễ'
+  | 'Hoàn'
+  | 'Trả nợ'
+  | 'Hoa hồng'
+  | 'Thưởng đúng hạn';
 
 export interface BookLine {
   ms: number;
@@ -42,7 +53,14 @@ export function bookTotals(lines: BookLine[], claims: bigint): BookTotals {
   };
 }
 
-export function eventsToLines(events: CircleEvent[], nameOf: (address: string) => string): BookLine[] {
+export interface BookOptions {
+  /** Organizer wallet, to mark the round the organizer's own seat took ("không thu hoa hồng"). */
+  organizer?: string;
+  /** The circle pays a commission at all (`commissionMode`); without it nothing needs explaining. */
+  commission?: boolean;
+}
+
+export function eventsToLines(events: CircleEvent[], nameOf: (address: string) => string, opts: BookOptions = {}): BookLine[] {
   const out: BookLine[] = [];
   for (const e of events) {
     const a = e.args;
@@ -59,8 +77,16 @@ export function eventsToLines(events: CircleEvent[], nameOf: (address: string) =
       case 'ShortfallCovered':
         out.push({ ...base, round, member, kind: 'Bù', detail: SOURCE[Number(a.source)] ?? '', amount: big(a.amount) });
         break;
-      case 'RoundSettled':
-        out.push({ ...base, round, member: nameOf(String(a.winner ?? '')), kind: 'Hốt', detail: 'thực nhận', amount: big(a.payout) });
+      case 'RoundSettled': {
+        const own = Boolean(opts.commission && opts.organizer && String(a.winner ?? '').toLowerCase() === opts.organizer.toLowerCase() && big(a.fee) === 0n);
+        out.push({ ...base, round, member: nameOf(String(a.winner ?? '')), kind: 'Hốt', detail: own ? 'thực nhận, không thu hoa hồng (chân của chủ hụi)' : 'thực nhận', amount: big(a.payout) });
+        break;
+      }
+      case 'FeePaid':
+        out.push({ ...base, round, member: nameOf(String(a.organizer ?? '')), kind: 'Hoa hồng', detail: 'trả ngay lúc chi kỳ', amount: big(a.amount) });
+        break;
+      case 'ReserveShared':
+        out.push({ ...base, round: 0, member, kind: 'Thưởng đúng hạn', detail: `chia quỹ dự phòng, trọng số ${Number(a.weight ?? 0)}`, amount: big(a.amount) });
         break;
       case 'HoldbackReleased':
         out.push({ ...base, round, member, kind: 'Nhả tiền giữ lại', amount: big(a.amount) });

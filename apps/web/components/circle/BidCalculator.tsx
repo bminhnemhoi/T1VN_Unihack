@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { formatBps, formatUsdc, parseUsdc } from 'sdk';
 import { LedgerList } from '@/components/LedgerList';
 import { Input } from '@/components/ui/input';
-import { bidQuote, type Terms } from '@/lib/hui-calc';
+import { bidQuote, capOf, roomOf, startingBid, type Terms } from '@/lib/hui-calc';
 
 interface Past {
   k: number;
@@ -16,11 +16,16 @@ interface Past {
  * Bid calculator (decided 09/11): type a bid, see what you hold now, what is held back, what you pay in interest and
  * commission, and what that equals as a monthly rate (by the cap's own yardstick, docs/03 section 2.4). Numbers only: it never
  * says what to bid. Past winning bids sit beside it so the number has context.
+ * The table is the cost breakdown of ADR-28 (vector V5): cash now, cash later, interest paid to the others, commission,
+ * reserve. The ceiling is the one the contract enforces (law ceiling minus the organizer's share, docs/03 section 2.7).
+ * `bidderIsOrganizer`: the person looking holds the organizer's own seat, so winning this round carries no commission.
  */
-export function BidCalculator({ terms, round, past }: { terms: Terms; round: number; past: Past[] }) {
-  const [text, setText] = useState('2');
+export function BidCalculator({ terms, round, past, bidderIsOrganizer = false }: { terms: Terms; round: number; past: Past[]; bidderIsOrganizer?: boolean }) {
+  const [text, setText] = useState(() => startingBid(capOf(terms, round)));
   const bid = parseUsdc(text);
-  const q = bid === undefined ? undefined : bidQuote(terms, round, bid);
+  const q = bid === undefined ? undefined : bidQuote(terms, round, bid, bidderIsOrganizer);
+  const shared = (terms.shareBps ?? 0n) > 0n && terms.feeBps > 0n;
+  const room = roomOf(terms, round);
   const problem =
     bid === undefined
       ? 'Nhập thăm bằng số, ví dụ 2 hoặc 1,5.'
@@ -55,7 +60,7 @@ export function BidCalculator({ terms, round, past }: { terms: Terms; round: num
           <span className="text-lg">USDC</span>
         </div>
         <p id="thu-tham-ghi-chu" className={problem ? 'mt-1 font-semibold text-state-bad' : 'mt-1 text-muted-foreground'}>
-          {problem ?? `Trần thăm kỳ ${round} là ${formatUsdc(q?.cap ?? 0n)}.`}
+          {problem ?? `Trần thăm kỳ ${round} là ${formatUsdc(q?.cap ?? 0n)}${shared ? ` (đã trừ phần hoa hồng; trần theo luật ${formatUsdc(q?.statutoryCap ?? 0n)})` : ''}.`}
         </p>
       </div>
 
@@ -64,10 +69,16 @@ export function BidCalculator({ terms, round, past }: { terms: Terms; round: num
           className="mt-3"
           items={[
             { label: 'Bạn cầm ngay nếu thắng', value: formatUsdc(q.payout) },
-            { label: 'Tiền bị giữ lại, nhận dần', value: `${formatUsdc(q.holdback)} (${formatUsdc(q.releaseEach)} mỗi kỳ)` },
-            { label: 'Tổng lãi thăm bạn trả', value: formatUsdc(q.interest) },
-            { label: 'Hoa hồng chủ hụi kỳ này', value: formatUsdc(q.fee) },
-            { label: 'Trích quỹ dự phòng', value: formatUsdc(q.premium) },
+            { label: 'Tiền giữ lại, nhận dần', value: `${formatUsdc(q.holdback)} (nhả ${formatUsdc(q.releaseEach)} mỗi kỳ bạn đóng đúng hạn)` },
+            { label: `Lãi thăm bạn trả cho ${q.livePayers} người`, value: `${formatUsdc(q.interest)} (${formatUsdc(q.bid)} x ${q.livePayers})` },
+            {
+              label: 'Hoa hồng chủ hụi kỳ này',
+              value: bidderIsOrganizer ? 'Không thu (kỳ chủ hụi tự hốt)' : formatUsdc(q.fee),
+            },
+            { label: 'Trích vào quỹ dự phòng', value: `${formatUsdc(q.premium)} (cuối dây chia lại theo thưởng đúng hạn)` },
+            ...(shared
+              ? [{ label: 'Lãi thăm cộng hoa hồng so với trần lãi luật', value: `${formatUsdc(q.interest + q.fee)} trên ${formatUsdc(room)}` }]
+              : []),
             { label: `Bạn còn góp ${terms.n - BigInt(round)} kỳ sau`, value: formatUsdc(q.laterPayments) },
             { label: 'Giống vay lãi (chỉ lãi thăm)', value: q.interestRateBpsPerMonth === undefined ? 'Không có lãi' : `${formatBps(q.interestRateBpsPerMonth)} mỗi tháng` },
             { label: 'Giống vay lãi (gồm hoa hồng và quỹ)', value: q.allInRateBpsPerMonth === undefined ? 'Không có lãi' : `${formatBps(q.allInRateBpsPerMonth)} mỗi tháng` },

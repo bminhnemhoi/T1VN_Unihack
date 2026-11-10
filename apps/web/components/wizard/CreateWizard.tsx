@@ -5,9 +5,9 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
 import { formatBps, formatUsdc, formatUsdcNumber, parseUsdc, previewCircle } from 'sdk';
-import { BidTable } from '@/components/BidTable';
 import { TxNotice, useTx } from '@/components/chain/useTx';
 import { RiskTable } from '@/components/circle/RiskTable';
+import { TermsBox } from '@/components/circle/TermsBox';
 import { CoverageMeter } from '@/components/CoverageMeter';
 import { Nd19Panel } from '@/components/Nd19Panel';
 import { useToast } from '@/components/shell/Toast';
@@ -15,19 +15,21 @@ import { Button } from '@/components/ui/button';
 import { Field, FieldDescription, FieldGroup, FieldLabel, FieldLegend, FieldSet } from '@/components/ui/field';
 import { Switch } from '@/components/ui/switch';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
+import { CommissionNote, CommissionTable } from '@/components/wizard/CommissionTable';
 import { ContractPreview } from '@/components/wizard/ContractPreview';
 import { FairnessMeter } from '@/components/wizard/FairnessMeter';
 import { NumberField } from '@/components/wizard/NumberField';
 import { Stepper } from '@/components/wizard/Stepper';
 import { DEFAULTS, termsOf, validateForm, type FieldName, type FormState } from '@/lib/circleForm';
 import { useChain } from '@/lib/chain/provider';
-import { buildCreateInput } from '@/lib/live/createInput';
+import { buildCreateInput, formTermsInput } from '@/lib/live/createInput';
 import { useMinCoverageBps } from '@/lib/live/useMinCoverage';
+import { buildTermsText, termsHashOf } from 'sdk';
 import { TOGGLE_ON } from '@/lib/utils';
 import { vi } from '@/lib/vi';
 
 const STEPS = ['Dây hụi', 'Bảo chứng', 'Xem lại'];
-const STEP_FIELDS: FieldName[][] = [['n', 'c', 'periodDays'], ['alpha', 'bond', 'reserve', 'fee'], []];
+const STEP_FIELDS: FieldName[][] = [['n', 'c', 'periodDays'], ['alpha', 'bond', 'reserve', 'fee', 'share'], []];
 const STORAGE = 'huisafe.wizard.v1';
 const LAST = STEPS.length - 1;
 
@@ -56,6 +58,8 @@ const stepFromUrl = (): number => {
   const want = Number(new URLSearchParams(window.location.search).get('buoc')) - 1;
   return Number.isInteger(want) && want > 0 ? want : 0;
 };
+
+const DEMO_BUILD = process.env.NEXT_PUBLIC_HUISAFE_DEMO === 'true';
 
 const echoOf = (text: string): string | undefined => {
   const u = parseUsdc(text);
@@ -186,10 +190,17 @@ export function CreateWizard() {
     [slowValue, floor],
   );
   const terms = useMemo(() => (value ? termsOf(f, value) : undefined), [f, value]);
+  const agreement = useMemo(() => {
+    if (!value) return undefined;
+    const text = buildTermsText(formTermsInput(f, value, { demo: DEMO_BUILD }));
+    return { text, hash: termsHashOf(text), check: 'unknown' as const };
+  }, [f, value]);
   const bad = STEP_FIELDS[step]!.filter((k) => errors[k]);
   const stepBad = bad.length > 0;
   const showStepError = stepBad && (tried || bad.some((k) => touched[k]));
   const bidding = f.mode === 'bidding';
+  const showShare = bidding && f.commission;
+  const sharing = showShare && (value?.shareBps ?? 0n) > 0n;
   const shown = (k: FieldName) => (tried || touched[k] ? errors[k] : undefined);
 
   const fillBond = useCallback(() => preview && setF((s) => ({ ...s, bond: (Number(preview.bondFor100) / 1_000_000).toString() })), [preview]);
@@ -329,7 +340,23 @@ export function CreateWizard() {
                     Dây hưởng hoa hồng (NĐ 19 Điều 4 khoản 8)
                   </FieldLabel>
                 </Field>
-                <NumberField id="fee" label="Tiền công trên mỗi kỳ" hint={vi.help.fee} unit="%" value={f.commission ? f.fee : '0'} error={shown('fee')} disabled={!f.commission} decimal last onChange={onChange} onBlur={touch} />
+                {showShare && (
+                  <NumberField id="share" label="Phần hoa hồng của chủ hụi" hint={vi.help.share} unit="%" value={f.share} error={shown('share')} decimal onChange={onChange} onBlur={touch} />
+                )}
+                <NumberField
+                  id="fee"
+                  label={sharing ? 'Trần hoa hồng mỗi lần hốt' : 'Tiền công trên mỗi kỳ'}
+                  hint={sharing ? vi.help.feeCeiling : vi.help.fee}
+                  unit="%"
+                  value={f.commission ? f.fee : '0'}
+                  error={shown('fee')}
+                  disabled={!f.commission}
+                  decimal
+                  last
+                  onChange={onChange}
+                  onBlur={touch}
+                />
+                {sharing && terms && value && <CommissionNote terms={terms} />}
               </FieldGroup>
             </FieldSet>
           )}
@@ -339,9 +366,16 @@ export function CreateWizard() {
               {preview && value ? (
                 <>
                   <ContractPreview form={f} value={value} preview={preview} />
-                  {bidding ? <BidTable rows={preview.bidRows} /> : <p className="text-muted-foreground">Dây cố định hốt lần lượt không bỏ thăm, nên không có trần thăm.</p>}
+                  {bidding && terms ? <CommissionTable terms={terms} /> : <p className="text-muted-foreground">Dây cố định hốt lần lượt không bỏ thăm, nên không có trần thăm.</p>}
                   {terms && <FairnessMeter terms={terms} bond={value.bond} />}
                   {terms && <RiskTable terms={terms} bond={value.bond} />}
+                  <section aria-labelledby="thoa-thuan-tao">
+                    <h2 id="thoa-thuan-tao" className="text-2xl font-bold">Thỏa thuận của dây</h2>
+                    <p className="mt-1 text-muted-foreground">Mã băm của văn bản này được ghi lên mạng cùng dây. Người vào dây đọc đúng văn bản này và đối chiếu mã.</p>
+                    <div className="mt-3">
+                      <TermsBox view={agreement!} source="draft" />
+                    </div>
+                  </section>
                   <Nd19Panel perRoundUsdc={value.n * value.c} hasActiveCircle={hasActive} onHasActiveCircle={setHasActive} over18={over18} onOver18={setOver18} />
                 </>
               ) : (

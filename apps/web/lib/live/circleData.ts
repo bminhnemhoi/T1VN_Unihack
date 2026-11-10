@@ -33,6 +33,7 @@ export function termsOf(v: CircleView): Terms {
     feeBps: BigInt(p.commissionMode ? p.feeBps : 0),
     reserveBps: BigInt(p.reserveBps),
     capBps: BigInt(p.capBps),
+    shareBps: BigInt(p.commissionMode ? (p.commissionShareBps ?? 0) : 0),
   };
 }
 
