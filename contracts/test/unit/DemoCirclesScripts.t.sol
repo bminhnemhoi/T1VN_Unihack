@@ -72,7 +72,7 @@ contract DemoCirclesScriptsTest is Test {
 
     function test_Create_ThreeCirclesAtFullCoverage() public {
         _deploy("create");
-        CreateDemoCircles.Result memory r = create.execute(ORGANIZER_KEY, file, 7 days);
+        CreateDemoCircles.Result memory r = create.execute(ORGANIZER_KEY, file, 7 days, false);
 
         IHuiCircle bidding = IHuiCircle(r.bidding);
         IHuiCircle phi = IHuiCircle(r.phi);
@@ -109,11 +109,21 @@ contract DemoCirclesScriptsTest is Test {
         _cleanup();
     }
 
+    function test_Create_RerunRevertsWhileDemoCirclesAreLive_UnlessForced() public {
+        _deploy("rerun2");
+        CreateDemoCircles.Result memory r = create.execute(ORGANIZER_KEY, file, 7 days, false);
+        vm.expectRevert(abi.encodeWithSelector(CreateDemoCircles.AlreadyCreated.selector, r.bidding));
+        create.execute(ORGANIZER_KEY, file, 7 days, false);
+        create.execute(ORGANIZER_KEY, file, 7 days, true);
+        assertEq(HuiFactory(d.factory).circlesOf(vm.addr(ORGANIZER_KEY)).length, 6);
+        _cleanup();
+    }
+
     function test_Create_Fuji_RevertsWhenOrganizerLacksUsdc() public {
         _deploy("fuji");
         vm.chainId(43_113);
         vm.expectRevert(abi.encodeWithSelector(CreateDemoCircles.InsufficientUsdc.selector, 0, 112e6));
-        create.execute(ORGANIZER_KEY, file, 7 days);
+        create.execute(ORGANIZER_KEY, file, 7 days, false);
         _cleanup();
     }
 
@@ -121,13 +131,13 @@ contract DemoCirclesScriptsTest is Test {
         _deploy("chain");
         vm.chainId(43_114);
         vm.expectRevert(abi.encodeWithSelector(CreateDemoCircles.UnsupportedChain.selector, 43_114));
-        create.execute(ORGANIZER_KEY, file, 7 days);
+        create.execute(ORGANIZER_KEY, file, 7 days, false);
         _cleanup();
     }
 
     function test_Join_FillsAndActivatesAllThreeWithoutMemberGas() public {
         _deploy("join");
-        CreateDemoCircles.Result memory r = create.execute(ORGANIZER_KEY, file, 7 days);
+        CreateDemoCircles.Result memory r = create.execute(ORGANIZER_KEY, file, 7 days, false);
         for (uint256 i; i < 5; ++i) {
             assertEq(vm.addr(memberKeys[i]).balance, 0, "members hold no AVAX");
         }
@@ -153,7 +163,7 @@ contract DemoCirclesScriptsTest is Test {
 
     function test_Join_FixedOnlyLeavesTheBiddingCirclesForming() public {
         _deploy("fixed");
-        CreateDemoCircles.Result memory r = create.execute(ORGANIZER_KEY, file, 7 days);
+        CreateDemoCircles.Result memory r = create.execute(ORGANIZER_KEY, file, 7 days, false);
         join.execute(_joinParams(JoinDemoCircles.Selection.FixedOnly, true));
         assertEq(uint8(HuiCircle(payable(r.fixedCircle)).state()), uint8(CircleState.Active));
         assertEq(uint8(HuiCircle(payable(r.bidding)).state()), uint8(CircleState.Forming));
@@ -164,7 +174,7 @@ contract DemoCirclesScriptsTest is Test {
 
     function test_Join_WithoutActivationAndRerunIsIdempotent() public {
         _deploy("rerun");
-        CreateDemoCircles.Result memory r = create.execute(ORGANIZER_KEY, file, 7 days);
+        CreateDemoCircles.Result memory r = create.execute(ORGANIZER_KEY, file, 7 days, false);
         join.execute(_joinParams(JoinDemoCircles.Selection.All, false));
         assertEq(uint8(HuiCircle(payable(r.bidding)).state()), uint8(CircleState.Forming));
         assertEq(IHuiCircle(r.bidding).members().length, 5);
@@ -192,6 +202,16 @@ contract DemoCirclesScriptsTest is Test {
         _cleanup();
     }
 
+    function test_Join_RevertsWhenTwoRolesShareAKey() public {
+        _deploy("dupkey");
+        create.execute(ORGANIZER_KEY, file, 7 days, false);
+        JoinDemoCircles.Params memory p = _joinParams(JoinDemoCircles.Selection.All, true);
+        p.relayerKey = ORGANIZER_KEY;
+        vm.expectRevert(abi.encodeWithSelector(JoinDemoCircles.DuplicateKey.selector, vm.addr(ORGANIZER_KEY)));
+        join.execute(p);
+        _cleanup();
+    }
+
     function test_ParseSelection() public {
         join = new JoinDemoCircles();
         assertEq(uint8(join.parseSelection("all")), uint8(JoinDemoCircles.Selection.All));
@@ -203,7 +223,7 @@ contract DemoCirclesScriptsTest is Test {
     /// @dev The Fixed demo circle runs to the end on its own: three rounds, then `finalize`, bond back to the organizer.
     function test_FixedDemoCircleRunsToCompletion() public {
         _deploy("complete");
-        CreateDemoCircles.Result memory r = create.execute(ORGANIZER_KEY, file, 7 days);
+        CreateDemoCircles.Result memory r = create.execute(ORGANIZER_KEY, file, 7 days, false);
         join.execute(_joinParams(JoinDemoCircles.Selection.FixedOnly, true));
         HuiCircle c = HuiCircle(payable(r.fixedCircle));
         MockUSDC usdc = MockUSDC(d.usdc);

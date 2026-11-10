@@ -48,6 +48,8 @@ contract JoinDemoCircles is Script {
     error InvalidSelection(string value);
     /// @dev A member key does not match the address configured for that member.
     error AddressMismatch(uint256 member, address expected, address actual);
+    /// @dev Two of the organizer, relayer, attester and member keys are the same wallet (ADR-21: one wallet per role).
+    error DuplicateKey(address wallet);
     /// @dev A circle is not `Forming` or still lacks members after the joins.
     error SanityCheckFailed(string what);
 
@@ -122,6 +124,7 @@ contract JoinDemoCircles is Script {
         }
 
         address organizer = vm.addr(p.organizerKey);
+        _requireDistinctKeys(p);
         CreateDemoCircles ids = new CreateDemoCircles();
         r.bidding = _find(factory, organizer, ids.TERMS_HASH_BIDDING());
         r.phi = _find(factory, organizer, ids.TERMS_HASH_PHI());
@@ -157,6 +160,24 @@ contract JoinDemoCircles is Script {
         console2.log("phi circle members", r.phiMembers);
         console2.log("fixed circle members", r.fixedMembers);
         console2.log("activated", p.activate);
+    }
+
+    function _requireDistinctKeys(Params memory p) internal pure {
+        address[8] memory all = [
+            vm.addr(p.organizerKey),
+            vm.addr(p.relayerKey),
+            vm.addr(p.attesterKey),
+            vm.addr(p.memberKeys[0]),
+            vm.addr(p.memberKeys[1]),
+            vm.addr(p.memberKeys[2]),
+            vm.addr(p.memberKeys[3]),
+            vm.addr(p.memberKeys[4])
+        ];
+        for (uint256 i = 1; i < 8; ++i) {
+            for (uint256 j; j < i; ++j) {
+                if (all[i] == all[j]) revert DuplicateKey(all[i]);
+            }
+        }
     }
 
     /// @dev Newest circle of `organizer` whose terms hash is `terms`.

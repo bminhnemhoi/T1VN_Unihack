@@ -7,7 +7,7 @@ import {HuiFactory} from "../src/HuiFactory.sol";
 import {HuiCircle} from "../src/HuiCircle.sol";
 import {IHuiCircle} from "../src/interfaces/IHuiCircle.sol";
 import {MockUSDC} from "../src/mocks/MockUSDC.sol";
-import {CircleMode, CircleParams, PermitSig} from "../src/libraries/HuiTypes.sol";
+import {CircleMode, CircleParams, CircleState, PermitSig} from "../src/libraries/HuiTypes.sol";
 
 /// @title CreateDemoCircles
 /// @notice Creates the three Demo Day circles (C = 10 USDC, demo timing 180/90/60/120 s, P = 30 days, alpha 20%) and has
@@ -23,6 +23,7 @@ import {CircleMode, CircleParams, PermitSig} from "../src/libraries/HuiTypes.sol
 ///   DEMO_ORGANIZER_PRIVATE_KEY  required, testnet wallet.
 ///   DEPLOY_FILE                 optional; default `deployments/fuji.json` on Fuji, `deployments/anvil.json` on anvil.
 ///   JOIN_WINDOW_SECONDS         optional; seconds from now until `joinDeadline`; default 7 days.
+///   DEMO_FORCE                  optional `true`: create even if live demo circles of this organizer already exist.
 contract CreateDemoCircles is Script {
     uint256 internal constant FUJI_CHAIN_ID = 43113;
     uint256 internal constant ANVIL_CHAIN_ID = 31337;
@@ -46,6 +47,9 @@ contract CreateDemoCircles is Script {
     error NotDeployed(string file);
     /// @dev Fuji: the organizer wallet lacks the USDC for the three bonds.
     error InsufficientUsdc(uint256 have, uint256 need);
+    /// @dev The organizer already has a live (Forming, Active or Paused) demo circle of this kind; rerunning would lock
+    /// another 112 USDC of bond. Set `DEMO_FORCE=true` to create them anyway.
+    error AlreadyCreated(address circle);
     /// @dev A circle did not come out as docs/03 section 8 expects.
     error SanityCheckFailed(string what);
 
@@ -61,11 +65,19 @@ contract CreateDemoCircles is Script {
     function run() external returns (Result memory r) {
         uint256 key = vm.envUint("DEMO_ORGANIZER_PRIVATE_KEY");
         string memory defaultPath = block.chainid == FUJI_CHAIN_ID ? "deployments/fuji.json" : "deployments/anvil.json";
-        return execute(key, vm.envOr("DEPLOY_FILE", defaultPath), vm.envOr("JOIN_WINDOW_SECONDS", DEFAULT_JOIN_WINDOW));
+        return execute(
+            key,
+            vm.envOr("DEPLOY_FILE", defaultPath),
+            vm.envOr("JOIN_WINDOW_SECONDS", DEFAULT_JOIN_WINDOW),
+            vm.envOr("DEMO_FORCE", false)
+        );
     }
 
     /// @notice Creates the three circles and deposits the three bonds, broadcasting with `organizerKey`.
-    function execute(uint256 organizerKey, string memory file, uint256 joinWindow) public returns (Result memory r) {
+    function execute(uint256 organizerKey, string memory file, uint256 joinWindow, bool force)
+        public
+        returns (Result memory r)
+    {
         if (block.chainid != FUJI_CHAIN_ID && block.chainid != ANVIL_CHAIN_ID) {
             revert UnsupportedChain(block.chainid);
         }
@@ -79,6 +91,7 @@ contract CreateDemoCircles is Script {
         uint256 balance = usdc.balanceOf(r.organizer);
         if (balance < need && block.chainid == FUJI_CHAIN_ID) revert InsufficientUsdc(balance, need);
 
+        if (!force) _requireNoLiveDemoCircle(factory, r.organizer);
         uint64 deadline = uint64(block.timestamp + joinWindow);
         vm.startBroadcast(organizerKey);
         if (block.chainid == ANVIL_CHAIN_ID && balance < need) usdc.mint(r.organizer, need - balance);
@@ -104,6 +117,19 @@ contract CreateDemoCircles is Script {
         console2.log("demo circle 1 bidding phi=0   ", r.bidding);
         console2.log("demo circle 2 bidding phi=5000", r.phi);
         console2.log("demo circle 3 fixed N=3       ", r.fixedCircle);
+    }
+
+    /// @dev Reverts when `organizer` still has a Forming, Active or Paused circle with one of the three demo terms hashes.
+    function _requireNoLiveDemoCircle(HuiFactory factory, address organizer) internal view {
+        address[] memory all = factory.circlesOf(organizer);
+        for (uint256 i; i < all.length; ++i) {
+            bytes32 t = IHuiCircle(all[i]).params().termsHash;
+            if (t != TERMS_HASH_BIDDING && t != TERMS_HASH_PHI && t != TERMS_HASH_FIXED) continue;
+            CircleState s = HuiCircle(payable(all[i])).state();
+            if (s == CircleState.Forming || s == CircleState.Active || s == CircleState.Paused) {
+                revert AlreadyCreated(all[i]);
+            }
+        }
     }
 
     function _create(HuiFactory factory, MockUSDC usdc, uint256 key, CircleParams memory p, uint256 bond)

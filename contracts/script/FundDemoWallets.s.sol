@@ -8,7 +8,7 @@ import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol
 import {MockUSDC} from "../src/mocks/MockUSDC.sol";
 
 /// @title FundDemoWallets
-/// @notice Tops up the demo wallets from the deployer, only by what each one is missing (`.handover/FAUCET.md`):
+/// @notice Tops up the demo wallets from the deployer, only by what each one is missing (`docs/DEPLOY-FUJI.md` section 13):
 ///   AVAX : RELAYER 0.02, KEEPER 0.005, ORGANIZER 0.005 (gas; the members never hold AVAX, the relayer pays).
 ///   USDC : ORGANIZER and M1..M5 up to the target of the chosen mode.
 ///          single  (default)  1 circle  : ORGANIZER 48,  each member 41.
