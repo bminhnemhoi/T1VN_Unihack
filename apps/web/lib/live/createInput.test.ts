@@ -14,7 +14,7 @@ describe('buildCreateInput', () => {
   it('bidding, real timing: round = period, windows fit, grace under the round', () => {
     const { f, v } = valid();
     const p = buildCreateInput(f, v, { nowSec: 1_000, demo: false });
-    expect(p).toMatchObject({ mode: 1, memberCount: 5, contribution: 100_000_000n, periodSeconds: 30 * 86_400, roundDuration: 30 * 86_400, graceSeconds: 172_800, capBps: 2000, alphaBps: 2000, feeBps: 300, commissionShareBps: 5000, reserveBps: 100, revealBondBps: 100 });
+    expect(p).toMatchObject({ mode: 1, memberCount: 5, contribution: 100_000_000n, periodSeconds: 30 * 86_400, roundDuration: 30 * 86_400, graceSeconds: 172_800, capBps: 2000, alphaBps: 2000, feeBps: Number(DEFAULTS.fee) * 100, commissionShareBps: Number(DEFAULTS.share) * 100, reserveBps: 100, revealBondBps: 100 });
     expect(p.commitWindow).toBeGreaterThanOrEqual(30);
     expect(p.revealWindow).toBeGreaterThanOrEqual(30);
     expect(p.commitWindow + p.revealWindow).toBeLessThanOrEqual(p.roundDuration);
