@@ -8,7 +8,7 @@ import {HuiFactory} from "../src/HuiFactory.sol";
 import {HuiCircle} from "../src/HuiCircle.sol";
 import {IHuiCircle} from "../src/interfaces/IHuiCircle.sol";
 import {MockUSDC} from "../src/mocks/MockUSDC.sol";
-import {CircleState, MemberAttestation, PermitSig} from "../src/libraries/HuiTypes.sol";
+import {CircleParams, CircleState, MemberAttestation, PermitSig} from "../src/libraries/HuiTypes.sol";
 import {CreateDemoCircles} from "./CreateDemoCircles.s.sol";
 
 /// @title JoinDemoCircles
@@ -16,14 +16,22 @@ import {CreateDemoCircles} from "./CreateDemoCircles.s.sol";
 /// without the members holding any AVAX, along the same path the web uses: the attester key signs each
 /// `MemberAttestation` (what `/api/attest` does), the member key signs the USDC permit for exactly the circle's
 /// `requiredAllowance` and the ERC-2771 forward request, and the relayer key broadcasts `forwarder.execute`
-/// (what `/api/relay` does). Then the organizer activates each circle it filled (circle 1 and 2: M1..M5; circle 3: M1..M3).
+/// (what `/api/relay` does). Then the organizer activates each circle that ends up FULL (circle 1 and 2: 5 members;
+/// circle 3: 3 members); a circle with a free seat stays `Forming` for a live joiner and is activated later with
+/// `ActivateDemoCircle.s.sol`.
 /// @dev Testnet only (hard rule 1): Fuji (43113) or a local anvil (31337); any other chain id reverts before anything
 /// is broadcast. All keys are read with `vm.envUint`, never from the command line, and never printed:
 ///   DEMO_ORGANIZER_PRIVATE_KEY, DEMO_M1_PRIVATE_KEY .. DEMO_M5_PRIVATE_KEY, ATTESTER_PRIVATE_KEY, RELAYER_PRIVATE_KEY.
 /// Optional: `M1_ADDRESS`..`M5_ADDRESS` (when set, must equal the address of the key), `DEPLOY_FILE` (default
 /// `deployments/fuji.json` / `deployments/anvil.json`), `DEMO_JOIN` = `all` (default) or `fixed` (only the Fixed circle
 /// is filled and activated, so the two bidding circles stay `Forming` for live joins through the web), `DEMO_ACTIVATE` =
-/// `true` (default) or `false` (join only).
+/// `true` (default) or `false` (join only), `DEMO_MEMBERS` = how many of M1..M5 to put in (1..5; default 5, so every seat
+/// is filled): `DEMO_MEMBERS=4` leaves the fifth seat of each bidding circle free for a person joining with Privy (the
+/// Fixed circle takes at most its 3 seats). Re-running is safe when other people have already joined: it only requires
+/// that every chosen M ends up in the circle, never that the member count equals the chosen number. A demo circle is
+/// recognised by its terms hash AND its label (see `CreateDemoCircles.LABEL_*`). Activation is decided when the script
+/// SIMULATES, so when a stranger may take the last seat at that very moment run with `DEMO_ACTIVATE=false` and start the
+/// circle afterwards with `ActivateDemoCircle.s.sol`.
 /// The three circles are the last three of `factory.circlesOf(organizer)`, recognised by their `termsHash`.
 contract JoinDemoCircles is Script {
     uint256 internal constant FUJI_CHAIN_ID = 43113;
@@ -50,8 +58,10 @@ contract JoinDemoCircles is Script {
     error AddressMismatch(uint256 member, address expected, address actual);
     /// @dev Two of the organizer, relayer, attester and member keys are the same wallet (ADR-21: one wallet per role).
     error DuplicateKey(address wallet);
-    /// @dev A circle is not `Forming` or still lacks members after the joins.
+    /// @dev A circle is not `Forming` or a chosen member is not in the circle after the joins.
     error SanityCheckFailed(string what);
+    /// @dev `DEMO_MEMBERS` is above the five demo members.
+    error InvalidMembers(uint256 members);
 
     /// @notice Which circles to fill.
     enum Selection {
@@ -68,6 +78,8 @@ contract JoinDemoCircles is Script {
         uint256 relayerKey;
         Selection selection;
         bool activate;
+        /// @dev How many of M1..M5 to put in; 0 means all five.
+        uint8 members;
     }
 
     /// @notice The three circles found, and how many members each ended with.
@@ -95,6 +107,9 @@ contract JoinDemoCircles is Script {
         p.relayerKey = vm.envUint("RELAYER_PRIVATE_KEY");
         p.selection = parseSelection(vm.envOr("DEMO_JOIN", string("all")));
         p.activate = vm.envOr("DEMO_ACTIVATE", true);
+        uint256 members = vm.envOr("DEMO_MEMBERS", uint256(5));
+        if (members == 0 || members > 5) revert InvalidMembers(members);
+        p.members = uint8(members);
         for (uint256 i; i < 5; ++i) {
             address configured = vm.envOr(string.concat("M", vm.toString(i + 1), "_ADDRESS"), address(0));
             if (configured != address(0) && configured != vm.addr(p.memberKeys[i])) {
@@ -115,6 +130,8 @@ contract JoinDemoCircles is Script {
     /// @notice Joins the members and activates the circles. See the contract NatSpec.
     function execute(Params memory p) public returns (Result memory r) {
         if (block.chainid != FUJI_CHAIN_ID && block.chainid != ANVIL_CHAIN_ID) revert UnsupportedChain(block.chainid);
+        if (p.members > 5) revert InvalidMembers(p.members);
+        uint8 chosen = p.members == 0 ? 5 : p.members;
         string memory json = vm.readFile(p.file);
         HuiFactory factory = HuiFactory(vm.parseJsonAddress(json, ".factory"));
         address forwarder = vm.parseJsonAddress(json, ".forwarder");
@@ -126,33 +143,30 @@ contract JoinDemoCircles is Script {
         address organizer = vm.addr(p.organizerKey);
         _requireDistinctKeys(p);
         CreateDemoCircles ids = new CreateDemoCircles();
-        r.bidding = _find(factory, organizer, ids.TERMS_HASH_BIDDING());
-        r.phi = _find(factory, organizer, ids.TERMS_HASH_PHI());
-        r.fixedCircle = _find(factory, organizer, ids.TERMS_HASH_FIXED());
+        r.bidding = _find(factory, organizer, ids.TERMS_HASH_BIDDING(), ids.LABEL_BIDDING());
+        r.phi = _find(factory, organizer, ids.TERMS_HASH_PHI(), ids.LABEL_PHI());
+        r.fixedCircle = _find(factory, organizer, ids.TERMS_HASH_FIXED(), ids.LABEL_FIXED());
 
         if (p.selection == Selection.All) {
-            r.biddingMembers = _fill(p, forwarder, usdc, r.bidding, 5);
-            r.phiMembers = _fill(p, forwarder, usdc, r.phi, 5);
+            r.biddingMembers = _fill(p, forwarder, usdc, r.bidding, chosen);
+            r.phiMembers = _fill(p, forwarder, usdc, r.phi, chosen);
         }
-        r.fixedMembers = _fill(p, forwarder, usdc, r.fixedCircle, 3);
+        r.fixedMembers = _fill(p, forwarder, usdc, r.fixedCircle, chosen);
 
         if (p.activate) {
+            // Only circles that are full now: one with a free seat is left `Forming` for the person who will take it.
             vm.startBroadcast(p.organizerKey);
             if (p.selection == Selection.All) {
-                HuiCircle(payable(r.bidding)).activate();
-                HuiCircle(payable(r.phi)).activate();
+                _activateIfFull(r.bidding);
+                _activateIfFull(r.phi);
             }
-            HuiCircle(payable(r.fixedCircle)).activate();
+            _activateIfFull(r.fixedCircle);
             vm.stopBroadcast();
             if (p.selection == Selection.All) {
-                if (HuiCircle(payable(r.bidding)).state() != CircleState.Active) {
-                    revert SanityCheckFailed("bidding.active");
-                }
-                if (HuiCircle(payable(r.phi)).state() != CircleState.Active) revert SanityCheckFailed("phi.active");
+                _requireActiveIfFull(r.bidding, "bidding.active");
+                _requireActiveIfFull(r.phi, "phi.active");
             }
-            if (HuiCircle(payable(r.fixedCircle)).state() != CircleState.Active) {
-                revert SanityCheckFailed("fixed.active");
-            }
+            _requireActiveIfFull(r.fixedCircle, "fixed.active");
         }
 
         console2.log("chainId", block.chainid);
@@ -180,21 +194,63 @@ contract JoinDemoCircles is Script {
         }
     }
 
-    /// @dev Newest circle of `organizer` whose terms hash is `terms`.
-    function _find(HuiFactory factory, address organizer, bytes32 terms) internal view returns (address) {
+    /// @dev Newest circle of `organizer` whose terms hash is `terms` AND whose label is `label` (the worked-example
+    /// circle shares the terms of circle 1 but has another label).
+    function _find(HuiFactory factory, address organizer, bytes32 terms, bytes32 label)
+        internal
+        view
+        returns (address)
+    {
         address[] memory all = factory.circlesOf(organizer);
         for (uint256 i = all.length; i > 0; --i) {
-            if (IHuiCircle(all[i - 1]).params().termsHash == terms) return all[i - 1];
+            CircleParams memory cp = IHuiCircle(all[i - 1]).params();
+            if (cp.termsHash == terms && cp.label == label) return all[i - 1];
         }
         revert DemoCircleNotFound(terms);
     }
 
-    /// @dev Joins members M1..M`count` (those not yet in) into `circle`; returns the member count afterwards.
-    function _fill(Params memory p, address forwarder, MockUSDC usdc, address circle, uint8 count)
+    /// @dev The seat count comes from the circle's own parameters, never from a constant.
+    function _seats(address circle) internal view returns (uint256) {
+        return IHuiCircle(circle).params().memberCount;
+    }
+
+    function _activateIfFull(address circle) internal {
+        uint256 seats = _seats(circle);
+        if (HuiCircle(payable(circle)).state() == CircleState.Forming && IHuiCircle(circle).members().length == seats) {
+            HuiCircle(payable(circle)).activate();
+        }
+    }
+
+    function _requireActiveIfFull(address circle, string memory what) internal view {
+        if (
+            IHuiCircle(circle).members().length == _seats(circle)
+                && HuiCircle(payable(circle)).state() != CircleState.Active
+        ) {
+            revert SanityCheckFailed(what);
+        }
+    }
+
+    /// @dev True when M1..M`count` are all in `circle`.
+    function _allJoined(Params memory p, address circle, uint8 count) internal view returns (bool) {
+        for (uint256 i; i < count; ++i) {
+            if (!IHuiCircle(circle).memberInfo(vm.addr(p.memberKeys[i])).joined) return false;
+        }
+        return true;
+    }
+
+    /// @dev Joins members M1..M`count` (those not yet in) into `circle`; returns the member count afterwards, which
+    /// can be higher than `count` when other people joined. A circle that already left `Forming` is accepted only when
+    /// every chosen member is already in it (a re-run after activation).
+    function _fill(Params memory p, address forwarder, MockUSDC usdc, address circle, uint8 chosen)
         internal
         returns (uint8)
     {
-        if (HuiCircle(payable(circle)).state() != CircleState.Forming) revert SanityCheckFailed("not.forming");
+        uint8 seats = IHuiCircle(circle).params().memberCount;
+        uint8 count = chosen > seats ? seats : chosen;
+        if (HuiCircle(payable(circle)).state() != CircleState.Forming) {
+            if (_allJoined(p, circle, count)) return uint8(IHuiCircle(circle).members().length);
+            revert SanityCheckFailed("not.forming");
+        }
         for (uint256 i; i < count; ++i) {
             address member = vm.addr(p.memberKeys[i]);
             if (IHuiCircle(circle).memberInfo(member).joined) continue;
@@ -208,9 +264,8 @@ contract JoinDemoCircles is Script {
             );
             _relay(p.relayerKey, p.memberKeys[i], forwarder, circle, data);
         }
-        uint256 n = IHuiCircle(circle).members().length;
-        if (n != count) revert SanityCheckFailed("members.count");
-        return uint8(n);
+        if (!_allJoined(p, circle, count)) revert SanityCheckFailed("member.joined");
+        return uint8(IHuiCircle(circle).members().length);
     }
 
     function _attestation(address member, address circle) internal view returns (MemberAttestation memory) {

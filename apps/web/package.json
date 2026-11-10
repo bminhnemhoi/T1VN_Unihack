@@ -14,7 +14,8 @@
     "test": "vitest run",
     "eval:copilot": "tsx lib/copilot/evals/run.ts",
     "e2e:anvil": "tsx scripts/e2e-anvil.ts",
-    "rehearse:fuji-fork": "tsx scripts/rehearse-fuji-fork.ts"
+    "rehearse:fuji-fork": "tsx scripts/rehearse-fuji-fork.ts",
+    "worked-example:fuji": "tsx scripts/worked-example-fuji.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "1.6.0",

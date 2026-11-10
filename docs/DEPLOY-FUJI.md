@@ -49,7 +49,7 @@ cd contracts && cast chain-id --rpc-url fuji        # phải ra 43113
 | 5 Deploy | `FUJI_RPC_URL`, `DEPLOYER_PRIVATE_KEY`, `ADMIN` (= địa chỉ Safe), `ATTESTER_ADDRESS` (khác deployer và khác Safe), `WRITE_DEPLOYMENT=true` | `RELAYER_ADDRESS` (ghi vào `fuji.json`), `GIT_COMMIT`, `SNOWTRACE_API_KEY`. KHÔNG đặt `MIN_COVERAGE_BPS` (mặc định 10000 trên Fuji, đặt khác thì script revert) |
 | 6 Chia tiền | `FUJI_RPC_URL`, `DEPLOYER_PRIVATE_KEY`, `RELAYER_ADDRESS`, `KEEPER_ADDRESS`, `ORGANIZER_ADDRESS`, `M1_ADDRESS`..`M5_ADDRESS` | `FUND_TARGET` (`single` mặc định, `demoday` cho 3 dây), `DEPLOY_FILE` |
 | 7 Tạo 3 dây | `FUJI_RPC_URL`, `DEMO_ORGANIZER_PRIVATE_KEY` | `JOIN_WINDOW_SECONDS` (mặc định 7 ngày), `DEPLOY_FILE` |
-| 8 Vào dây | `FUJI_RPC_URL`, `DEMO_ORGANIZER_PRIVATE_KEY`, `DEMO_M1_PRIVATE_KEY`..`DEMO_M5_PRIVATE_KEY`, `ATTESTER_PRIVATE_KEY`, `RELAYER_PRIVATE_KEY` | `DEMO_JOIN` (`all` mặc định hoặc `fixed`), `DEMO_ACTIVATE` (`true` mặc định), `M1_ADDRESS`..`M5_ADDRESS` (nếu đặt phải khớp khóa) |
+| 8 Vào dây | `FUJI_RPC_URL`, `DEMO_ORGANIZER_PRIVATE_KEY`, `DEMO_M1_PRIVATE_KEY`..`DEMO_M5_PRIVATE_KEY`, `ATTESTER_PRIVATE_KEY`, `RELAYER_PRIVATE_KEY` | `DEMO_JOIN` (`all` mặc định hoặc `fixed`), `DEMO_ACTIVATE` (`true` mặc định), `DEMO_MEMBERS` (1..5, mặc định 5; mục 8b), `M1_ADDRESS`..`M5_ADDRESS` (nếu đặt phải khớp khóa) |
 | 9 Keeper | `FUJI_RPC_URL`, `KEEPER_PRIVATE_KEY` | `KEEPER_INTERVAL_SECONDS` (15 khi demo) |
 | 10 Web | `FUJI_RPC_URL`, `RELAYER_PRIVATE_KEY`, `ATTESTER_PRIVATE_KEY`, `ATTESTATION_ID_SECRET`, `NEXT_PUBLIC_PRIVY_APP_ID`, `PRIVY_APP_SECRET` | `FUJI_RPC_URL_FALLBACK`, `TRUST_PROXY`, biến trợ lý (`COPILOT_*` hoặc `ANTHROPIC_API_KEY`) |
 
@@ -212,6 +212,20 @@ pnpm --filter web build && pnpm --filter web start      # relay và attest là r
 - `/api/copilot` theo cùng quy tắc (A16): hạn mức 20 câu/giờ mỗi IP chỉ khi `TRUST_PROXY=true`, không thì chỉ còn trần ngày `COPILOT_DAILY_LIMIT`.
 - Relayer cảnh báo dưới 0,02 AVAX, dừng gửi dưới 0,005 AVAX (503 `RelayUnavailable`).
 
+### 8b. Chừa ghế cho người thử bằng Privy, rồi kích hoạt (A20)
+
+`DEMO_MEMBERS` (1..5, mặc định 5 = đủ ghế) chỉ đưa M1..Mk vào: `DEMO_MEMBERS=4` để dây Bidding còn đúng một ghế cho một người vào bằng tài khoản Privy trên web (dây Fixed vẫn nhận tối đa 3 người và, vì đã đủ, được kích hoạt). Chạy lại sau khi người lạ đã vào dây không lỗi: script chỉ đòi mọi M đã chọn đều nằm trong dây, không đòi số thành viên bằng số đã chọn; dây còn ghế trống không bị kích hoạt, dây đã đủ người (kể cả người lạ chiếm ghế) thì được kích hoạt nếu `DEMO_ACTIVATE` không đặt `false`. Hai giới hạn: (1) nếu người lạ đã chiếm đúng ghế mà một M đã chọn cần thì `join` của M đó revert `CircleFull` và cả lần chạy dừng; (2) quyết định kích hoạt được tính lúc mô phỏng, nên khi có thể có người lạ vào đúng lúc đó hãy chạy với `DEMO_ACTIVATE=false` rồi kích hoạt riêng bằng `ActivateDemoCircle` bên dưới. Script nhận ra dây demo bằng mã băm thỏa thuận VÀ nhãn (`huisafe-demo-bid`, `-phi`, `-fixed`), nên dây của ví dụ thác bù (cùng mã băm với dây 1, nhãn `huisafe-demo-default`) không bị nhầm.
+
+Khi ghế cuối đã có người, chủ hụi (ví organizer của script, không phải tài khoản Privy nên không bấm được nút "Bắt đầu dây" trên web) bắt đầu dây bằng:
+
+```bash
+export CIRCLE=<địa chỉ dây>
+forge script script/ActivateDemoCircle.s.sol --rpc-url fuji                 # (a) mô phỏng: tự kiểm trước
+forge script script/ActivateDemoCircle.s.sol --rpc-url fuji --broadcast     # (b) người duyệt
+```
+
+Khóa `DEMO_ORGANIZER_PRIVATE_KEY` đọc bằng `vm.envUint`, không bao giờ trên dòng lệnh. Script kiểm TRƯỚC khi gửi và dừng với lý do đọc được: địa chỉ phải là dây của factory (`NotACircle`), khóa phải là chủ hụi của dây (`NotOrganizer`), dây đang `Forming` (`NotForming`), đủ N người (`NotFull(có, cần)`), chưa quá hạn vào dây (`JoinDeadlinePassed`) và chỉ số bảo chứng đạt mức tối thiểu của factory (`CoverageBelowMinimum`).
+
 ## 11. Kiểm tra sẵn sàng
 
 Chạy `/demo-check http://localhost:3000` (bước kiểm `factory.admin()` bằng Safe đã có trong lệnh). Sau deploy cập nhật: `docs/TIEN-DO.md`, README (địa chỉ, link Snowtrace), `docs/06` mục 6 (cách verify đã dùng).
@@ -241,6 +255,23 @@ Dựng anvil fork Fuji (chain id 43113, đọc RPC công khai; đặt `REHEARSAL
 1. Thay một chủ Safe bằng ví của Minh (2 chữ ký, địa chỉ Safe không đổi).
 2. `docs/TIEN-DO.md`, README, `docs/06` mục 6 như mục 11.
 3. Etherscan ngừng API Fuji từ 15/11/2026 (rủi ro R16): verify xong trước ngày đó.
+
+### 12b. Ví dụ thác bù (docs/03 mục 8, nhánh B) chạy thật: dây vỡ nợ (A20)
+
+Bằng chứng "người bỏ đóng thì tiền giữ lại rồi ký quỹ bù" bằng USDC thật và thời gian thật: một dây Bidding mới C = 10 USDC (φ = 0, ký quỹ 48, nhãn `huisafe-demo-default`); kỳ 1 M2 thăm 0,4 và M4 thăm 0,6 (M4 hốt 28,848); trước kỳ 2 M4 thu hồi allowance (permit giá trị 0 do M4 ký, relayer gửi, M4 không cần AVAX); kỳ 2 M1 và M2 cùng thăm 0,3 (M1 nộp trước nên hốt 32,318), M4 thiếu 10 USDC: 8 từ tiền giữ lại của chính M4, 2 từ ký quỹ; sau ân hạn `markDefault(M4)`; kỳ 3 đến 5 ký quỹ bù 36, 26, 16; `finalize` trả 16 ký quỹ cùng 1,2 tiền công còn trong escrow cho chủ hụi và chia quỹ dự phòng 2,358 cho M1, M2, M3, M5 (mỗi người 0,5895). Mọi số là số của docs/03 mục 8 chia 10, kiểm từng số.
+
+```bash
+pnpm --filter web worked-example:fuji -- --dry-run     # diễn tập trên anvil fork Fuji, không gửi gì lên Fuji (đã xanh 104 kiểm tra)
+pnpm --filter web worked-example:fuji                  # trên Fuji: CHỈ kiểm trước (đọc số dư, in kế hoạch)
+pnpm --filter web worked-example:fuji -- --yes         # trên Fuji thật, khoảng 17 phút
+```
+
+Chạy thật cần: keeper đang chạy (script chờ keeper chi kỳ 120 giây rồi tự chi qua relay bằng M1 nếu keeper không làm), và các biến `DEMO_ORGANIZER_PRIVATE_KEY`, `DEMO_M1_PRIVATE_KEY`..`DEMO_M5_PRIVATE_KEY`, `ATTESTER_PRIVATE_KEY`, `RELAYER_PRIVATE_KEY` đã export (không bao giờ in ra, không đọc từ dòng lệnh hay tệp); nên đặt `FUJI_RPC_URL` bằng RPC riêng vì script gọi RPC liên tục trong 17 phút. Số dư tối thiểu: organizer 48,6 USDC (dùng 48 cho ký quỹ), M1..M5 mỗi ví khoảng 41,5 USDC trở lên (cần cho cả dây; ví demo hiện khoảng 121,8), relayer trên 0,005 AVAX. Script đi đúng đường của web: các luồng `lib/chain/write.ts` qua handler attest, relay và relay/permit thật; chỉ Privy được thay bằng việc script giữ khóa. Dừng an toàn khi một số lệch hoặc có lỗi, in bước đang dở; chạy lại đúng lệnh cũ (thêm `--circle <địa chỉ>` nếu tệp trạng thái mất) thì tiếp tục, vì mỗi bước đọc chuỗi trước. Mã giao dịch từng bước nằm trong `/tmp/huisafe-worked-example/state.json` (đường CỐ ĐỊNH, in ở dòng đầu; `--out <đường dẫn ngoài repo>` để đổi), cạnh đó là `state.json.salts.json` giữ salt của các thăm kín: phải còn tệp này khi chạy lại giữa lúc nộp thăm và mở thăm, nếu không thì không mở được thăm và mất cọc 0,1 USDC; cả hai tệp ngoài repo, quyền 0600, không vào git.
+
+Trước khi gửi bất cứ gì (và cả ở chế độ chỉ kiểm trước), script in dây sẽ dùng và kiểm nhãn cùng mọi tham số (N, C, φ, phí, các cửa sổ, α, mã băm thỏa thuận), vì dây Demo Day có cùng mã băm và cùng cỡ: dán nhầm `--circle` bằng địa chỉ dây Demo Day sẽ dừng ở đây, không ghi gì. Lưu ý vận hành:
+- Dùng chung ví relayer với web: không chạy khi web đang mở cho người dùng thật (hai tiến trình đếm nonce riêng của cùng một ví sẽ va nhau, và relayer có thể xuống dưới mức dừng 0,005 AVAX). Script kiểm relayer còn trên 0,02 AVAX.
+- Dùng chung ví M1..M5 với các dây Demo Day: M4 bị ghi một lần trễ và một lần vỡ nợ vào sổ uy tín trên Fuji, nên sau đó giao diện hiện lịch sử đó và, khi hai thăm bằng nhau, M4 thua (ít lần trễ hơn thắng). Tie-break kỳ 2 của ví dụ cần M1 không trễ nhiều hơn M2 (script kiểm trước). Chạy ví dụ sau buổi quay/pitch, hoặc chấp nhận hệ quả đó.
+- Lỗi in ra màn hình đã được che mọi URL (URL RPC riêng có thể chứa khóa API).
 
 ## 15. Bằng chứng chạy thật trên Fuji (10-11/11/2026)
 

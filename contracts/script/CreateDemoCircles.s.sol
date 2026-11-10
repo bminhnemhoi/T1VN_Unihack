@@ -37,6 +37,13 @@ contract CreateDemoCircles is Script {
     bytes32 public constant TERMS_HASH_PHI = 0x46a9b59df25aa753c070cca1e618e5358890a99fea5d5675f89b5c874f845b5a;
     bytes32 public constant TERMS_HASH_FIXED = 0x23c8f462fdd886b5c9037eef2cbb1fc6b9052da7709a7c0d5d36b94805893b31;
 
+    /// @notice Labels of the three circles. `JoinDemoCircles` and the live-circle guard below recognise a demo circle by terms
+    /// hash AND label: other circles (for example the worked-example circle of `worked-example-fuji.ts`) share the
+    /// standard agreement text of circle 1 but carry another label and must never be taken for it.
+    bytes32 public constant LABEL_BIDDING = "huisafe-demo-bid";
+    bytes32 public constant LABEL_PHI = "huisafe-demo-phi";
+    bytes32 public constant LABEL_FIXED = "huisafe-demo-fixed";
+
     uint256 public constant BOND_BIDDING = 48e6; // (1 - alpha) * O_max = 0.8 * 60 USDC
     uint256 public constant BOND_PHI = 48e6;
     uint256 public constant BOND_FIXED = 16e6; // 0.8 * 20 USDC (N = 3: O_max = 1 * 2 * C)
@@ -123,8 +130,11 @@ contract CreateDemoCircles is Script {
     function _requireNoLiveDemoCircle(HuiFactory factory, address organizer) internal view {
         address[] memory all = factory.circlesOf(organizer);
         for (uint256 i; i < all.length; ++i) {
-            bytes32 t = IHuiCircle(all[i]).params().termsHash;
-            if (t != TERMS_HASH_BIDDING && t != TERMS_HASH_PHI && t != TERMS_HASH_FIXED) continue;
+            CircleParams memory cp = IHuiCircle(all[i]).params();
+            bool demo = (cp.termsHash == TERMS_HASH_BIDDING && cp.label == LABEL_BIDDING)
+                || (cp.termsHash == TERMS_HASH_PHI && cp.label == LABEL_PHI)
+                || (cp.termsHash == TERMS_HASH_FIXED && cp.label == LABEL_FIXED);
+            if (!demo) continue;
             CircleState s = HuiCircle(payable(all[i])).state();
             if (s == CircleState.Forming || s == CircleState.Active || s == CircleState.Paused) {
                 revert AlreadyCreated(all[i]);
