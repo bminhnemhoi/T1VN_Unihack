@@ -4,7 +4,9 @@
  *   - idempotent: every action is simulated by eth_call first; a revert such as "already done" is skipped, not sent;
  *   - order per circle: markDefault for EVERY overdue shortfall first, then settleRound, then finalize, so finalize
  *     never has to mark many members itself (A7 rule: that path can exceed the 5M gas cap at N = 30);
- *   - cancel a Forming circle after its join deadline.
+ *   - cancel a Forming circle after its join deadline;
+ *   - ignore circles that never received a bond (`bondDeposited == 0`, audit A16 M-01/L-01): they cannot reach the
+ *     100% coverage floor unless alpha = 100%, so they are spam; track at most MAX_TRACKED_CIRCLES, newest first.
  * The chain is reached through a small port so the ordering can be unit tested without a node.
  */
 type Address = `0x${string}`;
@@ -23,6 +25,8 @@ export interface CircleSnapshot {
   members: readonly Address[];
   /** Bond held by the circle; a Forming circle past its deadline is only worth cancelling when this is above zero. */
   bondRemaining: bigint;
+  /** Total bond ever deposited. Zero means nobody backs the circle: the keeper does not spend gas on it. */
+  bondDeposited: bigint;
 }
 
 export type AttemptResult =
@@ -34,6 +38,8 @@ export interface KeeperPort {
   nowSec(): Promise<number>;
   circles(): Promise<readonly Address[]>;
   snapshot(circle: Address): Promise<CircleSnapshot>;
+  /** Optional: stop reading this circle for the rest of the process (it can never need the keeper again). */
+  retire?(circle: Address): void;
   deadline(circle: Address, round: number): Promise<bigint>;
   /** True when the member is not marked defaulted but still owes a shortfall (`debt > 0`). */
   owes(circle: Address, member: Address): Promise<boolean>;
@@ -61,17 +67,29 @@ const EXPECTED = new Set([
   'BackingOff',
 ]);
 
+/** Circles read per scan, newest first (audit A16 L-01: a flood of spam circles must not slow the scan down). */
+export const MAX_TRACKED_CIRCLES = 200;
+/** Cleanup `cancel` of unbonded Forming circles sent per scan; each such circle is cancelled once, then retired. */
+export const MAX_CLEANUP_CANCELS = 5;
+
 export interface TickSummary {
   circles: number;
+  /** Circles skipped because they never received a bond. */
+  ignored: number;
   sent: number;
   skipped: number;
   failed: number;
 }
 
 export async function tick(port: KeeperPort, log: Log): Promise<TickSummary> {
-  const summary: TickSummary = { circles: 0, sent: 0, skipped: 0, failed: 0 };
+  const summary: TickSummary = { circles: 0, ignored: 0, sent: 0, skipped: 0, failed: 0 };
   const now = await port.nowSec();
-  const circles = await port.circles();
+  const all = await port.circles();
+  const circles = all.length > MAX_TRACKED_CIRCLES ? all.slice(-MAX_TRACKED_CIRCLES).reverse() : [...all].reverse();
+  if (all.length > MAX_TRACKED_CIRCLES) {
+    log('warn', 'circle list truncated', { total: all.length, tracked: MAX_TRACKED_CIRCLES });
+  }
+  let cleanupCancels = 0;
 
   const run = async (
     circle: Address,
@@ -112,6 +130,20 @@ export async function tick(port: KeeperPort, log: Log): Promise<TickSummary> {
 
   for (const circle of circles) {
     let snap = await port.snapshot(circle);
+    if (snap.bondDeposited === 0n && snap.state <= STATE.Paused) {
+      summary.ignored++;
+      if (snap.state === STATE.Forming && BigInt(now) > snap.joinDeadline) {
+        // Nobody can still deposit: clean it up with one cancel (bounded per scan), then never read it again.
+        if (cleanupCancels < MAX_CLEANUP_CANCELS) {
+          cleanupCancels++;
+          await run(circle, 'cancel', [], { reason: 'unbonded' });
+          port.retire?.(circle);
+        }
+      } else if (snap.state !== STATE.Forming) {
+        port.retire?.(circle); // Active or Paused without a bond can never get one
+      }
+      continue;
+    }
     if (snap.state === STATE.Forming) {
       summary.circles++;
       if (BigInt(now) > snap.joinDeadline && snap.bondRemaining > 0n) await run(circle, 'cancel', [], {});

@@ -697,7 +697,8 @@ Tất cả nhận và trả JSON; số tiền gửi dưới dạng chuỗi (bigi
   1. `to` là factory hoặc `factory.isCircle(to)`.
   2. Selector của `data` nằm trong danh sách cho phép, theo loại đích (`createCircle` chỉ gửi tới factory, các hàm còn lại chỉ tới dây; `pause`, `unpause`, `emergencyUnwind`, `initialize` không bao giờ):
      - Người dùng: `createCircle`, `depositBond`, `withdrawBond`, `join`, `leave`, `activate`, `commitBid`, `revealBid`, `payLate`, `repayDebt`, `claim`.
-     - Hàm ai cũng gọi được, để nút "Chốt kỳ" trên web chạy không tốn gas khi keeper chậm: `settleRound`, `markDefault`, `finalize`, `cancel`.
+     - Hàm ai cũng gọi được, để nút "Chốt kỳ" trên web chạy không tốn gas khi keeper chậm: `settleRound`, `markDefault`, `finalize`, `cancel`. Từ A17 (đóng audit A16 M-01) bốn hàm này chỉ được chuyển tiếp khi (a) dây có `bondDeposited() > 0` và (b) người ký là thành viên (`memberInfo(from).joined`) hoặc chủ hụi (`organizer()`) của chính dây đó; không thì 403 `TargetNotAllowed` (thông báo nêu lý do), TRƯỚC bước kiểm chữ ký, hạn mức và mô phỏng nên không tốn hạn mức nào. Lý do: dây không ai ký quỹ không qua nổi sàn CI 100% trừ khi α = 100%, tức là dây rác mà mỗi kỳ có thể tốn hàng triệu gas. Keeper vẫn phục vụ mọi dây có ký quỹ (mục 9). Người ngoài dây muốn chốt kỳ thì gọi thẳng contract bằng ví có AVAX.
+     - `depositBond` với `amount == 0` bị từ chối ngay (400 `ZeroAmount`) trước mọi lần đọc chuỗi và mô phỏng: nếu không, lệnh này luôn mô phỏng thành công và lặp vô hạn trên một dây Forming rác.
   3. `value == 0`; `gas` ≤ 3.000.000, riêng `settleRound` và `finalize` ≤ 5.000.000 (ca cực đoan N = 30 cả dây cùng thiếu tốn khoảng 4,1 đến 5 triệu gas, xem 04 mục 7.1).
   4. `forwarder.verify(request)` bằng `eth_call`.
   5. Rate limit 30 yêu cầu/giờ mỗi `from`, chỉ tính cho yêu cầu đã qua bước 4 (chữ ký sai không làm hao hạn mức của người khác).
@@ -746,12 +747,13 @@ Trả file JSON kết quả mô phỏng đã sinh sẵn trong `sim/outputs/` (m�
 | Chi kỳ | dây Active, `now ≥ deadline(currentRound)`, kỳ chưa chi | `settleRound()` |
 | Đánh dấu vỡ nợ | có `Shortfall` chưa `resolved` và `now > since + grace` | `markDefault(member)` |
 | Kết thúc | kỳ N đã chi, qua ân hạn, không còn khoản thiếu đang trong ân hạn, và MỌI khoản thiếu quá hạn đã được `markDefault` ở dòng trên | `finalize()` |
-| Hủy | Forming và `now > joinDeadline` | `cancel()` |
+| Hủy | Forming, `now > joinDeadline` và có ký quỹ (`bondRemaining > 0`); dây Forming quá hạn mà chưa từng có ký quỹ chỉ bị `cancel` đúng một lần để dọn (tối đa 5 dây mỗi vòng quét) rồi bỏ khỏi danh sách theo dõi | `cancel()` |
 | Nhắc hụi (bonus) | 24 giờ (demo: 60 giây) trước cửa sổ commit đóng; 6 giờ trước `deadline` nếu ví không đủ số dư | gửi Telegram cho người đã đăng ký |
 
 - Chu kỳ quét: 15 giây ở chế độ demo, 5 phút ở bản thật.
 - Mọi lệnh đều idempotent: mô phỏng bằng `eth_call` trước, bỏ qua khi revert vì "đã làm".
 - Thứ tự bắt buộc: `markDefault` cho mọi khoản thiếu quá hạn TRƯỚC `finalize`. `finalize` tự đánh dấu người chưa bị đánh dấu nhưng với nhiều người (N = 30, 29 người) có thể tốn hơn 5.000.000 gas và vượt trần relayer/keeper; đường thường khoảng 1,2 đến 2,0 triệu gas (04, mục 7.1).
+- Dây rác (A17, đóng audit A16 M-01 và L-01): keeper bỏ qua dây có `bondDeposited() == 0` (Active hay Paused mà chưa từng có ký quỹ thì không bao giờ có nữa nên bị loại hẳn; Forming chưa quá hạn thì xem lại vòng sau vì chủ hụi còn nạp được). Mỗi vòng chỉ theo dõi tối đa 200 dây, mới nhất trước, và ghi log `circle list truncated` khi bị cắt; dây cũ hơn nằm ngoài 200 dây mới nhất sẽ không được keeper chi hộ nữa (ai cũng vẫn gọi được thủ công).
 - Keeper chỉ là tiện ích: ai cũng gọi được các hàm trên.
 
 ---

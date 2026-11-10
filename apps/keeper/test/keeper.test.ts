@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { STATE, tick, type AttemptResult, type CircleSnapshot, type KeeperFn, type KeeperPort } from '../src/keeper';
+import { MAX_CLEANUP_CANCELS, MAX_TRACKED_CIRCLES, STATE, tick, type AttemptResult, type CircleSnapshot, type KeeperFn, type KeeperPort } from '../src/keeper';
 import { GAS_HARD_CAP, KeeperConfigError, gasLimitFor, loadKeeperConfig } from '../src/config';
 
 const C1 = '0x1111111111111111111111111111111111111111' as const;
@@ -18,8 +18,12 @@ function fakePort(over: {
   owes?: Set<string>;
   results?: (call: Call) => AttemptResult | undefined;
   afterSettle?: Partial<CircleSnapshot>;
+  circleList?: readonly `0x${string}`[];
+  snaps?: Record<string, Partial<CircleSnapshot>>;
 }) {
   const calls: Call[] = [];
+  const retired: string[] = [];
+  const reads: string[] = [];
   let snap: CircleSnapshot = {
     state: STATE.Active,
     memberCount: 5,
@@ -27,13 +31,18 @@ function fakePort(over: {
     settledRounds: 0,
     members,
     bondRemaining: 48_000_000n,
+    bondDeposited: 48_000_000n,
     ...over.snap,
   };
   const owes = over.owes ?? new Set<string>();
   const port: KeeperPort = {
     nowSec: async () => over.now ?? 5000,
-    circles: async () => [C1],
-    snapshot: async () => snap,
+    circles: async () => over.circleList ?? [C1],
+    snapshot: async (c) => {
+      reads.push(c);
+      return { ...snap, ...over.snaps?.[c] };
+    },
+    retire: (c) => void retired.push(c),
     deadline: async () => over.deadline ?? 4000n,
     owes: async (_c, m) => owes.has(m),
     async attempt(_c, fn, args) {
@@ -48,7 +57,7 @@ function fakePort(over: {
   };
   const logs: string[] = [];
   const log = (level: string, message: string, f?: Record<string, unknown>) => void logs.push(`${level} ${message} ${JSON.stringify(f ?? {})}`);
-  return { port, calls, logs, log };
+  return { port, calls, logs, log, retired, reads };
 }
 
 describe('keeper tick', () => {
@@ -61,10 +70,53 @@ describe('keeper tick', () => {
     expect(late.calls).toEqual([{ fn: 'cancel', args: [] }]);
   });
 
-  it('does not cancel empty Forming circles (spam costs the keeper nothing)', async () => {
-    const t = fakePort({ now: 1001, snap: { state: STATE.Forming, bondRemaining: 0n } });
+  it('a Forming circle with no bond at all: waits before its deadline, then ONE cleanup cancel and is retired (audit A16 L-01)', async () => {
+    const early = fakePort({ now: 900, snap: { state: STATE.Forming, bondRemaining: 0n, bondDeposited: 0n } });
+    const e = await tick(early.port, early.log);
+    expect(early.calls).toEqual([]);
+    expect(early.retired).toEqual([]); // the organizer may still deposit before the deadline
+    expect(e.ignored).toBe(1);
+    const late = fakePort({ now: 1001, snap: { state: STATE.Forming, bondRemaining: 0n, bondDeposited: 0n } });
+    await tick(late.port, late.log);
+    expect(late.calls).toEqual([{ fn: 'cancel', args: [] }]);
+    expect(late.retired).toEqual([C1]);
+  });
+
+  it('an Active or Paused circle that never had a bond is ignored for good: no markDefault, settleRound, finalize (audit A16 M-01)', async () => {
+    for (const state of [STATE.Active, STATE.Paused]) {
+      const t = fakePort({ now: 5000, deadline: 1n, owes: new Set([M(2)]), snap: { state, bondRemaining: 0n, bondDeposited: 0n } });
+      const s = await tick(t.port, t.log);
+      expect(t.calls).toEqual([]);
+      expect(t.retired).toEqual([C1]);
+      expect(s).toMatchObject({ ignored: 1, circles: 0, sent: 0 });
+    }
+  });
+
+  it('a circle whose bond was fully paid out is still served (bondDeposited counts, bondRemaining does not)', async () => {
+    const t = fakePort({ now: 5000, deadline: 4000n, snap: { bondRemaining: 0n, bondDeposited: 48_000_000n } });
     await tick(t.port, t.log);
-    expect(t.calls).toEqual([]);
+    expect(t.calls).toEqual([{ fn: 'settleRound', args: [] }]);
+  });
+
+  it('cleanup cancels of unbonded circles are bounded per scan', async () => {
+    const list = Array.from({ length: 9 }, (_, i) => M(100 + i));
+    const t = fakePort({ now: 1001, circleList: list, snap: { state: STATE.Forming, bondRemaining: 0n, bondDeposited: 0n } });
+    const s = await tick(t.port, t.log);
+    expect(t.calls.filter((c) => c.fn === 'cancel')).toHaveLength(MAX_CLEANUP_CANCELS);
+    expect(s.ignored).toBe(9);
+  });
+
+  it('tracks at most 200 circles per scan, newest first, and logs the cut (audit A16 L-01)', async () => {
+    const list = Array.from({ length: 260 }, (_, i) => M(1000 + i));
+    const t = fakePort({ now: 100, circleList: list, snap: { state: STATE.Active } });
+    await tick(t.port, t.log);
+    expect(t.reads).toHaveLength(MAX_TRACKED_CIRCLES);
+    expect(t.reads[0]).toBe(M(1259)); // newest first
+    expect(t.reads.at(-1)).toBe(M(1060));
+    expect(t.logs.some((l) => l.startsWith('warn circle list truncated') && l.includes('"total":260'))).toBe(true);
+    const small = fakePort({ now: 100 });
+    await tick(small.port, small.log);
+    expect(small.logs.some((l) => l.includes('truncated'))).toBe(false);
   });
 
   it('settles the current round only once its deadline has passed', async () => {

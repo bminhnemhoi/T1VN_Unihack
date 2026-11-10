@@ -19,6 +19,7 @@ const circle = '0xcccccccccccccccccccccccccccccccccccccccc' as const;
 const stranger = '0xdddddddddddddddddddddddddddddddddddddddd' as const;
 const member = '0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee' as const;
 const relayer = '0x9999999999999999999999999999999999999999' as const;
+const organizerAddr = '0x7777777777777777777777777777777777777777' as const;
 const NOW = 1_800_000_000_000;
 
 type Sim = 'ok' | 'forwarder-failed-call' | 'revert-bid';
@@ -27,19 +28,45 @@ interface Harness {
   deps: RelayDeps;
   sent: ForwardRequestData[];
   logs: string[];
-  state: { verify: boolean; sim: Sim; balance: bigint; active: number; maxActive: number; globalLimit: number };
+  state: {
+    verify: boolean;
+    sim: Sim;
+    balance: bigint;
+    active: number;
+    maxActive: number;
+    globalLimit: number;
+    bondDeposited: bigint;
+    joined: Set<string>;
+    organizer: string;
+    reads: string[];
+  };
 }
 
 function harness(): Harness {
   const sent: ForwardRequestData[] = [];
   const logs: string[] = [];
-  const state = { verify: true, sim: 'ok' as Sim, balance: 5n * 10n ** 18n, active: 0, maxActive: 0, globalLimit: 1000 };
+  const state = {
+    verify: true,
+    sim: 'ok' as Sim,
+    balance: 5n * 10n ** 18n,
+    active: 0,
+    maxActive: 0,
+    globalLimit: 1000,
+    bondDeposited: 48_000_000n,
+    joined: new Set<string>([member]),
+    organizer: organizerAddr as string,
+    reads: [] as string[],
+  };
   const failedCall = encodeErrorResult({ abi: erc2771ForwarderAbi, errorName: 'FailedCall' as never });
   const bidTooHigh = encodeErrorResult({ abi: huiCircleAbi, errorName: 'BidTooHigh', args: [9_000_000n, 6_575_342n] });
   const publicClient = {
     async readContract(args: { functionName: string; args?: readonly unknown[] }) {
       if (args.functionName === 'isCircle') return args.args?.[0] === circle;
       if (args.functionName === 'verify') return state.verify;
+      state.reads.push(args.functionName);
+      if (args.functionName === 'bondDeposited') return state.bondDeposited;
+      if (args.functionName === 'memberInfo') return { joined: state.joined.has(String(args.args?.[0])) };
+      if (args.functionName === 'organizer') return state.organizer;
       throw new Error('unexpected read');
     },
     async simulateContract() {
@@ -108,6 +135,95 @@ const body = (over: { to?: string; data?: string; value?: string; gas?: string; 
 const post = (h: (r: Request) => Promise<Response>, b: unknown, headers: Record<string, string> = {}) =>
   h(new Request('http://x/api/relay', { method: 'POST', headers, body: typeof b === 'string' ? b : JSON.stringify(b) }));
 const code = async (res: Response) => ((await res.json()) as { error: { code: string } }).error.code;
+
+describe('POST /api/relay: no free gas for spam circles or strangers (audit A16 M-01, L-01)', () => {
+  const publicCalls = {
+    settleRound: encodeFunctionData({ abi: huiCircleAbi, functionName: 'settleRound' }),
+    markDefault: encodeFunctionData({ abi: huiCircleAbi, functionName: 'markDefault', args: [stranger] }),
+    finalize: encodeFunctionData({ abi: huiCircleAbi, functionName: 'finalize' }),
+    cancel: encodeFunctionData({ abi: huiCircleAbi, functionName: 'cancel' }),
+  };
+
+  for (const [fn, data] of Object.entries(publicCalls)) {
+    it(`${fn}: a member of a bonded circle is relayed`, async () => {
+      const t = harness();
+      const res = await post(createRelayHandler(t.deps), body({ data }));
+      expect(res.status).toBe(200);
+      expect(t.sent).toHaveLength(1);
+    });
+
+    it(`${fn}: refused (TargetNotAllowed) when the circle has no bond, before simulation, the signature check or any quota`, async () => {
+      const t = harness();
+      t.state.bondDeposited = 0n;
+      t.deps.globalLimiter = new SlidingWindowLimiter(1, 3_600_000, () => NOW);
+      const h = createRelayHandler(t.deps);
+      const res = await post(h, body({ data }));
+      expect(res.status).toBe(403);
+      expect(await code(res)).toBe('TargetNotAllowed');
+      expect(t.sent).toHaveLength(0);
+      // nothing was charged: the single global slot is still free for an honest request
+      expect((await post(h, body())).status).toBe(200);
+    });
+
+    it(`${fn}: refused (TargetNotAllowed) for a signer who is neither a member nor the organizer`, async () => {
+      const t = harness();
+      const res = await post(createRelayHandler(t.deps), body({ data, from: stranger }));
+      expect(res.status).toBe(403);
+      expect(await code(res)).toBe('TargetNotAllowed');
+      expect(t.sent).toHaveLength(0);
+    });
+
+    it(`${fn}: the organizer, who is not a member, is relayed`, async () => {
+      const t = harness();
+      t.state.organizer = stranger;
+      const res = await post(createRelayHandler(t.deps), body({ data, from: stranger }));
+      expect(res.status).toBe(200);
+    });
+  }
+
+  it('a member-only function (commitBid) is not subject to the bond or membership gate here', async () => {
+    const t = harness();
+    t.state.bondDeposited = 0n;
+    const res = await post(createRelayHandler(t.deps), body());
+    expect(res.status).toBe(200);
+    expect(t.state.reads).not.toContain('bondDeposited');
+  });
+
+  it('answers 502 when the circle cannot be read', async () => {
+    const t = harness();
+    const read = t.deps.publicClient.readContract;
+    t.deps.publicClient = {
+      ...t.deps.publicClient,
+      readContract: (async (a: { functionName: string }) => {
+        if (a.functionName === 'bondDeposited') throw new Error('rpc down');
+        return (read as (x: unknown) => Promise<unknown>)(a);
+      }) as never,
+    } as RelayDeps['publicClient'];
+    const res = await post(createRelayHandler(t.deps), body({ data: publicCalls.settleRound }));
+    expect(res.status).toBe(502);
+  });
+
+  it('depositBond(0) is refused before any chain read or simulation; a real amount is relayed', async () => {
+    const t = harness();
+    const permit = { value: 0n, deadline: 0n, v: 27, r: `0x${'00'.repeat(32)}`, s: `0x${'00'.repeat(32)}` } as const;
+    const zero = encodeFunctionData({ abi: huiCircleAbi, functionName: 'depositBond', args: [0n, permit] });
+    const real = encodeFunctionData({ abi: huiCircleAbi, functionName: 'depositBond', args: [48_000_000n, { ...permit, value: 48_000_000n }] });
+    const h = createRelayHandler(t.deps);
+    const res = await post(h, body({ data: zero, from: organizerAddr }));
+    expect(res.status).toBe(400);
+    expect(await code(res)).toBe('ZeroAmount');
+    expect(t.state.reads).toEqual([]);
+    expect(t.sent).toHaveLength(0);
+    expect((await post(h, body({ data: real, from: organizerAddr }))).status).toBe(200);
+  });
+
+  it('depositBond with undecodable arguments is a 400', async () => {
+    const t = harness();
+    const selector = encodeFunctionData({ abi: huiCircleAbi, functionName: 'depositBond', args: [1n, { value: 1n, deadline: 0n, v: 27, r: `0x${'00'.repeat(32)}`, s: `0x${'00'.repeat(32)}` }] }).slice(0, 10);
+    const res = await post(createRelayHandler(t.deps), body({ data: `${selector}1234` }));
+    expect(res.status).toBe(400);
+  });
+});
 
 describe('POST /api/relay', () => {
   it('relays an allowed call and returns the tx hash', async () => {
