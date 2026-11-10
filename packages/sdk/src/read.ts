@@ -41,7 +41,12 @@ export interface EventOptions {
    * ("block range too large", measured 11/11/2026), so the default is 100.
    */
   chunk?: bigint;
-  /** `getLogs` calls in flight at once (default 6). */
+  /**
+   * `getLogs` calls in flight at once (default 1). Fuji's public RPC counts the block range of a whole JSON-RPC batch
+   * (measured 11/11/2026: "total block range requested in this batch exceeds the maximum of 100 blocks"), and the web
+   * client batches requests of the same tick, so parallel chunks would be rejected together. Raise it only for a client
+   * that does not batch.
+   */
   concurrency?: number;
   /**
    * Start at the block where the circle was created instead of `fromBlock` (default true): the scan then costs a
@@ -112,13 +117,25 @@ const REORG_MARGIN = 3n;
  * every few seconds costs one `getLogs`, not a rescan (Fuji's public RPC rate-limits bursts, A18). Pass `cache: false` to
  * force a full rescan.
  */
-export async function getCircleEvents(
-  client: PublicClient,
-  circle: Address,
-  opts: EventOptions = {},
-): Promise<CircleEvent[]> {
+export function getCircleEvents(client: PublicClient, circle: Address, opts: EventOptions = {}): Promise<CircleEvent[]> {
+  // One scan at a time per client and circle: two hooks of a page asking at once must not put two 100-block ranges into
+  // one JSON-RPC batch (see `concurrency`), and the second caller then finds the first one's result in the cache.
+  const locks = scanLocks.get(client) ?? new Map<string, Promise<unknown>>();
+  scanLocks.set(client, locks);
+  const key = circle.toLowerCase();
+  const run = (locks.get(key) ?? Promise.resolve()).then(
+    () => scanEvents(client, circle, opts),
+    () => scanEvents(client, circle, opts),
+  );
+  locks.set(key, run.catch(() => undefined));
+  return run;
+}
+
+const scanLocks = new WeakMap<object, Map<string, Promise<unknown>>>();
+
+async function scanEvents(client: PublicClient, circle: Address, opts: EventOptions): Promise<CircleEvent[]> {
   const chunk = opts.chunk && opts.chunk > 0n ? opts.chunk : FUJI_GETLOGS_MAX_BLOCKS;
-  const concurrency = Math.max(1, opts.concurrency ?? 6);
+  const concurrency = Math.max(1, opts.concurrency ?? 1);
   const latest = opts.toBlock ?? (await client.getBlockNumber({ cacheTime: 0 }));
   const useCache = opts.toBlock === undefined && opts.cache !== false;
   const perClient = eventCache.get(client) ?? new Map<string, EventCacheEntry>();

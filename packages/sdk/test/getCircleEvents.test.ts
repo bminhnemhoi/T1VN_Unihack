@@ -70,6 +70,16 @@ describe('getCircleEvents on a node that caps getLogs at 100 blocks (Fuji public
     expect(Math.min(...n.ranges.map((r) => Number(r[0])))).toBe(500);
   });
 
+  it('is sequential by default and never lets two scans of one circle overlap (Fuji counts a whole JSON-RPC batch)', async () => {
+    const n = node({ latest: 1_000n, createdAt: 0n });
+    await Promise.all([
+      getCircleEvents(n.client, circle, { fromBlock: 0n, fromCreation: false }),
+      getCircleEvents(n.client, circle, { fromBlock: 0n, fromCreation: false }),
+      getCircleEvents(n.client, circle, { fromBlock: 0n, fromCreation: false, withTimestamps: true }),
+    ]);
+    expect(n.stats().maxInFlight).toBe(1);
+  });
+
   it('keeps the requested concurrency and returns chunks in block order', async () => {
     const n = node({ latest: 3_000n, createdAt: 0n, eventBlocks: [10n, 1_500n, 2_999n] });
     const events = await getCircleEvents(n.client, circle, { fromBlock: 0n, fromCreation: false, concurrency: 3 });
