@@ -48,3 +48,9 @@ export async function noClippedContent(page: Page) {
   });
   expect(bad, 'content sticks out past the right edge').toEqual([]);
 }
+
+/**
+ * A wide result table and its card list share one accessible name; below the breakpoint only the cards are shown (B17).
+ * Returns whichever of the two is on screen, so a test can read the numbers at any width.
+ */
+export const tableOrCards = (page: Page, name: RegExp) => page.getByRole('table', { name }).or(page.getByRole('list', { name }));

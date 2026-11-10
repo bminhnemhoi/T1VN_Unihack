@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { RowCards, WideTable } from '@/components/RowCards';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { economicsFor, type LabEconomics, type LabSybil } from '@/lib/lab-organizer';
 import { cn, TOGGLE_ON } from '@/lib/utils';
@@ -11,42 +12,21 @@ const pct = (v: number): string => `${fmt(v, 2)}%`;
 /** A sign alone is easy to miss, so a loss also says so in words. */
 const signed = (v: number, shown: string): string => (v < 0 ? `${shown} (lỗ)` : shown);
 
-/** One result row as a card for phones: a title and label/value pairs, in the same order as the table columns. */
-function Cards({ label, items }: { label: string; items: { title: string; rows: { k: string; v: string; strong?: boolean }[] }[] }) {
-  return (
-    <ul aria-label={label} className="mt-4 space-y-3 md:hidden">
-      {items.map((it) => (
-        <li key={it.title} className="o-phang p-4">
-          <h4 className="font-display text-h3 font-bold">{it.title}</h4>
-          <dl className="mt-2">
-            {it.rows.map((r) => (
-              <div key={r.k} className="dong-ke flex items-baseline justify-between gap-3 py-1.5 last:border-b-0">
-                <dt className="text-muted-foreground">{r.k}</dt>
-                <dd className={cn('so-ke text-right', r.strong && 'font-semibold')}>{r.v}</dd>
-              </div>
-            ))}
-          </dl>
-        </li>
-      ))}
-    </ul>
-  );
-}
-
 const PERIOD_LABEL = (days: number): string => (days === 7 ? 'Hụi tuần' : days === 30 ? 'Hụi tháng' : `Kỳ ${days} ngày`);
 
 /** The yearly return key in the file is the hazard scale: "1" is the assumed risk, "0.5" half of it. */
 const scaleKey = (s: number): string => String(s);
 const scaleLabel = (s: number): string => (s === 1 ? 'Rủi ro như giả định' : s === 0.5 ? 'Rủi ro bằng một nửa' : `Rủi ro × ${fmt(s, 2)}`);
 
-/** On phones a wide table hides its result columns off screen, so below `md` each row is a card (below) and the table is for wider screens. */
+/** The tables are wider than a tablet, so up to `lg` each row is a card (RowCards) and the table starts at `lg`. */
 function Table({ caption, label, minWidth, children }: { caption: string; label: string; minWidth: string; children: React.ReactNode }) {
   return (
-    <div className="o-phang mt-4 hidden overflow-x-auto md:block" tabIndex={0} role="region" aria-label={label}>
+    <WideTable label={label} below="lg">
       <table className={cn('w-full text-base', minWidth)}>
         <caption className="sr-only">{caption}</caption>
         {children}
       </table>
-    </div>
+    </WideTable>
   );
 }
 
@@ -147,7 +127,8 @@ export function OrganizerEconomics({ data }: { data: LabEconomics }) {
               ))}
             </tbody>
           </Table>
-          <Cards
+          <RowCards
+            below="lg"
             label="Lời của chủ hụi theo cách tính hoa hồng"
             items={rows.map((r) => ({
               title: r.schedule,
@@ -222,7 +203,8 @@ export function OrganizerSybil({ data }: { data: LabSybil }) {
           ))}
         </tbody>
       </Table>
-      <Cards
+      <RowCards
+        below="lg"
         label="Chủ hụi dùng ví ảo"
         items={data.cases.map((c) => ({
           title: c.label,

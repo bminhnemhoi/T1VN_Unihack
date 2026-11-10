@@ -9,7 +9,7 @@ import { cn } from '@/lib/utils';
 export function BottomNav() {
   const pathname = usePathname();
   return (
-    <nav aria-label="Điều hướng chính (điện thoại)" className="fixed inset-x-0 bottom-0 z-40 border-t border-border bg-card md:hidden">
+    <nav aria-label="Điều hướng chính (điện thoại)" className="fixed inset-x-0 bottom-0 z-40 border-t border-border bg-card lg:hidden">
       <ul className="grid grid-cols-4">
         {NAV.map((l) => {
           const on = isActive(pathname, l.href);

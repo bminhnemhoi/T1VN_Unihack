@@ -28,7 +28,7 @@ export function SiteHeader() {
           <Seal size={40} center="Hụi" ring="HỤISAFE · KHÔNG AI CẦM TIỀN · " className="-rotate-6 text-le-do" />
           <span className="font-display text-2xl font-bold tracking-tight">{vi.appName}</span>
         </Link>
-        <nav aria-label="Điều hướng chính" className="hidden items-center gap-1 md:flex">
+        <nav aria-label="Điều hướng chính" className="hidden items-center gap-1 lg:flex">
           {NAV.map((l) => {
             const on = isActive(pathname, l.href);
             return (

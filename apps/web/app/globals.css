@@ -188,6 +188,16 @@
     border-inline: 1px solid var(--le-do);
     opacity: 0.85;
   }
+  /* Underlined links sit inside running text, 24px tall. A transparent box makes the touch area 48px without moving a line. */
+  a.underline {
+    position: relative;
+  }
+  a.underline::after {
+    content: "";
+    position: absolute;
+    inset-inline: 0;
+    inset-block: -0.8rem;
+  }
   /* Ledger rows: ruled lines only where the data is. */
   .dong-ke {
     border-bottom: 1px solid var(--border);
