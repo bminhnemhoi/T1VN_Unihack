@@ -241,3 +241,17 @@ Dựng anvil fork Fuji (chain id 43113, đọc RPC công khai; đặt `REHEARSAL
 1. Thay một chủ Safe bằng ví của Minh (2 chữ ký, địa chỉ Safe không đổi).
 2. `docs/TIEN-DO.md`, README, `docs/06` mục 6 như mục 11.
 3. Etherscan ngừng API Fuji từ 15/11/2026 (rủi ro R16): verify xong trước ngày đó.
+
+## 15. Bằng chứng chạy thật trên Fuji (10-11/11/2026)
+
+Link: `https://testnet.snowtrace.io/tx/<hash>`.
+
+| Bước | Hash |
+|---|---|
+| Tạo Safe 2/3 `0xc7BeE5Cc787833C8Fd76b9066d334Ab131E7c3F5` | `0xcafa7eb5f250932a10a5988c2a421f49a4894233018826d3a50f076e98b6592f` |
+| Dây Fixed `0xABA89dFfA4e157927710419b01C32bD307bF2461`, kỳ 1 (`settleRound`, keeper) | `0xecfcfaeb5378d44986b999b09d0c614c919b0f55289891906cefc55894bc4669` |
+| Kỳ 2 | `0xc7e8f352dce95d40b4a9a1d529322d230f19f6b16029718e572bfe9fb106c4bb` |
+| Kỳ 3 | `0xba1208d7cc0b3fcab176a31bee1c711e84977bb480f2e9d89ea004a6c79479d6` |
+| `finalize` (Completed, số dư USDC của dây về 0) | `0x7159ec482321ad9bb6f8fad699d4d259b11a63112b6e3a35f978b1d94568b290` |
+
+Hệ thống deploy ở block 60843937 (`fuji.json`); các tx deploy, chia tiền, tạo dây và vào dây nằm trong `contracts/broadcast/*/43113/run-latest.json` trên máy deploy (không commit).
