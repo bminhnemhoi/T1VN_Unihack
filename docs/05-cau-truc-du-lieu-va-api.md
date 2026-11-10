@@ -260,7 +260,7 @@ interface IHuiCircle {
     function shortfallOf(uint32 k, address m) external view returns (Shortfall memory);
     function maxBid(uint32 k) external view returns (uint256);                    // trần thăm THỰC THI: φ = 0 thì bằng trần luật; φ > 0 thì ⌊trần luật·(10000−φ)/10000⌋ (03 mục 2.7)
     function statutoryMaxBid(uint32 k) external view returns (uint256);           // trần theo luật (HuiMath.maxBid), chưa trừ phần hoa hồng
-    function commissionRoom(uint32 k) external view returns (uint256);            // room_k = statutoryMaxBid(k)·L_k (xem được cả khi φ = 0; chỉ φ > 0 mới dùng để tính tiền công)
+    function commissionRoom(uint32 k) external view returns (uint256);            // room_k = statutoryMaxBid(k)·L_k (xem được cả khi φ = 0; chỉ φ > 0 mới dùng để tính tiền công); các view `maxBid`, `statutoryMaxBid`, `commissionRoom` chỉ có nghĩa với kỳ chưa chi: kỳ chưa có commit nào thì L_k theo số hụi sống hiện tại (03 mục 6.3), nên với kỳ đã chi hãy dựng lại từ event, không từ view (audit L-01)
     function onTimeWeight(address m) external view returns (uint16);              // max(0, (N−1) − lateCount); 0 nếu vỡ nợ (ADR-24)
     function exposure(uint32 k) external view returns (uint256);
     function maxExposure() external view returns (uint256);
@@ -413,6 +413,7 @@ event Claimed(address indexed to, uint256 amount);
 // feesPaid chỉ gồm tiền công còn trong escrow lúc finalize (tiền công đã trả ngay có event FeePaid)
 event CircleFinalized(uint256 bondReturned, uint256 feesPaid, uint256 reserveDistributed);
 // Chia quỹ dự phòng cuối dây theo đúng hạn (ADR-24); weight = onTimeWeight, 0 với người vỡ nợ. Không phát khi emergencyUnwind (chia đều).
+// Nhánh Σw = 0 (mọi người trễ từ N − 1 lần): chia đều nhưng event vẫn ghi weight = onTimeWeight thật (0), amount > 0.
 event ReserveShared(address indexed member, uint256 amount, uint16 weight);
 event CirclePaused(uint64 at);
 event CircleUnpaused(uint64 at, uint64 pausedTotal);

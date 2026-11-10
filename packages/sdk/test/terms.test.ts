@@ -37,4 +37,9 @@ describe('circle terms text and hash (ADR-27)', () => {
     expect(text).toContain('thứ tự vào dây');
     expect(text).toContain('100 USDC');
   });
+
+  it('does not render the 120 s demo grace as 0 hours', () => {
+    expect(buildTermsText({ ...base, graceSeconds: 120 })).toContain('Ân hạn trả trễ: 2 phút');
+    expect(buildTermsText(base)).toContain('Ân hạn trả trễ: 48 giờ');
+  });
 });

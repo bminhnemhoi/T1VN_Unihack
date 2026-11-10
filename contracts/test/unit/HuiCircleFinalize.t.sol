@@ -383,6 +383,43 @@ contract HuiCircleFinalizeTest is CircleScenario {
         _assertLedger();
     }
 
+    /// @dev Audit L-03: every non-defaulted member was late N - 1 times, so every weight is 0 and the reserve is split
+    /// equally; `ReserveShared` reports weight 0 for them.
+    function test_Finalize_AllWeightsZero_SplitsEquallyAmongNonDefaulted() public {
+        _settleRounds(1, 5);
+        for (uint256 i = 1; i <= 5; i++) {
+            c.exposed_setLateCount(_M(i), 4);
+        }
+        vm.warp(_graceEnd(5) + 1);
+        uint256[5] memory before;
+        for (uint256 i = 1; i <= 5; i++) {
+            before[i - 1] = usdc.balanceOf(_M(i));
+        }
+        vm.expectEmit(true, false, false, true, address(c));
+        emit IHuiCircle.ReserveShared(_M(1), 4 * U, 0);
+        c.finalize();
+        for (uint256 i = 1; i <= 5; i++) {
+            assertEq(usdc.balanceOf(_M(i)) - before[i - 1], 4 * U, "equal share (reserve 20 / 5)");
+        }
+        _assertConserved();
+    }
+
+    /// @dev Audit I-03: the dust of the split goes to the smallest `joinIndex` that has a positive weight, not to a
+    /// first member whose weight is 0.
+    function test_Finalize_DustSkipsZeroWeightFirstMember() public {
+        _settleRounds(1, 5);
+        c.exposed_setLateCount(_M(1), 4); // weight 0
+        usdc.mint(address(c), 1);
+        c.exposed_setReserve(c.reserve() + 1); // 20_000_001: floor shares leave 1 unit of dust
+        vm.warp(_graceEnd(5) + 1);
+        uint256 m1 = usdc.balanceOf(_M(1));
+        uint256 m2 = usdc.balanceOf(_M(2));
+        c.finalize();
+        assertEq(usdc.balanceOf(_M(1)) - m1, 0, "weight 0: no share and no dust");
+        assertEq(usdc.balanceOf(_M(2)) - m2, 5 * U + 1, "M2 is the first member with a positive weight");
+        assertEq(rep.reputationOf(_M(1)).completed, 1, "completion is still recorded for a member with weight 0");
+    }
+
     function test_Finalize_EveryMemberDefaulted_ReserveGoesToTheOrganizer() public {
         _settleRounds(1, 5);
         for (uint256 i = 1; i <= 5; i++) {

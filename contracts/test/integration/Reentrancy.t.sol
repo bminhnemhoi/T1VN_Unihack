@@ -127,6 +127,22 @@ contract ReentrancyTest is CircleScenario {
         }
     }
 
+    /// @dev A13 (audit I-01): the organizer receives the fee of a round without shortfalls inside `settleRound` and
+    /// tries every guarded entry point from the token hook; the round and the fee are paid exactly once.
+    function test_Reentrancy_DuringImmediateFeePayout_IsBlocked() public {
+        bytes[] memory ps = _guardedPayloads();
+        uint256[5] memory before = _balances();
+        for (uint256 i = 0; i < ps.length; i++) {
+            uint256 snap = vm.snapshotState();
+            rusdc.arm(ReentrantUSDC.Side.Recipient, organizer, organizer, address(c), ps[i]);
+            _toDeadline();
+            c.settleRound();
+            _assertBlocked();
+            _assertRoundOneUnchanged(before); // includes: the organizer holds exactly the fee of round 1, once
+            vm.revertToState(snap);
+        }
+    }
+
     /// @dev A bidder is refunded its reveal bond mid-`revealBid` (`transfer`) and re-enters the same function to
     /// reveal a second time or to commit again.
     function test_Reentrancy_DuringRevealBondRefund_IsBlocked() public {

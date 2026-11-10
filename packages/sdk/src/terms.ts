@@ -38,6 +38,13 @@ function pct(bps: number): string {
   return Number.isInteger(v) ? v.toString() : v.toFixed(2).replace(/0+$/, '').replace(/\.$/, '');
 }
 
+/** Grace in hours when it is at least one hour, else in minutes or seconds (the demo uses 120 s). */
+function graceText(seconds: number): string {
+  if (seconds >= 3600) return `${Math.round(seconds / 3600)} giờ`;
+  if (seconds >= 60) return `${Math.round(seconds / 60)} phút`;
+  return `${seconds} giây`;
+}
+
 export function buildTermsText(t: TermsInput): string {
   const lines = [
     `Thỏa thuận dây hụi HụiSafe (${TERMS_VERSION})`,
@@ -50,7 +57,7 @@ export function buildTermsText(t: TermsInput): string {
         : `4. Hoa hồng chủ hụi: ${pct(t.feeBps)}% pot mỗi kỳ. Kỳ chủ hụi tự hốt không thu hoa hồng.`
       : '4. Chủ hụi không thu hoa hồng.',
     `5. Quỹ dự phòng: ${pct(t.reserveBps)}% pot mỗi kỳ; cuối dây chia cho thành viên không vỡ nợ theo số kỳ đóng đúng hạn.`,
-    `6. Trần lãi năm: ${pct(t.capBps)}% (Nghị định 19/2019/NĐ-CP, Điều 21). Ân hạn trả trễ: ${Math.round(t.graceSeconds / 3600)} giờ.`,
+    `6. Trần lãi năm: ${pct(t.capBps)}% (Nghị định 19/2019/NĐ-CP, Điều 21). Ân hạn trả trễ: ${graceText(t.graceSeconds)}.`,
     '7. Thứ tự hốt dự phòng khi không ai bỏ thăm: thứ tự vào dây, công khai trên chuỗi.',
     '8. Chủ hụi không giữ tiền, nhưng ký quỹ bảo lãnh. Tham số trên không đổi sau khi dây bắt đầu.',
   ];
