@@ -14,6 +14,7 @@ import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Field, FieldLabel } from '@/components/ui/field';
 import { TermsBox } from '@/components/circle/TermsBox';
+import { CommissionTable } from '@/components/wizard/CommissionTable';
 import { termsViewOf } from '@/lib/live/terms';
 import { capOf } from '@/lib/hui-calc';
 import { useCircleData } from '@/lib/live/useCircleData';
@@ -135,6 +136,13 @@ export function InviteView({ c: C }: { c: SampleCircleData }) {
           <li>Rời dây được trước khi dây bắt đầu. Rời rồi thì không vào lại.</li>
         </ul>
       </section>
+
+      {t.mode === 'bidding' && (t.shareBps ?? 0n) > 0n && t.feeBps > 0n && (
+        // phi > 0: the same per-round table as the create form, read from the circle, so the newcomer sees the organizer's share before joining
+        <section aria-label="Hoa hồng của chủ hụi theo từng kỳ" className="mt-10">
+          <CommissionTable terms={t} />
+        </section>
+      )}
 
       <RiskTable terms={t} bond={C.bond} highlight={mySeat <= n ? mySeat : undefined} className="mt-10" />
       <p className="mt-2 text-muted-foreground">Chỗ của bạn trong bảng là chỗ đang trống kế tiếp (kỳ {mySeat}); kiểu bỏ thăm thì kỳ hốt của bạn do thăm quyết định.</p>
