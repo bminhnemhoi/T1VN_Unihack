@@ -75,7 +75,7 @@ export function CoverageView({ c }: { c: SampleCircleData }) {
           <p className="mt-1 max-w-prose text-muted-foreground">
             Phần góp của người vỡ nợ tiếp tục được thử trích mỗi kỳ; thiếu thì lấy từ ký quỹ. Người hốt các kỳ sau vẫn nhận đủ.
           </p>
-          <div className="mt-3 overflow-x-auto">
+          <div className="mt-3 overflow-x-auto" tabIndex={0} role="region" aria-label="Bảng ký quỹ còn lại sau từng kỳ, kéo ngang để xem hết">
             <table className="w-full min-w-[24rem] text-base">
               <caption className="sr-only">Ký quỹ còn lại sau từng kỳ nếu người vỡ nợ không trả</caption>
               <thead>

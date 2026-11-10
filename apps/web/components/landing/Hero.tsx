@@ -1,3 +1,4 @@
+import { Check } from 'lucide-react';
 import { HeroMeter } from '@/components/landing/HeroMeter';
 import { Seal } from '@/components/brand/Seal';
 import { HeroActions } from '@/components/landing/HeroActions';
@@ -19,7 +20,7 @@ export function Hero() {
           <ul className="vao mt-6 flex flex-wrap gap-2" style={{ ['--i' as string]: 2 }}>
             {FACTS.map((f) => (
               <li key={f} className="rounded-full border border-[#c9d2e0]/40 px-4 py-1.5 font-semibold">
-                ✓ {f}
+                <Check aria-hidden className="mr-1 inline size-4 align-[-2px]" /> {f}
               </li>
             ))}
           </ul>

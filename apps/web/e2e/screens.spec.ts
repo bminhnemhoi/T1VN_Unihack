@@ -196,7 +196,7 @@ test.describe('circle sections', () => {
     await expect(page.getByText('Đã nhả').first()).toBeVisible();
   });
 
-  test('S11 book: round filter narrows the rows, JSON downloads, PDF says it is coming', async ({ page }) => {
+  test('S11 book: round filter narrows the rows, JSON downloads, print resets the filter', async ({ page }) => {
     await page.goto('/circles/demo/so-ho');
     const status = page.getByRole('status').filter({ hasText: /Đang hiện/ });
     const total = await status.textContent();
@@ -207,8 +207,12 @@ test.describe('circle sections', () => {
     await page.getByRole('radio', { name: 'Tất cả' }).click();
     const [dl] = await Promise.all([page.waitForEvent('download'), page.getByRole('button', { name: 'Tải JSON' }).click()]);
     expect(dl.suggestedFilename()).toBe('so-ho-demo.json');
-    await page.getByRole('button', { name: 'Tải PDF' }).click();
-    await expect(toast(page, 'Sổ hụi dạng PDF')).toBeVisible();
+    await page.evaluate(() => {
+      window.print = () => {};
+    });
+    await page.getByRole('radio', { name: 'Kỳ 1' }).click();
+    await page.getByRole('button', { name: 'In sổ hụi' }).click();
+    await expect(page.getByRole('radio', { name: 'Tất cả' })).toBeChecked(); // a printed book has every line
     await expect(page.getByRole('cell', { name: /Vỡ nợ/ })).toBeVisible();
   });
 

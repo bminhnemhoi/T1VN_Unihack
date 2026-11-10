@@ -44,7 +44,7 @@ export function HoldbackView({ c }: { c: SampleCircleData }) {
       {myRound === 0 && c.state !== 'completed' && futureRounds.length > 0 && (
         <div className="mt-6">
           <p id="neu-hot" className="text-muted-foreground">
-            Bạn chưa hốt nên chưa bị giữ tiền. Xem thử nếu bạn hốt ở kỳ
+            Bạn chưa hốt nên chưa bị giữ lại tiền. Xem thử nếu bạn hốt ở kỳ
           </p>
           <ToggleGroup type="single" variant="outline" value={what} onValueChange={(v) => v && setWhat(v)} aria-labelledby="neu-hot" className="mt-1 flex-wrap">
             {futureRounds.map((r) => (
@@ -67,7 +67,7 @@ export function HoldbackView({ c }: { c: SampleCircleData }) {
           {rows.length === 0 ? (
             <p className="mt-3 text-muted-foreground">Kỳ cuối không giữ lại gì, vì sau đó không còn kỳ nào để đóng.</p>
           ) : (
-            <div className="mt-3 overflow-x-auto">
+            <div className="mt-3 overflow-x-auto" tabIndex={0} role="region" aria-label="Lịch nhả tiền giữ lại, kéo ngang để xem hết">
               <table className="w-full min-w-[22rem] text-base">
                 <caption className="sr-only">Lịch nhả tiền giữ lại</caption>
                 <thead>
@@ -107,7 +107,7 @@ export function HoldbackView({ c }: { c: SampleCircleData }) {
             Đang giữ của từng người
           </h2>
           {c.settled === 0 ? (
-            <p className="mt-2 text-muted-foreground">Chưa kỳ nào được chi nên chưa ai bị giữ tiền.</p>
+            <p className="mt-2 text-muted-foreground">Chưa kỳ nào được chi nên chưa ai bị giữ lại tiền.</p>
           ) : (
             <>
               <LedgerList

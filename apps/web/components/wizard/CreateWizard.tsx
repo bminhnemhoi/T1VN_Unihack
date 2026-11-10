@@ -326,7 +326,7 @@ export function CreateWizard() {
                 <Field orientation="horizontal">
                   <Switch id="commission" checked={f.commission} onCheckedChange={setCommission} />
                   <FieldLabel htmlFor="commission" className="min-h-12 flex-1 items-center font-normal">
-                    Họ hưởng hoa hồng (NĐ 19 Điều 4 khoản 8)
+                    Dây hưởng hoa hồng (NĐ 19 Điều 4 khoản 8)
                   </FieldLabel>
                 </Field>
                 <NumberField id="fee" label="Tiền công trên mỗi kỳ" hint={vi.help.fee} unit="%" value={f.commission ? f.fee : '0'} error={shown('fee')} disabled={!f.commission} decimal last onChange={onChange} onBlur={touch} />
@@ -339,7 +339,7 @@ export function CreateWizard() {
               {preview && value ? (
                 <>
                   <ContractPreview form={f} value={value} preview={preview} />
-                  {bidding ? <BidTable rows={preview.bidRows} /> : <p className="text-muted-foreground">Họ hốt lần lượt không bỏ thăm, nên không có trần thăm.</p>}
+                  {bidding ? <BidTable rows={preview.bidRows} /> : <p className="text-muted-foreground">Dây cố định hốt lần lượt không bỏ thăm, nên không có trần thăm.</p>}
                   {terms && <FairnessMeter terms={terms} bond={value.bond} />}
                   {terms && <RiskTable terms={terms} bond={value.bond} />}
                   <Nd19Panel perRoundUsdc={value.n * value.c} hasActiveCircle={hasActive} onHasActiveCircle={setHasActive} over18={over18} onOver18={setOver18} />

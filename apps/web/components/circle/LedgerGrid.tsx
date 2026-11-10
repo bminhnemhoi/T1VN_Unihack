@@ -70,7 +70,7 @@ export function LedgerGrid({ members, rounds, viewer, phase }: Props) {
       <p className="mt-1 text-lead text-muted-foreground">Mỗi hàng là một kỳ, mỗi cột là một người. Sổ này ai trong dây cũng xem được.</p>
 
       {/* Desktop and tablet: the grid. */}
-      <div className="o-phang mt-4 hidden overflow-x-auto lg:block">
+      <div className="o-phang mt-4 hidden overflow-x-auto lg:block" tabIndex={0} role="region" aria-label="Bảng sổ hụi theo kỳ và người, kéo ngang để xem hết">
         <table className="so-ke w-full border-collapse text-left">
           <caption className="sr-only">Bảng sổ hụi: mỗi hàng là một kỳ, mỗi cột là một thành viên, số tiền tính bằng USDC</caption>
           <thead>

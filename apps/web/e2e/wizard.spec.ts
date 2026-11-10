@@ -192,15 +192,15 @@ test.describe('S03 /circles/new', () => {
 
     await page.getByRole('radio', { name: 'Cố định (hốt lần lượt)' }).click();
     await next(page).click();
-    const sw = page.getByRole('switch', { name: /Họ hưởng hoa hồng/ });
+    const sw = page.getByRole('switch', { name: /Dây hưởng hoa hồng/ });
     await expect(page.getByLabel('Tiền công trên mỗi kỳ')).toBeEnabled();
     await sw.click();
     await expect(page.getByLabel('Tiền công trên mỗi kỳ')).toBeDisabled();
-    await expect(page.getByText('Đang tắt vì họ này không hưởng hoa hồng.')).toBeVisible();
+    await expect(page.getByText('Đang tắt vì dây này không hưởng hoa hồng.')).toBeVisible();
     await sw.click();
     await expect(page.getByLabel('Tiền công trên mỗi kỳ')).toBeEnabled();
     await next(page).click();
-    await expect(page.getByText('Họ hốt lần lượt không bỏ thăm, nên không có trần thăm.')).toBeVisible();
+    await expect(page.getByText('Dây cố định hốt lần lượt không bỏ thăm, nên không có trần thăm.')).toBeVisible();
     await expect(page.getByRole('table', { name: /Trần thăm/ })).toHaveCount(0);
   });
 
