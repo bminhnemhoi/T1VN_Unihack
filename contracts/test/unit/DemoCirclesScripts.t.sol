@@ -4,6 +4,7 @@ pragma solidity ^0.8.24;
 import {Test} from "forge-std/Test.sol";
 
 import {Deploy} from "../../script/Deploy.s.sol";
+import {CreateDemoCircle} from "../../script/CreateDemoCircle.s.sol";
 import {CreateDemoCircles} from "../../script/CreateDemoCircles.s.sol";
 import {JoinDemoCircles} from "../../script/JoinDemoCircles.s.sol";
 import {ActivateDemoCircle} from "../../script/ActivateDemoCircle.s.sol";
@@ -370,6 +371,43 @@ contract DemoCirclesScriptsTest is Test {
         vm.chainId(43_114);
         vm.expectRevert(abi.encodeWithSelector(ActivateDemoCircle.UnsupportedChain.selector, 43_114));
         activator.execute(ORGANIZER_KEY, file, circle);
+        _cleanup();
+    }
+
+    // ---------------------------------------------------------------- label guard (audit A20 M-03)
+
+    function test_Create_LabelConstantsMatchTheCreatedCircles() public {
+        _deploy("labels");
+        CreateDemoCircles.Result memory r = create.execute(ORGANIZER_KEY, file, 7 days, false);
+        assertEq(IHuiCircle(r.bidding).params().label, create.LABEL_BIDDING());
+        assertEq(IHuiCircle(r.phi).params().label, create.LABEL_PHI());
+        assertEq(IHuiCircle(r.fixedCircle).params().label, create.LABEL_FIXED());
+        _cleanup();
+    }
+
+    /// @dev The worked-example circle shares the standard agreement text of circle 1 but is another circle: the join script
+    /// must not pick it as "the bidding demo circle" even though it is the newest one with that terms hash.
+    function test_Join_IgnoresANewerCircleWithTheSameTermsButAnotherLabel() public {
+        _deploy("sameterms");
+        CreateDemoCircles.Result memory r = create.execute(ORGANIZER_KEY, file, 7 days, false);
+        CreateDemoCircle.Result memory other =
+            new CreateDemoCircle().execute(ORGANIZER_KEY, file, 7 days, "huisafe-demo-default");
+        assertEq(IHuiCircle(other.circle).params().termsHash, create.TERMS_HASH_BIDDING(), "same terms");
+
+        JoinDemoCircles.Result memory j = join.execute(_joinParams(JoinDemoCircles.Selection.All, true));
+        assertEq(j.bidding, r.bidding, "the real demo circle, not the newer one");
+        assertEq(IHuiCircle(other.circle).members().length, 0, "the worked-example circle stays untouched");
+        assertEq(uint8(HuiCircle(payable(other.circle)).state()), uint8(CircleState.Forming));
+        assertEq(uint8(HuiCircle(payable(r.bidding)).state()), uint8(CircleState.Active));
+        _cleanup();
+    }
+
+    /// @dev A live worked-example circle must not block creating the three demo circles, and vice versa it is not counted.
+    function test_Create_IgnoresALiveWorkedExampleCircle() public {
+        _deploy("liveexample");
+        new CreateDemoCircle().execute(ORGANIZER_KEY, file, 7 days, "huisafe-demo-default");
+        create.execute(ORGANIZER_KEY, file, 7 days, false); // does not revert AlreadyCreated
+        assertEq(HuiFactory(d.factory).circlesOf(vm.addr(ORGANIZER_KEY)).length, 4);
         _cleanup();
     }
 
