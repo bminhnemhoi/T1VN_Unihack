@@ -38,6 +38,10 @@ const anvil = defineChain({
 /** Public RPC only: Fuji's public endpoint, or the local anvil node. */
 export function createChainConfig(json: ChainConfigJson): ChainConfig {
   const chain = json.network === 'anvil' ? anvil : avalancheFuji;
-  const client = createPublicClient({ chain, transport: http() }) as PublicClient;
+  // One HTTP request per burst of reads: JSON-RPC batching, and Multicall3 (on Fuji) for contract reads in the same tick.
+  // Fuji's public RPC answers a page that fires ~80 separate requests per refresh with throttling that reaches the
+  // browser as a CORS error (A18, measured 11/11/2026), and the page then never loads. Anvil has no Multicall3: viem
+  // skips it for chains without one.
+  const client = createPublicClient({ chain, transport: http(undefined, { batch: true }), batch: { multicall: true } }) as PublicClient;
   return { ...json, fromBlock: BigInt(json.fromBlock), client };
 }
