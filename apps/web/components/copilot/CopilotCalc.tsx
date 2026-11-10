@@ -2,6 +2,7 @@
 
 import { useId, useState } from 'react';
 import { formatBps, formatUsdc, parseUsdc, previewCircle } from 'sdk';
+import { MAX_ALPHA_BPS } from '@/lib/circleForm';
 import { useMinCoverageBps } from '@/lib/live/useMinCoverage';
 import { LedgerList } from '@/components/LedgerList';
 import { Input } from '@/components/ui/input';
@@ -16,7 +17,7 @@ export function CopilotCalc() {
   const nn = /^\d{1,2}$/.test(n.trim()) ? Number(n) : NaN;
   const cc = parseUsdc(c);
   const aa = /^\d{1,3}$/.test(alpha.trim()) ? Number(alpha) : NaN;
-  const ok = nn >= 3 && nn <= 30 && cc !== undefined && cc >= 1_000_000n && cc <= 10_000_000_000n && aa >= 0 && aa <= 100;
+  const ok = nn >= 3 && nn <= 30 && cc !== undefined && cc >= 1_000_000n && cc <= 10_000_000_000n && aa >= 0 && aa * 100 <= Number(MAX_ALPHA_BPS);
   const p = ok ? previewCircle({ n: BigInt(nn), c: cc, periodDays: 30n, alphaBps: BigInt(aa * 100), bond: 0n, capBps: 2000n, minCoverageBps: floor }) : undefined;
 
   return (
@@ -37,7 +38,7 @@ export function CopilotCalc() {
         ))}
       </div>
       {!p ? (
-        <p className="font-semibold text-destructive">Nhập số người 3 đến 30, mức góp 1 đến 10.000 USDC, giữ lại 0 đến 100%.</p>
+        <p className="font-semibold text-destructive">Nhập số người 3 đến 30, mức góp 1 đến 10.000 USDC, giữ lại 0 đến 50%.</p>
       ) : (
         <>
           <LedgerList
