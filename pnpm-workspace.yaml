@@ -3,6 +3,12 @@ packages:
   - "apps/*"
 allowBuilds:
   esbuild: false
+  # Optional native add-ons with pure-JS fallbacks (wallet libraries). Declared as ignored so that a FRESH
+  # `pnpm install --frozen-lockfile` (CI, a host, Docker) does not stop with ERR_PNPM_IGNORED_BUILDS.
+  "@reown/appkit": false
+  bufferutil: false
+  keccak: false
+  utf-8-validate: false
 minimumReleaseAgeExclude:
   - "@tailwindcss/node@4.3.5"
   - "@tailwindcss/oxide-android-arm64@4.3.5"
