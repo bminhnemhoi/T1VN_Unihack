@@ -67,7 +67,7 @@ Trên chuỗi chỉ có địa chỉ ví, mã băm attestation và mã băm th�
 Nguồn: docs/10 mục 4 (Nghị định 356/2025/NĐ-CP Điều 11 khoản 2) và mục 7 (câu 12); docs/05 mục 8.1; docs/03 INV-10.
 
 **13. Ký một lần cho dây trích 404 USDC có nguy hiểm không?**
-Chữ ký chỉ cho phép đúng một hợp đồng dây đã xác minh, đúng (N - 1) x (C + cọc) = 404 USDC với dây mẫu, không vô hạn. Mỗi kỳ hợp đồng chỉ kéo phần góp của kỳ đó (INV-04), và không có hàm nào cho admin hay chủ hụi rút tiền. Thu hồi quyền thì khoản đó thành khoản thiếu và đi vào thác bù. Rủi ro còn lại là lỗi hợp đồng: có 617 test (54 bài bất biến), Slither mức cao 0 và rà soát bảo mật nội bộ; chưa có audit độc lập.
+Chữ ký chỉ cho phép đúng một hợp đồng dây đã xác minh, đúng (N - 1) x (C + cọc) = 404 USDC với dây mẫu, không vô hạn. Mỗi kỳ hợp đồng chỉ kéo phần góp của kỳ đó (INV-04), và không có hàm nào cho admin hay chủ hụi rút tiền. Thu hồi quyền thì khoản đó thành khoản thiếu và đi vào thác bù. Rủi ro còn lại là lỗi hợp đồng: có 632 test (54 bài bất biến ở lần đo trước), Slither mức cao 0 và rà soát bảo mật nội bộ; chưa có audit độc lập.
 Nguồn: docs/03 mục 2.6, 5.1, 7.2 (INV-04, INV-07); docs/TIEN-DO.md (10/11/2026).
 
 **14. AI có cần không?**
@@ -77,7 +77,7 @@ Nguồn: docs/02 (US-11); docs/05 mục 8.4, 12; docs/TIEN-DO.md (M4); docs/10 m
 ## Nhóm hiện trạng
 
 **15. Hôm nay cái gì chạy thật? Người dùng thử nói gì?**
-Đã chạy: hợp đồng triển khai và xác minh trên Fuji ngày 10/11/2026 (`HuiFactory` 0x5004…8b21), 617 test hợp đồng; thêm dây Fixed N = 3 `0xABA89dFfA4e157927710419b01C32bD307bF2461` chạy trọn trên Fuji ngày 11/11/2026: vào dây qua relay (thành viên không cần AVAX), keeper chốt 3 kỳ (`0xecfcfaeb…4669`, `0xc7e8f352…c4bb`, `0xba1208d7…79d6`) và `finalize` (`0x7159ec48…b290`); trạng thái Completed, 3 kỳ đã chi, số dư USDC của dây về 0 (đọc lại bằng lệnh chỉ đọc). Hash viết tắt theo `docs/TIEN-DO.md`; tra đủ trên Snowtrace theo địa chỉ dây; test ứng dụng: sdk 105, web 359, keeper 18. Giao diện đang trong giai đoạn duyệt nội bộ. Chưa có: lãi thật, passkey, chế độ VND, mainnet, audit độc lập, ý kiến luật sư. Thử với người dùng thật dự kiến 15-16/11 (5-10 người, không bỏ tiền thật, có phiếu đồng ý); chưa diễn ra nên chưa có số về thời gian vào dây, tỷ lệ tự làm được, điểm tin tưởng: chưa đo.
+Đã chạy: hợp đồng triển khai và xác minh trên Fuji ngày 10/11/2026 (`HuiFactory` 0x5004…8b21), 632 test hợp đồng; thêm dây Fixed N = 3 `0xABA89dFfA4e157927710419b01C32bD307bF2461` chạy trọn trên Fuji ngày 11/11/2026: vào dây qua relay (thành viên không cần AVAX), keeper chốt 3 kỳ (`0xecfcfaeb…4669`, `0xc7e8f352…c4bb`, `0xba1208d7…79d6`) và `finalize` (`0x7159ec48…b290`); trạng thái Completed, 3 kỳ đã chi, số dư USDC của dây về 0 (đọc lại bằng lệnh chỉ đọc). Hash viết tắt (đủ ở `docs/DEPLOY-FUJI.md` mục 15); test ứng dụng: sdk 126, web 369, keeper 18, config 13. Dây vỡ nợ thật (Fuji, 11/11/2026): dây Bidding N = 5, C = 10 USDC `0xc62828b2f72D288298A6E2fFd0814D0Cb6e15Bfc` chạy trọn ví dụ nhánh B của docs/03 mục 8 qua relay và keeper, 104 kiểm tra đạt. M4 thu hồi allowance trước kỳ 2 nên thiếu 10 USDC, bù 8 từ tiền giữ lại của M4 và 2 từ ký quỹ (tx kỳ 2 `0x1cb02efe…0185`), rồi `markDefault(M4)`, ký quỹ bù kỳ 3 đến 5, `finalize`, dây về 0. Số tiền là bản thu nhỏ 10 lần; đây là ví dụ do script chạy bằng ví demo của đội, không phải người dùng thật bỏ đóng. Hash đầy đủ: `docs/DEPLOY-FUJI.md` mục 15b. Giao diện đang trong giai đoạn duyệt nội bộ. Chưa có: lãi thật, passkey, chế độ VND, mainnet, audit độc lập, ý kiến luật sư. Thử với người dùng thật dự kiến 15-16/11 (5-10 người, không bỏ tiền thật, có phiếu đồng ý); chưa diễn ra nên chưa có số về thời gian vào dây, tỷ lệ tự làm được, điểm tin tưởng: chưa đo.
 Nguồn: contracts/deployments/fuji.json; docs/TIEN-DO.md; docs/11 mục 11.
 
 ---
@@ -97,8 +97,8 @@ Nguồn: contracts/deployments/fuji.json; docs/TIEN-DO.md; docs/11 mục 11.
 | 520.000; 746.000; 1.486.000; 21.000; 0,065 USD | 10 | docs/04 mục 7.1; docs/06 |
 | 3.000.000; 5.000.000; 30 yêu cầu | 11 | docs/05 mục 8.2 |
 | 404 | 13 | docs/03 mục 2.6 |
-| 617; 54 | 13, 15 | docs/TIEN-DO.md (10/11/2026) |
-| sdk 105, web 359, keeper 18; dây Fixed Completed trên Fuji (3 kỳ + finalize, hash viết tắt) | 15 | docs/TIEN-DO.md dòng M3 và dòng Kiểm thử (11/11/2026); trạng thái dây đọc lại bằng `cast call state()` |
+| 632; 54 | 13, 15 | docs/TIEN-DO.md (A20, 11/11/2026); 54 là số đo lần trước |
+| sdk 126, web 369, keeper 18, config 13; dây Fixed Completed (3 kỳ + finalize) và dây vỡ nợ Completed (thác bù 8 + 2) trên Fuji | 15 | docs/TIEN-DO.md; docs/DEPLOY-FUJI.md mục 15, 15b (hash đầy đủ); trạng thái dây đọc lại bằng `cast call state()` (11/11/2026) |
 | 33/33 | 14 | docs/TIEN-DO.md (M4) |
 | 0x5004…8b21; 10/11/2026 | 15 | contracts/deployments/fuji.json |
 

@@ -6,7 +6,7 @@ Viết ngày 11/11/2026 (B14, pitch). Nền: `docs/12-pitch-demo-nop-bai.md` m�
 
 **Cách đếm.** Đếm bằng Python theo điểm mã Unicode sau khi chuẩn hóa NFC. Số đếm ghi dưới mỗi khối đã kiểm bằng lệnh ở cuối file. **Dán đúng khối trong bảng mã, không gõ lại bằng bộ gõ tổ hợp (NFD)**, vì NFD làm số ký tự tăng và có thể vượt giới hạn.
 
-**Cần người quyết trước khi dán.** (1) Dán bản tiếng Việt hay tiếng Anh (hai bản đều có; docs/12 chưa nói form yêu cầu ngôn ngữ nào). (2) Thay `[CHƯA CÓ: Telegram]` bằng handle thật: bản Việt còn dư 33 ký tự, bản Anh còn dư 14 ký tự, nên handle thay vào dài tối đa 54 ký tự (bản Việt) hoặc 35 ký tự (bản Anh); sau khi thay phải đếm lại. (3) Chỉ giữ các câu "Đang chạy" nếu đúng lúc nộp.
+**Cần người quyết trước khi dán.** (1) Dán bản tiếng Việt hay tiếng Anh (hai bản đều có; docs/12 chưa nói form yêu cầu ngôn ngữ nào). (2) Thay `[CHƯA CÓ: Telegram]` bằng handle thật: bản Việt còn dư 17 ký tự, bản Anh còn dư 10 ký tự, nên handle thay vào dài tối đa 36 ký tự (bản Việt) hoặc 29 ký tự (bản Anh); sau khi thay phải đếm lại. (3) Chỉ giữ các câu "Đang chạy" nếu đúng lúc nộp.
 
 ## 1. Project name (<= 100 ký tự)
 
@@ -40,18 +40,18 @@ Hụi is how Vietnamese families and traders save and lend to each other, but co
 
 ## 3. Anything else for the judges (<= 800 ký tự)
 
-Có trong khối: khai báo dev toggle, chỉ USDC testnet, vì sao Avalanche, bốn điểm luật Việt Nam của BTC, địa chỉ `HuiFactory` kèm link, thứ tự xem, liên hệ. Chỗ liên hệ để placeholder.
+Có trong khối: khai báo dev toggle, chỉ USDC testnet, vì sao Avalanche, bốn điểm luật Việt Nam của BTC, địa chỉ `HuiFactory` kèm link, thứ tự xem (README có dây vỡ nợ thật), liên hệ. Chỗ liên hệ để placeholder.
 
-Tiếng Việt, 767 ký tự (với placeholder 21 ký tự):
+Tiếng Việt, 783 ký tự (với placeholder 19 ký tự):
 
 ```text
-Dev toggle: demo chạy chế độ tua nhanh (1 kỳ = 3 phút, ân hạn 2 phút, trần lãi tính như kỳ 30 ngày); phí mạng do relayer trả; ký quỹ không sinh lãi. Chỉ USDC testnet trên Fuji: không tiền thật, không token, không dữ liệu cá nhân on-chain. Vì sao Avalanche: USDC native có permit (ký một lần), phí thấp để relayer trả thay, giao dịch chốt dưới 1 giây. Luật Việt Nam: tiền mã hóa không phải phương tiện thanh toán hợp pháp (NQ 05/2025 Điều 4.7) nên chỉ chạy testnet; HụiSafe không trả lương (BLLĐ 2019 Điều 95.2); trợ lý miễn phí, không phải tư vấn tài chính hay pháp lý; không có cổ phiếu token hóa. HuiFactory (Fuji): https://testnet.snowtrace.io/address/0x5004477143F8Db65f80992A0BD79c1DAb75C8b21. Xem video trước, rồi app, rồi README. Hỏi nhanh: [CHƯA CÓ: Telegram]
+Dev toggle: demo chạy chế độ tua nhanh (1 kỳ = 3 phút, ân hạn 2 phút, trần lãi tính như kỳ 30 ngày); phí mạng do relayer trả; ký quỹ không sinh lãi. Chỉ USDC testnet trên Fuji: không tiền thật, không token, không dữ liệu cá nhân on-chain. Vì sao Avalanche: USDC native có permit (ký một lần), phí thấp để relayer trả thay, giao dịch chốt dưới 1 giây. Luật Việt Nam: tiền mã hóa không phải phương tiện thanh toán hợp pháp (NQ 05/2025 Điều 4.7) nên chỉ chạy testnet; HụiSafe không trả lương (BLLĐ 2019 Điều 95.2); trợ lý miễn phí, không phải tư vấn tài chính hay pháp lý; không có cổ phiếu token hóa. HuiFactory (Fuji): https://testnet.snowtrace.io/address/0x5004477143F8Db65f80992A0BD79c1DAb75C8b21. Xem video, app, README (có dây vỡ nợ thật trên Fuji). Hỏi nhanh: [CHƯA CÓ: Telegram]
 ```
 
-Tiếng Anh, 786 ký tự (với placeholder 21 ký tự):
+Tiếng Anh, 790 ký tự (với placeholder 19 ký tự):
 
 ```text
-Dev toggle: the demo runs in fast-forward mode (1 round = 3 minutes, grace = 2 minutes, bid cap computed on a 30-day period); network fees are paid by our relayer; the bond earns no yield. Fuji testnet USDC only: no real money, no token, no personal data on-chain. Why Avalanche: native USDC with permit (sign once), fees low enough for a relayer to pay, finality under 1 second. Vietnam law: crypto is not legal tender (Resolution 05/2025 Art. 4.7), so testnet only; HụiSafe pays no salaries (Labour Code 2019 Art. 95.2); the assistant is free and is not legal or financial advice; no tokenized stocks. HuiFactory (Fuji): https://testnet.snowtrace.io/address/0x5004477143F8Db65f80992A0BD79c1DAb75C8b21. Watch the video first, then the app, then the README. Contact: [CHƯA CÓ: Telegram]
+Dev toggle: the demo runs in fast-forward mode (1 round = 3 minutes, grace = 2 minutes, bid cap computed on a 30-day period); network fees are paid by our relayer; the bond earns no yield. Fuji testnet USDC only: no real money, no token, no personal data on-chain. Why Avalanche: native USDC with permit (sign once), fees low enough for a relayer to pay, finality under 1 second. Vietnam law: crypto is not legal tender (Resolution 05/2025 Art. 4.7), so testnet only; HụiSafe pays no salaries (Labour Code 2019 Art. 95.2); the assistant is free and is not legal or financial advice; no tokenized stocks. HuiFactory (Fuji): https://testnet.snowtrace.io/address/0x5004477143F8Db65f80992A0BD79c1DAb75C8b21. Watch the video, app, README (real default case on Fuji). Contact: [CHƯA CÓ: Telegram]
 ```
 
 ## 4. Các trường còn lại
@@ -72,7 +72,7 @@ Dev toggle: the demo runs in fast-forward mode (1 round = 3 minutes, grace = 2 m
 |---|---|---|
 | Project name | 84 / 100 | 97 / 100 |
 | What it does | 783 / 800 | 791 / 800 |
-| Anything else (với placeholder) | 767 / 800 | 786 / 800 |
+| Anything else (với placeholder) | 783 / 800 | 790 / 800 |
 | Đã ở dạng NFC | Có | Có |
 
 - Dev toggle: có (Anything else, câu đầu).

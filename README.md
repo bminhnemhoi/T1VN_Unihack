@@ -93,13 +93,13 @@ python -m huisim.cli run --scenario organizer_sybil --seed 42       # chủ hụ
 
 ## Lệnh kiểm thử và kết quả
 
-Số liệu đo ngày 10 đến 11/11/2026 trên nhánh `Towfienes/sim-ai` (sau B13), máy của người làm.
+Số liệu đo ngày 10 đến 11/11/2026 trên nhánh `Towfienes/sim-ai` (sau B19 và A20; số test hợp đồng theo `docs/TIEN-DO.md`), máy của người làm.
 
 | Lệnh | Kết quả |
 |---|---|
-| `cd contracts && forge test` | 617 test đạt, 0 lỗi (463 unit, 36 fuzz, 54 invariant, phần còn lại là integration, gas, fork) |
-| `forge test --match-path "test/invariant/*"` | 54 đạt (bất biến tiền INV-01..INV-09, INV-11..INV-13; INV-10 kiểm tĩnh ở CI) |
-| `pnpm -r test` | sdk 105, web 359, keeper 18, config 10: đều đạt |
+| `cd contracts && forge test` | 632 test đạt, 0 lỗi (theo `docs/TIEN-DO.md` sau A20). Lần đo trước (617 test): 463 unit, 36 fuzz, 54 invariant, phần còn lại là integration, gas, fork; chưa đo lại phần chia theo loại |
+| `forge test --match-path "test/invariant/*"` | 54 đạt (lần đo trước A20; bất biến tiền INV-01..INV-09, INV-11..INV-13; INV-10 kiểm tĩnh ở CI) |
+| `pnpm -r test` | sdk 126, web 369, keeper 18, config 13: đều đạt |
 | `pnpm -r lint` và `pnpm -r typecheck` | sạch |
 | `pnpm --filter web test:e2e` (Playwright, gồm kiểm axe về khả năng truy cập; mobile 390, desktop 1440; tablet 768 chỉ cho spec bố cục) | 469 đạt, 7 bỏ qua có chủ đích (test bàn phím chỉ chạy trên desktop) |
 | `pnpm --filter web test:e2e:chain` (build chế độ chuỗi với deployment GIẢ và RPC chết cục bộ: không gọi Fuji; kiểm menu và 404) | 6 đạt (3 kiểm × mobile 390 và desktop 1440) |
@@ -107,7 +107,9 @@ Số liệu đo ngày 10 đến 11/11/2026 trên nhánh `Towfienes/sim-ai` (sau 
 | `cd sim && pytest` | 71 đạt; `mypy --strict` sạch |
 | Eval trợ lý, chế độ mock (`lib/copilot/evals/run.ts --mode mock`) | 33/33 ca đạt. Đây là kịch bản viết tay để kiểm tool, bộ kiểm đầu ra và cách chấm, KHÔNG phải số đo mô hình thật; eval với mô hình thật chưa chạy |
 
-**Bằng chứng chạy thật trên Fuji (11/11/2026).** Dây Fixed N = 3 `0xABA89dFfA4e157927710419b01C32bD307bF2461` chạy trọn trên Fuji ngày 11/11/2026: vào dây qua relay (thành viên không cần AVAX), keeper chốt 3 kỳ (`0xecfcfaeb…4669`, `0xc7e8f352…c4bb`, `0xba1208d7…79d6`) và `finalize` (`0x7159ec48…b290`); trạng thái Completed, 3 kỳ đã chi, số dư USDC của dây về 0 (đọc lại bằng lệnh chỉ đọc). Hash viết tắt theo `docs/TIEN-DO.md`; tra đủ trên Snowtrace theo địa chỉ dây.
+**Bằng chứng chạy thật trên Fuji (11/11/2026).** Dây Fixed N = 3 `0xABA89dFfA4e157927710419b01C32bD307bF2461` chạy trọn trên Fuji ngày 11/11/2026: vào dây qua relay (thành viên không cần AVAX), keeper chốt 3 kỳ (`0xecfcfaeb…4669`, `0xc7e8f352…c4bb`, `0xba1208d7…79d6`) và `finalize` (`0x7159ec48…b290`); trạng thái Completed, 3 kỳ đã chi, số dư USDC của dây về 0 (đọc lại bằng lệnh chỉ đọc). Hash viết tắt trong đoạn này; hash đầy đủ ở `docs/DEPLOY-FUJI.md` mục 15, tra trên Snowtrace theo địa chỉ dây.
+
+**Dây vỡ nợ thật trên Fuji (11/11/2026).** Dây Bidding N = 5, C = 10 USDC `0xc62828b2f72D288298A6E2fFd0814D0Cb6e15Bfc`: ví dụ nhánh B của docs/03 mục 8 chạy thật qua relay và keeper. M4 thu hồi allowance trước kỳ 2 nên thiếu 10 USDC, bù 8 từ tiền giữ lại của M4 và 2 từ ký quỹ (tx kỳ 2 `0x1cb02efe008f73e87ccb44b327e7fff0786eba5da95005df4916d6b23c010185`), rồi `markDefault(M4)`, ký quỹ bù kỳ 3 đến 5, `finalize`, dây về 0; 104 kiểm tra đạt. Số tiền là bản thu nhỏ 10 lần của ví dụ 100 USDC. Đây là ví dụ do script chạy bằng ví demo của đội, không phải người dùng thật bỏ đóng. Xem dây: https://testnet.snowtrace.io/address/0xc62828b2f72D288298A6E2fFd0814D0Cb6e15Bfc; tx kỳ 2: https://testnet.snowtrace.io/tx/0x1cb02efe008f73e87ccb44b327e7fff0786eba5da95005df4916d6b23c010185. Hash đầy đủ từng bước: `docs/DEPLOY-FUJI.md` mục 15b.
 
 Slither mức cao và audit nội bộ: xem `docs/TIEN-DO.md` (0 Critical, High, Medium theo rà soát nội bộ của nhóm, không phải audit độc lập).
 
