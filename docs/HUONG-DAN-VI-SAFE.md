@@ -30,7 +30,7 @@ Fuji đã có sẵn bộ contract Safe v1.4.1 chính thức (đã kiểm có cod
    - `SAFE_OWNER_3` = `0xFEBcE5767fdC2fbE26fC9F020CaF4CF497912AD3`
 2. Thêm vào `.env.local` (người tự điền): `SAFE_OWNER_1=`, `SAFE_OWNER_2=`, `SAFE_OWNER_3=`. Mở Claude với khóa đã nạp (`bash -c 'set -a; . ./.env.local; set +a; exec claude ...'`).
 3. Mô phỏng: `forge script script/CreateSafe.s.sol --rpc-url fuji`. Duyệt rồi mới thêm `--broadcast` (qua `/deploy-fuji`).
-4. Ghi địa chỉ Safe in ra vào `ADMIN` của bước deploy (`docs/DEPLOY-FUJI.md`): factory nhận admin là Safe, registry vẫn admin deployer, Safe gọi `setFactory` một lần (calldata trong runbook).
+4. Ghi địa chỉ Safe in ra vào `ADMIN` của bước deploy (`docs/DEPLOY-FUJI.md`): factory nhận admin là Safe, registry có admin là deployer và được script Deploy tự nối (`setFactory` một lần), nên không cần chữ ký Safe lúc deploy.
 5. Ký lệnh Safe về sau (tạm dừng, mở lại, thay người ký): dùng Ash Wallet (<https://wallet.ash.center>), mạng Fuji, "thêm Safe có sẵn" bằng địa chỉ Safe. Người ký cần một ít AVAX để gửi lệnh đã đủ chữ ký.
 
 **Lưu ý:** admin của factory không đổi được sau deploy, nên bản deploy để thi phải dùng địa chỉ Safe này. Bản deploy thử bằng ví deployer làm admin chỉ để chạy thử, không dùng khi thi.
