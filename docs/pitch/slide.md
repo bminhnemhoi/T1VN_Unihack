@@ -109,7 +109,7 @@ Viết ngày 11/11/2026 (B14, pitch). Nền: `docs/12-pitch-demo-nop-bai.md` m�
 
 - Chân bảng, chữ đậm: "Kết quả của giả định, không phải dự báo. Giả định: người hốt bỏ đóng 2,04% (sớm) và 0,59% (muộn) MỖI KỲ, lấy cảm hứng từ Klonner & Rai (2008); sốc chung 2% x 5; thăm ngẫu nhiên dưới trần. Cách đọc mỗi kỳ là kịch bản bi quan."
 - Bản hiệu chỉnh (hazard quy đổi khoảng 0,29% mỗi kỳ): HụiSafe 0,00% tổn thất và 0,00% dây có người nhận thiếu; truyền thống 3,82% và 9,42%; on-chain đơn giản 1,06% và 26,81%.
-- Kiểm thử (10 đến 11/11/2026): 617 forge test, trong đó 54 bài bất biến; sdk 105, web 352, keeper 18 test; Slither mức cao 0; rà soát bảo mật nội bộ không còn Critical, High, Medium. Chưa có audit độc lập.
+- Kiểm thử (10 đến 11/11/2026): 617 forge test, trong đó 54 bài bất biến; sdk 105, web 359, keeper 18 test; Slither mức cao 0; rà soát bảo mật nội bộ không còn Critical, High, Medium. Chưa có audit độc lập.
 - Chạy thật trên Fuji (11/11/2026): dây Fixed N = 3 `0xABA89dFfA4e157927710419b01C32bD307bF2461` chạy trọn trên Fuji ngày 11/11/2026: vào dây qua relay (thành viên không cần AVAX), keeper chốt 3 kỳ (`0xecfcfaeb…4669`, `0xc7e8f352…c4bb`, `0xba1208d7…79d6`) và `finalize` (`0x7159ec48…b290`); trạng thái Completed, 3 kỳ đã chi, số dư USDC của dây về 0 (đọc lại bằng lệnh chỉ đọc). Hash viết tắt theo `docs/TIEN-DO.md`; tra đủ trên Snowtrace theo địa chỉ dây.
 - Người dùng thật thử: chưa có số (kế hoạch 15-16/11, `docs/11` mục 11).
 
@@ -226,7 +226,7 @@ Viết ngày 11/11/2026 (B14, pitch). Nền: `docs/12-pitch-demo-nop-bai.md` m�
 | 4,99; 6,37; 0,0003; 24,04; 23,90; 0,00; 23,33; 62,46; 0,01; 58,42; 313,89; 0,03 | 7 | sim/outputs/baseline.json | 08/11/2026 |
 | 3,82; 9,42; 1,06; 26,81; 0,00 | 7 | sim/outputs/baseline_calibrated.json | 08/11/2026 |
 | 617, 54 | 7 | docs/TIEN-DO.md | 10/11/2026 |
-| sdk 105, web 352, keeper 18; dây Fixed Completed trên Fuji | 7 | docs/TIEN-DO.md dòng M3 và dòng Kiểm thử | 11/11/2026 |
+| sdk 105, web 359, keeper 18; dây Fixed Completed trên Fuji | 7 | docs/TIEN-DO.md dòng M3 và dòng Kiểm thử | 11/11/2026 |
 | 14,97; 29,15; -19,64; -5,65; -15,51; -1,50; 3,40; 6,71; 1,75; 5,04; 5,19; 8,51; 1,50; 3,42; 3,88; 5,83; 5,24; 7,19; 150,37; 86,16; -59,07; 18,38 | 8 | sim/outputs/organizer_economics.json | 10/11/2026 |
 | -8,60 | 8 | sim/outputs/baseline.json (`organizerNetReturnPct`) | 08/11/2026 |
 | -18,04; 41,47; 120,76; 0; 56,56; 120,51; 392; 336,57; 297,68 | 9 | sim/outputs/organizer_sybil.json | 10/11/2026 |

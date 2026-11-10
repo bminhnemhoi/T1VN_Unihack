@@ -77,7 +77,7 @@ Nguồn: docs/02 (US-11); docs/05 mục 8.4, 12; docs/TIEN-DO.md (M4); docs/10 m
 ## Nhóm hiện trạng
 
 **15. Hôm nay cái gì chạy thật? Người dùng thử nói gì?**
-Đã chạy: hợp đồng triển khai và xác minh trên Fuji ngày 10/11/2026 (`HuiFactory` 0x5004…8b21), 617 test hợp đồng; thêm dây Fixed N = 3 `0xABA89dFfA4e157927710419b01C32bD307bF2461` chạy trọn trên Fuji ngày 11/11/2026: vào dây qua relay (thành viên không cần AVAX), keeper chốt 3 kỳ (`0xecfcfaeb…4669`, `0xc7e8f352…c4bb`, `0xba1208d7…79d6`) và `finalize` (`0x7159ec48…b290`); trạng thái Completed, 3 kỳ đã chi, số dư USDC của dây về 0 (đọc lại bằng lệnh chỉ đọc). Hash viết tắt theo `docs/TIEN-DO.md`; tra đủ trên Snowtrace theo địa chỉ dây; test ứng dụng: sdk 105, web 352, keeper 18. Giao diện đang trong giai đoạn duyệt nội bộ. Chưa có: lãi thật, passkey, chế độ VND, mainnet, audit độc lập, ý kiến luật sư. Thử với người dùng thật dự kiến 15-16/11 (5-10 người, không bỏ tiền thật, có phiếu đồng ý); chưa diễn ra nên chưa có số về thời gian vào dây, tỷ lệ tự làm được, điểm tin tưởng: chưa đo.
+Đã chạy: hợp đồng triển khai và xác minh trên Fuji ngày 10/11/2026 (`HuiFactory` 0x5004…8b21), 617 test hợp đồng; thêm dây Fixed N = 3 `0xABA89dFfA4e157927710419b01C32bD307bF2461` chạy trọn trên Fuji ngày 11/11/2026: vào dây qua relay (thành viên không cần AVAX), keeper chốt 3 kỳ (`0xecfcfaeb…4669`, `0xc7e8f352…c4bb`, `0xba1208d7…79d6`) và `finalize` (`0x7159ec48…b290`); trạng thái Completed, 3 kỳ đã chi, số dư USDC của dây về 0 (đọc lại bằng lệnh chỉ đọc). Hash viết tắt theo `docs/TIEN-DO.md`; tra đủ trên Snowtrace theo địa chỉ dây; test ứng dụng: sdk 105, web 359, keeper 18. Giao diện đang trong giai đoạn duyệt nội bộ. Chưa có: lãi thật, passkey, chế độ VND, mainnet, audit độc lập, ý kiến luật sư. Thử với người dùng thật dự kiến 15-16/11 (5-10 người, không bỏ tiền thật, có phiếu đồng ý); chưa diễn ra nên chưa có số về thời gian vào dây, tỷ lệ tự làm được, điểm tin tưởng: chưa đo.
 Nguồn: contracts/deployments/fuji.json; docs/TIEN-DO.md; docs/11 mục 11.
 
 ---
@@ -98,7 +98,7 @@ Nguồn: contracts/deployments/fuji.json; docs/TIEN-DO.md; docs/11 mục 11.
 | 3.000.000; 5.000.000; 30 yêu cầu | 11 | docs/05 mục 8.2 |
 | 404 | 13 | docs/03 mục 2.6 |
 | 617; 54 | 13, 15 | docs/TIEN-DO.md (10/11/2026) |
-| sdk 105, web 352, keeper 18; dây Fixed Completed trên Fuji (3 kỳ + finalize, hash viết tắt) | 15 | docs/TIEN-DO.md dòng M3 và dòng Kiểm thử (11/11/2026); trạng thái dây đọc lại bằng `cast call state()` |
+| sdk 105, web 359, keeper 18; dây Fixed Completed trên Fuji (3 kỳ + finalize, hash viết tắt) | 15 | docs/TIEN-DO.md dòng M3 và dòng Kiểm thử (11/11/2026); trạng thái dây đọc lại bằng `cast call state()` |
 | 33/33 | 14 | docs/TIEN-DO.md (M4) |
 | 0x5004…8b21; 10/11/2026 | 15 | contracts/deployments/fuji.json |
 
