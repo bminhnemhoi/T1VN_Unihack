@@ -10,6 +10,7 @@ export * from './abi';
 export * from './view';
 export * from './read';
 export * from './repay';
+export * from './repayPermit';
 export * from './reputation';
 export * from './standing';
 export * from './saltBackup';

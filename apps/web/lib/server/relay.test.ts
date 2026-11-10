@@ -295,6 +295,19 @@ describe('POST /api/relay', () => {
     expect((await post(ipOnly, body(), { 'x-forwarded-for': '5.6.7.8' })).status).toBe(200);
   });
 
+  it('junk and invalid signatures do not use the global hourly budget (audit H-01)', async () => {
+    const t = harness();
+    t.deps.globalLimiter = new SlidingWindowLimiter(1, 3_600_000, () => NOW);
+    const h = createRelayHandler(t.deps);
+    await post(h, 'nope');
+    await post(h, body({ to: stranger }));
+    t.state.verify = false;
+    expect((await post(h, body())).status).toBe(400);
+    t.state.verify = true;
+    expect((await post(h, body())).status).toBe(200); // the single unit of budget was still there
+    expect((await post(h, body())).status).toBe(503);
+  });
+
   it('refuses to send when the relayer is nearly out of AVAX', async () => {
     const t = harness();
     t.state.balance = 10n ** 15n; // 0.001 AVAX

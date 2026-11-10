@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { postRelay, requestAttestation, type FetchLike } from '../src/relayClient';
+import { postRelay, relayPermit, requestAttestation, type FetchLike } from '../src/relayClient';
 
 const reply = (status: number, body: unknown): FetchLike => async () =>
   new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json' } });
@@ -65,5 +65,37 @@ describe('requestAttestation', () => {
     expect(await requestAttestation(reply(429, { error: { code: 'RateLimited', message: 'Quá nhiều yêu cầu' } }), '/a', C, 'tok', true)).toMatchObject({
       code: 'RateLimited',
     });
+  });
+});
+
+describe('relayPermit', () => {
+  const owner = '0x00000000000000000000000000000000000000a1' as const;
+  const spender = '0x00000000000000000000000000000000000000c1' as const;
+  const permit = { value: 40_354_794n, deadline: 1_800_001_800n, v: 28, r: `0x${'ab'.repeat(32)}` as const, s: `0x${'cd'.repeat(32)}` as const };
+
+  it('posts owner, spender and the signature with numbers as strings (value) and a number (deadline)', async () => {
+    let sent: unknown;
+    const f: FetchLike = async (_u, init) => {
+      sent = JSON.parse(init.body);
+      return new Response(JSON.stringify({ txHash: HASH }), { status: 200 });
+    };
+    expect(await relayPermit(f, '/api/relay/permit', owner, spender, permit)).toEqual({ ok: true, txHash: HASH });
+    expect(sent).toEqual({ permit: { owner, spender, value: '40354794', deadline: 1_800_001_800, v: 28, r: permit.r, s: permit.s } });
+  });
+
+  it('reports skipped when somebody already submitted the permit', async () => {
+    expect(await relayPermit(reply(200, { skipped: true }), '/x', owner, spender, permit)).toEqual({ ok: true, skipped: true });
+  });
+
+  it('passes server errors through and maps network failures', async () => {
+    expect(await relayPermit(reply(403, { error: { code: 'NotAMember', message: 'Ví này không phải thành viên của dây.' } }), '/x', owner, spender, permit)).toEqual({
+      ok: false,
+      code: 'NotAMember',
+      message: 'Ví này không phải thành viên của dây.',
+    });
+    const boom: FetchLike = async () => {
+      throw new TypeError('fetch failed');
+    };
+    expect(await relayPermit(boom, '/x', owner, spender, permit)).toMatchObject({ ok: false, code: 'NetworkError' });
   });
 });

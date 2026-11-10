@@ -11,6 +11,7 @@
   "scripts": {
     "build": "tsc --noEmit -p tsconfig.json",
     "generate": "forge build --root ../../contracts && wagmi generate",
+    "generate:terms": "node scripts/gen-terms-vector.ts",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "test": "vitest run"

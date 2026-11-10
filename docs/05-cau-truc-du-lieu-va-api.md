@@ -706,6 +706,23 @@ Tất cả nhận và trả JSON; số tiền gửi dưới dạng chuỗi (bigi
 - Gửi bằng ví relayer (nạp AVAX testnet, cảnh báo khi số dư < 0,02 AVAX; dưới 0,005 AVAX thì dừng gửi và trả 503 `RelayUnavailable`). Các lệnh gửi đi qua một khóa tuần tự để không trùng nonce, và bộ giới hạn nằm trong bộ nhớ nên relay phải chạy như MỘT tiến trình Node liên tục (không serverless nhiều bản); cần nhiều bản thì chuyển bộ giới hạn và nonce sang kho dùng chung.
 - Trả: `{ "txHash": "0x..." }` hoặc `{ "error": { "code", "message" } }` (mã lỗi custom error đã giải mã).
 
+### 8.2b. `POST /api/relay/permit` (M-02, phương án (a), duyệt 10/11/2026)
+
+Vấn đề: `payLate` và `repayDebt` kéo tiền bằng `transferFrom` từ allowance cấp lúc `join`, không nhận `PermitSig`; thành viên Privy không có AVAX nên không tự gọi `USDC.approve`/`permit` được, và `/api/relay` chỉ nhận đích là factory hoặc dây. Route này cho relayer gửi hộ MỘT lệnh `USDC.permit` mà chính thành viên đã ký (EIP-2612 tự xác thực bằng chữ ký, không cần forwarder). Không đổi contract.
+
+- Body: `{ "permit": { "owner": "0x...", "spender": "0x...", "value": "<uint>", "deadline": <số giây>, "v": 27|28, "r": "0x..", "s": "0x.." } }`. `spender` là địa chỉ dây.
+- Trước các bước kiểm: giới hạn theo IP (300/giờ, chung bộ đếm với `/api/relay`). Ngân sách chung 1.500 yêu cầu/giờ của relayer (cũng chung với `/api/relay`) chỉ bị trừ cho yêu cầu đã qua MỌI bước kiểm và sắp được gửi (audit A14 H-01: body rác, chữ ký sai không được làm cạn ngân sách và khóa người trung thực ngoài relay); `/api/relay` đổi theo cùng cách. Mỗi lần trả trễ tốn hai đơn vị ngân sách (permit, rồi `payLate`).
+- Kiểm, theo thứ tự:
+  1. `factory.isCircle(spender)`.
+  2. `circle.memberInfo(owner).joined`, `circle.state()` là `Active` và `memberInfo(owner).debt > 0` (route chỉ phục vụ `payLate`/`repayDebt`; dây `Forming` hay thành viên không nợ không cần nên bị chặn, tránh tiêu gas relayer vô ích).
+  3. `0 < value ≤ 2 × circle.requiredAllowance()` (trần chống giá trị vô lý; contract tin cậy mới tiêu được allowance và INV-04 giới hạn mỗi lần kéo).
+  4. `now < deadline ≤ now + 1 giờ` (theo giờ block mới nhất).
+  5. Mô phỏng `eth_call` `USDC.permit(...)`. Lỗi đường truyền RPC (mạng, quá hạn) trả 502 `ChainUnavailable`, không bảo người dùng ký lại. Nếu contract revert (ví dụ nonce đã dùng vì ai đó gửi trước) thì chấp nhận khi `allowance(owner, spender) ≥ value`, giống `join` (docs/03 mục 5.1); khi đó KHÔNG gửi giao dịch nào, trả `{ "skipped": true }`.
+  6. Hạn mức 10 yêu cầu/giờ mỗi `owner`, chỉ tính cho permit đã qua bước 5 (chữ ký sai không làm hao hạn mức của người khác); rồi ngân sách chung như trên; ngưỡng AVAX của relayer như `/api/relay` (dưới 0,005 AVAX trả 503 `RelayUnavailable`); gửi bằng ví relayer qua cùng khóa tuần tự nonce (một mutex và một `nonceManager` cho cả hai route).
+- Trả: `{ "txHash": "0x..." }` hoặc `{ "skipped": true }`, hoặc `{ "error": { "code", "message" } }` (400 `BadRequest`, `DeadlineInvalid`, `ValueNotAllowed`; 403 `TargetNotAllowed`, `NotAMember`; 409 `WrongState`; 422 `InvalidSignature`; 429 `RateLimited`; 502, 503 như `/api/relay`).
+- Giá trị permit không cộng dồn (permit đặt allowance bằng giá trị ký), nên SDK `signRepayPermit` ký `allowance còn cần = (số kỳ còn phải góp sau kỳ của khoản thiếu) × C + gốc còn nợ + lãi tối đa` (đề xuất M-02 mục 2), tính từ `quoteRepay`, và hiện số USDC sẽ được cấp. Lúc `join` permit vẫn phải ký ĐÚNG `requiredAllowance`: contract tự gọi `permit(member, circle, requiredAllowance, ...)`, nên permit ký giá trị khác (ví dụ dư 1 C như đề xuất M-02 mục 6.1) sai chữ ký, bị bỏ qua và `join` revert `InsufficientAllowance`. Phần dư cho lãi chậm góp vì thế do permit trả trễ cấp, không cấp sẵn lúc vào dây.
+- Luồng giao diện: kiểm allowance; nếu thiếu thì ký permit, `POST /api/relay/permit`, chờ giao dịch được đào, rồi `POST /api/relay` cho `payLate`/`repayDebt`. Quyết định cuối dựa trên allowance đọc lại từ chuỗi, không dựa trên kết quả vận chuyển: permit bị người khác gửi trước (giao dịch của relayer revert) hay relay trả 429/503 mà allowance đã đủ cho khoản trả thì vẫn gửi `payLate`/`repayDebt` (audit A14 M-01); lần thử lại ngay sau đó không ký permit thứ hai. Lỗi `NeedAllowance` không còn với ví Privy. Rủi ro còn lại: `x-forwarded-for` do client tự đặt khi chạy `next start` không sau proxy tin cậy, nên hạn mức IP né được (chỉ còn các hạn mức theo `owner`/`from` và bộ nhớ bị chặn trên); cần proxy tin cậy ghi đè header trước khi lên Fuji thật.
+
 ### 8.3. `GET /api/circles/[address]/so-ho?format=json|pdf`
 
 Dựng sổ họ (mục 10) từ event. `format=pdf` trả file PDF tiếng Việt.

@@ -38,6 +38,7 @@ import {
   quoteRepay,
   readCircle,
   signForwardRequest,
+  signPermit,
   termsHashOf,
   type FetchLike,
   type SignContext,
@@ -57,7 +58,8 @@ import {
 } from '../lib/chain/write';
 import { createAttestHandler } from '../lib/server/attest';
 import { anvilChain } from '../lib/server/chain';
-import { createRelayHandler } from '../lib/server/relay';
+import { createMutex, createRelayHandler } from '../lib/server/relay';
+import { createRelayPermitHandler } from '../lib/server/relayPermit';
 import { SlidingWindowLimiter } from '../lib/server/ratelimit';
 import { InvalidTokenError, type PrivyVerifier } from '../lib/server/privy';
 import { createViemPort } from '../../keeper/src/chain';
@@ -233,6 +235,7 @@ async function scenario(): Promise<void> {
     log,
   });
   const relayWallet = wallet(relayer);
+  const sendLock = createMutex();
   const relayHandler = createRelayHandler({
     publicClient: pub,
     factory,
@@ -247,8 +250,27 @@ async function scenario(): Promise<void> {
     globalLimiter: new SlidingWindowLimiter(1000),
     verifier,
     createLimiter: new SlidingWindowLimiter(5),
+    sendLock,
     now: Date.now,
     requestId: (() => { let n = 0; return () => `r-${++n}`; })(),
+    log,
+  });
+  // POST /api/relay/permit (M-02): the relayer submits a permit the member signed; members never need AVAX or approve.
+  const permitHandler = createRelayPermitHandler({
+    publicClient: pub,
+    factory,
+    usdc,
+    sender: {
+      address: relayer.address,
+      permit: ({ usdc: u, permit: p, gas }) =>
+        relayWallet.writeContract({ address: u, abi: mockUsdcAbi, functionName: 'permit', args: [p.owner, p.spender, p.value, p.deadline, p.v, p.r, p.s], gas }),
+    },
+    ownerLimiter: new SlidingWindowLimiter(1000),
+    ipLimiter: new SlidingWindowLimiter(1000),
+    globalLimiter: new SlidingWindowLimiter(1000),
+    sendLock,
+    now: Date.now,
+    requestId: (() => { let n = 0; return () => `p-${++n}`; })(),
     log,
   });
   const post = (h: (r: Request) => Promise<Response>, url: string, body: unknown, headers: Record<string, string> = {}) =>
@@ -276,7 +298,8 @@ async function scenario(): Promise<void> {
 
   const fetchFn: FetchLike = async (url, init) => {
     const req = new Request(url, { method: init.method, headers: init.headers, body: init.body });
-    return url.endsWith('/api/attest') ? attestHandler(req) : relayHandler(req);
+    if (url.endsWith('/api/attest')) return attestHandler(req);
+    return url.endsWith('/api/relay/permit') ? permitHandler(req) : relayHandler(req);
   };
   const chainCfg = createChainConfig({
     network: 'anvil',
@@ -297,6 +320,7 @@ async function scenario(): Promise<void> {
     getAccessToken: async () => (i < 0 ? 'organizer' : `member-${i + 1}`),
     fetchFn,
     relayUrl: 'http://x/api/relay',
+    permitUrl: 'http://x/api/relay/permit',
     attestUrl: 'http://x/api/attest',
     saltStore,
   });
@@ -385,14 +409,35 @@ async function scenario(): Promise<void> {
   check('M4 shortfall from his own holdback', sf2.fromHoldback, 8n * ONE);
   check('M4 shortfall from the bond', sf2.fromBond, 2n * ONE);
   check('nothing uncovered', sf2.uncovered, 0n);
-  const lateTry = await payLateFlow(flowCtx(3), circle, 2);
-  check('payLate flow: M4 revoked the allowance, so it asks for it first (nothing sent)', lateTry.ok ? 'ok' : lateTry.code, 'NeedAllowance');
+  // /api/relay/permit refuses what it must (M-02); M4 stays in default for branch B, so nothing here changes the circle.
+  const deadlineOk = (await chainNow()) + 1800;
+  const permitBody = async (a: HDAccount, spender: Address, value: bigint, deadline = deadlineOk) => {
+    const p = await signPermit(ctxOf(a), usdc, spender, value, BigInt(deadline));
+    return { permit: { owner: a.address, spender, value: p.value.toString(), deadline, v: p.v, r: p.r, s: p.s } };
+  };
+  const permitUrl = 'http://x/api/relay/permit';
+  const outsider = await post(permitHandler, permitUrl, await permitBody(organizer, circle, 5n * ONE));
+  check('permit route: a wallet that did not join is refused (NotAMember)', outsider.status, 403);
+  const notCircle = await post(permitHandler, permitUrl, await permitBody(M[3]!, usdc, 5n * ONE));
+  check('permit route: a spender that is not a HuiSafe circle is refused', notCircle.status, 403);
+  const tooMuch = await post(permitHandler, permitUrl, await permitBody(M[3]!, circle, 2n * requiredAllowance + 1n));
+  check('permit route: a value above 2 x requiredAllowance is refused', tooMuch.status, 400);
+  const tooFar = await post(permitHandler, permitUrl, await permitBody(M[3]!, circle, 5n * ONE, (await chainNow()) + 3700));
+  check('permit route: a deadline more than one hour ahead is refused', tooFar.status, 400);
+  const forged = await permitBody(M[3]!, circle, 5n * ONE);
+  const forgedRes = await post(permitHandler, permitUrl, { permit: { ...forged.permit, value: (6n * ONE).toString() } });
+  check('permit route: a permit whose value changed after signing is refused (bad signature)', forgedRes.status, 422);
+  check('permit route refusals changed nothing: M4 allowance still 0', await pub.readContract({ address: usdc, abi: mockUsdcAbi, functionName: 'allowance', args: [M[3]!.address, circle] }), 0n);
   const v2 = await view();
   check('readCircle: round 2 winner M1, payout 32,318', `${v2.rounds[1]!.winner}/${v2.rounds[1]!.payout}`, `${M[0]!.address}/32318000`);
   check('readCircle: bond 46', v2.bondRemaining, 46n * ONE);
   const sfv = v2.rounds[1]!.shortfalls[0]!;
   check('readCircle: M4 shortfall 10 = 8 holdback + 2 bond, open', `${sfv.member}/${sfv.amount}/${sfv.fromHoldback}/${sfv.fromBond}/${sfv.resolved}`, `${M[3]!.address}/10000000/8000000/2000000/false`);
   check('readCircle: grace end = settledAt + grace', sfv.graceEndsAt, Number(r2.settledAt) + params.graceSeconds);
+  check('readCircle A14: bondDeposited 48, revealBond 0,1, minCoverageBps 5000 (anvil only; 10000 on Fuji)', `${v2.bondDeposited}/${v2.revealBond}/${v2.minCoverageBps}`, '48000000/100000/5000');
+  check('readCircle A14: phi 0 and the termsHash of the circle', `${v2.params.commissionShareBps}/${v2.params.termsHash === (await rd<{ termsHash: Hex }>('params')).termsHash}`, '0/true');
+  check('readCircle A14: M4 shortfall was covered 8 holdback + 2 bond (kept after repayment)', `${sfv.covered?.holdback}/${sfv.covered?.bond}/${sfv.covered?.reserve}/${sfv.covered?.uncovered}`, '8000000/2000000/0/0');
+  check('readCircle A14: no deferred payments', Object.keys(v2.claimable ?? {}).length, 0);
   const nowChain = await chainNow();
   const quote = quoteRepay(v2, M[3]!.address, nowChain, { round: 2 });
   const feeOnChain = await rd<bigint>('lateFeeOf', [M[3]!.address, 2]);
@@ -541,9 +586,15 @@ async function scenario(): Promise<void> {
   check('M1 shortfall in round 2: 4 from his holdback, 6 from the bond', `${sfb.fromHoldback}/${sfb.fromBond}/${sfb.resolved}`, '4000000/6000000/false');
   check('bond is 10 while the shortfall is open', v2b.bondRemaining, 10n * ONE);
 
-  await waitTx(await wallet(M[0]!).writeContract({ address: usdc, abi: mockUsdcAbi, functionName: 'approve', args: [c2, 30n * ONE] }));
+  // M-02: M1 revoked the allowance above and does NOT approve again. The flow signs a permit, the relayer submits it,
+  // then payLate goes through the forwarder: M1 pays no gas at any point.
+  check('M1 allowance is 0 before paying late', await pub.readContract({ address: usdc, abi: mockUsdcAbi, functionName: 'allowance', args: [M[0]!.address, c2] }), 0n);
+  const m1EthBefore = await pub.getBalance({ address: M[0]!.address });
   const paid = await payLateFlow(flowCtx(0), c2, 2);
-  check('payLate flow: M1 pays inside the grace period', paid.ok ? 'ok' : `${paid.code}: ${paid.message}`, 'ok');
+  check('payLate flow: M1 pays inside the grace period with permit + relay, no approve', paid.ok ? 'ok' : `${paid.code}: ${paid.message}`, 'ok');
+  check('M1 spent no gas (neither the permit nor payLate)', (await pub.getBalance({ address: M[0]!.address })) === m1EthBefore, true);
+  const m1After = await pub.readContract({ address: usdc, abi: mockUsdcAbi, functionName: 'allowance', args: [M[0]!.address, c2] });
+  check('the permit set an allowance for the remaining contributions (more than the 0 before, fee included)', m1After > 0n, true);
   const v2c = await readCircle(pub, c2, { factory, fromBlock: 0n });
   check('after payLate the shortfall is closed', v2c.rounds[1]!.shortfalls[0]!.resolved, true);
   check('after payLate the bond is back to 16', v2c.bondRemaining, 16n * ONE);

@@ -111,6 +111,8 @@ export interface ReadCircleOptions {
   vndPerUsdc?: number;
   /** Pre-fetched events, to avoid a second scan. */
   events?: CircleEvent[];
+  /** Wallet whose `claimable` balance must be in `CircleView.claimable` even if it never got a deferred payment. */
+  viewer?: Address;
 }
 
 const statusOf = (received: boolean, defaulted: boolean, joined: boolean): MemberStatus => {
@@ -125,22 +127,25 @@ export async function readCircle(client: PublicClient, circle: Address, opts: Re
   const rd = <T,>(functionName: string, args: readonly unknown[] = []): Promise<T> =>
     client.readContract({ address: circle, abi: huiCircleFullAbi, functionName, args } as never) as Promise<T>;
 
-  const [p, stateIdx, organizer, startTime, pausedTotal, settled, bondRemaining, reserve, totalHoldback] = await Promise.all([
+  const [p, stateIdx, organizer, startTime, pausedTotal, settled, bondDeposited, bondRemaining, reserve, totalHoldback] = await Promise.all([
     rd<RawParams>('params'),
     rd<number>('state'),
     rd<Address>('organizer'),
     rd<bigint>('startTime'),
     rd<bigint>('pausedTotal'),
     rd<number>('settledRounds'),
+    rd<bigint>('bondDeposited'),
     rd<bigint>('bondRemaining'),
     rd<bigint>('reserve'),
     rd<bigint>('totalHoldback'),
   ]);
-  const [coverage, guaranteed, requiredAllowance, lateRateBps, currentRound, phaseIdx, registry, memberAddrs] =
+  const [coverage, guaranteed, requiredAllowance, revealBond, minCoverageBps, lateRateBps, currentRound, phaseIdx, registry, memberAddrs] =
     await Promise.all([
       rd<bigint>('coverageIndexBps'),
       rd<bigint>('guaranteedCoverageBps'),
       rd<bigint>('requiredAllowance'),
+      rd<bigint>('revealBond'),
+      rd<number>('minCoverageBps'),
       rd<number>('lateRateBps'),
       rd<number>('currentRound'),
       rd<number>('phase'),
@@ -175,6 +180,31 @@ export async function readCircle(client: PublicClient, circle: Address, opts: Re
     .sort((a, b) => a.at - b.at);
   const pausedAt = (t: number): number => unpauses.filter((u) => u.at <= t).reduce((_, u) => u.total, 0);
 
+  // Principal covered per source when each round settled; the contract's own `from*` fields shrink on repayment.
+  const SOURCES = ['holdback', 'bond', 'reserve', 'uncovered'] as const;
+  const coveredOf = (round: number, member: Address): ShortfallView['covered'] => {
+    const out = { holdback: 0n, bond: 0n, reserve: 0n, uncovered: 0n };
+    for (const e of events) {
+      if (e.eventName !== 'ShortfallCovered' || Number(e.args.round) !== round) continue;
+      if (String(e.args.member).toLowerCase() !== member.toLowerCase()) continue;
+      const src = SOURCES[Number(e.args.source)];
+      if (src) out[src] += e.args.amount as bigint;
+    }
+    return out;
+  };
+
+  // Deferred payments (`claim()` balances): organizer, members, anybody with a PaymentDeferred, plus the viewer.
+  const claimAddrs = new Map<string, Address>();
+  for (const a of [organizer, ...memberAddrs, ...(opts.viewer ? [opts.viewer] : [])]) claimAddrs.set(a.toLowerCase(), a);
+  for (const e of events) if (e.eventName === 'PaymentDeferred') claimAddrs.set(String(e.args.to).toLowerCase(), e.args.to as Address);
+  const claimable: Record<string, bigint> = {};
+  await Promise.all(
+    [...claimAddrs.entries()].map(async ([key, a]) => {
+      const v = await rd<bigint>('claimable', [a]);
+      if (v > 0n) claimable[key] = v;
+    }),
+  );
+
   const started = state !== 'forming' && state !== 'cancelled';
   const pairs = events
     .filter((e) => e.eventName === 'ContributionShortfall')
@@ -205,6 +235,7 @@ export async function readCircle(client: PublicClient, circle: Address, opts: Re
               fromBond: sf.fromBond,
               fromReserve: sf.fromReserve,
               uncovered: sf.uncovered,
+              covered: coveredOf(k, member),
               since: Number(sf.since),
               resolved: sf.resolved,
               pausedAtSettle: pas,
@@ -264,10 +295,13 @@ export async function readCircle(client: PublicClient, circle: Address, opts: Re
       revealBondBps: p.revealBondBps,
       capBps: p.capBps,
       joinDeadline: Number(p.joinDeadline),
+      commissionShareBps: p.commissionShareBps,
+      termsHash: p.termsHash,
     },
     startTime: started ? Number(startTime) : undefined,
     currentRound,
     settledRounds: settled,
+    bondDeposited,
     bondRemaining,
     reserve,
     totalHoldback,
@@ -276,6 +310,9 @@ export async function readCircle(client: PublicClient, circle: Address, opts: Re
     coverageBps: Number(coverage),
     guaranteedCoverageBps: Number(guaranteed),
     requiredAllowance,
+    revealBond,
+    minCoverageBps: Number(minCoverageBps),
+    claimable,
     ndc19: {
       perRoundVnd,
       organizerActiveCircles: activeCircles,
@@ -303,6 +340,8 @@ interface RawParams {
   capBps: number;
   joinDeadline: bigint;
   label: Hex;
+  commissionShareBps: number;
+  termsHash: Hex;
 }
 interface RawMember {
   joined: boolean;

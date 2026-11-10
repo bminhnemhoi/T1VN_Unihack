@@ -20,13 +20,15 @@ import {
   mockUsdcAbi,
   newSalt,
   postRelay,
-  quoteRepay,
   readCircle,
+  relayPermit,
+  repayPermitQuote,
   requestAttestation,
   saltKey,
   saveSalt,
   signForwardRequest,
   signPermit,
+  signRepayPermit,
   indexedDbSaltStore,
   type CircleView,
   type FetchLike,
@@ -48,6 +50,8 @@ export interface TxContext {
   getAccessToken?: () => Promise<string | null>;
   fetchFn?: FetchLike;
   relayUrl?: string;
+  /** `POST /api/relay/permit` (docs/05 8.2b): lets a member without AVAX raise the allowance `payLate`/`repayDebt` need. */
+  permitUrl?: string;
   attestUrl?: string;
   saltStore?: SaltStore;
   /** Called after a mined success, e.g. to invalidate the read queries. */
@@ -65,6 +69,8 @@ export type TxResult<T extends object = object> = (TxSuccess & T) | TxFailure;
 const GAS = { light: 600_000n, join: 1_000_000n, heavy: 5_000_000n, create: 1_800_000n, repay: 900_000n } as const;
 const REQUEST_TTL_SEC = 600;
 const PERMIT_TTL_SEC = 3600;
+/** Repayment permits go through /api/relay/permit, which accepts at most one hour; leave room for block-time drift. */
+const REPAY_PERMIT_TTL_SEC = 1800;
 
 const fail = (code: string, message: string): TxFailure => ({ ok: false, code, message });
 const defaultFetch: FetchLike = (url, init) => globalThis.fetch(url, init);
@@ -239,7 +245,12 @@ export function depositBond(ctx: TxContext, circle: Address, amount: bigint): Pr
   });
 }
 
-/** Join: attestation from `/api/attest` (needs the user's own 18+ tick) plus a permit of `requiredAllowance`. */
+/**
+ * Join: attestation from `/api/attest` (needs the user's own 18+ tick) plus a permit of EXACTLY `requiredAllowance`.
+ * The circle calls `permit(member, circle, requiredAllowance, ...)` itself, so a permit signed for any other value
+ * (for example 1 C extra, as DE-XUAT-M02 section 6.1 suggested) fails the signature check silently and `join` then
+ * reverts `InsufficientAllowance`. Headroom for late fees is added later by the repay permit instead.
+ */
 export function join(ctx: TxContext, circle: Address, opts: { ageConfirmed: boolean }): Promise<TxResult> {
   return safely(() => joinInner(ctx, circle, opts));
 }
@@ -345,53 +356,101 @@ export function revealBid(ctx: TxContext, circle: Address, round: number): Promi
 
 // ------------------------------------------------------------------------------------------------ Repayment
 
-/** Late fees grow every second; the quote adds the request lifetime so the allowance check is not too tight. */
+/** Late fees grow every second; the quote adds the request lifetime so the permit value is not too tight. */
 const QUOTE_MARGIN_SEC = REQUEST_TTL_SEC;
-
-async function allowanceError(ctx: TxContext, circle: Address, needed: bigint): Promise<TxFailure | undefined> {
-  const allowance = (await ctx.chain.client.readContract({
-    address: ctx.chain.usdc,
-    abi: mockUsdcAbi,
-    functionName: 'allowance',
-    args: [ctx.wallet.address, circle],
-  })) as bigint;
-  if (allowance >= needed) return undefined;
-  return fail(
-    'NeedAllowance',
-    `Cần cho phép trích thêm tiền: khoản trả cần ${formatUsdc(needed)}, hiện chỉ cho phép ${formatUsdc(allowance)}.`,
-  );
-}
 
 async function viewOf(ctx: TxContext, circle: Address): Promise<CircleView> {
   return readCircle(ctx.chain.client, circle, { fromBlock: ctx.chain.fromBlock, factory: ctx.chain.factory, vndPerUsdc: ctx.chain.vndPerUsdc });
 }
 
-/** Pay a late contribution inside the grace period: principal of that round plus late fee, after checking allowance. */
+/**
+ * `payLate`/`repayDebt` pull with `transferFrom`, and a Privy member has no AVAX to approve. When the allowance is
+ * below what the payment AND the remaining contributions need, sign a permit for that total (a permit sets the
+ * allowance, it does not add), have the relayer submit it through `/api/relay/permit` and wait until it is mined,
+ * so the main call's simulation sees the new allowance (docs/05 8.2b). The member never needs `approve`.
+ */
+async function ensureRepayAllowance(
+  ctx: TxContext,
+  circle: Address,
+  view: CircleView,
+  /** Chain time plus the request lifetime: the permit is signed for this (late fees keep growing). */
+  nowWithMargin: number,
+  /** Chain time now: what is needed this very second, so a retry right after a permit does not sign another one. */
+  nowExact: number,
+  opts: { round?: number; principal?: bigint },
+): Promise<TxFailure | undefined> {
+  const readAllowance = async (): Promise<bigint> =>
+    (await ctx.chain.client.readContract({
+      address: ctx.chain.usdc,
+      abi: mockUsdcAbi,
+      functionName: 'allowance',
+      args: [ctx.wallet.address, circle],
+    })) as bigint;
+
+  const needNow = repayPermitQuote(view, ctx.wallet.address, nowExact, opts);
+  if ((await readAllowance()) >= needNow.value) return undefined;
+
+  let signed;
+  try {
+    signed = await signRepayPermit(signCtx(ctx), ctx.chain.usdc, view, nowWithMargin, opts, BigInt((await chainNow(ctx)) + REPAY_PERMIT_TTL_SEC));
+  } catch {
+    return fail('SignRejected', 'Ví không ký được hoặc bạn đã huỷ. Chưa có giao dịch nào được gửi.');
+  }
+  const sent = await relayPermit(ctx.fetchFn ?? defaultFetch, ctx.permitUrl ?? '/api/relay/permit', ctx.wallet.address, circle, signed.permit);
+  let problem: TxFailure | undefined = sent.ok ? undefined : sent;
+  if (sent.ok && sent.txHash) {
+    try {
+      const receipt = await ctx.chain.client.waitForTransactionReceipt({ hash: sent.txHash });
+      if (receipt.status !== 'success') problem = fail('Reverted', 'Việc cấp quyền trích tiền bị từ chối trên mạng.');
+    } catch (e) {
+      problem = fail(decodeError(e).code, 'Đã gửi yêu cầu cấp quyền nhưng chưa xác nhận được. Hãy tải lại trang rồi thử lại.');
+    }
+  }
+  if (!problem) return undefined;
+  // The chain decides, not the transport (audit M-01): somebody may have front-run the very same permit (our
+  // transaction then reverts although the allowance is set), or the relay may have answered late. When the allowance
+  // already covers this payment, go on; otherwise report why the permit failed.
+  try {
+    if ((await readAllowance()) >= needNow.quote.total) return undefined;
+  } catch {
+    /* keep the original problem */
+  }
+  return problem;
+}
+
+/** Pay a late contribution inside the grace period: principal of that round plus late fee. No `approve` needed. */
 export function payLate(ctx: TxContext, circle: Address, round: number): Promise<TxResult> {
   return safely(() => payLateInner(ctx, circle, round));
 }
 
 async function payLateInner(ctx: TxContext, circle: Address, round: number): Promise<TxResult> {
+  const bad = guard(ctx);
+  if (bad) return bad;
   const view = await viewOf(ctx, circle);
-  const quote = quoteRepay(view, ctx.wallet.address, (await chainNow(ctx)) + QUOTE_MARGIN_SEC, { round });
-  if (quote.principal === 0n) return fail('NoShortfall', 'Không có khoản thiếu nào cần xử lý ở kỳ này.');
-  const short = await allowanceError(ctx, circle, quote.total);
+  const nowExact = await chainNow(ctx);
+  const opts = { round };
+  if (repayPermitQuote(view, ctx.wallet.address, nowExact, opts).quote.principal === 0n) {
+    return fail('NoShortfall', 'Không có khoản thiếu nào cần xử lý ở kỳ này.');
+  }
+  const short = await ensureRepayAllowance(ctx, circle, view, nowExact + QUOTE_MARGIN_SEC, nowExact, opts);
   if (short) return short;
   return circleCall(ctx, circle, 'payLate', [round], GAS.repay);
 }
 
-/** Repay `principal` of a defaulted debt (oldest round first), after checking allowance for principal plus fees. */
+/** Repay `principal` of a defaulted debt (oldest round first), principal plus fees. No `approve` needed. */
 export function repayDebt(ctx: TxContext, circle: Address, principal: bigint): Promise<TxResult> {
   return safely(() => repayDebtInner(ctx, circle, principal));
 }
 
 async function repayDebtInner(ctx: TxContext, circle: Address, principal: bigint): Promise<TxResult> {
   if (principal <= 0n) return fail('InvalidAmount', 'Số tiền trả phải lớn hơn 0.');
+  const bad = guard(ctx);
+  if (bad) return bad;
   const view = await viewOf(ctx, circle);
-  const owed = quoteRepay(view, ctx.wallet.address, 0);
+  const owed = repayPermitQuote(view, ctx.wallet.address, 0).quote;
   if (principal > owed.principal) return fail('RepayTooLarge', `Số tiền trả vượt quá khoản còn nợ (${formatUsdc(owed.principal)}).`);
-  const quote = quoteRepay(view, ctx.wallet.address, (await chainNow(ctx)) + QUOTE_MARGIN_SEC, { principal });
-  const short = await allowanceError(ctx, circle, quote.total);
+  const nowExact = await chainNow(ctx);
+  const short = await ensureRepayAllowance(ctx, circle, view, nowExact + QUOTE_MARGIN_SEC, nowExact, { principal });
   if (short) return short;
   return circleCall(ctx, circle, 'repayDebt', [principal], GAS.repay);
 }
