@@ -61,7 +61,7 @@ Cách đọc: "Agent" là việc Claude Code đã làm trong repo và có bằng
 |---|---|---|---|
 | Builder Pass: 3 trên 3 người đủ 5 nhiệm vụ (docs/11 mục 10) | Người (từng người) | CHƯA KIỂM: không có trong repo | [ ] |
 | Danh sách đội: tên đội, tên 3 thành viên và vai (điền vào slide 1 và form) | Người | CHƯA: để trống `[CHƯA CÓ: ...]` trong nháp | [ ] |
-| Thử nghiệm với người dùng thật 15 đến 16/11 (5 đến 10 người, phiếu đồng ý, bảng đo, 3 phát hiện và việc đã sửa) | Người | CHƯA diễn ra: kế hoạch ở docs/11 mục 11. Nháp ghi "chưa đo"; chỉ đưa lên slide số đo thật | [ ] |
+| Thử nghiệm với người dùng thật 15 đến 16/11 (5 đến 10 người, phiếu đồng ý, bảng đo, 3 phát hiện và việc đã sửa) | Người | CHƯA diễn ra: kế hoạch ở docs/11 mục 11. Kịch bản chạy được, phiếu đồng ý, bảng ghi, khảo sát và mẫu ba số ở `docs/pitch/thu-nghiem-nguoi-dung.md`; lịch vận hành và đường dự phòng Demo Day ở `docs/pitch/van-hanh-demo-day.md`. Nháp ghi "chưa đo"; chỉ đưa lên slide số đo thật | [ ] |
 | Đăng ký các buổi Luma (workshop 17/11, office hours 19/11 và 20/11) | Người | CHƯA KIỂM | [ ] |
 | Hỏi BTC thời lượng pitch ở chung kết (chưa công bố, docs/12 mục 2) | Người | CHƯA | [ ] |
 
