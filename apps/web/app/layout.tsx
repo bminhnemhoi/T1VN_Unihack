@@ -55,7 +55,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
   const chain = loadChainConfig();
   return (
     <html lang="vi" className={cn('font-sans', sans.variable, display.variable, hand.variable)}>
-      <body className="min-h-screen bg-background pb-16 text-foreground antialiased md:pb-0">
+      <body className="min-h-screen bg-background pb-16 text-foreground antialiased lg:pb-0">
         <a
           href="#noi-dung"
           className="sr-only focus-visible:not-sr-only focus-visible:fixed focus-visible:top-2 focus-visible:left-2 focus-visible:z-50 focus-visible:rounded-full focus-visible:bg-foreground focus-visible:px-5 focus-visible:py-3 focus-visible:font-semibold focus-visible:text-background"
