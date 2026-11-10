@@ -44,7 +44,14 @@ FUNCTIONS: dict[str, tuple[Callable[..., int], tuple[str, ...]]] = {
         ("amount", "lateRateBps", "elapsedSec", "periodSec", "roundDuration"),
     ),
     "bpsOf": (hm.bps_of, ("amount", "bps")),
+    # v1.2 (A13). Their cases are drawn from a separate random stream so the older vectors keep their numbers.
+    "bidCapAfterShare": (hm.bid_cap_after_share, ("statutoryMaxBid", "shareBps")),
+    "commissionRoom": (hm.commission_room, ("statutoryMaxBid", "payers")),
+    "commission": (hm.commission, ("pot", "feeBps", "shareBps", "room")),
+    "reserveShare": (hm.reserve_share, ("total", "weight", "weightSum")),
+    "onTimeWeight": (hm.on_time_weight, ("n", "lateCount", "defaulted")),
 }
+V12_FUNCTIONS = ("bidCapAfterShare", "commissionRoom", "commission", "reserveShare", "onTimeWeight")
 
 # Number of cases per function; the total with commitHash is 2000 (docs/09 section 6).
 TARGETS: dict[str, int] = {
@@ -56,6 +63,11 @@ TARGETS: dict[str, int] = {
     "maxBid": 400,
     "lateFee": 300,
     "bpsOf": 150,
+    "bidCapAfterShare": 120,
+    "commissionRoom": 80,
+    "commission": 200,
+    "reserveShare": 150,
+    "onTimeWeight": 80,
 }
 COMMIT_HASH_TARGET = 100
 
@@ -134,6 +146,38 @@ def _s_bps_of(rng: np.random.Generator) -> Case:
     return {"amount": _ri(rng, 0, 30 * C_MAX), "bps": _ri(rng, 0, 10_000)}
 
 
+def _s_bid_cap(rng: np.random.Generator) -> Case:
+    return {"statutoryMaxBid": _ri(rng, 0, C_MAX - 1), "shareBps": _ri(rng, 0, 5000)}
+
+
+def _s_room(rng: np.random.Generator) -> Case:
+    return {"statutoryMaxBid": _ri(rng, 0, C_MAX - 1), "payers": _ri(rng, 0, 29)}
+
+
+def _s_commission(rng: np.random.Generator) -> Case:
+    payers = _ri(rng, 0, 29)
+    return {
+        "pot": _ri(rng, 0, 30 * C_MAX),
+        "feeBps": _ri(rng, 0, 300),
+        "shareBps": 0 if rng.integers(0, 4) == 0 else _ri(rng, 1, 5000),
+        "room": hm.commission_room(_ri(rng, 0, C_MAX - 1), payers),
+    }
+
+
+def _s_reserve_share(rng: np.random.Generator) -> Case:
+    weight_sum = _ri(rng, 1, 30 * 29)
+    return {
+        "total": _ri(rng, 0, 30 * C_MAX),
+        "weight": _ri(rng, 0, min(29, weight_sum)),
+        "weightSum": weight_sum,
+    }
+
+
+def _s_on_time_weight(rng: np.random.Generator) -> Case:
+    n = _ri(rng, 3, 30)
+    return {"n": n, "lateCount": _ri(rng, 0, n + 2), "defaulted": _ri(rng, 0, 1)}
+
+
 SAMPLERS: dict[str, Sampler] = {
     "exposure": _s_exposure,
     "maxExposure": _s_max_exposure,
@@ -143,6 +187,11 @@ SAMPLERS: dict[str, Sampler] = {
     "maxBid": _s_max_bid,
     "lateFee": _s_late_fee,
     "bpsOf": _s_bps_of,
+    "bidCapAfterShare": _s_bid_cap,
+    "commissionRoom": _s_room,
+    "commission": _s_commission,
+    "reserveShare": _s_reserve_share,
+    "onTimeWeight": _s_on_time_weight,
 }
 
 
@@ -224,6 +273,37 @@ def _edges() -> dict[str, list[Case]]:
         (30 * C_MAX, 10_000),
     ):
         edges["bpsOf"].append({"amount": amount, "bps": bps})
+    # v1.2: the table of docs/03 section 8.1 (phi = 50%, feeBps = 300) and the vector V1 (reserve split)
+    for stat in (6_575_342, 4_931_506, 3_287_671, 1_643_835, 0):
+        edges["bidCapAfterShare"].append({"statutoryMaxBid": stat, "shareBps": 5000})
+    edges["bidCapAfterShare"] += [
+        {"statutoryMaxBid": 6_575_342, "shareBps": 0},
+        {"statutoryMaxBid": C_MAX - 1, "shareBps": 5000},
+    ]
+    for stat, payers in ((6_575_342, 4), (4_931_506, 3), (3_287_671, 2), (1_643_835, 1), (1_643_835, 0)):
+        edges["commissionRoom"].append({"statutoryMaxBid": stat, "payers": payers})
+    edges["commission"] += [
+        {"pot": 388 * hm.USDC, "feeBps": 300, "shareBps": 5000, "room": 26_301_368},
+        {"pot": 392_800_000, "feeBps": 300, "shareBps": 5000, "room": 14_794_518},
+        {"pot": 376 * hm.USDC, "feeBps": 100, "shareBps": 0, "room": 0},
+        {"pot": 376 * hm.USDC, "feeBps": 100, "shareBps": 0, "room": 26_301_368},
+        {"pot": 400 * hm.USDC, "feeBps": 300, "shareBps": 5000, "room": 0},
+        {"pot": 0, "feeBps": 300, "shareBps": 5000, "room": 26_301_368},
+        {"pot": 30 * C_MAX, "feeBps": 300, "shareBps": 5000, "room": 29 * (C_MAX - 1)},
+    ]
+    for weight in (4, 3, 0):
+        edges["reserveShare"].append({"total": 19_697_396, "weight": weight, "weightSum": 19})
+    edges["reserveShare"] += [
+        {"total": 0, "weight": 1, "weightSum": 1},
+        {"total": 1, "weight": 1, "weightSum": 2},
+    ]
+    for late in (0, 1, 3, 4, 5, 6):
+        edges["onTimeWeight"].append({"n": 5, "lateCount": late, "defaulted": 0})
+    edges["onTimeWeight"] += [
+        {"n": 5, "lateCount": 0, "defaulted": 1},
+        {"n": 30, "lateCount": 0, "defaulted": 0},
+        {"n": 3, "lateCount": 2, "defaulted": 0},
+    ]
     return edges
 
 
@@ -287,11 +367,15 @@ def _commit_cases(rng: np.random.Generator) -> list[dict[str, Any]]:
 def generate_vectors(seed: int) -> dict[str, Any]:
     """Build the whole vector document for ``seed`` (deterministic)."""
     rng = np.random.default_rng(seed)
+    rng_v12 = np.random.default_rng([seed, 12])
+    legacy = {name: _function_cases(name, rng) for name in FUNCTIONS if name not in V12_FUNCTIONS}
+    commit = _commit_cases(rng)
+    v12 = {name: _function_cases(name, rng_v12) for name in V12_FUNCTIONS}
     return {
         "version": VECTOR_VERSION,
         "seed": seed,
-        "functions": {name: _function_cases(name, rng) for name in FUNCTIONS},
-        "commitHash": _commit_cases(rng),
+        "functions": {**legacy, **v12},
+        "commitHash": commit,
     }
 
 

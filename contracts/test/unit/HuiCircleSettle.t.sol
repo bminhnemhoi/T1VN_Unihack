@@ -189,7 +189,8 @@ contract HuiCircleSettleTest is CircleFixture {
         assertEq(ri.commitCount, 2);
         assertTrue(ri.settled);
         assertEq(c.reserve(), 3_760_000);
-        assertEq(c.feeEscrow(1), 3_760_000);
+        assertEq(c.feeEscrow(1), 0, "round 1 had no shortfall: the fee went to the organizer at once");
+        assertEq(usdc.balanceOf(organizer), 3_760_000);
         assertEq(c.totalHoldback(), 80 * U);
         assertEq(c.settledRounds(), 1);
         assertEq(c.liveCount(), 4);

@@ -80,9 +80,10 @@ contract HuiCircleFinalizeTest is CircleScenario {
         assertEq(fromBond, 320 * U);
         assertEq(c.memberInfo(_M(4)).debt, 400 * U);
         assertEq(c.roundInfo(3).uncovered + c.roundInfo(4).uncovered + c.roundInfo(5).uncovered, 0);
-        // Fee escrow: round 2 forfeited at markDefault, the other four kept.
+        // Fee escrow: round 2 forfeited at markDefault; round 1 had no shortfall and was paid to the organizer at once;
+        // rounds 3-5 (M4's shortfalls) are still in escrow.
         assertTrue(c.roundInfo(2).feeForfeited);
-        assertEq(c.totalFeeEscrow(), 3_760_000 + 4 * U + 4 * U + 4 * U);
+        assertEq(c.totalFeeEscrow(), 4 * U + 4 * U + 4 * U);
         // Reserve: premiums 3.76 + 3.91 + 3 x 4, plus the forfeited 3.91 fee.
         assertEq(c.reserve(), 23_580_000);
         assertEq(c.totalHoldback(), 0, "every holdback was released round by round");
@@ -97,14 +98,14 @@ contract HuiCircleFinalizeTest is CircleScenario {
         vm.warp(_graceEnd(5) + 1); // the grace of round 5 ends 120 s after its settlement
         vm.recordLogs();
         vm.expectEmit(false, false, false, true, address(c));
-        emit IHuiCircle.CircleFinalized(160 * U, 15_760_000, 23_580_000);
+        emit IHuiCircle.CircleFinalized(160 * U, 12 * U, 23_580_000);
         vm.prank(stranger); // anyone
         c.finalize();
         Vm.Log[] memory logs = vm.getRecordedLogs();
         assertEq(_count(logs, IHuiCircle.HoldbackReleased.selector), 0, "no holdback left to pay at the end");
 
         assertEq(uint8(c.state()), uint8(CircleState.Completed));
-        assertEq(usdc.balanceOf(organizer) - orgBefore, 160 * U + 15_760_000, "bond 160 + fees of 4 rounds");
+        assertEq(usdc.balanceOf(organizer) - orgBefore, 160 * U + 12 * U, "bond 160 + escrowed fees of rounds 3-5");
         for (uint256 i = 1; i <= 5; i++) {
             uint256 got = usdc.balanceOf(_M(i)) - before[i - 1];
             // reserve 23.58 shared among M1, M2, M3, M5 (not the defaulted M4): 5.895 each, no dust
@@ -135,7 +136,7 @@ contract HuiCircleFinalizeTest is CircleScenario {
         assertEq(c.bondRemaining(), 480 * U, "payLate refilled the bond");
         assertEq(c.totalHoldback(), 0);
         assertEq(c.reserve(), 3_760_000 + 3_910_000 + 27_396 + 3 * 4 * U, "premiums + late fee");
-        assertEq(c.totalFeeEscrow(), 3_760_000 + 3_910_000 + 3 * 4 * U, "no fee forfeited");
+        assertEq(c.totalFeeEscrow(), 3_910_000, "no fee forfeited; only round 2 (shortfall) waits in escrow");
 
         uint256 orgBefore = usdc.balanceOf(organizer);
         uint256[5] memory before;
@@ -145,15 +146,17 @@ contract HuiCircleFinalizeTest is CircleScenario {
         vm.warp(_graceEnd(5) + 1);
         vm.recordLogs();
         vm.expectEmit(false, false, false, true, address(c));
-        emit IHuiCircle.CircleFinalized(480 * U, 19_670_000, 19_697_396);
+        emit IHuiCircle.CircleFinalized(480 * U, 3_910_000, 19_697_396);
         c.finalize();
         Vm.Log[] memory logs = vm.getRecordedLogs();
         assertEq(_count(logs, IHuiCircle.HoldbackReleased.selector), 0, "finalize pays 0 holdback");
 
-        assertEq(usdc.balanceOf(organizer) - orgBefore, 480 * U + 19_670_000);
-        // 19_697_396 / 5 = 3_939_479 remainder 1: the dust goes to M1 (smallest joinIndex).
+        assertEq(usdc.balanceOf(organizer) - orgBefore, 480 * U + 3_910_000);
+        // ADR-24, vector V1: weights 4, 4, 4, 3 (M4 paid late once), 4 over 19: floor shares sum to 19_697_395,
+        // the one unit of dust goes to M1 (smallest joinIndex with a positive weight).
+        uint256[5] memory v1 = [uint256(4_146_821), 4_146_820, 4_146_820, 3_110_115, 4_146_820];
         for (uint256 i = 1; i <= 5; i++) {
-            assertEq(usdc.balanceOf(_M(i)) - before[i - 1], i == 1 ? 3_939_480 : 3_939_479, "equal shares + dust");
+            assertEq(usdc.balanceOf(_M(i)) - before[i - 1], v1[i - 1], "reserve split by on-time weight");
             assertEq(rep.reputationOf(_M(i)).completed, 1);
         }
         assertEq(rep.reputationOf(_M(4)).defaults, 0);
@@ -285,15 +288,15 @@ contract HuiCircleFinalizeTest is CircleScenario {
         emit IHuiCircle.FeeForfeited(5, 4 * U);
         vm.expectEmit(true, true, false, true, address(c));
         emit IHuiCircle.MemberDefaulted(_M(3), 5, false);
-        // bond 400 back; fees of rounds 1-4 (4 x 4); reserve = 5 premiums (20) + forfeited fee (4) = 24
+        // bond 400 back; the fees of rounds 1-4 were paid at settlement (no shortfall); reserve = 5 premiums (20) + forfeited fee (4) = 24
         vm.expectEmit(false, false, false, true, address(c));
-        emit IHuiCircle.CircleFinalized(400 * U, 16 * U, 24 * U);
+        emit IHuiCircle.CircleFinalized(400 * U, 0, 24 * U);
         c.finalize();
 
         assertTrue(c.memberInfo(_M(3)).defaulted);
         assertEq(rep.reputationOf(_M(3)).defaults, 1);
         assertEq(rep.reputationOf(_M(3)).completed, 0);
-        assertEq(usdc.balanceOf(organizer) - orgBefore, 416 * U);
+        assertEq(usdc.balanceOf(organizer) - orgBefore, 400 * U);
         assertEq(
             c.memberInfo(_M(3)).debt, 80 * U, "100 minus the 20 its own holdback paid (H-01); the rest stays public"
         );
@@ -326,40 +329,40 @@ contract HuiCircleFinalizeTest is CircleScenario {
         usdc.setBlacklisted(organizer, true);
         usdc.setBlacklisted(_M(1), true);
         usdc.setBlacklisted(_M(3), true);
-        // reserve = 5 x 4 = 20 -> 4 each; fees 20 + bond 480 to the organizer
+        // reserve = 5 x 4 = 20 -> 4 each; the bond 480 to the organizer (fees were paid at settlement)
         vm.expectEmit(true, false, false, true, address(c));
-        emit IHuiCircle.PaymentDeferred(organizer, 500 * U);
+        emit IHuiCircle.PaymentDeferred(organizer, 480 * U);
         vm.expectEmit(true, false, false, true, address(c));
         emit IHuiCircle.PaymentDeferred(_M(1), 4 * U);
         c.finalize();
 
         assertEq(uint8(c.state()), uint8(CircleState.Completed), "one blocked address cannot block the others");
-        assertEq(c.claimable(organizer), 500 * U);
+        assertEq(c.claimable(organizer), 480 * U);
         assertEq(c.claimable(_M(1)), 4 * U);
         assertEq(c.claimable(_M(3)), 4 * U);
-        assertEq(c.totalClaimable(), 508 * U);
-        assertEq(usdc.balanceOf(address(c)), 508 * U, "contract holds exactly what is claimable");
+        assertEq(c.totalClaimable(), 488 * U);
+        assertEq(usdc.balanceOf(address(c)), 488 * U, "contract holds exactly what is claimable");
         _assertLedger();
 
         // still blocked: claim reverts and keeps the entitlement
         vm.prank(organizer);
         vm.expectPartialRevert(MockUSDC.Blacklisted.selector);
         c.claim();
-        assertEq(c.claimable(organizer), 500 * U);
+        assertEq(c.claimable(organizer), 480 * U);
 
         usdc.setBlacklisted(organizer, false);
         usdc.setBlacklisted(_M(1), false);
         usdc.setBlacklisted(_M(3), false);
         uint256 orgBefore = usdc.balanceOf(organizer);
         vm.expectEmit(true, false, false, true, address(c));
-        emit IHuiCircle.Claimed(organizer, 500 * U);
+        emit IHuiCircle.Claimed(organizer, 480 * U);
         vm.prank(organizer);
         c.claim();
         vm.prank(_M(1));
         c.claim();
         vm.prank(_M(3));
         c.claim();
-        assertEq(usdc.balanceOf(organizer) - orgBefore, 500 * U);
+        assertEq(usdc.balanceOf(organizer) - orgBefore, 480 * U);
         assertEq(usdc.balanceOf(address(c)), 0);
         assertEq(c.totalClaimable(), 0);
         vm.prank(_M(1));
@@ -369,15 +372,52 @@ contract HuiCircleFinalizeTest is CircleScenario {
     }
 
     function test_Finalize_ReserveDustGoesToSmallestJoinIndex_EvenWhenItIsBlocked() public {
-        // Branch A leaves 19_697_396 in the reserve: 5 shares of 3_939_479 and dust 1.
+        // Branch A leaves 19_697_396 in the reserve: by on-time weight (V1) M1 gets 4_146_820 and the dust of 1.
         _branchA();
         vm.warp(_graceEnd(5) + 1);
         usdc.setBlacklisted(_M(1), true);
         vm.expectEmit(true, false, false, true, address(c));
-        emit IHuiCircle.PaymentDeferred(_M(1), 3_939_480);
+        emit IHuiCircle.PaymentDeferred(_M(1), 4_146_821);
         c.finalize();
-        assertEq(c.claimable(_M(1)), 3_939_480, "share + dust deferred, not lost");
+        assertEq(c.claimable(_M(1)), 4_146_821, "share + dust deferred, not lost");
         _assertLedger();
+    }
+
+    /// @dev Audit L-03: every non-defaulted member was late N - 1 times, so every weight is 0 and the reserve is split
+    /// equally; `ReserveShared` reports weight 0 for them.
+    function test_Finalize_AllWeightsZero_SplitsEquallyAmongNonDefaulted() public {
+        _settleRounds(1, 5);
+        for (uint256 i = 1; i <= 5; i++) {
+            c.exposed_setLateCount(_M(i), 4);
+        }
+        vm.warp(_graceEnd(5) + 1);
+        uint256[5] memory before;
+        for (uint256 i = 1; i <= 5; i++) {
+            before[i - 1] = usdc.balanceOf(_M(i));
+        }
+        vm.expectEmit(true, false, false, true, address(c));
+        emit IHuiCircle.ReserveShared(_M(1), 4 * U, 0);
+        c.finalize();
+        for (uint256 i = 1; i <= 5; i++) {
+            assertEq(usdc.balanceOf(_M(i)) - before[i - 1], 4 * U, "equal share (reserve 20 / 5)");
+        }
+        _assertConserved();
+    }
+
+    /// @dev Audit I-03: the dust of the split goes to the smallest `joinIndex` that has a positive weight, not to a
+    /// first member whose weight is 0.
+    function test_Finalize_DustSkipsZeroWeightFirstMember() public {
+        _settleRounds(1, 5);
+        c.exposed_setLateCount(_M(1), 4); // weight 0
+        usdc.mint(address(c), 1);
+        c.exposed_setReserve(c.reserve() + 1); // 20_000_001: floor shares leave 1 unit of dust
+        vm.warp(_graceEnd(5) + 1);
+        uint256 m1 = usdc.balanceOf(_M(1));
+        uint256 m2 = usdc.balanceOf(_M(2));
+        c.finalize();
+        assertEq(usdc.balanceOf(_M(1)) - m1, 0, "weight 0: no share and no dust");
+        assertEq(usdc.balanceOf(_M(2)) - m2, 5 * U + 1, "M2 is the first member with a positive weight");
+        assertEq(rep.reputationOf(_M(1)).completed, 1, "completion is still recorded for a member with weight 0");
     }
 
     function test_Finalize_EveryMemberDefaulted_ReserveGoesToTheOrganizer() public {
@@ -388,9 +428,11 @@ contract HuiCircleFinalizeTest is CircleScenario {
         vm.warp(_graceEnd(5) + 1);
         uint256 orgBefore = usdc.balanceOf(organizer);
         vm.expectEmit(false, false, false, true, address(c));
-        emit IHuiCircle.CircleFinalized(480 * U, 20 * U, 20 * U);
+        emit IHuiCircle.CircleFinalized(480 * U, 0, 20 * U);
         c.finalize();
-        assertEq(usdc.balanceOf(organizer) - orgBefore, 480 * U + 20 * U + 20 * U, "bond + fees + reserve");
+        assertEq(
+            usdc.balanceOf(organizer) - orgBefore, 480 * U + 20 * U, "bond + reserve (fees were paid at settlement)"
+        );
         for (uint256 i = 1; i <= 5; i++) {
             assertEq(rep.reputationOf(_M(i)).completed, 0);
         }
@@ -481,7 +523,7 @@ contract HuiCircleFinalizeTest is CircleScenario {
         vm.expectEmit(true, true, false, true, address(c));
         emit IHuiCircle.HoldbackReleased(_M(1), 5, 392 * U - 90 * U - fee);
         vm.expectEmit(false, false, false, true, address(c));
-        emit IHuiCircle.CircleFinalized(40 * U, 20 * U, reserveTotal);
+        emit IHuiCircle.CircleFinalized(40 * U, 0, reserveTotal);
         c.finalize();
 
         assertEq(usdc.balanceOf(_M(1)) - m1Before, 392 * U - 90 * U - fee, "rest of its holdback");
@@ -490,7 +532,7 @@ contract HuiCircleFinalizeTest is CircleScenario {
             30 * U + share + dust,
             "M2 is made whole first (uncovered), then shares the reserve and takes the dust"
         );
-        assertEq(usdc.balanceOf(organizer) - orgBefore, 40 * U + 20 * U, "restored bond + fees");
+        assertEq(usdc.balanceOf(organizer) - orgBefore, 40 * U, "restored bond (fees were paid at settlement)");
         assertEq(c.memberInfo(_M(1)).debt, 0);
         assertTrue(c.shortfallOf(2, _M(1)).resolved);
         assertEq(rep.reputationOf(_M(1)).completed, 0);

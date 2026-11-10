@@ -63,7 +63,9 @@ abstract contract CircleFixture is BaseTest {
             capBps: 2000,
             joinDeadline: uint64(block.timestamp + JOIN_WINDOW),
             organizerIsMember: false,
-            label: bytes32("demo")
+            label: bytes32("demo"),
+            commissionShareBps: 0,
+            termsHash: keccak256("huisafe-test-terms")
         });
     }
 

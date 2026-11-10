@@ -66,7 +66,9 @@ contract ReputationRegistryTest is BaseTest {
             capBps: 2000,
             joinDeadline: uint64(block.timestamp + 7 days),
             organizerIsMember: false,
-            label: bytes32("rep")
+            label: bytes32("rep"),
+            commissionShareBps: 0,
+            termsHash: keccak256("huisafe-test-terms")
         });
     }
 

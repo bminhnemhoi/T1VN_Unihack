@@ -108,3 +108,51 @@ def bps_of(amount: int, bps: int) -> int:
     """amount * bps / 10_000, rounded down."""
     _u(amount), _u(bps)
     return _u(amount * bps) // BPS
+
+
+# --- v1.2 (A13): commission inside the interest cap, reserve split by on-time weight ---------
+
+
+def bid_cap_after_share(statutory_max_bid: int, share_bps: int) -> int:
+    """Enforced bid ceiling: floor(statutoryMaxBid * (10_000 - shareBps) / 10_000) (docs/03 section 2.7)."""
+    _u(statutory_max_bid), _u(share_bps)
+    if share_bps > BPS:
+        raise ValueError("share_bps > 10_000")
+    return _u(statutory_max_bid * (BPS - share_bps)) // BPS
+
+
+def commission_room(statutory_max_bid: int, payers: int) -> int:
+    """room_k = statutoryMaxBid * payers: the interest the law allows the winner to pay (exact)."""
+    _u(statutory_max_bid), _u(payers)
+    return _u(statutory_max_bid * payers)
+
+
+def commission(pot: int, fee_bps: int, share_bps: int, room: int) -> int:
+    """Organizer fee of one round (docs/03 sections 2.6, 2.7).
+
+    ``share_bps == 0``: floor(pot * feeBps / 10_000). Otherwise
+    min(floor(room * shareBps / 10_000), floor(pot * feeBps / 10_000)).
+    """
+    _u(pot), _u(fee_bps), _u(share_bps), _u(room)
+    capped = _u(pot * fee_bps) // BPS
+    if share_bps == 0:
+        return capped
+    return min(_u(room * share_bps) // BPS, capped)
+
+
+def reserve_share(total: int, weight: int, weight_sum: int) -> int:
+    """floor(total * weight / weightSum) (docs/03 section 5.3 step 5). weight_sum must be positive."""
+    _u(total), _u(weight), _u(weight_sum)
+    if weight_sum == 0:
+        raise ValueError("weight_sum is zero")
+    return _u(total * weight) // weight_sum
+
+
+def on_time_weight(n: int, late_count: int, defaulted: int) -> int:
+    """ADR-24 weight: 0 if defaulted (1), else max(0, (n - 1) - lateCount)."""
+    _u(n), _u(late_count), _u(defaulted)
+    if n == 0:
+        raise ValueError("n is zero")
+    if defaulted != 0 or late_count >= n - 1:
+        return 0
+    return (n - 1) - late_count

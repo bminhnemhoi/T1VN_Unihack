@@ -48,6 +48,11 @@ const impls: Record<string, { params: string[]; fn: (...a: bigint[]) => bigint }
     fn: m.lateFee,
   },
   bpsOf: { params: ['amount', 'bps'], fn: m.bpsOf },
+  bidCapAfterShare: { params: ['statutoryMaxBid', 'shareBps'], fn: m.bidCapAfterShare },
+  commissionRoom: { params: ['statutoryMaxBid', 'payers'], fn: m.commissionRoom },
+  commission: { params: ['pot', 'feeBps', 'shareBps', 'room'], fn: m.commission },
+  reserveShare: { params: ['total', 'weight', 'weightSum'], fn: m.reserveShare },
+  onTimeWeight: { params: ['n', 'lateCount', 'defaulted'], fn: m.onTimeWeight },
 };
 
 describe('huiMath vs shared vectors (contracts/test/vectors/huimath.json)', () => {
@@ -156,6 +161,30 @@ describe('docs/03 section 8 worked example', () => {
     const fee2 = m.bpsOf(pot2, 100n);
     const h2 = m.holdbackFor(2000n, N, 2n, c);
     expect(pot2 - 2n * fee2 - h2).toBe(usdc(32.318));
+  });
+});
+
+describe('docs/03 section 8.1 commission inside the interest cap (phi = 50%)', () => {
+  const usdc = (x: number): bigint => BigInt(Math.round(x * 1_000_000));
+  it('bid cap, room and fee per round', () => {
+    expect(m.bidCapAfterShare(6_575_342n, 5000n)).toBe(3_287_671n);
+    expect(m.bidCapAfterShare(3_287_671n, 5000n)).toBe(1_643_835n);
+    expect(m.commissionRoom(6_575_342n, 4n)).toBe(26_301_368n);
+    expect(m.commission(usdc(388), 300n, 5000n, 26_301_368n)).toBe(11_640_000n);
+    expect(m.commission(392_800_000n, 300n, 5000n, 14_794_518n)).toBe(7_397_259n);
+    expect(m.commission(usdc(376), 100n, 0n, 0n)).toBe(3_760_000n);
+    expect(m.commission(usdc(400), 300n, 5000n, 0n)).toBe(0n);
+  });
+
+  it('vector V1: reserve split by on-time weight', () => {
+    const r = 19_697_396n;
+    expect(m.reserveShare(r, 4n, 19n)).toBe(4_146_820n);
+    expect(m.reserveShare(r, 3n, 19n)).toBe(3_110_115n);
+    expect(4n * m.reserveShare(r, 4n, 19n) + m.reserveShare(r, 3n, 19n)).toBe(r - 1n);
+    expect(m.onTimeWeight(5n, 0n, false)).toBe(4n);
+    expect(m.onTimeWeight(5n, 1n, false)).toBe(3n);
+    expect(m.onTimeWeight(5n, 6n, false)).toBe(0n);
+    expect(m.onTimeWeight(5n, 0n, true)).toBe(0n);
   });
 });
 

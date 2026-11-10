@@ -14,3 +14,4 @@ export * from './reputation';
 export * from './standing';
 export * from './saltBackup';
 export * from './relayClient';
+export * from './terms';

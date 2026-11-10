@@ -117,6 +117,24 @@ contract Handler is Test {
     /// payers L_k locked at the first commit of a round, when the current pause began, and for each settled round the
     /// time and the `pausedTotal` at the moment it was settled.
     mapping(uint32 => uint256) internal _payersSnap;
+
+    // ---- v1.2 (A13): INV-11 (commission inside the interest room), INV-12 (reserve split), INV-13 (fee timing)
+    /// @dev L_k the Handler derives on its own right before each settlement (first-commit snapshot or live - 1).
+    mapping(uint32 => uint256) public ghostPayersAtSettle;
+    /// @dev room_k = statutory maxBid(k) * L_k, from `HuiMath` and the Handler's own L_k.
+    mapping(uint32 => uint256) public ghostRoomAtSettle;
+    /// @dev Number of `ContributionShortfall` events of the settlement transaction of round k.
+    mapping(uint32 => uint256) public ghostShortfallsAtSettle;
+    /// @dev Amount of the `FeePaid` event of round k (0 if none).
+    mapping(uint32 => uint256) public ghostFeePaidAtSettle;
+    uint256 public ghostFeePaidTotal;
+    /// @dev `CircleFinalized` data and `ReserveShared` events of the one `finalize` call that succeeded.
+    uint256 public ghostFinalizeFees;
+    uint256 public ghostReserveDistributed;
+    uint256 public ghostReserveSharedSum;
+    uint256 public ghostReserveSharedCount;
+    mapping(address => uint256) public ghostReserveShare;
+    mapping(address => uint16) public ghostReserveWeight;
     uint256 public ghostPauseStart;
     mapping(uint32 => uint256) public ghostSettledAt;
     mapping(uint32 => uint256) public ghostPausedTotalAtSettle;
@@ -222,14 +240,22 @@ contract Handler is Test {
     /// @dev INV-03 bound computed with `HuiMath.maxBid` and the Handler's own L_k: the payers snapshot taken at the
     /// first successful commit of round `k` (docs/03 section 6.3), or the live members minus one before any commit.
     /// Never reads `circle.maxBid`.
-    function _maxBid(uint32 k) internal view returns (uint256) {
-        uint256 payers = _payersSnap[k];
+    function _payersNow(uint32 k) internal view returns (uint256 payers) {
+        payers = _payersSnap[k];
         if (payers == 0) {
             uint256 live = _liveNow();
             payers = live > 0 ? live - 1 : 0;
         }
+    }
+
+    function _statutory(uint32 k, uint256 payers) internal view returns (uint256) {
         CircleParams memory p = circle.params();
         return HuiMath.maxBid(p.capBps, N, k, C, p.periodSeconds, payers);
+    }
+
+    /// @dev With phi > 0 the enforced cap is the statutory one minus the organizer's share (docs/03 section 2.7).
+    function _maxBid(uint32 k) internal view returns (uint256) {
+        return HuiMath.bidCapAfterShare(_statutory(k, _payersNow(k)), circle.params().commissionShareBps);
     }
 
     /// @notice The INV-03 bound the Handler computes on its own (payers snapshot of the first commit, else live - 1);
@@ -485,6 +511,8 @@ contract Handler is Test {
         uint256 dl = circle.deadline(k);
         bool already = circle.roundInfo(k).settled;
         uint256 maxB = _maxBid(k);
+        uint256 payersK = _payersNow(k);
+        uint256 roomK = HuiMath.commissionRoom(_statutory(k, payersK), payersK);
         // Liveness (M-01): Active, round k - 1 settled (`currentRound`), round k open and its deadline reached.
         bool due = _is(CircleState.Active) && !already && _now() >= dl && (k == 1 || circle.roundInfo(k - 1).settled);
         Snap memory pre = _snap();
@@ -516,6 +544,8 @@ contract Handler is Test {
         ghostWins[ri.winner] += 1;
         ghostPaidOut += ri.payout;
         ghostMaxBidAtSettle[k] = maxB;
+        ghostPayersAtSettle[k] = payersK;
+        ghostRoomAtSettle[k] = roomK;
         ghostFullH[ri.winner] = ri.holdback == HuiMath.holdbackFor(circle.params().alphaBps, N, k, C);
         ghostWinnerOf[k] = ri.winner;
         if (circle.params().mode == CircleMode.Fixed) _checkFixedOrder(k, ri, pre);
@@ -579,6 +609,11 @@ contract Handler is Test {
                 else covered += amount;
             } else if (t == IHuiCircle.ContributionShortfall.selector) {
                 ghostAnyShortfall = true;
+                ghostShortfallsAtSettle[k] += 1;
+            } else if (t == IHuiCircle.FeePaid.selector) {
+                uint256 amount = abi.decode(logs[i].data, (uint256));
+                ghostFeePaidAtSettle[k] += amount;
+                ghostFeePaidTotal += amount;
             }
         }
         ghostRepaidAtSettle[k] = repaid;
@@ -658,6 +693,26 @@ contract Handler is Test {
         return ghostSettledAt[n] + circle.params().graceSeconds + (circle.pausedTotal() - ghostPausedTotalAtSettle[n]);
     }
 
+    /// @dev `CircleFinalized` (fees paid from escrow, reserve distributed) and the `ReserveShared` events (ADR-24).
+    function _parseFinalize(Vm.Log[] memory logs) internal {
+        for (uint256 i = 0; i < logs.length; i++) {
+            if (logs[i].emitter != address(circle) || logs[i].topics.length == 0) continue;
+            bytes32 t = logs[i].topics[0];
+            if (t == IHuiCircle.CircleFinalized.selector) {
+                (, uint256 fees, uint256 distributed) = abi.decode(logs[i].data, (uint256, uint256, uint256));
+                ghostFinalizeFees = fees;
+                ghostReserveDistributed = distributed;
+            } else if (t == IHuiCircle.ReserveShared.selector) {
+                address m = address(uint160(uint256(logs[i].topics[1])));
+                (uint256 amount, uint16 weight) = abi.decode(logs[i].data, (uint256, uint16));
+                ghostReserveShare[m] += amount;
+                ghostReserveWeight[m] = weight;
+                ghostReserveSharedSum += amount;
+                ghostReserveSharedCount += 1;
+            }
+        }
+    }
+
     function _tryFinalize() internal {
         bool wasPaused = _is(CircleState.Paused);
         // Liveness (M-01): Active, all N rounds settled and strictly past the grace period of round N: docs/03
@@ -665,9 +720,11 @@ contract Handler is Test {
         uint256 graceEnd = _graceEndOfLast();
         bool due = _is(CircleState.Active) && circle.settledRounds() == N && graceEnd != 0 && _now() > graceEnd;
         uint256 mark = usdc.recordCount();
+        vm.recordLogs();
         try circle.finalize() {
             ghostFinalized = true;
             if (wasPaused) ghostPausedBreach += 1;
+            _parseFinalize(vm.getRecordedLogs());
         } catch (bytes memory reason) {
             if (due) {
                 if (ghostStuckFinalize == 0) ghostStuckFinalizeSelector = _firstSelector(reason);

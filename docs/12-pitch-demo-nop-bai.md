@@ -99,7 +99,7 @@ flowchart LR
 2. **"Demo Sống"**: 5/5 người, ký quỹ 480, chưa bắt đầu; `joinDeadline` đặt +24 giờ vì mặc định demo chỉ +30 phút. Thêm 2 bản dự phòng.
 3. **"Demo Mời"**: 4/5 người, để người thứ 5 vào live.
 4. Thiết bị: Laptop A chiếu (chủ hụi, thêm cửa sổ ẩn danh); Điện thoại B là M4, phản chiếu màn hình; Laptop C là M2, P1 cầm, không chiếu.
-5. `/demo-check`: RPC chính và dự phòng, relayer ≥ 1 AVAX, keeper chạy, Privy đăng nhập được trên mạng hội trường (có hotspot 4G), Snowtrace mở được. Câu hỏi trợ lý đã hỏi sẵn.
+5. `/demo-check`: RPC chính và dự phòng, relayer ≥ 0,02 AVAX, keeper chạy, Privy đăng nhập được trên mạng hội trường (có hotspot 4G), Snowtrace mở được. Câu hỏi trợ lý đã hỏi sẵn.
 
 ### 3.2. Bấm giờ (T = lúc bấm "Bắt đầu dây" của "Demo Sống")
 
@@ -121,7 +121,7 @@ Cửa sổ của kỳ 1: nộp thăm [0:00, 1:30), mở thăm [1:30, 2:30), ch�
 |---|---|
 | Chủ hụi, mỗi dây demo | 480 USDC (ký quỹ = 0,8 × 600) |
 | M1..M5, mỗi dây | Tối đa 404 USDC (cận trên) và ít AVAX để "Gửi trực tiếp" khi relayer lỗi |
-| Relayer, keeper | Relayer ≥ 1 AVAX (05 mục 8.2); keeper có AVAX, ví riêng (04 ADR-21) |
+| Relayer, keeper | Relayer ≥ 0,02 AVAX (05 mục 8.2); keeper có AVAX, ví riêng (04 ADR-21) |
 
 Faucet Circle chỉ cho 20 USDC mỗi 2 giờ mỗi ví ([faucet.circle.com](https://faucet.circle.com/)), nên gom từ M0 (R5 ở 11). Mỗi lần chạy nhánh B, ký quỹ mất 320 USDC sang người khác: chuyển trả lại sau mỗi lần tập.
 

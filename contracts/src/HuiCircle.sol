@@ -98,6 +98,7 @@ contract HuiCircle is HuiCircleBase {
         minCoverageBps = cfg.minCoverageBps;
         _params = p;
         state = CircleState.Forming;
+        emit IHuiCircle.CircleTermsSet(p.termsHash, p.commissionShareBps);
     }
 
     // ================================================================== Forming (docs/03 section 5.1)
@@ -346,9 +347,11 @@ contract HuiCircle is HuiCircleBase {
         uint256 pot; // pulled contributions + amounts covered from holdback, bond and reserve
         uint256 uncovered; // shortfall nobody covered: the winner receives that much less
         uint256 fee;
+        uint256 feeNow; // fee paid to the organizer in this transaction (round without any shortfall)
         uint256 premium;
         uint256 holdback;
         uint256 payout;
+        uint32 shortfalls; // members whose due could not be pulled (frozen members count)
     }
 
     /// @notice Pay out round `k = currentRound()` once `deadline(k)` has passed. Anyone may call it.
@@ -398,6 +401,10 @@ contract HuiCircle is HuiCircleBase {
 
         emit IHuiCircle.RoundSettled(k, w, st.bid, st.pot, st.payout, st.holdback, st.fee, st.premium, st.uncovered);
         _pay(w, st.payout);
+        if (st.feeNow != 0) {
+            emit IHuiCircle.FeePaid(k, organizer, st.feeNow);
+            _pay(organizer, st.feeNow);
+        }
     }
 
     /// @dev Steps 6-8 of docs/03 section 6.5: fee escrow and reserve premium off the pot, the winner's own shortfalls
@@ -405,11 +412,22 @@ contract HuiCircle is HuiCircleBase {
     function _distribute(Settlement memory st) private {
         address w = st.winner;
         MemberInfo storage wi = _info[w];
-        st.fee = _params.commissionMode ? HuiMath.bpsOf(st.pot, _params.feeBps) : 0;
+        // The organizer's own leg takes no commission; phi > 0 keeps the fee inside the interest room (docs/03 2.7).
+        // `_payers` is read before `liveCount` drops for the winner below, like the cap the bids were checked against.
+        if (_params.commissionMode && w != organizer) {
+            uint256 room =
+                _params.commissionShareBps == 0 ? 0 : HuiMath.commissionRoom(_statutoryMaxBid(st.k), _payers(st.k));
+            st.fee = HuiMath.commission(st.pot, _params.feeBps, _params.commissionShareBps, room);
+        }
         st.premium = HuiMath.bpsOf(st.pot, _params.reserveBps);
         if (st.fee != 0) {
-            feeEscrow[st.k] = st.fee;
-            totalFeeEscrow += st.fee;
+            // A round without any shortfall pays the fee out at once; otherwise it waits in escrow (docs/03 6.5 step 6).
+            if (st.shortfalls == 0) {
+                st.feeNow = st.fee;
+            } else {
+                feeEscrow[st.k] = st.fee;
+                totalFeeEscrow += st.fee;
+            }
         }
         reserve += st.premium;
 
@@ -517,6 +535,7 @@ contract HuiCircle is HuiCircleBase {
         mi.debt += uint128(s);
         st.pot += s - left;
         st.uncovered += left;
+        st.shortfalls += 1;
         if (late) {
             mi.lateCount += 1;
             _record(m, IReputationRegistry.recordLate.selector);
@@ -744,8 +763,9 @@ contract HuiCircle is HuiCircleBase {
     /// @dev Members with a shortfall past grace are defaulted first; one still inside grace reverts `GraceNotOver`.
     /// Then: holdback of non-defaulted members back to them; holdback of defaulted members repays their debt in the
     /// refund order (late fee last, an unpaid fee is announced) and the rest returns to them; unforfeited fee
-    /// escrows and the remaining bond go to the organizer; the reserve is shared equally among non-defaulted members
-    /// (rounding dust to the smallest `joinIndex`, everything to the organizer if all defaulted); registry records
+    /// escrows (only rounds that had a shortfall; the others were paid at settlement) and the remaining bond go to the
+    /// organizer; the reserve is shared by on-time weight among non-defaulted members (ADR-24; dust to the smallest
+    /// `joinIndex` with a positive weight, everything to the organizer if all defaulted); registry records
     /// completion; the factory is told. Every payment goes through the safe path, so one blocked address cannot block
     /// the others.
     function finalize() external nonReentrant {
@@ -815,28 +835,58 @@ contract HuiCircle is HuiCircleBase {
         _info[m].debt -= uint128(forgiven);
     }
 
-    /// @dev Split the whole reserve equally among non-defaulted members, dust to the smallest `joinIndex`; if all
-    /// defaulted it goes to the organizer, never to the admin. With `completed`, also records completion for them.
+    /// @dev Split the whole reserve among non-defaulted members, dust to the smallest `joinIndex` that has a positive
+    /// weight; if all defaulted it goes to the organizer, never to the admin. With `completed` (`finalize`) the split
+    /// follows the on-time weights of ADR-24, `max(0, (N - 1) - lateCount)`, falling back to an equal split when every
+    /// weight is zero, emits `ReserveShared` and records completion; `emergencyUnwind` always splits equally.
     function _shareReserve(bool completed) private returns (uint256 total) {
         total = reserve;
         reserve = 0;
         uint256 count = _members.length;
-        uint256 eligible;
-        for (uint256 i = 0; i < count; i++) {
-            if (!_info[_members[i]].defaulted) eligible++;
+        bool weighted = completed;
+        uint256 sum = _weightSum(weighted);
+        if (sum == 0 && weighted) {
+            weighted = false;
+            sum = _weightSum(false);
         }
-        if (eligible == 0) {
-            _pay(organizer, total);
+        if (sum == 0) {
+            _pay(organizer, total); // every member defaulted
             return total;
         }
-        uint256 share = total / eligible;
-        uint256 dust = total - share * eligible;
+        uint256 dust = total;
+        for (uint256 i = 0; i < count; i++) {
+            dust -= HuiMath.reserveShare(total, _weight(_members[i], weighted), sum);
+        }
         for (uint256 i = 0; i < count; i++) {
             address m = _members[i];
             if (_info[m].defaulted) continue;
-            _pay(m, share + dust);
-            dust = 0;
-            if (completed) _record(m, IReputationRegistry.recordCompleted.selector);
+            uint256 w = _weight(m, weighted);
+            uint256 share = HuiMath.reserveShare(total, w, sum);
+            if (w != 0 && dust != 0) {
+                share += dust;
+                dust = 0;
+            }
+            if (completed) {
+                emit IHuiCircle.ReserveShared(
+                    m, share, uint16(HuiMath.onTimeWeight(_params.memberCount, _info[m].lateCount, false))
+                );
+                _record(m, IReputationRegistry.recordCompleted.selector);
+            }
+            _pay(m, share);
+        }
+    }
+
+    /// @dev Weight of `m` in the reserve split: 0 if defaulted; the on-time weight when `weighted`, else 1.
+    function _weight(address m, bool weighted) private view returns (uint256) {
+        MemberInfo storage mi = _info[m];
+        if (mi.defaulted) return 0;
+        return weighted ? HuiMath.onTimeWeight(_params.memberCount, mi.lateCount, false) : 1;
+    }
+
+    function _weightSum(bool weighted) private view returns (uint256 sum) {
+        uint256 count = _members.length;
+        for (uint256 i = 0; i < count; i++) {
+            sum += _weight(_members[i], weighted);
         }
     }
 

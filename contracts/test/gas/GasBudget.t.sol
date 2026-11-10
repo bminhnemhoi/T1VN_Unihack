@@ -296,6 +296,24 @@ contract GasBudgetTest is CircleFixture {
         assertLe(used, BUDGET_SETTLE_N30, "settleRound N=30 over budget (docs/04 7.1)");
     }
 
+    /// @dev v1.2 (A13): phi = 50% with a fee paid at once to the organizer (one more transfer and event) in round 29,
+    /// round 29 (one payer left, so a small room but a real fee).
+    function test_Gas_settleRound_N30_phiCommission_feePaidAtOnce_withinBudget() public {
+        CircleParams memory p = _n30Params();
+        p.commissionShareBps = 5000;
+        p.feeBps = 300;
+        HuiCircleHarness c = _active(p, 18_000 * USDC);
+        _settleUpTo(c, 28);
+        vm.warp(c.deadline(29));
+        uint256 before = usdc.balanceOf(organizer);
+        uint256 used = _tx(c, address(this), address(c), abi.encodeCall(c.settleRound, ()));
+        assertEq(c.settledRounds(), 29);
+        _report("settleRound N=30, phi > 0, round 29, fee paid at once", used, BUDGET_SETTLE_N30);
+        assertLe(used, BUDGET_SETTLE_N30, "settleRound N=30 with phi over budget (docs/04 7.1)");
+        assertGt(c.roundInfo(29).fee, 0, "a fee was charged");
+        assertEq(usdc.balanceOf(organizer) - before, c.roundInfo(29).fee, "and paid in the same transaction");
+    }
+
     /// @dev Round 29 with three members short (the A3 measurement of docs/04: 1.68 million).
     function test_Gas_settleRound_N30_round29_threeShortfalls_withinBudget() public {
         HuiCircleHarness c = _active30();

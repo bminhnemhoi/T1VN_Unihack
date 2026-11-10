@@ -44,6 +44,8 @@ contract HuiFactory is ERC2771Context, IHuiFactory {
     uint16 internal constant HARD_MAX_CAP_BPS = 2000;
     uint16 internal constant HARD_MAX_LATE_RATE_BPS = 1000;
     uint16 internal constant MAX_REVEAL_BOND_BPS = 500;
+    /// @dev Ceiling of `commissionShareBps` (phi): the organizer takes at most half of the interest room (docs/03 2.7).
+    uint16 internal constant MAX_COMMISSION_SHARE_BPS = 5000;
     /// @dev Hard bound of the member loop in HuiCircle (CLAUDE.md: N <= 30).
     uint8 internal constant HARD_MAX_MEMBERS = 30;
     /// @dev Documented lower bound of N (docs/03 section 3.1).
@@ -220,6 +222,12 @@ contract HuiFactory is ERC2771Context, IHuiFactory {
         if (p.joinDeadline <= block.timestamp) revert InvalidParams(13);
         // A late payment of round k must be able to run out of grace before round k + 1 settles (INV-06, audit M-02).
         if (p.graceSeconds >= p.roundDuration) revert InvalidParams(14);
+        // Commission inside the interest cap (docs/03 section 2.7): only Bidding commission circles with a fee ceiling.
+        if (
+            p.commissionShareBps > MAX_COMMISSION_SHARE_BPS
+                || (p.commissionShareBps > 0 && (p.mode != CircleMode.Bidding || !p.commissionMode || p.feeBps == 0))
+        ) revert InvalidParams(15);
+        if (p.termsHash == bytes32(0)) revert InvalidParams(16);
     }
 
     /// @dev Structural sanity of a config: non-zero addresses, forwarder unchanged, every bps value <= 10_000 (fee,

@@ -101,7 +101,9 @@ contract CreateDemoCircle is Script {
             capBps: 2000,
             joinDeadline: uint64(block.timestamp + joinWindow),
             organizerIsMember: false,
-            label: bytes32(bytes(label))
+            label: bytes32(bytes(label)),
+            commissionShareBps: 0,
+            termsHash: keccak256("HuiSafe demo circle terms v1.2 (fixed 1% fee, phi = 0)")
         });
 
         vm.startBroadcast(organizerKey);

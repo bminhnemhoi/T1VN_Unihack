@@ -38,6 +38,7 @@ import {
   quoteRepay,
   readCircle,
   signForwardRequest,
+  termsHashOf,
   type FetchLike,
   type SignContext,
 } from 'sdk';
@@ -434,9 +435,11 @@ async function scenario(): Promise<void> {
   check('keeper finalized (1 tx)', fin.sent, 1);
   check('state is Completed (3)', await rd<number>('state'), 3);
   const infos = await Promise.all([1, 2, 3, 4, 5].map(roundInfo));
-  const feesPaid = infos.filter((r) => !r.feeForfeited).reduce((s, r) => s + r.fee, 0n);
+  // v1.2: round 1 had no shortfall, its fee reached the organizer at settlement; round 2 was forfeited; rounds 3-5
+  // (M4's shortfalls) waited in escrow and are paid by finalize.
+  const feesPaid = infos.slice(2).filter((r) => !r.feeForfeited).reduce((s, r) => s + r.fee, 0n);
   check('round 2 fee was forfeited when M4 was marked', infos[1]!.feeForfeited, true);
-  check('organizer gets the 16 USDC bond left plus the fees not forfeited', (await bal(organizer.address)) - orgBefore, 16n * ONE + feesPaid);
+  check('organizer gets the 16 USDC bond left plus the escrowed fees of rounds 3-5', (await bal(organizer.address)) - orgBefore, 16n * ONE + feesPaid);
   const rep = await pub.readContract({ address: reputation, abi: iReputationRegistryAbi, functionName: 'reputationOf', args: [M[3]!.address] });
   check('M4 has one default on record', rep.defaults, 1);
   check('circle holds no USDC any more', await bal(circle), 0n);
@@ -492,6 +495,8 @@ async function scenario(): Promise<void> {
     joinDeadline: BigInt((await chainNow()) + 1800),
     organizerIsMember: false,
     label: stringToHex('e2e-second', { size: 32 }),
+    commissionShareBps: 0,
+    termsHash: termsHashOf('e2e anvil: second circle'),
   });
   if (!created.ok) throw new Error(`createCircle flow: ${created.code} ${created.message}`);
   const c2 = created.circle;

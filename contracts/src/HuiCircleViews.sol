@@ -103,6 +103,22 @@ abstract contract HuiCircleViews is HuiCircleBase {
         return _maxBid(k);
     }
 
+    /// @notice Statutory bid ceiling of round `k`, before the organizer's commission share (docs/03 section 2.7).
+    function statutoryMaxBid(uint32 k) external view returns (uint256) {
+        return _statutoryMaxBid(k);
+    }
+
+    /// @notice room_k = statutoryMaxBid(k) * L_k: the interest room the commission lives inside (docs/03 section 2.7).
+    function commissionRoom(uint32 k) external view returns (uint256) {
+        return HuiMath.commissionRoom(_statutoryMaxBid(k), _payers(k));
+    }
+
+    /// @notice max(0, (N - 1) - lateCount), 0 once defaulted: the weight of `m` in the reserve split (ADR-24).
+    function onTimeWeight(address m) external view returns (uint16) {
+        MemberInfo storage mi = _info[m];
+        return uint16(HuiMath.onTimeWeight(_params.memberCount, mi.lateCount, mi.defaulted));
+    }
+
     /// @notice O(k) = k * (N - k) * C.
     function exposure(uint32 k) external view returns (uint256) {
         return HuiMath.exposure(_params.memberCount, k, _params.contribution);

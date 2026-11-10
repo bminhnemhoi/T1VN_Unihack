@@ -360,6 +360,12 @@ export const huiCircleAbi = [
           { name: 'joinDeadline', internalType: 'uint64', type: 'uint64' },
           { name: 'organizerIsMember', internalType: 'bool', type: 'bool' },
           { name: 'label', internalType: 'bytes32', type: 'bytes32' },
+          {
+            name: 'commissionShareBps',
+            internalType: 'uint16',
+            type: 'uint16',
+          },
+          { name: 'termsHash', internalType: 'bytes32', type: 'bytes32' },
         ],
       },
       {
@@ -780,6 +786,25 @@ export const huiCircleAbi = [
     type: 'event',
     anonymous: false,
     inputs: [
+      {
+        name: 'termsHash',
+        internalType: 'bytes32',
+        type: 'bytes32',
+        indexed: false,
+      },
+      {
+        name: 'commissionShareBps',
+        internalType: 'uint16',
+        type: 'uint16',
+        indexed: false,
+      },
+    ],
+    name: 'CircleTermsSet',
+  },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
       { name: 'at', internalType: 'uint64', type: 'uint64', indexed: false },
       {
         name: 'pausedTotal',
@@ -884,6 +909,26 @@ export const huiCircleAbi = [
       },
     ],
     name: 'FeeForfeited',
+  },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      { name: 'round', internalType: 'uint32', type: 'uint32', indexed: true },
+      {
+        name: 'organizer',
+        internalType: 'address',
+        type: 'address',
+        indexed: true,
+      },
+      {
+        name: 'amount',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: false,
+      },
+    ],
+    name: 'FeePaid',
   },
   {
     type: 'event',
@@ -1029,6 +1074,31 @@ export const huiCircleAbi = [
       },
     ],
     name: 'PaymentDeferred',
+  },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      {
+        name: 'member',
+        internalType: 'address',
+        type: 'address',
+        indexed: true,
+      },
+      {
+        name: 'amount',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: false,
+      },
+      {
+        name: 'weight',
+        internalType: 'uint16',
+        type: 'uint16',
+        indexed: false,
+      },
+    ],
+    name: 'ReserveShared',
   },
   {
     type: 'event',
@@ -1358,6 +1428,12 @@ export const huiFactoryAbi = [
           { name: 'joinDeadline', internalType: 'uint64', type: 'uint64' },
           { name: 'organizerIsMember', internalType: 'bool', type: 'bool' },
           { name: 'label', internalType: 'bytes32', type: 'bytes32' },
+          {
+            name: 'commissionShareBps',
+            internalType: 'uint16',
+            type: 'uint16',
+          },
+          { name: 'termsHash', internalType: 'bytes32', type: 'bytes32' },
         ],
       },
     ],
@@ -1613,6 +1689,13 @@ export const iHuiCircleAbi = [
   },
   {
     type: 'function',
+    inputs: [{ name: 'k', internalType: 'uint32', type: 'uint32' }],
+    name: 'commissionRoom',
+    outputs: [{ name: '', internalType: 'uint256', type: 'uint256' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
     inputs: [{ name: 'commitHash', internalType: 'bytes32', type: 'bytes32' }],
     name: 'commitBid',
     outputs: [],
@@ -1748,6 +1831,12 @@ export const iHuiCircleAbi = [
           { name: 'joinDeadline', internalType: 'uint64', type: 'uint64' },
           { name: 'organizerIsMember', internalType: 'bool', type: 'bool' },
           { name: 'label', internalType: 'bytes32', type: 'bytes32' },
+          {
+            name: 'commissionShareBps',
+            internalType: 'uint16',
+            type: 'uint16',
+          },
+          { name: 'termsHash', internalType: 'bytes32', type: 'bytes32' },
         ],
       },
       {
@@ -1876,6 +1965,13 @@ export const iHuiCircleAbi = [
   },
   {
     type: 'function',
+    inputs: [{ name: 'm', internalType: 'address', type: 'address' }],
+    name: 'onTimeWeight',
+    outputs: [{ name: '', internalType: 'uint16', type: 'uint16' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
     inputs: [],
     name: 'params',
     outputs: [
@@ -1901,6 +1997,12 @@ export const iHuiCircleAbi = [
           { name: 'joinDeadline', internalType: 'uint64', type: 'uint64' },
           { name: 'organizerIsMember', internalType: 'bool', type: 'bool' },
           { name: 'label', internalType: 'bytes32', type: 'bytes32' },
+          {
+            name: 'commissionShareBps',
+            internalType: 'uint16',
+            type: 'uint16',
+          },
+          { name: 'termsHash', internalType: 'bytes32', type: 'bytes32' },
         ],
       },
     ],
@@ -2022,6 +2124,13 @@ export const iHuiCircleAbi = [
         ],
       },
     ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [{ name: 'k', internalType: 'uint32', type: 'uint32' }],
+    name: 'statutoryMaxBid',
+    outputs: [{ name: '', internalType: 'uint256', type: 'uint256' }],
     stateMutability: 'view',
   },
   {
@@ -2180,6 +2289,25 @@ export const iHuiCircleAbi = [
     type: 'event',
     anonymous: false,
     inputs: [
+      {
+        name: 'termsHash',
+        internalType: 'bytes32',
+        type: 'bytes32',
+        indexed: false,
+      },
+      {
+        name: 'commissionShareBps',
+        internalType: 'uint16',
+        type: 'uint16',
+        indexed: false,
+      },
+    ],
+    name: 'CircleTermsSet',
+  },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
       { name: 'at', internalType: 'uint64', type: 'uint64', indexed: false },
       {
         name: 'pausedTotal',
@@ -2283,6 +2411,26 @@ export const iHuiCircleAbi = [
       },
     ],
     name: 'FeeForfeited',
+  },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      { name: 'round', internalType: 'uint32', type: 'uint32', indexed: true },
+      {
+        name: 'organizer',
+        internalType: 'address',
+        type: 'address',
+        indexed: true,
+      },
+      {
+        name: 'amount',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: false,
+      },
+    ],
+    name: 'FeePaid',
   },
   {
     type: 'event',
@@ -2415,6 +2563,31 @@ export const iHuiCircleAbi = [
       },
     ],
     name: 'PaymentDeferred',
+  },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      {
+        name: 'member',
+        internalType: 'address',
+        type: 'address',
+        indexed: true,
+      },
+      {
+        name: 'amount',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: false,
+      },
+      {
+        name: 'weight',
+        internalType: 'uint16',
+        type: 'uint16',
+        indexed: false,
+      },
+    ],
+    name: 'ReserveShared',
   },
   {
     type: 'event',

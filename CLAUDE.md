@@ -14,7 +14,8 @@ Hai file sau được nạp kèm file này (kể cả trong subagent). Code mâu
 - Dữ liệu, tên hàm, event, lỗi, typed data, API routes, tool trợ lý: @docs/05-cau-truc-du-lieu-va-api.md
 
 Đọc khi cần (không nạp sẵn để tiết kiệm ngữ cảnh; chỉ mở mục đang cần):
-- `docs/04-kien-truc.md`: thành phần (mục 2), sơ đồ tuần tự (mục 3), cây thư mục (mục 4), pipeline và CI (mục 5), ADR-01..ADR-21 (mục 6), gas, log, biến môi trường (mục 7), sự cố (mục 8).
+- `docs/14-nang-cap-v1.2.md` và `docs/BAO-CAO-LEADER-09-11.md`: bản v1.2 của Minh và phản hồi; đã nhập vào 03/05 ở gói A13 (ADR-22, 24, 27 và hoa hồng trong trần, ADR-30); ADR-23, 25 không làm, đừng mở lại.
+- `docs/04-kien-truc.md`: thành phần (mục 2), sơ đồ tuần tự (mục 3), cây thư mục (mục 4), pipeline và CI (mục 5), ADR-01..ADR-30 (mục 6), gas, log, biến môi trường (mục 7), sự cố (mục 8).
 - `docs/11-ke-hoach-trien-khai.md`: mốc M0-M7 (mục 1), việc từng ngày (mục 3), mã việc C1..C13, W1..W13, T0..T10 (mục 4), định nghĩa xong (mục 5), rủi ro (mục 6), danh sách cắt (mục 7). Hook SessionStart in sẵn mốc và việc hôm nay.
 - `docs/00-tong-quan.md`, `docs/02-dac-ta-san-pham.md` (PRD, màn hình S01-S15, quy tắc chữ), `docs/06-avalanche-va-blockchain.md`, `docs/07-ai-agentic.md` (trợ lý, eval), `docs/08-phong-mo-phong.md`, `docs/09-kiem-thu-va-bao-mat.md`, `docs/10-phap-ly-va-tuan-thu.md`, `docs/12-pitch-demo-nop-bai.md`, `docs/13-tai-lieu-tham-khao.md`, `docs/ai-workflow/01..03`.
 
@@ -77,16 +78,17 @@ Python: 3.11+, type hints đầy đủ, `numpy.random.default_rng(seed)`; mọi 
 7. Admin (Safe; testnet: ví deployer) không có hàm rút tiền người dùng; chỉ thao tác qua factory: `pauseCircle`, `unpauseCircle`, `unwindCircle`. Pause chỉ chặn; `emergencyUnwind()` chỉ factory gọi, chỉ sau 48 giờ tạm dừng liên tục, trả tiền theo sổ.
 8. Không tự build ERC-4337, không dùng EIP-7702 (ADR-03). Không bán token, không nhận tiền thật.
 
-## Bất biến tiền (docs/03 mục 7.2; INV-01..INV-09 mỗi cái một hàm invariant, INV-10 kiểm tĩnh bằng job `privacy` của CI)
+## Bất biến tiền (docs/03 mục 7.2; INV-01..INV-09 và INV-11..INV-13 mỗi cái một hàm invariant, INV-10 kiểm tĩnh bằng job `privacy` của CI)
 
 - Trạng thái dây: `Forming → Active → Completed`, cộng `Cancelled`, `Paused`, `Unwound`. Thành viên: Live, Dead, Frozen, DefaultedDead (suy từ `received`, `defaulted`).
 - Sổ cái: `usdc.balanceOf(circle) == bondRemaining + reserve + totalHoldback + Σ feeEscrow + revealBondsHeld + totalClaimable`. Tiền góp chỉ đi qua contract trong cùng giao dịch `settleRound()`.
 - Mỗi thành viên hốt đúng một lần, mỗi kỳ đúng một người hốt; kỳ k chỉ chi sau kỳ k − 1 và sau `deadline(k)`; tham số bất biến sau `activate()`.
-- Thăm thắng: 0 ≤ b ≤ `maxBid(k)` và b < C. `payout + fee + premium + H (+ trả nợ) == pot`; chia làm tròn xuống, phần dư lẻ về người hốt kỳ đó.
+- Thăm thắng: 0 ≤ b ≤ `maxBid(k)` và b < C. Hoa hồng nằm trong trần lãi (INV-11, docs/03 mục 2.7): với `commissionShareBps` φ > 0, `maxBid(k)` thực thi là `⌊maxBid_luật·(10000 − φ)/10000⌋`, `fee_k = min(φ·room_k, feeBps·pot)` với `room_k = maxBid_luật·L_k`, nên `fee + b·L_k ≤ room_k`; φ = 0 giữ tiền công cố định `feeBps·pot`. Chân của chủ hụi hốt thì `fee = 0`. Kỳ không có khoản thiếu: tiền công trả thẳng chủ hụi lúc chi kỳ (`FeePaid`); kỳ có khoản thiếu: escrow như cũ. `payout + fee + premium + H (+ trả nợ) == pot`; chia làm tròn xuống, phần dư lẻ về người hốt kỳ đó.
 - Holdback (INV-06): sau m kỳ, mỗi người đã hốt chưa vỡ nợ có holdback ≤ α·(N − m)·C, bằng (sai số ≤ N đơn vị) khi người đó không còn khoản thiếu mở và lúc hốt đã giữ đủ H; mọi người đóng đúng hạn thì tổng = α·O(m), O(m) = m(N − m)C. `payLate` hoàn nguồn xong thì nhả phần α·C đã bị bỏ qua của kỳ đó.
 - Thác bù: holdback của chính người thiếu → ký quỹ → quỹ dự phòng → `uncovered` (khoản đòi công khai). Thứ tự hoàn (docs/03 mục 6.8; cho `payLate`, `repayDebt`, pot của người Frozen, `finalize`): khoản cũ trước; trong mỗi khoản `uncovered` (trả thẳng người hốt kỳ đó) → quỹ dự phòng → ký quỹ → holdback; gốc trước, lãi chậm góp sau.
-- CI = 100% và chỉ người đã hốt bỏ đóng, tất cả cùng bỏ đóng trong một kỳ (cú sốc đồng thời lớn nhất), thì `uncovered == 0` ở mọi kỳ; bỏ đóng lần lượt qua nhiều kỳ có thể vượt ký quỹ (docs/03 mục 7.3, cận bù đủ B_seq = (1 − α)·N(N−1)/2·C là roadmap). `activate()` cần `coverageIndexBps ≥ minCoverageBps` (5000). Allowance vào dây = (N − 1)·(C + revealBond).
-- USDC chỉ đi tới thành viên, chủ hụi (ký quỹ, tiền công hợp lệ) và người có `claimable`; không bao giờ tới admin. Khi `Paused` chỉ `claim()` chạy, hàm khác revert `CircleIsPaused()` (event vẫn là `CirclePaused`); thời gian dừng cộng vào `pausedTotal`.
+- CI = 100% và chỉ người đã hốt bỏ đóng, tất cả cùng bỏ đóng trong một kỳ (cú sốc đồng thời lớn nhất), thì `uncovered == 0` ở mọi kỳ; bỏ đóng lần lượt qua nhiều kỳ có thể vượt ký quỹ (docs/03 mục 7.3, cận bù đủ B_seq = (1 − α)·N(N−1)/2·C là roadmap). `activate()` cần `coverageIndexBps ≥ minCoverageBps` (10_000 trên Fuji, bắt buộc, ADR-22; 5000 chỉ anvil/test). Câu cam kết về ví ảo: "Cọc 100% chặn được chủ hụi dùng một ví ảo (tự lỗ); nhiều ví ảo thì chặn bằng xác thực mỗi người một tài khoản và mọi người thấy trước rủi ro tối đa" (docs/03 mục 7.3); không viết "cọc 100% chặn gian lận". Allowance vào dây = (N − 1)·(C + revealBond).
+- Quỹ dự phòng cuối dây chia theo đúng hạn (ADR-24, INV-12): `w = max(0, (N − 1) − lateCount)`, vỡ nợ w = 0, dư lẻ cho `joinIndex` nhỏ nhất có w > 0; `emergencyUnwind` chia đều. Thỏa thuận dây có `termsHash` bất biến (ADR-27, `InvalidParams(16)` nếu 0).
+- USDC chỉ đi tới thành viên, chủ hụi (ký quỹ, tiền công hợp lệ, kể cả trả ngay mỗi kỳ) và người có `claimable`; không bao giờ tới admin. Khi `Paused` chỉ `claim()` chạy, hàm khác revert `CircleIsPaused()` (event vẫn là `CirclePaused`); thời gian dừng cộng vào `pausedTotal`.
 
 ## Tiến độ và làm việc nhóm
 

@@ -172,7 +172,7 @@ forge verify-contract <ĐỊA_CHỈ> src/HuiFactory.sol:HuiFactory \
 | `https://faucet.circle.com` | USDC testnet, chọn mạng Avalanche Fuji; khoảng 20 USDC mỗi 2 giờ cho mỗi ví, mỗi mạng (docs/11 R5), nên gom sớm từ M0 |
 | `https://t.me/Team1VNbuilders` | Hỏi khi cả hai faucet AVAX đều không được |
 
-Bốn ví testnet tách vai (ADR-21): deployer (kiêm admin trên testnet), relayer, attester, keeper; chỉ chứa tiền testnet. Relayer và keeper cần đủ AVAX để trả gas (API relay cảnh báo khi dưới 1 AVAX, docs/05 mục 8.2).
+Bốn ví testnet tách vai (ADR-21): deployer (kiêm admin trên testnet), relayer, attester, keeper; chỉ chứa tiền testnet. Relayer và keeper cần đủ AVAX để trả gas (API relay cảnh báo khi dưới 0,02 AVAX, docs/05 mục 8.2).
 
 ## 7. Slither
 
