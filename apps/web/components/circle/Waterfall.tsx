@@ -1,6 +1,7 @@
 import { formatUsdc } from 'sdk';
 import { LedgerList } from '@/components/LedgerList';
 import { usdc } from '@/lib/sample';
+import { settledRound, type SampleCircleData } from '@/lib/sample-circles';
 
 interface Seg {
   label: string;
@@ -36,8 +37,62 @@ function Stack({ segs, title }: { segs: Seg[]; title: string }) {
   );
 }
 
+/**
+ * Chain data: the latest settled round in which someone did not pay, with the real split of the pot and the real cover
+ * (what is still to be restored, by source). Renders nothing while every round was paid in full.
+ */
+function LiveWaterfall({ c }: { c: SampleCircleData }) {
+  const open = c.shortfalls.filter((s) => s.status !== 'paid');
+  const last = open.length ? Math.max(...open.map((s) => s.round)) : 0;
+  if (last === 0) return null;
+  const rows = open.filter((s) => s.round === last);
+  const sum = (f: (s: (typeof rows)[number]) => bigint) => rows.reduce((a, s) => a + f(s), 0n);
+  const r = settledRound(c, last);
+  const who = rows.map((s) => c.seats[s.member]?.name ?? 'Một thành viên').join(', ');
+  const stages = [
+    { t: 'Tiền giữ lại', v: sum((s) => s.fromHoldback), s: 'của chính người thiếu' },
+    { t: 'Ký quỹ chủ hụi', v: sum((s) => s.fromBond), s: 'bù phần còn thiếu' },
+    { t: 'Quỹ dự phòng', v: sum((s) => s.fromReserve), s: 'bù phần còn thiếu' },
+    { t: 'Khoản đòi công khai', v: sum((s) => s.uncovered), s: 'người hốt nhận thiếu đúng phần này' },
+  ];
+  return (
+    <section aria-labelledby="wf-title" className="to-giay p-6 md:p-8">
+      <h2 id="wf-title" className="font-display text-h2 font-bold">
+        Kỳ {last}: có người không đóng
+      </h2>
+      <p className="mt-1 text-lead text-muted-foreground">
+        {who} không đóng {formatUsdc(sum((s) => s.amount))}. Dây bù lần lượt, người hốt vẫn nhận phần của mình.
+      </p>
+      <ol className="mt-5 flex flex-col gap-1 md:flex-row md:items-stretch md:gap-0">
+        {stages.map((x, i) => (
+          <li key={x.t} className={`relative flex-1 rounded-xl border-2 p-3 md:rounded-none md:first:rounded-l-xl md:last:rounded-r-xl ${x.v > 0n ? 'border-foreground bg-nghe/30' : 'border-border bg-card text-muted-foreground'}`}>
+            <p className="font-semibold">
+              {i + 1}. {x.t}
+            </p>
+            <p className="so-ke font-display text-2xl font-bold">{formatUsdc(x.v)}</p>
+            <p>{x.v > 0n ? x.s : 'chưa cần dùng'}</p>
+          </li>
+        ))}
+      </ol>
+      <div className="mt-8">
+        <Stack
+          title={`Tiền hốt của kỳ ${last} là ${formatUsdc(r.pot)}, chia ra`}
+          segs={[
+            { label: `${c.seats[r.winner]?.name ?? 'Người hốt'} nhận`, value: r.payout, color: 'bg-ngoc' },
+            { label: 'Giữ lại cho người hốt', value: r.holdback, color: 'bg-primary' },
+            { label: 'Tiền công chủ hụi', value: r.fee, color: 'bg-nghe-fg' },
+            { label: 'Quỹ dự phòng', value: r.premium, color: 'bg-le-do' },
+          ]}
+        />
+      </div>
+      <LedgerList className="mt-4" items={[{ label: 'Ký quỹ còn lại', value: formatUsdc(c.bondRemaining) }]} />
+    </section>
+  );
+}
+
 /** Result of kỳ 2 in the worked example (docs/03 section 8, branch B): who covered the missing 100 USDC and how the pot was split. */
-export function Waterfall() {
+export function Waterfall({ c }: { c?: SampleCircleData } = {}) {
+  if (c?.live) return <LiveWaterfall c={c} />;
   return (
     <section aria-labelledby="wf-title" className="to-giay p-6 md:p-8">
       <h2 id="wf-title" className="font-display text-h2 font-bold">

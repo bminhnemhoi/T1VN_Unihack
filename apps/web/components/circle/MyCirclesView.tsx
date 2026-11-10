@@ -13,7 +13,9 @@ import { LedgerList } from '@/components/LedgerList';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
-import { SAMPLE_CIRCLES, SAMPLE_WALLET, usdc } from '@/lib/sample';
+import { useHuiWallet } from '@/lib/chain/walletProvider';
+import { useMyCircles } from '@/lib/live/useCircleData';
+import { usdc } from '@/lib/sample';
 import { getSampleCircle } from '@/lib/sample-circles';
 
 const FIXED = getSampleCircle('co-dinh');
@@ -31,23 +33,51 @@ const URGENCY: Record<string, number> = { active: 0, forming: 1, completed: 2 };
  */
 export function MyCirclesView() {
   const [empty, setEmpty] = useState(false);
-  const list = empty ? [] : [...SAMPLE_CIRCLES].sort((a, b) => URGENCY[a.state]! - URGENCY[b.state]! || a.secondsLeft - b.secondsLeft);
+  const my = useMyCircles();
+  const { login } = useHuiWallet();
+  if (my.status !== 'ready') {
+    return (
+      <main id="noi-dung" className="mx-auto max-w-6xl px-4 py-10">
+        <h1 className="font-display text-h1 font-bold">Dây của tôi</h1>
+        <section role="status" className="o-phang mt-6 p-6 md:p-8">
+          {my.status === 'loading' && <p className="text-lead">Đang đọc các dây của bạn từ mạng…</p>}
+          {my.status === 'error' && <p className="text-lead text-state-bad">{my.message}</p>}
+          {my.status === 'login' && (
+            <>
+              <p className="text-lead">Đăng nhập để xem các dây bạn làm chủ hụi hoặc đang tham gia.</p>
+              <Button type="button" size="lg" className="mt-4" onClick={login}>
+                Đăng nhập
+              </Button>
+            </>
+          )}
+        </section>
+      </main>
+    );
+  }
+  const sample = my.source === 'sample';
+  const list = empty && sample ? [] : [...my.circles].sort((a, b) => URGENCY[a.state]! - URGENCY[b.state]! || a.secondsLeft - b.secondsLeft);
   const open = list.filter((c) => c.state !== 'completed');
   const [first, ...others] = open;
   return (
     <main id="noi-dung" className="mx-auto max-w-6xl px-4 py-10">
       <div className="flex flex-wrap items-center gap-3">
         <h1 className="font-display text-h1 font-bold">Dây của tôi</h1>
-        <Badge variant="secondary">Dữ liệu mẫu</Badge>
+        {sample && <Badge variant="secondary">Dữ liệu mẫu</Badge>}
       </div>
       <p className="mt-2 text-lead text-muted-foreground" aria-live="polite">
         {list.length === 0 ? 'Bạn chưa tham gia dây nào.' : `Bạn có ${open.length} dây đang cần chú ý trên ${list.length} dây.`}
       </p>
 
-      {!empty && (
+      {!empty && sample && (
         <div className="mt-6">
           <LateBanner circle={FIXED} shortfall={MY_SHORTFALL} payHref="/circles/co-dinh/thieu" />
           <p className="mt-2 text-muted-foreground">Khoản thiếu này thuộc dây {FIXED.label}.</p>
+        </div>
+      )}
+      {!sample && my.late && (
+        <div className="mt-6">
+          <LateBanner circle={my.late.circle} shortfall={my.late.shortfall} payHref={`/circles/${my.late.circle.id}/thieu`} />
+          <p className="mt-2 text-muted-foreground">Khoản thiếu này thuộc dây {my.late.circle.label}.</p>
         </div>
       )}
 
@@ -61,8 +91,11 @@ export function MyCirclesView() {
               <p className="mt-3 text-lead text-[#dfe5f0]">
                 Việc gấp nhất của bạn, ở dây {first.label}. Còn <Countdown seconds={first.secondsLeft} className="font-semibold text-white" /> để làm.
               </p>
-              {first.id === 'a' && (
+              {sample && first.id === 'a' && (
                 <p className="so-ke mt-1 text-[#c9d2e0]">Trần thăm kỳ này khoảng {formatUsdc(CAP_K3_CENTS)}. Thăm cao nhất được hốt.</p>
+              )}
+              {!sample && my.capNow[first.id] !== undefined && (
+                <p className="so-ke mt-1 text-[#c9d2e0]">Trần thăm kỳ này {formatUsdc(my.capNow[first.id]! - (my.capNow[first.id]! % 10_000n))}. Thăm cao nhất được hốt.</p>
               )}
               <Button asChild size="lg" className="mt-6 bg-action-ink text-muc-dem hover:bg-action-ink/90">
                 <Link href={first.href}>{first.action}</Link>
@@ -92,12 +125,14 @@ export function MyCirclesView() {
             <LedgerList
               className="mt-2"
               items={[
-                { label: 'Mỗi kỳ đang góp', value: formatUsdc(SAMPLE_WALLET.perRound) },
-                { label: 'Đã góp đến nay', value: formatUsdc(SAMPLE_WALLET.paidSoFar) },
-                { label: 'Đã hốt', value: 'Chưa' },
+                { label: 'Mỗi kỳ đang góp', value: formatUsdc(my.wallet.perRound) },
+                { label: 'Đã góp đến nay', value: formatUsdc(my.wallet.paidSoFar) },
+                { label: 'Đã hốt', value: my.wallet.received === 0 ? 'Chưa' : `${my.wallet.received} dây` },
               ]}
             />
-            <p className="mt-3 text-muted-foreground">Bạn chưa hốt nên còn được bỏ thăm ở các kỳ tới. Kỳ nào không cần tiền thì cứ để người khác hốt trước.</p>
+            {my.wallet.waiting > 0 && (
+              <p className="mt-3 text-muted-foreground">Bạn chưa hốt ở {my.wallet.waiting} dây nên còn được bỏ thăm ở các kỳ tới. Kỳ nào không cần tiền thì cứ để người khác hốt trước.</p>
+            )}
           </section>
 
           <section aria-labelledby="cac-day" className="lg:col-start-1">
@@ -129,10 +164,12 @@ export function MyCirclesView() {
         <Button asChild size="lg">
           <Link href="/circles/new">Tạo dây mới</Link>
         </Button>
-        <label htmlFor="xem-trong" className="flex min-h-12 cursor-pointer items-center gap-3 text-muted-foreground">
-          <Switch id="xem-trong" checked={empty} onCheckedChange={setEmpty} />
-          Xem thử trạng thái chưa có dây
-        </label>
+        {sample && (
+          <label htmlFor="xem-trong" className="flex min-h-12 cursor-pointer items-center gap-3 text-muted-foreground">
+            <Switch id="xem-trong" checked={empty} onCheckedChange={setEmpty} />
+            Xem thử trạng thái chưa có dây
+          </label>
+        )}
       </div>
     </main>
   );

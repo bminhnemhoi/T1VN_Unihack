@@ -1,6 +1,10 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useChain } from '@/lib/chain/provider';
+import { useHuiActions } from '@/lib/chain/actions';
+import { useHuiWallet } from '@/lib/chain/walletProvider';
+import { Button } from '@/components/ui/button';
 import { RepBadge, RepDisclaimer } from '@/components/circle/RepBadge';
 import { applyFontSize, FONT_KEY, readFontSize, type FontSize } from '@/components/shell/FontSizeInit';
 import { SoonButton } from '@/components/shell/SoonButton';
@@ -13,6 +17,16 @@ import { getSampleCircle } from '@/lib/sample-circles';
 import { TOGGLE_ON } from '@/lib/utils';
 
 const ME = getSampleCircle('demo').seats[1]!; // the sample viewer: Thành viên 2
+const MIN_PASS = 8;
+
+function download(name: string, text: string) {
+  const url = URL.createObjectURL(new Blob([text], { type: 'application/json' }));
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = name;
+  a.click();
+  URL.revokeObjectURL(url);
+}
 
 /** S14: only the text size works for real today (it is stored in this browser); backup and reminders explain what they will do. */
 export function SettingsView() {
@@ -20,6 +34,34 @@ export function SettingsView() {
   const [size, setSize] = useState<FontSize>('normal');
   const [remind, setRemind] = useState(false);
   const [pass, setPass] = useState('');
+  const chain = useChain();
+  const actions = useHuiActions();
+  const { wallet } = useHuiWallet();
+  const [backupMsg, setBackupMsg] = useState<{ ok: boolean; text: string } | undefined>();
+  const live = chain !== null;
+
+  const backup = async () => {
+    if (pass.length < MIN_PASS) return setBackupMsg({ ok: false, text: `Hãy nhập mật khẩu dài ít nhất ${MIN_PASS} ký tự trước.` });
+    if (!actions) return setBackupMsg({ ok: false, text: 'Hãy đăng nhập bằng ví của bạn trước, để biết sao lưu thăm của ví nào.' });
+    try {
+      const text = await actions.exportSaltBackup(pass);
+      download('huisafe-sao-luu-tham.json', text);
+      setBackupMsg({ ok: true, text: 'Đã tải file sao lưu, mã hóa bằng mật khẩu của bạn. Giữ file và mật khẩu ở nơi an toàn.' });
+    } catch {
+      setBackupMsg({ ok: false, text: 'Chưa có thăm niêm phong nào của ví này trên máy để sao lưu, hoặc trình duyệt không cho tải file.' });
+    }
+  };
+  const restore = async (file: File | undefined) => {
+    if (!file) return;
+    if (pass.length < MIN_PASS) return setBackupMsg({ ok: false, text: `Nhập mật khẩu của file sao lưu (ít nhất ${MIN_PASS} ký tự) rồi chọn lại file.` });
+    if (!actions) return setBackupMsg({ ok: false, text: 'Hãy đăng nhập trước khi nạp file sao lưu.' });
+    try {
+      const n = await actions.importSaltBackup(await file.text(), pass);
+      setBackupMsg({ ok: true, text: `Đã nạp lại ${n} mã bí mật thăm vào máy này.` });
+    } catch {
+      setBackupMsg({ ok: false, text: 'Không mở được file: sai mật khẩu hoặc file không phải bản sao lưu của HụiSafe.' });
+    }
+  };
   useEffect(() => setSize(readFontSize()), []);
 
   const change = (v: FontSize) => {
@@ -64,16 +106,35 @@ export function SettingsView() {
           <FieldDescription>Mật khẩu không gửi đi đâu. Quên mật khẩu thì file sao lưu không mở được.</FieldDescription>
         </Field>
         <div className="mt-3 flex flex-wrap gap-3">
-          <SoonButton
-            size="lg"
-            message={pass.length < 8 ? 'Hãy nhập mật khẩu dài ít nhất 8 ký tự trước. Hiện chưa có thăm nào trên máy này để sao lưu, vì đây là màn hình mẫu.' : 'Chưa có thăm niêm phong nào trên máy này để sao lưu. Khi nộp thăm thật, nút này tải file mã hóa.'}
-          >
-            Sao lưu thăm
-          </SoonButton>
-          <SoonButton size="lg" variant="outline" message="Nhập file sao lưu để mở thăm trên máy mới, sắp có cùng lúc với nộp thăm thật.">
-            Nhập file sao lưu
-          </SoonButton>
+          {live ? (
+            <>
+              <Button type="button" size="lg" onClick={() => void backup()}>
+                Sao lưu thăm
+              </Button>
+              <label className="inline-flex min-h-12 cursor-pointer items-center rounded-full border border-border bg-background px-5 font-semibold hover:bg-muted">
+                Nhập file sao lưu
+                <input type="file" accept="application/json,.json" className="sr-only" onChange={(e) => void restore(e.target.files?.[0])} />
+              </label>
+            </>
+          ) : (
+            <>
+              <SoonButton
+                size="lg"
+                message={pass.length < 8 ? 'Hãy nhập mật khẩu dài ít nhất 8 ký tự trước. Hiện chưa có thăm nào trên máy này để sao lưu, vì đây là màn hình mẫu.' : 'Chưa có thăm niêm phong nào trên máy này để sao lưu. Khi nộp thăm thật, nút này tải file mã hóa.'}
+              >
+                Sao lưu thăm
+              </SoonButton>
+              <SoonButton size="lg" variant="outline" message="Nhập file sao lưu để mở thăm trên máy mới, sắp có cùng lúc với nộp thăm thật.">
+                Nhập file sao lưu
+              </SoonButton>
+            </>
+          )}
         </div>
+        {backupMsg && (
+          <p role={backupMsg.ok ? 'status' : 'alert'} className={backupMsg.ok ? 'mt-3 font-semibold text-state-ok' : 'mt-3 font-semibold text-state-bad'}>
+            {backupMsg.text}
+          </p>
+        )}
       </section>
 
       <section aria-labelledby="nhac" className="o-phang mt-6 p-6">
@@ -99,7 +160,21 @@ export function SettingsView() {
           Huy hiệu của bạn
         </h2>
         <div className="mt-2">
-          <RepBadge rep={ME.rep} showNext />
+          {live ? (
+            wallet ? (
+              <>
+                <p className="mb-2 text-muted-foreground">Chủ hụi và thành viên có huy hiệu riêng, tính từ lịch sử của ví này.</p>
+                <RepBadge rep={{ ...ME.rep, address: wallet.address }} showNext />
+                <div className="mt-2">
+                  <RepBadge rep={{ ...ME.rep, address: wallet.address }} who="organizer" showNext />
+                </div>
+              </>
+            ) : (
+              <p className="text-muted-foreground">Đăng nhập để xem huy hiệu của ví bạn.</p>
+            )
+          ) : (
+            <RepBadge rep={ME.rep} showNext />
+          )}
         </div>
         <RepDisclaimer className="mt-3" />
       </section>

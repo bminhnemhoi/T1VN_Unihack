@@ -7,6 +7,7 @@
  *  dang-gom  Hụi bạn đại học       Bỏ thăm, still gathering people, viewer is the organizer and takes seat 1
  *  da-xong   Hụi chị em văn phòng  Bỏ thăm, finished all 8 rounds on time; viewer received in round 5
  */
+import type { CircleView } from 'sdk';
 import { roundSplit, sampleBids, type Reputation, type Terms } from '@/lib/hui-calc';
 
 const U = 1_000_000n;
@@ -18,6 +19,8 @@ export const isCircleId = (s: string): s is CircleId => (CIRCLE_IDS as string[])
 
 export interface SampleSeat {
   name: string;
+  /** Wallet of the seat when the data comes from the chain. */
+  address?: `0x${string}`;
   rep: Reputation;
   joined: boolean;
   /** Holds this seat as well as organizing (docs/03 section 9). */
@@ -42,8 +45,18 @@ export interface SampleShortfall {
   sinceSeconds: number;
 }
 
+/** Present only when the data was read from the chain: the raw view plus the clock and wallet it was read with. */
+export interface LiveInfo {
+  view: CircleView;
+  address: `0x${string}`;
+  viewerAddress?: `0x${string}`;
+  nowMs: number;
+}
+
 export interface SampleCircleData {
-  id: CircleId;
+  /** Sample id (`demo`, ...) or, for chain data, the circle address. */
+  id: string;
+  live?: LiveInfo;
   label: string;
   terms: Terms;
   state: 'forming' | 'active' | 'completed';
@@ -247,9 +260,16 @@ const DONE: SampleCircleData = {
 
 const ALL: Record<CircleId, SampleCircleData> = { demo: DEMO, 'co-dinh': FIXED, 'dang-gom': GATHER, 'da-xong': DONE };
 export const getSampleCircle = (id: CircleId): SampleCircleData => ALL[id];
+export const SAMPLE_CIRCLES_LIST: SampleCircleData[] = CIRCLE_IDS.map((id) => ALL[id]);
 
-/** Time round r settled, in ms since epoch (sample clock). */
-export const settledAtMs = (c: SampleCircleData, r: number): number => c.startMs + c.roundMs * r;
+/** "Now" of a screen: the real clock for chain data, the fixed sample clock otherwise. */
+export const nowMsOf = (c: SampleCircleData): number => c.live?.nowMs ?? SAMPLE_NOW_MS;
+
+/** Time round r settled, in ms since epoch (the real block time for chain data). */
+export const settledAtMs = (c: SampleCircleData, r: number): number => {
+  const at = c.live?.view.rounds[r - 1]?.settledAt;
+  return at !== undefined ? at * 1000 : c.startMs + c.roundMs * r;
+};
 
 const TIME = new Intl.DateTimeFormat('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh', day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false });
 /** "09/11/2026 10:06", Vietnam time, 24 hours. The same on server and client. */
@@ -257,6 +277,21 @@ export const formatVnTime = (ms: number): string => TIME.format(new Date(ms)).re
 
 /** Pot, fee, premium, holdback and payout of a settled round, including what nobody covered. */
 export function settledRound(c: SampleCircleData, r: number) {
+  const real = c.live?.view.rounds[r - 1];
+  if (real && real.phase === 'done' && real.winner !== undefined) {
+    return {
+      livePayers: 0,
+      deadPayers: 0,
+      pot: real.pot ?? 0n,
+      fee: real.fee ?? 0n,
+      premium: real.premium ?? 0n,
+      holdback: real.holdback ?? 0n,
+      payout: real.payout ?? 0n,
+      winner: c.winnerByRound[r - 1]!,
+      bid: real.bid ?? 0n,
+      uncovered: real.uncovered ?? 0n,
+    };
+  }
   const uncovered = c.shortfalls.filter((s) => s.round === r).reduce((a, s) => a + s.uncovered, 0n);
   return { ...roundSplit(c.terms, r, c.bids[r - 1] ?? 0n, uncovered), winner: c.winnerByRound[r - 1]!, bid: c.bids[r - 1] ?? 0n, uncovered };
 }

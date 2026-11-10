@@ -2,37 +2,97 @@
 
 import Link from 'next/link';
 import { useMemo, useState } from 'react';
-import { huiMath } from 'sdk';
+import { formatUsdc, huiMath } from 'sdk';
+import { ActionButton } from '@/components/chain/ActionButton';
+import { ClaimBox } from '@/components/chain/ClaimBox';
 import { CirclePageHead, EmptyNote } from '@/components/circle/CirclePageHead';
 import { LedgerList } from '@/components/LedgerList';
 import { useToast } from '@/components/shell/Toast';
 import { Button } from '@/components/ui/button';
 import { settleCleanCircle } from '@/lib/hui-calc';
 import { formatCents } from '@/lib/money';
-import { getSampleCircle, type CircleId } from '@/lib/sample-circles';
+import { eventsToLines } from '@/lib/live/bookLines';
+import { useCircleEvents } from '@/lib/live/useCircleEvents';
+import { type SampleCircleData } from '@/lib/sample-circles';
 import { cn } from '@/lib/utils';
 
 /** S12: closing the books ("tất toán"): paid in, received, net, interest on bids, the on-time reward from the reserve, and "Nhận tiền". */
-export function SettleView({ id }: { id: CircleId }) {
-  const c = getSampleCircle(id);
+export function SettleView({ c }: { c: SampleCircleData }) {
+  const id = c.id;
   const { show } = useToast();
   const [claimed, setClaimed] = useState(false);
-  const done = c.state === 'completed';
+  const live = c.live;
+  const done = c.state === 'completed' && live?.view.state !== 'cancelled';
+  // The clean model (nobody defaulted) is what `settleCleanCircle` computes; a chain circle that had shortfalls gets a summary from its events instead.
+  const clean = c.shortfalls.length === 0;
   const s = useMemo(
-    () => (done ? settleCleanCircle({ terms: c.terms, winnerByRound: c.winnerByRound, bids: c.bids, bond: c.bond }) : undefined),
-    [c, done],
+    () => (done && clean && c.viewer >= 0 ? settleCleanCircle({ terms: c.terms, winnerByRound: c.winnerByRound, bids: c.bids, bond: c.bond }) : undefined),
+    [c, done, clean],
   );
+  const events = useCircleEvents(live && done && !clean ? live.address : undefined);
+  const nowSec = Math.floor((live?.nowMs ?? 0) / 1000);
+  const lastSettled = live?.view.rounds.find((r) => r.k === Number(c.terms.n))?.settledAt;
+  const canFinalize = Boolean(live && live.view.state === 'active' && c.settled === Number(c.terms.n) && lastSettled !== undefined && nowSec > lastSettled + c.graceSeconds + live.view.pausedTotal);
+
+  if (live && live.view.state === 'active' && c.settled === Number(c.terms.n)) {
+    return (
+      <main id="noi-dung" className="mx-auto max-w-6xl px-4 py-10">
+        <CirclePageHead circle={c} title="Tất toán" />
+        <EmptyNote title="Kỳ cuối đã chi, chờ kết thúc dây">
+          {canFinalize ? 'Đã hết thời gian trả trễ. Ai cũng bấm kết thúc được: tiền giữ lại, ký quỹ và quỹ dự phòng được trả về đúng chủ trong một giao dịch.' : 'Còn trong thời gian trả trễ của kỳ cuối. Hết thời gian đó thì kết thúc dây được.'}
+          <div className="mt-4">
+            <ActionButton size="lg" disabled={!canFinalize} run={(a) => a.finalize(live.address)} success="Dây đã kết thúc, tiền đã trả về từng người.">
+              Kết thúc dây
+            </ActionButton>
+          </div>
+        </EmptyNote>
+      </main>
+    );
+  }
+
+  if (done && live && (!clean || c.viewer < 0)) {
+    const me = live.viewerAddress;
+    const lines = eventsToLines(events.data ?? [], (a) => (me && a.toLowerCase() === me.toLowerCase() ? 'bạn' : a)).filter((l) => l.member === 'bạn');
+    const sum = (...k: string[]) => lines.filter((l) => k.includes(l.kind)).reduce((a, l) => a + l.amount, 0n);
+    const paid = sum('Góp', 'Trả trễ', 'Trả nợ');
+    const got = sum('Hốt', 'Nhả tiền giữ lại');
+    return (
+      <main id="noi-dung" className="mx-auto max-w-6xl px-4 py-10">
+        <CirclePageHead circle={c} title="Tất toán">
+          Dây đã kết thúc và có khoản thiếu trong quá trình chạy, nên phần của bạn tính từ sổ hụi.
+        </CirclePageHead>
+        {c.viewer >= 0 ? (
+          <section aria-labelledby="rong" className="nen-muc mt-8 rounded-xl p-6 md:p-8">
+            <h2 id="rong" className="font-display text-h1 font-bold">Phần của bạn</h2>
+            <p className="so-ke mt-3 text-lead text-[#dfe5f0]">Đã góp {formatUsdc(paid)}, đã nhận {formatUsdc(got)} (tiền hốt và tiền giữ lại đã nhả).</p>
+            <p className="mt-1 text-[#c9d2e0]">Phần tiền giữ lại, ký quỹ và quỹ dự phòng trả lúc kết thúc nằm trong các dòng cuối của sổ hụi.</p>
+          </section>
+        ) : (
+          <EmptyNote title="Bạn không ở trong dây này">Đăng nhập bằng ví của thành viên để xem phần của mình.</EmptyNote>
+        )}
+        <p className="mt-6">
+          <Link href={`/circles/${id}/so-ho`} className="font-semibold text-primary underline underline-offset-4">Xem sổ hụi đầy đủ</Link>
+        </p>
+        <ClaimBox c={c} />
+      </main>
+    );
+  }
 
   if (!done || !s) {
     return (
       <main id="noi-dung" className="mx-auto max-w-6xl px-4 py-10">
         <CirclePageHead circle={c} title="Tất toán" />
         <EmptyNote title="Dây này chưa kết thúc">
-          Tất toán chỉ có sau khi kỳ cuối đã chi và hết thời gian trả trễ. Muốn xem bản tất toán trông thế nào, mở{' '}
-          <Link href="/circles/da-xong/tat-toan" className="font-semibold text-primary underline underline-offset-4">
-            dây Hụi chị em văn phòng đã kết thúc
-          </Link>
-          .
+          Tất toán chỉ có sau khi kỳ cuối đã chi và hết thời gian trả trễ.
+          {!live && (
+            <>
+              {' '}Muốn xem bản tất toán trông thế nào, mở{' '}
+              <Link href="/circles/da-xong/tat-toan" className="font-semibold text-primary underline underline-offset-4">
+                dây Hụi chị em văn phòng đã kết thúc
+              </Link>
+              .
+            </>
+          )}
         </EmptyNote>
       </main>
     );
@@ -60,7 +120,9 @@ export function SettleView({ id }: { id: CircleId }) {
           Đã góp {formatCents(me.paid)}, đã nhận {formatCents(me.received + me.holdbackBack + me.reward)} (hốt kỳ {me.round}, tiền giữ lại, thưởng đúng hạn).
         </p>
         <p className="mt-1 text-[#c9d2e0]">Phần ròng gồm lãi thăm và tiền công chủ hụi; hụi không sinh lời thêm từ đâu khác.</p>
-        {claimed ? (
+        {live ? (
+          <p className="so-ke mt-5 text-[#dfe5f0]">Khi dây kết thúc, tiền được chuyển thẳng vào ví của bạn. Nếu có phần không chuyển được, nút Nhận tiền hiện ở cuối trang.</p>
+        ) : claimed ? (
           <p role="status" className="so-ke mt-5 rounded-xl border-2 border-state-ok bg-white/10 p-4 text-lead font-semibold text-white">
             Đã nhận {formatCents(finalPayout)} (mẫu).
           </p>
@@ -148,6 +210,7 @@ export function SettleView({ id }: { id: CircleId }) {
           .
         </p>
       </section>
+      <ClaimBox c={c} />
     </main>
   );
 }

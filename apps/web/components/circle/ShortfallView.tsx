@@ -2,14 +2,15 @@
 
 import Link from 'next/link';
 import { useState } from 'react';
-import { formatUsdc } from 'sdk';
+import { formatUsdc, quoteRepay } from 'sdk';
+import { ActionButton } from '@/components/chain/ActionButton';
 import { CirclePageHead, EmptyNote } from '@/components/circle/CirclePageHead';
 import { LateBanner, lateFeeOf } from '@/components/circle/LateBanner';
 import { LedgerList } from '@/components/LedgerList';
 import { useToast } from '@/components/shell/Toast';
 import { Badge } from '@/components/ui/badge';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
-import { getSampleCircle, settledRound, type CircleId, type SampleShortfall } from '@/lib/sample-circles';
+import { settledRound, type SampleShortfall, type SampleCircleData } from '@/lib/sample-circles';
 import { TOGGLE_ON } from '@/lib/utils';
 
 const STATUS = {
@@ -19,8 +20,8 @@ const STATUS = {
 } as const;
 
 /** S08: missing contributions, who covered them, the grace deadline and "Trả ngay". Paying changes the page, locally. */
-export function ShortfallView({ id }: { id: CircleId }) {
-  const c = getSampleCircle(id);
+export function ShortfallView({ c }: { c: SampleCircleData }) {
+  const id = c.id;
   const { show } = useToast();
   const [asDebtor, setAsDebtor] = useState(false);
   const [paid, setPaid] = useState(false);
@@ -32,6 +33,13 @@ export function ShortfallView({ id }: { id: CircleId }) {
   );
   const mineOpen = rows.find((s) => s.member === viewer && s.status === 'grace');
   const result = mineOpen && paid ? { ...mineOpen, status: 'paid' as const } : undefined;
+
+  // Chain data: a member already marked as defaulted repays the principal still owed (docs/03 section 6.8, `repayDebt`).
+  const live = c.live;
+  const me = live?.viewerAddress;
+  const debtOpen = live && me ? c.shortfalls.filter((s) => s.member === c.viewer && s.status === 'defaulted') : [];
+  const debtPrincipal = debtOpen.reduce((a, s) => a + s.fromHoldback + s.fromBond + s.fromReserve + s.uncovered, 0n);
+  const debtQuote = live && me && debtPrincipal > 0n ? quoteRepay(live.view, me, Math.floor(live.nowMs / 1000), { principal: debtPrincipal }) : undefined;
 
   return (
     <main id="noi-dung" className="mx-auto max-w-6xl px-4 py-10">
@@ -55,6 +63,27 @@ export function ShortfallView({ id }: { id: CircleId }) {
         <div className="mt-6">
           <LateBanner circle={c} shortfall={mineOpen} onPay={() => (setPaid(true), show('Đã trả trễ (mẫu). Dây thật sẽ trích phần thiếu cộng lãi từ ví của bạn trong một giao dịch.'))} />
         </div>
+      )}
+
+      {live && debtQuote && (
+        <section aria-labelledby="no-vo" className="mt-6 rounded-xl border-2 border-state-bad bg-state-bad/10 p-5 md:p-6">
+          <h2 id="no-vo" className="font-display text-h2 font-bold text-state-bad">
+            Bạn còn nợ {formatUsdc(debtQuote.principal)} sau khi vỡ nợ
+          </h2>
+          <p className="so-ke mt-2 text-lead">
+            Trả dần bất cứ lúc nào khi dây còn chạy. Trả hết {formatUsdc(debtQuote.principal)} cộng lãi chậm góp {formatUsdc(debtQuote.lateFee)} là {formatUsdc(debtQuote.total)}.
+          </p>
+          <ActionButton
+            size="lg"
+            className="mt-4"
+            noticeClassName="text-foreground"
+            needed={debtQuote.total}
+            run={(a) => a.repayDebt(live.address, debtQuote.principal)}
+            success="Đã trả nợ."
+          >
+            Trả nợ {formatUsdc(debtQuote.total)}
+          </ActionButton>
+        </section>
       )}
 
       {result && (
@@ -109,6 +138,14 @@ export function ShortfallView({ id }: { id: CircleId }) {
                     {[s.fromHoldback > 0n && `${formatUsdc(s.fromHoldback)} từ tiền giữ lại của ${c.seats[s.member]!.name}`, s.fromBond > 0n && `${formatUsdc(s.fromBond)} từ ký quỹ`, s.fromReserve > 0n && `${formatUsdc(s.fromReserve)} từ quỹ dự phòng`].filter(Boolean).join(', ')}
                     {s.uncovered > 0n ? `, còn ${formatUsdc(s.uncovered)} chưa bù được` : ''}. Người hốt kỳ {s.round} ({c.seats[winner.winner]!.name}) vẫn nhận đủ {formatUsdc(winner.payout)}.
                   </p>
+                  {live && s.status === 'defaulted' && c.seats[s.member]?.address && live.view.members.find((m) => m.address === c.seats[s.member]!.address)?.status !== 'frozen' && live.view.members.find((m) => m.address === c.seats[s.member]!.address)?.status !== 'defaultedDead' && (
+                    <div className="mt-2">
+                      <p className="text-muted-foreground">Đã quá ân hạn mà chưa trả. Ai cũng đánh dấu vỡ nợ được, không cần chờ chủ hụi.</p>
+                      <ActionButton variant="outline" className="mt-2" run={(a) => a.markDefault(live.address, c.seats[s.member]!.address!)} success="Đã đánh dấu vỡ nợ.">
+                        Đánh dấu vỡ nợ
+                      </ActionButton>
+                    </div>
+                  )}
                   {s.status === 'defaulted' && !(demoDebtor && asDebtor) && (
                     <p className="mt-1 text-muted-foreground">
                       Quá ân hạn nên bị đánh dấu vỡ nợ sau khi hốt: các kỳ sau phần góp của người này tiếp tục được bù từ ký quỹ.{' '}

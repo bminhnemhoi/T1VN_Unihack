@@ -5,21 +5,28 @@ import { useState } from 'react';
 import { formatUsdc } from 'sdk';
 import { CirclePageHead, EmptyNote } from '@/components/circle/CirclePageHead';
 import { LedgerList } from '@/components/LedgerList';
+import { ClaimBox } from '@/components/chain/ClaimBox';
+import { SettleButton } from '@/components/chain/SettleButton';
+import { EXPLORER_TX } from '@/components/chain/useTx';
 import { SoonButton } from '@/components/shell/SoonButton';
+import { useChain } from '@/lib/chain/provider';
+import { useCircleEvents } from '@/lib/live/useCircleEvents';
 import { useToast } from '@/components/shell/Toast';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
-import { formatVnTime, getSampleCircle, settledAtMs, settledRound, type CircleId } from '@/lib/sample-circles';
+import { formatVnTime, settledAtMs, settledRound, type SampleCircleData } from '@/lib/sample-circles';
 import { TOGGLE_ON } from '@/lib/utils';
 
 /** S07: what happened in one settled round. Sum line = INV-05. */
-export function ResultView({ id }: { id: CircleId }) {
-  const c = getSampleCircle(id);
+export function ResultView({ c }: { c: SampleCircleData }) {
+  const id = c.id;
   const { show } = useToast();
   const [k, setK] = useState(c.settled);
   const [blocked, setBlocked] = useState(false);
   const [claimed, setClaimed] = useState(false);
+  const chain = useChain();
+  const events = useCircleEvents(c.live?.address);
   const fixed = c.terms.mode === 'fixed';
   const running = c.state === 'active' ? c.settled + 1 : undefined;
 
@@ -63,12 +70,10 @@ export function ResultView({ id }: { id: CircleId }) {
       </div>
 
       {running && (
-        <p role="status" className="mt-6 rounded-xl border border-border bg-card p-4 text-lead">
+        <div role="status" className="mt-6 rounded-xl border border-border bg-card p-4 text-lead">
           Kỳ {running} đang diễn ra nên chưa có kết quả. Quá giờ chốt mà chưa chi thì hiện &quot;Kỳ đang chờ chốt&quot; và ai cũng bấm chốt được.{' '}
-          <SoonButton variant="outline" size="sm" className="ml-1 align-middle" message={`Chốt kỳ ${running} cần nối mạng để trích phần góp của mọi người. Hiện là màn hình mẫu, chưa chốt gì.`}>
-            Chốt kỳ {running}
-          </SoonButton>
-        </p>
+          <SettleButton c={c} round={running} variant="outline" size="sm" className="ml-1 align-middle" />
+        </div>
       )}
 
       <section aria-labelledby="ai-hot" className="nen-muc mt-8 rounded-xl p-6 md:p-8">
@@ -82,9 +87,27 @@ export function ResultView({ id }: { id: CircleId }) {
         <p className="mt-1 text-[#c9d2e0]">
           {fixed ? 'Dây cố định hốt lần lượt theo thứ tự vào dây.' : 'Thăm cao nhất hốt. Bằng nhau thì ít lần trễ hơn thắng, vẫn bằng thì ai nộp trước. Không có may rủi.'}
         </p>
-        <SoonButton variant="outline" size="lg" className="mt-5 border-[#c9d2e0] bg-transparent text-white hover:bg-white/10 hover:text-white" message="Dây mẫu chưa có giao dịch thật nên chưa mở được Snowtrace. Dây thật sẽ có đường dẫn ở đây.">
-          Xem giao dịch trên Snowtrace
-        </SoonButton>
+        {c.live ? (
+          (() => {
+            const hash = events.data?.find((e) => e.eventName === 'RoundSettled' && Number(e.args.round) === k)?.txHash;
+            if (!hash) return <p className="mt-5 text-[#c9d2e0]">Đang tìm giao dịch chốt kỳ…</p>;
+            return chain?.chainId === 43113 ? (
+              <Button asChild variant="outline" size="lg" className="mt-5 border-[#c9d2e0] bg-transparent text-white hover:bg-white/10 hover:text-white">
+                <a href={`${EXPLORER_TX}${hash}`} target="_blank" rel="noreferrer">
+                  Xem giao dịch trên Snowtrace
+                </a>
+              </Button>
+            ) : (
+              <p className="so-ke mt-5 break-all text-[#c9d2e0]">
+                Giao dịch chốt kỳ: <span data-testid="tx-hash">{hash}</span>
+              </p>
+            );
+          })()
+        ) : (
+          <SoonButton variant="outline" size="lg" className="mt-5 border-[#c9d2e0] bg-transparent text-white hover:bg-white/10 hover:text-white" message="Dây mẫu chưa có giao dịch thật nên chưa mở được Snowtrace. Dây thật sẽ có đường dẫn ở đây.">
+            Xem giao dịch trên Snowtrace
+          </SoonButton>
+        )}
       </section>
 
       <div className="mt-8 grid gap-6 lg:grid-cols-[3fr_2fr] lg:items-start [&>*]:min-w-0">
@@ -156,11 +179,13 @@ export function ResultView({ id }: { id: CircleId }) {
           <h2 id="nhan-tien" className="font-display text-h3 font-bold">
             Tiền của bạn
           </h2>
-          <label htmlFor="chan" className="mt-2 flex min-h-12 cursor-pointer items-center gap-3 text-muted-foreground">
-            <Switch id="chan" checked={blocked} onCheckedChange={(v) => (setBlocked(v), setClaimed(false))} />
-            Xem thử: chuyển tiền cho tôi bị chặn (chỉ có ở bản mẫu)
-          </label>
-          {blocked ? (
+          {!c.live && (
+            <label htmlFor="chan" className="mt-2 flex min-h-12 cursor-pointer items-center gap-3 text-muted-foreground">
+              <Switch id="chan" checked={blocked} onCheckedChange={(v) => (setBlocked(v), setClaimed(false))} />
+              Xem thử: chuyển tiền cho tôi bị chặn (chỉ có ở bản mẫu)
+            </label>
+          )}
+          {!c.live && blocked ? (
             claimed ? (
               <p role="status" className="so-ke mt-3 rounded-xl border-2 border-state-ok bg-state-ok/10 p-4 text-lead font-semibold text-state-ok">
                 Đã nhận {formatUsdc(r.payout)} (mẫu).
@@ -182,6 +207,7 @@ export function ResultView({ id }: { id: CircleId }) {
           )}
         </section>
       )}
+      <ClaimBox c={c} />
     </main>
   );
 }

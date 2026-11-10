@@ -1,9 +1,12 @@
 'use client';
 
 import { ChevronUp, RotateCcw } from 'lucide-react';
+import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
 import { formatBps, formatUsdc, formatUsdcNumber, parseUsdc, previewCircle } from 'sdk';
 import { BidTable } from '@/components/BidTable';
+import { TxNotice, useTx } from '@/components/chain/useTx';
 import { RiskTable } from '@/components/circle/RiskTable';
 import { CoverageMeter } from '@/components/CoverageMeter';
 import { Nd19Panel } from '@/components/Nd19Panel';
@@ -17,6 +20,8 @@ import { FairnessMeter } from '@/components/wizard/FairnessMeter';
 import { NumberField } from '@/components/wizard/NumberField';
 import { Stepper } from '@/components/wizard/Stepper';
 import { DEFAULTS, termsOf, validateForm, type FieldName, type FormState } from '@/lib/circleForm';
+import { useChain } from '@/lib/chain/provider';
+import { buildCreateInput } from '@/lib/live/createInput';
 import { TOGGLE_ON } from '@/lib/utils';
 import { vi } from '@/lib/vi';
 
@@ -63,6 +68,10 @@ const echoOf = (text: string): string | undefined => {
  */
 export function CreateWizard() {
   const { show } = useToast();
+  const router = useRouter();
+  const tx = useTx();
+  const chain = useChain();
+  const [made, setMade] = useState<`0x${string}` | undefined>();
   const [f, setF] = useState<FormState>(DEFAULTS);
   const [step, setStep] = useState(0);
   const [sheet, setSheet] = useState(false);
@@ -219,7 +228,7 @@ export function CreateWizard() {
     setTried(false);
     show('Đã xóa các ô đã nhập và đặt lại giá trị mẫu.');
   };
-  const create = () => {
+  const create = async () => {
     if (!over18) {
       show('Hãy tích ô xác nhận đủ 18 tuổi ở phần Nghị định 19 trước khi tạo dây.', 'error');
       const box = document.getElementById('over18');
@@ -227,7 +236,29 @@ export function CreateWizard() {
       box?.focus();
       return;
     }
-    show('Tạo dây thật cần đăng nhập và nối mạng, sắp có. Hiện là màn hình mẫu, chưa có dây nào được tạo. Những gì bạn nhập vẫn được giữ trên máy này.');
+    if (!value) return;
+    if (!chain) {
+      show('Tạo dây thật cần đăng nhập và nối mạng, sắp có. Hiện là màn hình mẫu, chưa có dây nào được tạo. Những gì bạn nhập vẫn được giữ trên máy này.');
+      return;
+    }
+    let address: `0x${string}` | undefined;
+    const r = await tx.run(
+      async (a) => {
+        const chainNow = Number((await chain.client.getBlock()).timestamp);
+        const input = buildCreateInput(f, value, { nowSec: chainNow, demo: process.env.NEXT_PUBLIC_HUISAFE_DEMO === 'true' });
+        const created = await a.createCircle(input);
+        if (!created.ok) return created;
+        address = created.circle;
+        setMade(created.circle);
+        if (value.bond > 0n) {
+          const dep = await a.depositBond(created.circle, value.bond);
+          if (!dep.ok) return { ok: false as const, code: dep.code, message: `Dây đã tạo nhưng chưa nạp được ký quỹ: ${dep.message} Mở dây vừa tạo để nạp lại.` };
+          return dep;
+        }
+        return created;
+      },
+    );
+    if (r?.ok && address) router.push(`/circles/${address}`);
   };
 
   const panel = (idPrefix: string) =>
@@ -253,7 +284,7 @@ export function CreateWizard() {
           onSubmit={(e) => {
             e.preventDefault();
             if (step < LAST) goForward();
-            else create();
+            else void create();
           }}
           noValidate
           aria-label={`Bước ${step + 1}: ${STEPS[step]}`}
@@ -328,8 +359,8 @@ export function CreateWizard() {
                 Tiếp tục
               </Button>
             ) : (
-              <Button type="submit" size="lg" disabled={!value} aria-describedby="tao-ghi-chu">
-                Tạo dây
+              <Button type="submit" size="lg" disabled={!value || tx.pending} aria-describedby="tao-ghi-chu">
+                {tx.pending ? 'Đang tạo dây…' : 'Tạo dây'}
               </Button>
             )}
             {step === 0 && (
@@ -339,8 +370,24 @@ export function CreateWizard() {
             )}
             {step === LAST && (
               <p id="tao-ghi-chu" className="w-full text-muted-foreground">
-                {value ? 'Chưa nối với mạng: bấm nút sẽ cho bạn biết cần gì, chưa tạo dây thật.' : 'Nút tạo dây tắt vì còn ô báo lỗi ở các bước trước.'}
+                {!value
+                  ? 'Nút tạo dây tắt vì còn ô báo lỗi ở các bước trước.'
+                  : tx.deployed
+                    ? 'Bấm tạo dây sẽ gửi giao dịch tạo dây rồi nạp ký quỹ bằng chữ ký của bạn. Bạn không trả phí.'
+                    : 'Chưa nối với mạng: bấm nút sẽ cho bạn biết cần gì, chưa tạo dây thật.'}
               </p>
+            )}
+            {step === LAST && tx.deployed && (
+              <div className="w-full">
+                <TxNotice state={tx} chainId={tx.chainId} success="Đã tạo dây và nạp ký quỹ." />
+                {made && !tx.pending && tx.result && !tx.result.ok && (
+                  <p className="mt-2">
+                    <Link href={`/circles/${made}`} className="font-semibold text-primary underline underline-offset-4">
+                      Mở dây vừa tạo
+                    </Link>
+                  </p>
+                )}
+              </div>
             )}
             {showStepError && (
               <p id="buoc-loi" className="w-full font-semibold text-destructive">

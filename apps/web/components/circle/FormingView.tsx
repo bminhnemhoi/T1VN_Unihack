@@ -3,25 +3,27 @@
 import { Copy } from 'lucide-react';
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
-import { formatBps, formatUsdc, previewCircle } from 'sdk';
+import { formatBps, formatUsdc, parseUsdc, previewCircle } from 'sdk';
+import { ActionButton } from '@/components/chain/ActionButton';
 import { Countdown } from '@/components/brand/Countdown';
 import { QrCode } from '@/components/circle/QrCode';
 import { RepBadge, RepDisclaimer } from '@/components/circle/RepBadge';
 import { RoundStrip } from '@/components/circle/RoundStrip';
 import { LedgerList } from '@/components/LedgerList';
 import { SoonButton } from '@/components/shell/SoonButton';
+import { Input } from '@/components/ui/input';
 import { useToast } from '@/components/shell/Toast';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
-import { getSampleCircle, type CircleId } from '@/lib/sample-circles';
+import { type SampleCircleData } from '@/lib/sample-circles';
 
 /**
  * S04: a circle still gathering people. Invite link + QR, who joined (with reputation), the bond state, and "Bắt đầu dây",
  * which stays closed until the circle is full AND coverage reaches the 50% floor, and says which one is missing.
  */
-export function FormingView({ id }: { id: CircleId }) {
-  const c = getSampleCircle(id);
+export function FormingView({ c }: { c: SampleCircleData }) {
+  const id = c.id;
   const { show } = useToast();
   const t = c.terms;
   const n = Number(t.n);
@@ -29,11 +31,16 @@ export function FormingView({ id }: { id: CircleId }) {
   const [origin, setOrigin] = useState('');
   useEffect(() => setOrigin(window.location.origin), []);
 
+  const live = c.live;
+  const nowSec = Math.floor((live?.nowMs ?? 0) / 1000);
+  const [topUp, setTopUp] = useState('');
   const joined = c.seats.filter((s) => s.joined).length;
-  const have = pretendFull ? n : joined;
+  const have = !live && pretendFull ? n : joined;
   const full = have >= n;
   const preview = previewCircle({ n: t.n, c: t.c, periodDays: t.periodDays, alphaBps: t.alphaBps, bond: c.bond, capBps: t.capBps });
   const ready = full && preview.canActivate;
+  const pastDeadline = live ? nowSec > live.view.params.joinDeadline : false;
+  const topUpAmount = topUp.trim() === '' ? preview.bondMissing : parseUsdc(topUp);
   const reason = !full
     ? `Chưa bắt đầu được: dây mới có ${have} trên ${n} người. Cần đủ ${n} người, rồi mới bấm bắt đầu.`
     : !preview.canActivate
@@ -68,9 +75,9 @@ export function FormingView({ id }: { id: CircleId }) {
           <h1 className="font-display text-h1 font-bold">{c.label}</h1>
           <div className="mt-2 flex flex-wrap items-center gap-2">
             <Badge variant="secondary">Đang gom người</Badge>
-            <Badge variant="outline">Bạn là chủ hụi</Badge>
+            <Badge variant="outline">{c.viewerIsOrganizer ? 'Bạn là chủ hụi' : c.viewer >= 0 ? `Bạn là thành viên ${c.viewer + 1}` : live ? 'Bạn đang xem, chưa ở trong dây' : 'Bạn là chủ hụi'}</Badge>
             <Badge variant="secondary">{t.mode === 'fixed' ? 'Cố định' : 'Bỏ thăm'}</Badge>
-            <Badge variant="secondary">Dữ liệu mẫu</Badge>
+            {!live && <Badge variant="secondary">Dữ liệu mẫu</Badge>}
           </div>
         </div>
         <RoundStrip n={n} done={0} />
@@ -86,17 +93,39 @@ export function FormingView({ id }: { id: CircleId }) {
               Còn <Countdown seconds={c.joinSecondsLeft ?? 0} className="font-semibold text-white" /> để mời đủ người. Quá hạn mà chưa đủ thì dây tự hủy và bạn rút lại ký quỹ.
             </p>
             <div className="mt-6 flex flex-wrap gap-3">
-              <Button type="button" size="lg" onClick={start} aria-disabled={!ready} aria-describedby="ly-do-bat-dau" className={ready ? 'bg-action-ink text-muc-dem hover:bg-action-ink/90' : 'border border-[#c9d2e0] bg-transparent text-[#dfe5f0] hover:bg-white/10'}>
-                Bắt đầu dây
-              </Button>
+              {live ? (
+                c.viewerIsOrganizer ? (
+                  <ActionButton
+                    size="lg"
+                    disabled={!ready}
+                    aria-describedby="ly-do-bat-dau"
+                    className={ready ? 'bg-action-ink text-muc-dem hover:bg-action-ink/90' : 'border border-[#c9d2e0] bg-transparent text-[#dfe5f0] hover:bg-white/10'}
+                    run={(a) => a.activate(live.address)}
+                    success="Dây đã bắt đầu chạy kỳ 1."
+                    noticeClassName="text-white"
+                  >
+                    Bắt đầu dây
+                  </ActionButton>
+                ) : (
+                  <Button asChild size="lg" className="bg-action-ink text-muc-dem hover:bg-action-ink/90">
+                    <Link href={invitePath}>Vào dây này</Link>
+                  </Button>
+                )
+              ) : (
+                <Button type="button" size="lg" onClick={start} aria-disabled={!ready} aria-describedby="ly-do-bat-dau" className={ready ? 'bg-action-ink text-muc-dem hover:bg-action-ink/90' : 'border border-[#c9d2e0] bg-transparent text-[#dfe5f0] hover:bg-white/10'}>
+                  Bắt đầu dây
+                </Button>
+              )}
             </div>
             <p id="ly-do-bat-dau" className="mt-3 text-[#dfe5f0]">
               {reason}
             </p>
-            <label htmlFor="xem-du" className="mt-3 flex min-h-12 cursor-pointer items-center gap-3 text-[#c9d2e0]">
-              <Switch id="xem-du" checked={pretendFull} onCheckedChange={setPretendFull} />
-              Xem thử khi đã đủ {n} người (chỉ có ở bản mẫu)
-            </label>
+            {!live && (
+              <label htmlFor="xem-du" className="mt-3 flex min-h-12 cursor-pointer items-center gap-3 text-[#c9d2e0]">
+                <Switch id="xem-du" checked={pretendFull} onCheckedChange={setPretendFull} />
+                Xem thử khi đã đủ {n} người (chỉ có ở bản mẫu)
+              </label>
+            )}
           </section>
 
           <section aria-labelledby="moi" className="to-giay p-6">
@@ -141,9 +170,40 @@ export function FormingView({ id }: { id: CircleId }) {
             <p className="mt-3 text-muted-foreground">
               {preview.canActivate ? 'Ký quỹ đã đủ để bắt đầu dây.' : `Còn thiếu ${formatUsdc(preview.bondMissing)} để bắt đầu.`} Hết dây bạn lấy lại ký quỹ, chỉ mất phần đã dùng để bù cho người bỏ đóng.
             </p>
-            <SoonButton variant="outline" size="lg" className="mt-3" message="Nạp thêm ký quỹ cần đăng nhập và nối ví, sắp có. Hiện là màn hình mẫu, chưa nạp gì.">
-              Nạp thêm ký quỹ
-            </SoonButton>
+            {live && !c.viewerIsOrganizer ? null : live ? (
+              <div className="mt-3">
+                <label htmlFor="nap-them" className="font-semibold">
+                  Số USDC muốn nạp thêm
+                </label>
+                <div className="mt-1 flex flex-wrap items-center gap-2">
+                  <Input id="nap-them" inputMode="decimal" autoComplete="off" className="so-ke max-w-40 text-right text-lg" value={topUp} placeholder={formatUsdc(preview.bondMissing > 0n ? preview.bondMissing : 0n).replace(' USDC', '')} onChange={(e) => setTopUp(e.target.value)} />
+                  <span className="text-lg">USDC</span>
+                </div>
+                <ActionButton
+                  variant="outline"
+                  size="lg"
+                  className="mt-3"
+                  disabled={topUpAmount === undefined || topUpAmount <= 0n}
+                  run={(a) => a.depositBond(live.address, topUpAmount!)}
+                  success="Đã nạp thêm ký quỹ."
+                >
+                  Nạp thêm ký quỹ
+                </ActionButton>
+              </div>
+            ) : (
+              <SoonButton variant="outline" size="lg" className="mt-3" message="Nạp thêm ký quỹ cần đăng nhập và nối ví, sắp có. Hiện là màn hình mẫu, chưa nạp gì.">
+                Nạp thêm ký quỹ
+              </SoonButton>
+            )}
+            {live && pastDeadline && (
+              <div className="mt-6 border-t border-border pt-4">
+                <p className="font-semibold">Hết hạn gom người mà dây chưa đủ.</p>
+                <p className="text-muted-foreground">Ai cũng hủy dây được. Sau khi hủy, chủ hụi rút lại ký quỹ.</p>
+                <ActionButton variant="outline" size="lg" className="mt-3" run={(a) => a.cancel(live.address)} success="Đã hủy dây.">
+                  Hủy dây quá hạn
+                </ActionButton>
+              </div>
+            )}
           </section>
         </div>
 
@@ -166,6 +226,13 @@ export function FormingView({ id }: { id: CircleId }) {
             })}
           </ol>
           <RepDisclaimer className="mt-3" />
+          {live && c.viewer >= 0 && !c.viewerIsOrganizer && (
+            <div className="mt-4 border-t border-border pt-4">
+              <ActionButton variant="outline" size="lg" run={(a) => a.leave(live.address)} success="Bạn đã rời dây. Nhớ thu hồi quyền trích tiền ở ví nếu có.">
+                Rời dây
+              </ActionButton>
+            </div>
+          )}
         </section>
       </div>
     </main>

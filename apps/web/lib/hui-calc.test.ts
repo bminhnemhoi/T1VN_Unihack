@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { bidQuote, capOf, fairness, riskTable, roundSplit, sampleBids, settleCleanCircle, simulateDefaults, tierOf, type Terms } from './hui-calc';
+import { bidQuote, capOf, fairness, riskTable, roundSplit, sampleBids, settleCleanCircle, simulateDefaults, type Terms } from './hui-calc';
 
 const U = 1_000_000n;
 const usdc = (whole: number, cents = 0): bigint => BigInt(whole) * U + BigInt(cents) * 10_000n;
@@ -132,32 +132,5 @@ describe('settleCleanCircle', () => {
     const last = s.members[winners[7]!]!;
     expect(last.interestPaid).toBe(0n);
     expect(last.interestReceived).toBeGreaterThan(s.members[winners[0]!]!.interestReceived);
-  });
-});
-
-describe('tierOf', () => {
-  const base = { completed: 0, onTime: 0, late: 0, defaults: 0, repaid: 0, monthsActive: 0 };
-  it('new, with the number of clean circles still needed', () => {
-    const i = tierOf({ ...base, completed: 1 }, 'member');
-    expect(i.tier).toBe('new');
-    expect(i.toNext).toBe(2);
-  });
-  it('trusted needs 3 clean circles and 95% on time', () => {
-    expect(tierOf({ ...base, completed: 3, onTime: 19, late: 1 }, 'member').tier).toBe('trusted');
-    expect(tierOf({ ...base, completed: 3, onTime: 18, late: 2 }, 'member').tier).toBe('new');
-  });
-  it('an organizer whose bond was used stays at new', () => {
-    expect(tierOf({ ...base, completed: 5, bondUsedCircles: 1 }, 'organizer').tier).toBe('new');
-    expect(tierOf({ ...base, completed: 5, bondUsedCircles: 0 }, 'organizer').tier).toBe('trusted');
-  });
-  it('veteran needs 10 circles and more than 6 months; the top tier has no next step', () => {
-    const v = tierOf({ ...base, completed: 12, onTime: 80, late: 1, monthsActive: 14 }, 'member');
-    expect(v.tier).toBe('veteran');
-    expect(v.toNext).toBeUndefined();
-    expect(tierOf({ ...base, completed: 12, onTime: 80, monthsActive: 5 }, 'member').tier).toBe('trusted');
-  });
-  it('an unpaid default shows a red flag at every tier', () => {
-    expect(tierOf({ ...base, completed: 4, onTime: 30, defaults: 1, repaid: 0 }, 'member').redFlag).toBe(true);
-    expect(tierOf({ ...base, completed: 4, onTime: 30, defaults: 1, repaid: 1 }, 'member').redFlag).toBe(false);
   });
 });

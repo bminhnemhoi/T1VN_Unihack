@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation';
 import { useRef, useState } from 'react';
 import { formatBps, formatUsdc, previewCircle } from 'sdk';
 import { Countdown } from '@/components/brand/Countdown';
+import { TxNotice, useTx } from '@/components/chain/useTx';
 import { RepBadge, RepDisclaimer } from '@/components/circle/RepBadge';
 import { RiskTable } from '@/components/circle/RiskTable';
 import { LedgerList } from '@/components/LedgerList';
@@ -14,17 +15,27 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Field, FieldLabel } from '@/components/ui/field';
 import { agreementClauses, agreementHash } from '@/lib/agreement';
 import { capOf } from '@/lib/hui-calc';
-import { getSampleCircle } from '@/lib/sample-circles';
+import { useCircleData } from '@/lib/live/useCircleData';
+import type { SampleCircleData } from '@/lib/sample-circles';
 
-const C = getSampleCircle('dang-gom');
 const REVEAL_BOND_BPS = 100n;
+
+/** `/moi/[id]`: loads the circle (sample or chain) and shows its invite page. */
+export function InviteScreen({ id }: { id: string }) {
+  const d = useCircleData(id);
+  if (d.status === 'loading') return <main id="noi-dung" className="mx-auto max-w-5xl px-4 py-10"><p role="status" className="text-lead">Đang đọc dây từ mạng…</p></main>;
+  if (d.status !== 'ready') return <main id="noi-dung" className="mx-auto max-w-5xl px-4 py-10"><h1 className="font-display text-h2 font-bold">{d.status === 'error' ? 'Chưa đọc được dây' : 'Không tìm thấy dây này'}</h1></main>;
+  return <InviteView c={d.data} />;
+}
 
 /**
  * S05: the page a person opens from an invite link. It answers four questions before asking for anything: what is this
  * circle, who runs it, what is the worst that can happen to me, and what exactly am I agreeing to (text + its hash).
  */
-export function InviteView() {
+export function InviteView({ c: C }: { c: SampleCircleData }) {
   const router = useRouter();
+  const tx = useTx();
+  const live = C.live;
   const { show } = useToast();
   const [agreed, setAgreed] = useState(false);
   const box = useRef<HTMLButtonElement>(null);
@@ -34,7 +45,9 @@ export function InviteView() {
   const left = n - joined.length;
   const mySeat = joined.length + 1;
   const preview = previewCircle({ n: t.n, c: t.c, periodDays: t.periodDays, alphaBps: t.alphaBps, bond: C.bond, capBps: t.capBps });
-  const allowance = (t.n - 1n) * (t.c + (t.c * REVEAL_BOND_BPS) / 10_000n);
+  const allowance = live ? live.view.requiredAllowance : (t.n - 1n) * (t.c + (t.c * REVEAL_BOND_BPS) / 10_000n);
+  const open = !live || live.view.state === 'forming';
+  const already = live ? C.viewer >= 0 : false;
 
   const join = () => {
     if (!agreed) {
@@ -43,7 +56,13 @@ export function InviteView() {
       box.current?.focus();
       return;
     }
-    router.push('/dang-nhap?tiep=/moi/dang-gom');
+    if (!live) {
+      router.push(`/dang-nhap?tiep=/moi/${C.id}`);
+      return;
+    }
+    void tx.run((a) => a.join(live.address, { ageConfirmed: true })).then((r) => {
+      if (r?.ok) router.push(`/circles/${live.address}`);
+    });
   };
 
   return (
@@ -52,7 +71,7 @@ export function InviteView() {
       <div className="mt-2 flex flex-wrap items-center gap-2">
         <Badge variant="secondary">Còn {left} chỗ</Badge>
         <Badge variant="secondary">{t.mode === 'fixed' ? 'Cố định' : 'Bỏ thăm'}</Badge>
-        <Badge variant="secondary">Dữ liệu mẫu</Badge>
+        {!live && <Badge variant="secondary">Dữ liệu mẫu</Badge>}
       </div>
 
       <div className="mt-8 grid gap-6 lg:grid-cols-[3fr_2fr] lg:items-start [&>*]:min-w-0">
@@ -144,10 +163,20 @@ export function InviteView() {
             Tôi đủ 18 tuổi và đồng ý luật dây
           </FieldLabel>
         </Field>
-        <Button type="button" size="lg" className="mt-3" onClick={join}>
-          Vào dây
-        </Button>
-        <p className="mt-2 text-muted-foreground">Bạn sẽ đăng nhập ở bước sau. Hiện là màn hình mẫu, chưa có gì được gửi đi.</p>
+        {!open ? (
+          <p role="status" className="mt-3 font-semibold">Dây này không còn nhận người vào.</p>
+        ) : already ? (
+          <p role="status" className="mt-3 font-semibold">
+            Bạn đã ở trong dây này.{' '}
+            <a href={`/circles/${C.id}`} className="text-primary underline underline-offset-4">Mở dây</a>
+          </p>
+        ) : (
+          <Button type="button" size="lg" className="mt-3" onClick={join} disabled={tx.pending}>
+            {tx.pending ? 'Đang gửi…' : 'Vào dây'}
+          </Button>
+        )}
+        <TxNotice state={tx} chainId={tx.chainId} success="Bạn đã vào dây." needed={allowance} />
+        {!live && <p className="mt-2 text-muted-foreground">Bạn sẽ đăng nhập ở bước sau. Hiện là màn hình mẫu, chưa có gì được gửi đi.</p>}
       </section>
     </main>
   );

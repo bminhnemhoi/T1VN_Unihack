@@ -4,11 +4,11 @@ import { CascadeBar } from '@/components/circle/CascadeBar';
 import { CirclePageHead } from '@/components/circle/CirclePageHead';
 import { RiskTable } from '@/components/circle/RiskTable';
 import { simulateDefaults } from '@/lib/hui-calc';
-import { getSampleCircle, settledRound, type CircleId } from '@/lib/sample-circles';
+import { settledRound, type SampleCircleData } from '@/lib/sample-circles';
 
 /** S09: the cascade holdback, bond, reserve, uncovered, for every shortfall so far, plus what happens next if the defaulter never pays. */
-export function CoverageView({ id }: { id: CircleId }) {
-  const c = getSampleCircle(id);
+export function CoverageView({ c }: { c: SampleCircleData }) {
+  const id = c.id;
   const t = c.terms;
   const total = c.shortfalls.reduce(
     (a, s) => ({ holdback: a.holdback + s.fromHoldback, bond: a.bond + s.fromBond, reserve: a.reserve + s.fromReserve, uncovered: a.uncovered + s.uncovered }),
@@ -126,7 +126,7 @@ export function CoverageView({ id }: { id: CircleId }) {
         <p className="mt-2 text-muted-foreground">Chỉ ghi địa chỉ ví và số tiền, không có tên thật. Người vỡ nợ trả lại bằng nút &quot;Trả nợ&quot; khi dây còn chạy.</p>
       </section>
 
-      <RiskTable terms={t} bond={c.bond} highlight={c.state === 'active' ? c.viewer + 1 : undefined} className="mt-10" />
+      <RiskTable terms={t} bond={c.bond} highlight={c.state === 'active' && c.viewer >= 0 ? c.viewer + 1 : undefined} className="mt-10" />
 
       <p className="mt-8 text-muted-foreground">
         Từng khoản thiếu và hạn trả nằm ở{' '}

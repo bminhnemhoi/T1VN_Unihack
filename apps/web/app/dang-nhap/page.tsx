@@ -1,19 +1,13 @@
-import { Mail, Phone, ShieldCheck } from 'lucide-react';
 import Link from 'next/link';
 import { Seal } from '@/components/brand/Seal';
-import { SoonButton } from '@/components/shell/SoonButton';
-import { Badge } from '@/components/ui/badge';
+import { LoginActions } from '@/components/chain/LoginActions';
 
 export const metadata = { title: 'Đăng nhập' };
 
-const GOOGLE_MSG = 'Đăng nhập bằng Google sẽ chạy khi nối ví. Hiện là màn hình mẫu, chưa có tài khoản nào được tạo.';
-const EMAIL_MSG = 'Đăng nhập bằng email sẽ chạy khi nối ví. Hiện là màn hình mẫu, chưa gửi mã nào.';
-const PHONE_MSG = 'Mã OTP số điện thoại là phần thêm, sắp có. Mỗi số điện thoại chỉ dùng cho một ví. Hiện là màn hình mẫu.';
-
-/** S01: three sentences, three ways in. Real login (Privy) arrives with the wallet work; every button here says so. */
+/** S01: three sentences, three ways in. Real Privy login when configured; otherwise every button says it is coming. */
 export default async function Login({ searchParams }: { searchParams: Promise<{ tiep?: string }> }) {
   const { tiep } = await searchParams;
-  const back = tiep === '/moi/dang-gom' ? tiep : undefined;
+  const back = tiep && /^\/moi\/(dang-gom|0x[0-9a-fA-F]{40})$/.test(tiep) ? tiep : undefined;
   return (
     <main id="noi-dung" className="mx-auto grid max-w-5xl gap-10 px-4 py-10 md:grid-cols-[3fr_2fr] md:items-start md:py-16">
       <div>
@@ -41,24 +35,7 @@ export default async function Login({ searchParams }: { searchParams: Promise<{ 
             Chọn cách đăng nhập
           </h2>
         </div>
-        <div className="mt-5 flex flex-col gap-3">
-          <SoonButton size="lg" message={GOOGLE_MSG}>
-            Tiếp tục với Google
-          </SoonButton>
-          <SoonButton size="lg" variant="outline" message={EMAIL_MSG}>
-            <Mail aria-hidden className="size-5" /> Tiếp tục với email
-          </SoonButton>
-          <SoonButton size="lg" variant="outline" message={PHONE_MSG}>
-            <Phone aria-hidden className="size-5" /> Tiếp tục với số điện thoại
-          </SoonButton>
-        </div>
-        <p className="mt-4 flex items-start gap-2 font-semibold">
-          <ShieldCheck aria-hidden className="mt-1 size-5 shrink-0 text-state-ok" />
-          Không cần ví, không cần AVAX. Ví được tạo tự động cho bạn.
-        </p>
-        <p className="mt-3">
-          <Badge variant="secondary">Sắp có khi nối ví</Badge>
-        </p>
+        <LoginActions />
         <p className="mt-3 text-muted-foreground">
           Chưa đăng nhập vẫn xem được sổ hụi và các màn mẫu.{' '}
           <Link href="/circles" className="font-semibold text-primary underline underline-offset-4">
