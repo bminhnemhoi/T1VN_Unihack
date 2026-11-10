@@ -68,6 +68,37 @@ export async function postRelay(
   return errorOf(r.json, r.status);
 }
 
+/**
+ * `POST /api/relay/permit` (docs/05 section 8.2b): the relayer submits a permit the member signed, so a member without
+ * AVAX can raise the allowance `payLate`/`repayDebt` need. `skipped` means somebody already submitted it and the
+ * allowance is enough: nothing was sent and there is no hash to wait for.
+ */
+export async function relayPermit(
+  fetchFn: FetchLike,
+  url: string,
+  owner: Address,
+  circle: Address,
+  permit: { value: bigint; deadline: bigint; v: number; r: Hex; s: Hex },
+): Promise<{ ok: true; txHash?: Hex; skipped?: true } | TxFailure> {
+  const body = {
+    permit: {
+      owner,
+      spender: circle,
+      value: permit.value.toString(),
+      deadline: Number(permit.deadline),
+      v: permit.v,
+      r: permit.r,
+      s: permit.s,
+    },
+  };
+  const r = await postJson(fetchFn, url, body);
+  if ('ok' in r) return r;
+  const j = r.json as { txHash?: unknown; skipped?: unknown } | null;
+  if (r.status === 200 && j?.skipped === true) return { ok: true, skipped: true };
+  if (r.status === 200 && typeof j?.txHash === 'string' && /^0x[0-9a-fA-F]{64}$/.test(j.txHash)) return { ok: true, txHash: j.txHash as Hex };
+  return errorOf(r.json, r.status);
+}
+
 export interface AttestationResponse {
   attestation: { member: Address; circle: Address; attestationId: Hex; expiry: bigint };
   signature: Hex;
