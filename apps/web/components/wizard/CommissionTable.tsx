@@ -1,5 +1,5 @@
 import { formatBps, formatUsdc } from 'sdk';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { commissionSchedule, type Terms } from '@/lib/hui-calc';
 
 /**
@@ -20,14 +20,15 @@ export function CommissionTable({ terms }: { terms: Terms }) {
           ? `Luật cho phép người hốt trả một khoản lãi tối đa mỗi kỳ. Chủ hụi lấy ${formatBps(terms.shareBps!)} khoản đó làm hoa hồng (không quá ${formatBps(terms.feeBps)} tiền hốt), phần còn lại dành cho thăm.`
           : 'Thăm cao nhất được phép theo trần lãi 20%/năm.'}
       </p>
-      <Table className="so-ke mt-2">
+      <div className="mt-2 overflow-x-auto" tabIndex={0} role="region" aria-label="Bảng trần thăm và hoa hồng từng kỳ, kéo ngang để xem hết">
+      <table className="so-ke w-full caption-bottom text-base">
         <caption className="sr-only">Trần thăm theo luật, trần thăm thực thi và hoa hồng của từng kỳ, tính bằng USDC</caption>
         <TableHeader>
           <TableRow>
             <TableHead scope="col" className="text-base font-semibold text-foreground">Kỳ</TableHead>
             <TableHead scope="col" className="text-base font-semibold text-foreground">Người góp</TableHead>
-            <TableHead scope="col" className="text-right text-base font-semibold text-foreground">{shared ? 'Trần thăm theo luật' : 'Trần thăm'}</TableHead>
-            {shared && <TableHead scope="col" className="text-right text-base font-semibold text-foreground">Trần thăm thực thi</TableHead>}
+            <TableHead scope="col" className="text-right text-base font-semibold text-foreground">{shared ? 'Trần luật' : 'Trần thăm'}</TableHead>
+            {shared && <TableHead scope="col" className="text-right text-base font-semibold text-foreground">Trần thực thi</TableHead>}
             {hasFee && <TableHead scope="col" className="text-right text-base font-semibold text-foreground">Hoa hồng tối đa</TableHead>}
           </TableRow>
         </TableHeader>
@@ -42,7 +43,8 @@ export function CommissionTable({ terms }: { terms: Terms }) {
             </TableRow>
           ))}
         </TableBody>
-      </Table>
+      </table>
+      </div>
       {hasFee && (
         <p className="so-ke mt-2">
           Hoa hồng cả dây tối đa <strong>{formatUsdc(total)}</strong>. Kỳ chủ hụi tự hốt không thu hoa hồng; kỳ cuối bằng 0.

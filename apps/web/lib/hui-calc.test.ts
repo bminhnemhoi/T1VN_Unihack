@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { bidQuote, capOf, commissionSchedule, fairness, lateRewardLoss, reserveEstimate, riskTable, roomOf, roundSplit, sampleBids, settleCleanCircle, simulateDefaults, type Terms } from './hui-calc';
+import { bidQuote, capOf, commissionSchedule, fairness, lateRewardLoss, reserveEstimate, startingBid, riskTable, roomOf, roundSplit, sampleBids, settleCleanCircle, simulateDefaults, type Terms } from './hui-calc';
 
 const U = 1_000_000n;
 const usdc = (whole: number, cents = 0): bigint => BigInt(whole) * U + BigInt(cents) * 10_000n;
@@ -211,5 +211,14 @@ describe('on-time reserve split (ADR-24, vector V1)', () => {
   });
   it('a member already at weight 0 loses nothing more', () => {
     expect(lateRewardLoss(5n, 4n, usdc(20)).loss).toBe(0n);
+  });
+});
+
+describe('startingBid', () => {
+  it('2 USDC when the ceiling allows, otherwise half the ceiling in whole cents', () => {
+    expect(startingBid(3_287_671n)).toBe('2');
+    expect(startingBid(328_767n)).toBe('0,16');
+    expect(startingBid(5_000n)).toBe('0,005'); // half is under a cent: fall back to the ceiling
+    expect(startingBid(0n)).toBe('0');
   });
 });

@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { formatBps, formatUsdc, parseUsdc } from 'sdk';
 import { LedgerList } from '@/components/LedgerList';
 import { Input } from '@/components/ui/input';
-import { bidQuote, roomOf, type Terms } from '@/lib/hui-calc';
+import { bidQuote, capOf, roomOf, startingBid, type Terms } from '@/lib/hui-calc';
 
 interface Past {
   k: number;
@@ -21,7 +21,7 @@ interface Past {
  * `bidderIsOrganizer`: the person looking holds the organizer's own seat, so winning this round carries no commission.
  */
 export function BidCalculator({ terms, round, past, bidderIsOrganizer = false }: { terms: Terms; round: number; past: Past[]; bidderIsOrganizer?: boolean }) {
-  const [text, setText] = useState('2');
+  const [text, setText] = useState(() => startingBid(capOf(terms, round)));
   const bid = parseUsdc(text);
   const q = bid === undefined ? undefined : bidQuote(terms, round, bid, bidderIsOrganizer);
   const shared = (terms.shareBps ?? 0n) > 0n && terms.feeBps > 0n;

@@ -14,6 +14,7 @@ import { Field, FieldDescription, FieldError, FieldLabel } from '@/components/ui
 import { Input } from '@/components/ui/input';
 import { commitBlocker, eligibilityBlocker } from '@/lib/live/bidEligibility';
 import { useMyCommit } from '@/lib/live/useMyCommit';
+import { startingBid } from '@/lib/hui-calc';
 import type { SampleCircleData } from '@/lib/sample-circles';
 import { vi } from '@/lib/vi';
 
@@ -83,7 +84,7 @@ function SealedNote({ onEdit }: { onEdit?: () => void }) {
 function SampleCard({ phase, round, maxBid, revealBond, commitSeconds }: Required<Omit<Props, 'c'>>) {
   const [sealed, setSealed] = useState<bigint | undefined>();
   const [opened, setOpened] = useState(false);
-  const [text, setText] = useState('2');
+  const [text, setText] = useState(() => startingBid(maxBid));
   return (
     <section aria-labelledby="bid-title" className="to-giay p-6">
       <h3 id="bid-title" className="font-display text-h3 font-bold">
@@ -138,7 +139,7 @@ function LiveCard({ c, phase, round, maxBid, revealBond }: { c: SampleCircleData
   const me = live.viewerAddress;
   const commit = useMyCommit(live.address, round, me);
   const tx = useTx();
-  const [text, setText] = useState('2');
+  const [text, setText] = useState(() => startingBid(maxBid));
   const mine = commit.data;
 
   const ineligible = eligibilityBlocker(view, me);

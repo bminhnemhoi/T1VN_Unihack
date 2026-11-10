@@ -3,7 +3,7 @@
  * reputation tiers. Everything is `bigint` USDC base units and goes through `huiMath` (docs/03 section 2), so a number
  * on screen is the same number the contract would compute. No I/O, no randomness (CLAUDE.md hard rule 3).
  */
-import { huiMath } from 'sdk';
+import { formatUsdcNumber, huiMath } from 'sdk';
 
 const { bpsOf, holdbackFor, releasePerRound, maxBid, bidCapAfterShare, commissionRoom, commission, reserveShare, onTimeWeight } = huiMath;
 const BPS = 10_000n;
@@ -47,6 +47,13 @@ export function roomOf(t: Terms, k: number): bigint {
 export function feeOf(t: Terms, k: number, pot: bigint, organizerWins = false): bigint {
   if (organizerWins || t.feeBps === 0n) return 0n;
   return commission(pot, t.feeBps, shareOf(t), roomOf(t, k));
+}
+
+/** Number first shown in a bid box: 2 USDC when the ceiling allows it, otherwise half the ceiling (rounded down to a cent), never above it. */
+export function startingBid(cap: bigint): string {
+  if (cap >= 2_000_000n) return '2';
+  const half = (cap / 2n / 10_000n) * 10_000n;
+  return formatUsdcNumber(half > 0n ? half : cap);
 }
 
 export interface RoundSplit {
