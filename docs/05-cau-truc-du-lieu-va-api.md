@@ -706,6 +706,23 @@ Tất cả nhận và trả JSON; số tiền gửi dưới dạng chuỗi (bigi
 - Gửi bằng ví relayer (nạp AVAX testnet, cảnh báo khi số dư < 0,02 AVAX; dưới 0,005 AVAX thì dừng gửi và trả 503 `RelayUnavailable`). Các lệnh gửi đi qua một khóa tuần tự để không trùng nonce, và bộ giới hạn nằm trong bộ nhớ nên relay phải chạy như MỘT tiến trình Node liên tục (không serverless nhiều bản); cần nhiều bản thì chuyển bộ giới hạn và nonce sang kho dùng chung.
 - Trả: `{ "txHash": "0x..." }` hoặc `{ "error": { "code", "message" } }` (mã lỗi custom error đã giải mã).
 
+### 8.2b. `POST /api/relay/permit` (M-02, phương án (a), duyệt 10/11/2026)
+
+Vấn đề: `payLate` và `repayDebt` kéo tiền bằng `transferFrom` từ allowance cấp lúc `join`, không nhận `PermitSig`; thành viên Privy không có AVAX nên không tự gọi `USDC.approve`/`permit` được, và `/api/relay` chỉ nhận đích là factory hoặc dây. Route này cho relayer gửi hộ MỘT lệnh `USDC.permit` mà chính thành viên đã ký (EIP-2612 tự xác thực bằng chữ ký, không cần forwarder). Không đổi contract.
+
+- Body: `{ "permit": { "owner": "0x...", "spender": "0x...", "value": "<uint>", "deadline": <số giây>, "v": 27|28, "r": "0x..", "s": "0x.." } }`. `spender` là địa chỉ dây.
+- Trước các bước kiểm: cùng giới hạn theo IP (300/giờ) và ngân sách chung 1.500 yêu cầu/giờ của `/api/relay`.
+- Kiểm, theo thứ tự:
+  1. `factory.isCircle(spender)`.
+  2. `circle.memberInfo(owner).joined` và `circle.state()` là `Active` hoặc `Forming`; chặn ví lạ dùng relayer làm máy gửi permit.
+  3. `0 < value ≤ 2 × circle.requiredAllowance()` (trần chống giá trị vô lý; contract tin cậy mới tiêu được allowance và INV-04 giới hạn mỗi lần kéo).
+  4. `now < deadline ≤ now + 1 giờ` (theo giờ block mới nhất).
+  5. Mô phỏng `eth_call` `USDC.permit(...)`. Nếu revert (ví dụ nonce đã dùng vì ai đó gửi trước) thì chấp nhận khi `allowance(owner, spender) ≥ value`, giống `join` (docs/03 mục 5.1); khi đó KHÔNG gửi giao dịch nào, trả `{ "skipped": true }`.
+  6. Hạn mức 10 yêu cầu/giờ mỗi `owner`, chỉ tính cho permit đã qua bước 5 (chữ ký sai không làm hao hạn mức của người khác); ngưỡng AVAX của relayer như `/api/relay` (dưới 0,005 AVAX trả 503 `RelayUnavailable`); gửi bằng ví relayer qua cùng khóa tuần tự nonce.
+- Trả: `{ "txHash": "0x..." }` hoặc `{ "skipped": true }`, hoặc `{ "error": { "code", "message" } }` (400 `BadRequest`, `DeadlineInvalid`, `ValueNotAllowed`; 403 `TargetNotAllowed`, `NotAMember`; 409 `WrongState`; 422 `InvalidSignature`; 429 `RateLimited`; 502, 503 như `/api/relay`).
+- Giá trị permit không cộng dồn (permit đặt allowance bằng giá trị ký), nên SDK `signRepayPermit` ký `allowance còn cần = (số kỳ còn phải góp sau kỳ của khoản thiếu) × C + gốc còn nợ + lãi tối đa` (đề xuất M-02 mục 2), tính từ `quoteRepay`, và hiện số USDC sẽ được cấp. Lúc `join` giao diện ký thêm 1 C trên `requiredAllowance` để hấp thụ lãi các lần trả trễ nhỏ (join chỉ đòi allowance ≥ `requiredAllowance`).
+- Luồng giao diện: kiểm allowance; nếu thiếu thì ký permit, `POST /api/relay/permit`, rồi `POST /api/relay` cho `payLate`/`repayDebt`. Lỗi `NeedAllowance` không còn với ví Privy.
+
 ### 8.3. `GET /api/circles/[address]/so-ho?format=json|pdf`
 
 Dựng sổ họ (mục 10) từ event. `format=pdf` trả file PDF tiếng Việt.

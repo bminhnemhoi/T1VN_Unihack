@@ -7,7 +7,7 @@
 import { createWalletClient, http, fallback, type Hex } from 'viem';
 import { privateKeyToAccount } from 'viem/accounts';
 import { NetworkError, resolveNetwork } from 'config/network';
-import { huiFactoryAbi, erc2771ForwarderAbi } from 'sdk';
+import { huiFactoryAbi, erc2771ForwarderAbi, mockUsdcAbi } from 'sdk';
 import { createAttestHandler, ATTEST_PER_HOUR, type AttestDeps } from './attest';
 import { chainFor, ConfigError, loadDeployment, makePublicClient } from './chain';
 import { consoleLogger, errorResponse, makeRequestIdGenerator } from './http';
@@ -18,8 +18,10 @@ import {
   GLOBAL_PER_HOUR,
   IP_PER_HOUR,
   RELAY_PER_HOUR,
+  createMutex,
   createRelayHandler,
 } from './relay';
+import { PERMIT_PER_HOUR, createRelayPermitHandler } from './relayPermit';
 
 type Env = Record<string, string | undefined>;
 type Handler = (req: Request) => Promise<Response>;
@@ -73,35 +75,102 @@ export async function buildAttestHandler(env: Env = process.env): Promise<Handle
   return createAttestHandler(deps);
 }
 
-export async function buildRelayHandler(env: Env = process.env): Promise<Handler> {
-  const network = resolveNetwork(env);
-  const deployment = loadDeployment(network);
-  const account = privateKeyToAccount(requireKey(env, 'RELAYER_PRIVATE_KEY'));
-  const publicClient = makePublicClient(network);
-  await assertChainId(publicClient, network.chainId);
-  const transports = network.rpcUrls.map((u) => http(u));
-  const wallet = createWalletClient({
-    account,
-    chain: chainFor(network),
-    transport: transports.length > 1 ? fallback(transports) : transports[0]!,
-  });
-  const config = await publicClient.readContract({ address: deployment.factory, abi: huiFactoryAbi, functionName: 'config' });
-  if (config.forwarder.toLowerCase() !== deployment.forwarder.toLowerCase()) {
-    throw new ConfigError('forwarder in the deployment file differs from the factory config');
+interface RelayShared {
+  deployment: ReturnType<typeof loadDeployment>;
+  publicClient: ReturnType<typeof makePublicClient>;
+  wallet: ReturnType<typeof createWalletClient>;
+  address: `0x${string}`;
+  ipLimiter: SlidingWindowLimiter;
+  globalLimiter: SlidingWindowLimiter;
+  sendLock: ReturnType<typeof createMutex>;
+}
+
+/**
+ * Relayer wallet, chain client, nonce mutex and the IP/global budgets, built once per process and shared by
+ * /api/relay and /api/relay/permit: one account pays for both, so one nonce sequence and one gas budget.
+ */
+const sharedByEnv = new WeakMap<Env, Promise<RelayShared>>();
+function relayShared(env: Env): Promise<RelayShared> {
+  let p = sharedByEnv.get(env);
+  if (!p) {
+    p = (async (): Promise<RelayShared> => {
+      const network = resolveNetwork(env);
+      const deployment = loadDeployment(network);
+      const account = privateKeyToAccount(requireKey(env, 'RELAYER_PRIVATE_KEY'));
+      const publicClient = makePublicClient(network);
+      await assertChainId(publicClient, network.chainId);
+      const transports = network.rpcUrls.map((u) => http(u));
+      const wallet = createWalletClient({
+        account,
+        chain: chainFor(network),
+        transport: transports.length > 1 ? fallback(transports) : transports[0]!,
+      });
+      const config = await publicClient.readContract({ address: deployment.factory, abi: huiFactoryAbi, functionName: 'config' });
+      if (config.forwarder.toLowerCase() !== deployment.forwarder.toLowerCase()) {
+        throw new ConfigError('forwarder in the deployment file differs from the factory config');
+      }
+      return {
+        deployment,
+        publicClient,
+        wallet,
+        address: account.address,
+        ipLimiter: new SlidingWindowLimiter(IP_PER_HOUR),
+        globalLimiter: new SlidingWindowLimiter(GLOBAL_PER_HOUR),
+        sendLock: createMutex(),
+      };
+    })();
+    sharedByEnv.set(env, p);
+    p.catch(() => sharedByEnv.delete(env)); // a failed build is retried on the next request
   }
+  return p;
+}
+
+/** `POST /api/relay/permit` (docs/05 section 8.2b): shares the relayer wallet, nonce mutex and budgets with /api/relay. */
+export async function buildRelayPermitHandler(env: Env = process.env): Promise<Handler> {
+  const sh = await relayShared(env);
+  const { deployment, wallet } = sh;
+  return createRelayPermitHandler({
+    publicClient: sh.publicClient,
+    factory: deployment.factory,
+    usdc: deployment.usdc,
+    sender: {
+      address: sh.address,
+      permit: ({ usdc, permit: p, gas }) =>
+        wallet.writeContract({
+          address: usdc,
+          abi: mockUsdcAbi,
+          functionName: 'permit',
+          args: [p.owner, p.spender, p.value, p.deadline, p.v, p.r, p.s],
+          gas,
+        } as never),
+    },
+    ownerLimiter: new SlidingWindowLimiter(PERMIT_PER_HOUR),
+    ipLimiter: sh.ipLimiter,
+    globalLimiter: sh.globalLimiter,
+    sendLock: sh.sendLock,
+    now: Date.now,
+    requestId: makeRequestIdGenerator(),
+    log: consoleLogger,
+  });
+}
+
+export async function buildRelayHandler(env: Env = process.env): Promise<Handler> {
+  const sh = await relayShared(env);
+  const { deployment, wallet, publicClient } = sh;
 
   return createRelayHandler({
     publicClient,
     factory: deployment.factory,
     forwarder: deployment.forwarder,
     sender: {
-      address: account.address,
+      address: sh.address,
       execute: ({ forwarder, request, gas }) =>
-        wallet.writeContract({ address: forwarder, abi: erc2771ForwarderAbi, functionName: 'execute', args: [request], gas }),
+        wallet.writeContract({ address: forwarder, abi: erc2771ForwarderAbi, functionName: 'execute', args: [request], gas } as never),
     },
     limiter: new SlidingWindowLimiter(RELAY_PER_HOUR),
-    ipLimiter: new SlidingWindowLimiter(IP_PER_HOUR),
-    globalLimiter: new SlidingWindowLimiter(GLOBAL_PER_HOUR),
+    ipLimiter: sh.ipLimiter,
+    globalLimiter: sh.globalLimiter,
+    sendLock: sh.sendLock,
     verifier: createPrivyVerifier(requireVar(env, 'NEXT_PUBLIC_PRIVY_APP_ID'), requireVar(env, 'PRIVY_APP_SECRET')),
     createLimiter: new SlidingWindowLimiter(CREATE_CIRCLE_PER_HOUR),
     now: Date.now,

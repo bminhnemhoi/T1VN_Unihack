@@ -101,13 +101,15 @@ export interface RelayDeps {
   /** `createCircle` is open to any wallet, so it needs a Privy login of the same wallet and its own small quota. */
   verifier: PrivyVerifier;
   createLimiter: SlidingWindowLimiter;
+  /** Optional shared send lock, so /api/relay/permit and /api/relay never reuse one relayer nonce. */
+  sendLock?: <T>(fn: () => Promise<T>) => Promise<T>;
   now: () => number;
   requestId: () => string;
   log: Logger;
 }
 
-/** Serialises the send step: one relayer account, one nonce sequence. */
-function createMutex(): <T>(fn: () => Promise<T>) => Promise<T> {
+/** Serialises the send step: one relayer account, one nonce sequence. Shared with /api/relay/permit. */
+export function createMutex(): <T>(fn: () => Promise<T>) => Promise<T> {
   let tail: Promise<unknown> = Promise.resolve();
   return (fn) => {
     const run = tail.then(fn, fn);
@@ -117,7 +119,7 @@ function createMutex(): <T>(fn: () => Promise<T>) => Promise<T> {
 }
 
 export function createRelayHandler(deps: RelayDeps): (req: Request) => Promise<Response> {
-  const sendLock = createMutex();
+  const sendLock = deps.sendLock ?? createMutex();
 
   return async function POST(req: Request): Promise<Response> {
     const requestId = deps.requestId();
