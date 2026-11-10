@@ -647,6 +647,10 @@ ADR-01 đến ADR-15 là các quyết định gốc của thiết kế. ADR-16 t
 | ADR-19 | Relayer trả gas cho yêu cầu của người lạ | Kiểm rồi mới gửi: allowlist đích và selector, `value = 0`, gas ≤ 3.000.000 (riêng `settleRound` ≤ 5.000.000), rate limit, `verify`, mô phỏng | Yêu cầu sai bị chặn trước khi tốn gas. Relayer không có quyền gì trên chuỗi |
 | ADR-20 | Ba bản HuiMath phải khớp từng đơn vị | Vector JSON do sim sinh, có commit; Solidity đọc bằng `vm.readFile`, TS đọc bằng vitest | Không cần `ffi = true` trong Foundry |
 | ADR-21 | Nhiều tiến trình cùng gửi giao dịch | Mỗi vai một khóa: deployer, relayer, attester, keeper | Không đụng nonce giữa relayer và keeper; lộ một khóa không kéo theo vai khác |
+| ADR-22 | Dây bảo chứng nửa vời cho phép tấn công bằng một ví ảo của chủ hụi | `minCoverageBps` = 10_000 trên Fuji (script deploy kiểm), form điền sẵn `B_min` làm tròn lên (03 mục 2.3) | Chủ hụi dùng một ví ảo thì tự lỗ; nhiều ví ảo chặn bằng xác thực mỗi người một tài khoản (03 mục 7.3). Ký quỹ cần khoảng 1/5 tổng tiền cả dây khi α = 20% |
+| ADR-24 | Lãi chậm góp quá nhỏ để thấy phạt trễ | Quỹ dự phòng cuối dây chia theo trọng số `(N − 1) − lateCount`, người vỡ nợ 0; `emergencyUnwind` vẫn chia đều | Trễ một kỳ mất khoảng 1/Σw phần thưởng, lớn hơn lãi chậm góp hàng chục lần; quy tắc ghi vào thỏa thuận dây |
+| ADR-27 | Nhiều luật chỉ hợp lệ khi "có thỏa thuận khác" | `termsHash` bất biến trong `CircleParams`, event `CircleTermsSet`, khác 0 | Văn bản ngoài chuỗi, chuỗi giữ mã băm; ký giao dịch vào dây là đồng ý đúng văn bản |
+| ADR-30 | Hoa hồng 1% cố định có thể bị tính gộp vào lãi (Điều 21) và không co giãn theo kỳ | Hoa hồng nằm trong trần lãi: `fee_k = min(φ·room_k, feeBps·pot_k)`, thăm ≤ `(1 − φ)·maxBid`, φ ≤ 50%; φ = 0 giữ chế độ cũ; chân của chủ hụi không thu; trả ngay khi kỳ không có khoản thiếu | Người hốt không bao giờ trả quá trần dù luật sư hiểu theo cách nào (INV-11); ví dụ cũ vẫn tái tạo được; thêm tham số `commissionShareBps` (03 mục 2.7) |
 
 ---
 

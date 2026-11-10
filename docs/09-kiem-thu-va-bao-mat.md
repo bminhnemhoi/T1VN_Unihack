@@ -1,6 +1,6 @@
 # 09. Kiểm thử và bảo mật
 
-**Mục đích và đọc khi nào.** File này là kế hoạch kiểm thử và hồ sơ bảo mật của HụiSafe: kim tự tháp test, test từng hàm, fuzz, invariant với Handler gắn với INV-01..INV-10, test tích hợp tái hiện ví dụ của 03 mục 8, differential ba ngôn ngữ, ngân sách gas, phân tích tĩnh, threat model, checklist trước deploy, bảo mật backend, kiểm thử riêng tư, runbook sự cố và cách dùng subagent `security-auditor`. Đọc trước khi viết test, trước mỗi PR đụng đường tiền, trước khi deploy và khi có sự cố. Luật ở [03](03-dac-ta-giao-thuc.md), tên ở [05](05-cau-truc-du-lieu-va-api.md), kiến trúc ở [04](04-kien-truc.md), lệnh Foundry đầy đủ ở skill `foundry-fuji`.
+**Mục đích và đọc khi nào.** File này là kế hoạch kiểm thử và hồ sơ bảo mật của HụiSafe: kim tự tháp test, test từng hàm, fuzz, invariant với Handler gắn với INV-01..INV-13, test tích hợp tái hiện ví dụ của 03 mục 8, differential ba ngôn ngữ, ngân sách gas, phân tích tĩnh, threat model, checklist trước deploy, bảo mật backend, kiểm thử riêng tư, runbook sự cố và cách dùng subagent `security-auditor`. Đọc trước khi viết test, trước mỗi PR đụng đường tiền, trước khi deploy và khi có sự cố. Luật ở [03](03-dac-ta-giao-thuc.md), tên ở [05](05-cau-truc-du-lieu-va-api.md), kiến trúc ở [04](04-kien-truc.md), lệnh Foundry đầy đủ ở skill `foundry-fuji`.
 
 ---
 
@@ -15,7 +15,7 @@ Luật: mỗi hàm trên có unit test, có fuzz test, được Handler gọi tr
 | Tĩnh | `forge fmt --check`, cảnh báo của solc, Slither, ESLint, `tsc` | Không lỗi, không High | Mỗi commit |
 | Unit | `forge test` (`test/unit`), vitest (`packages/sdk`), pytest (`sim`) | Mỗi hàm public, mỗi lỗi custom | Mỗi commit |
 | Fuzz | Fuzz của Foundry: 256 run ở máy, 5.000 run ở CI | Khoảng 20 tính chất (mục 3) | Mỗi commit |
-| Invariant | Invariant của Foundry + `Handler.sol` | INV-01..INV-09 tự động, INV-10 tĩnh | Mỗi PR |
+| Invariant | Invariant của Foundry + `Handler.sol` | INV-01..INV-09 và INV-11..INV-13 tự động, INV-10 tĩnh | Mỗi PR |
 | Differential | Vector JSON chung cho Solidity, TS, Python | Khoảng 2.000 vector | Mỗi PR |
 | Tích hợp | `WorkedExample.t.sol`, `GasBudget.t.sol` | Đúng từng đơn vị; gas trong ngân sách | Mỗi PR |
 | E2E | Anvil + web, Playwright tùy chọn; thử tay trên Fuji | Các tiêu chí chấp nhận của 02 | Trước M3 và trước demo |
@@ -37,7 +37,9 @@ Quy ước tên (skill `foundry-fuji`): `test_<Hàm>_<TìnhHuống>`, `testFuzz_
 | `HuiMath.maxBid` | Bảng 03 mục 8: 6.575.342; 4.931.506; 3.287.671; 1.643.835; `payers` = 0 cho 0; luôn ≤ C − 1. Bản án 48/2024 (đơn vị VND): N = 25, kỳ 5, 2.000.000, P = 30 ngày cho 657.534 | |
 | `HuiMath.lateFee` | 100 USDC, 1000 bps, 1 ngày danh nghĩa = 27.397 ở bản thật (`roundDuration` = P) và ở demo (trễ thật 6 giây, `roundDuration` = 180) | |
 | `HuiMath.bpsOf` | 376 USDC, 100 bps = 3,76 USDC; làm tròn xuống | |
-| `HuiFactory.createCircle` | Tham số hợp lệ: `CircleCreated`, `isCircle`, `circlesOf`; clone đã khởi tạo; qua forwarder thì chủ hụi là người ký | `InvalidParams(1..13)`, mỗi mã một ca |
+| `HuiMath.bidCapAfterShare`, `commissionRoom`, `commission` (v1.2) | Bảng 03 mục 8.1: φ = 5000 cho `bidCap` 3.287.671 / 2.465.753 / 1.643.835 / 821.917; `room` 26.301.368 / 14.794.518 / 6.575.342 / 1.643.835; `commission(388 USDC, 300, 5000, 26.301.368)` = 11.640.000 (trần 3% chặn), `commission(392,8 USDC, 300, 5000, 14.794.518)` = 7.397.259; φ = 0 cho `bpsOf(pot, feeBps)`; L = 0 cho 0 | |
+| `HuiMath.reserveShare`, `onTimeWeight` (v1.2) | Vector V1: R = 19.697.396, w = (4, 4, 4, 3, 4) cho 4.146.820 / 4.146.820 / 4.146.820 / 3.110.115 / 4.146.820, dư 1; `onTimeWeight(5, 6, false)` = 0 (kẹp, không tràn); vỡ nợ = 0 | |
+| `HuiFactory.createCircle` | Tham số hợp lệ: `CircleCreated`, `isCircle`, `circlesOf`; clone đã khởi tạo và phát `CircleTermsSet(termsHash, φ)`; qua forwarder thì chủ hụi là người ký | `InvalidParams(1..16)`, mỗi mã một ca; mã 15: φ > 5000, φ > 0 với dây `Fixed`, φ > 0 khi `commissionMode` tắt, φ > 0 với `feeBps` = 0; mã 16: `termsHash` = 0 |
 | `HuiFactory.setConfig` | Chỉ áp dụng cho dây tạo sau; dây cũ giữ `lateRateBps` cũ; `ConfigUpdated` | `NotAdmin` |
 | `onActivated`, `onFinished` | `activeCirclesOf` tăng rồi giảm | Gọi từ địa chỉ không phải circle bị revert |
 | `pauseCircle`, `unpauseCircle` | `CirclePausedByAdmin`, `CircleUnpausedByAdmin` | `NotAdmin` |
@@ -46,19 +48,19 @@ Quy ước tên (skill `foundry-fuji`): `test_<Hàm>_<TìnhHuống>`, `testFuzz_
 | `withdrawBond` | Chỉ sau `Cancelled`; `BondWithdrawn`; `bondRemaining` về 0 | `NotOrganizer`, `WrongState`, `NothingToWithdraw` (gọi lần hai) |
 | `join` | Thành công, `joinIndex` tăng; permit bị gửi trước vẫn vào được | `BadAttestation` (sai member, sai circle, sai người ký), `AttestationExpired`, `AttestationUsed`, `AlreadyMember`, `CircleFull`, `JoinClosed`, `InsufficientAllowance(needed, actual)` |
 | `leave` | Chỉ Forming; `MemberLeft`; người vào sau lùi lên một bậc, `joinIndex` liên tục từ 0, thứ tự tương đối giữ nguyên (03 mục 5.1); vào lại cùng dây bị `AttestationUsed` | `NotMember`, `WrongState` |
-| `activate` | Đủ N người, CI ≥ 50%: `CircleActivated(startTime, guaranteedCoverageBps)`, factory tăng bộ đếm | `NotOrganizer`, `CoverageTooLow(bps, minBps)`, `JoinClosed`, `CircleNotFull(have, need)` |
+| `activate` | Đủ N người, CI ≥ `minCoverageBps` (10.000 ở cấu hình Fuji; ký quỹ 479,999999 cho `CoverageTooLow(9999, 10000)`, B_min làm tròn lên cho α = 10% là 540): `CircleActivated(startTime, guaranteedCoverageBps)`, factory tăng bộ đếm | `NotOrganizer`, `CoverageTooLow(bps, minBps)`, `JoinClosed`, `CircleNotFull(have, need)` |
 | `cancel` | Sau `joinDeadline`: `CircleCancelled` | `TooEarly(at)`, `WrongState` |
 | `commitBid` | Kéo đúng `revealBond`; ghi đè giữ cọc, `commitIndex` mới lớn hơn; `BidCommitted` | `NotInCommitWindow`, `NotEligibleToBid` (đã hốt, đóng băng, còn khoản thiếu, không phải thành viên); dây Fixed |
-| `revealBid` | Trả cọc; cập nhật dẫn đầu theo thăm, rồi số lần trễ, rồi `commitIndex`; `BidRevealed` | `NotInRevealWindow`, `NoCommit`, `CommitMismatch`, `AlreadyRevealed`, `BidTooHigh(bid, max)` (vượt trần, và b ≥ C) |
-| `settleRound` | Không ai thăm: `joinIndex` nhỏ nhất, b = 0; một người sống; Fixed theo `joinIndex`, người đóng băng bị đẩy cuối; chỉ còn người đóng băng; cọc không mở vào quỹ dự phòng; từng nguồn của thác bù; `uncovered` khi cạn; người hốt bị chặn thì `claimable`; `H = min(...)`; nhả holdback; các event đúng thứ tự | `TooEarly(at)`, `RoundAlreadySettled`, `PreviousRoundNotSettled`, `CircleIsPaused` |
+| `revealBid` | Trả cọc; cập nhật dẫn đầu theo thăm, rồi số lần trễ, rồi `commitIndex`; `BidRevealed` | `NotInRevealWindow`, `NoCommit`, `CommitMismatch`, `AlreadyRevealed`, `BidTooHigh(bid, max)` (vượt trần, và b ≥ C; với φ > 0 `max` là `bidCap_k`, thăm đúng bằng `bidCap_k` hợp lệ, thêm 1 đơn vị thì revert) |
+| `settleRound` | Không ai thăm: `joinIndex` nhỏ nhất, b = 0; một người sống; Fixed theo `joinIndex`, người đóng băng bị đẩy cuối; chỉ còn người đóng băng; cọc không mở vào quỹ dự phòng; từng nguồn của thác bù; `uncovered` khi cạn; người hốt bị chặn thì `claimable`; `H = min(...)`; nhả holdback; các event đúng thứ tự | `TooEarly(at)`, `RoundAlreadySettled`, `PreviousRoundNotSettled`, `CircleIsPaused`; **v1.2:** φ = 0 giữ tiền công cố định; φ > 0 theo 03 mục 2.7 (kỳ 1 và 2 của mục 8.1: 11,64 và 7,397259); chủ hụi hốt thì `fee` = 0; kỳ không có khoản thiếu phát `FeePaid` và `feeEscrow[k]` = 0, kỳ có khoản thiếu thì không có `FeePaid`; chủ hụi bị chặn nhận tiền thì `claimable[organizer]` tăng và kỳ vẫn chi |
 | `payLate` | Trả `s + lateFee`; hoàn theo thứ tự 03 mục 6.8 (`uncovered` trả người hốt kỳ đó trước, rồi quỹ dự phòng, ký quỹ, holdback), mỗi phần phát `ShortfallRestored`; người đã hốt được nhả α·C của kỳ đó (`HoldbackReleased`); `LatePaid` | `NoShortfall`, `GraceExpired` |
-| `markDefault` | Đã hốt thành DefaultedDead, chưa hốt thành Frozen; `FeeForfeited`; `MemberDefaulted(m, r, frozen)` | `NoShortfall`, `GraceNotOver`, `AlreadyDefaulted` |
+| `markDefault` | Đã hốt thành DefaultedDead, chưa hốt thành Frozen; `FeeForfeited`; `MemberDefaulted(m, r, frozen)` | `NoShortfall`, `GraceNotOver`, `AlreadyDefaulted`; kỳ không có khoản thiếu không có escrow nên không có gì để `FeeForfeited` |
 | `repayDebt` | Trả một phần, trả hết; áp gốc theo thứ tự hoàn của 03 mục 6.8 (khoản cũ trước; trong mỗi khoản: `uncovered` cho người hốt kỳ đó, rồi quỹ dự phòng, ký quỹ, holdback); kéo đúng `amount + Σ lateFee`; không nhả holdback; mỗi phần hoàn phát `ShortfallRestored(round, member, source, amount)`; `DebtRepaid(member, principal, lateFee)`; `recordRepaid` khi hết nợ | `NoShortfall` (không có nợ), `RepayTooLarge(amount, debt)` |
-| `finalize` | Đủ 8 bước của 03 mục 5.3; dư lẻ cho `joinIndex` nhỏ nhất; `CircleFinalized`; số dư contract về 0 trừ `claimable` | `TooEarly`, `GraceNotOver`, `WrongState` |
+| `finalize` | Đủ 8 bước của 03 mục 5.3; quỹ dự phòng chia theo đúng hạn (V1: nhánh A M1 4,146821 / M2, M3, M5 4,146820 / M4 3,110115; nhánh B 5,895 mỗi người; Σw = 0 chia đều; `ReserveShared` từng người); dư lẻ cho `joinIndex` nhỏ nhất có w > 0; `CircleFinalized`; số dư contract về 0 trừ `claimable` | `TooEarly`, `GraceNotOver`, `WrongState` |
 | `claim` | Nhận đủ; chạy được khi Paused; `Claimed` | `NothingToClaim` |
 | `pause`, `unpause` | `pausedTotal` cộng đúng; lịch dời; mọi hàm ghi trừ `claim` bị chặn | `NotFactory` |
-| `emergencyUnwind` | Chỉ factory gọi, qua `HuiFactory.unwindCircle(circle)` của admin; sau 48 giờ Paused liên tục: trả theo sổ, không chuyển gì cho admin; `CircleUnwound` | `NotFactory`, `NotAdmin` (ở factory), `UnwindTooEarly`, `WrongState` |
-| View | `requiredAllowance` = (N − 1)(C + revealBond) = 404 USDC ở ví dụ; `guaranteedCoverageBps` dùng quỹ dự phòng = 0; `phase` đổi đúng tại biên; `roundStart` cộng `pausedTotal`; `dueOf`, `lateFeeOf` khớp HuiMath | |
+| `emergencyUnwind` | Chỉ factory gọi, qua `HuiFactory.unwindCircle(circle)` của admin; sau 48 giờ Paused liên tục: trả theo sổ, quỹ dự phòng chia ĐỀU (không theo đúng hạn, không phát `ReserveShared`), không chuyển gì cho admin; `CircleUnwound` | `NotFactory`, `NotAdmin` (ở factory), `UnwindTooEarly`, `WrongState` |
+| View | `maxBid` = `bidCap` khi φ > 0 và `statutoryMaxBid`, `commissionRoom`, `onTimeWeight` khớp HuiMath; `requiredAllowance` = (N − 1)(C + revealBond) = 404 USDC ở ví dụ; `guaranteedCoverageBps` dùng quỹ dự phòng = 0; `phase` đổi đúng tại biên; `roundStart` cộng `pausedTotal`; `dueOf`, `lateFeeOf` khớp HuiMath | |
 | `ReputationRegistry.record*` | Chỉ circle có `factory.isCircle`; bộ đếm tăng; `ReputationUpdated` | Gọi từ EOA bị revert |
 | Forwarder | `_msgSender()` là người ký; sửa `data` thì `ERC2771ForwarderInvalidSigner`; quá hạn thì `ERC2771ForwarderExpiredRequest`; phát lại thì hỏng vì nonce; selector `multicall(bytes[])` không tồn tại | |
 
@@ -78,6 +80,8 @@ Mọi đầu vào `bound()` về miền của 03: N 3..30, C 1..10.000 USDC, P 1
 6. `payLate` ở thời điểm ngẫu nhiên trong ân hạn: các nguồn đã bù được hoàn đúng; quỹ dự phòng tăng đúng `lateFee`.
 7. `join` với allowance có sẵn ngẫu nhiên và permit thành công hoặc lỗi: vào được khi và chỉ khi allowance cuối ≥ `requiredAllowance`.
 8. `commitHash` Solidity khớp TS (qua vector, mục 6).
+9. (v1.2) `testFuzz_commissionWithinCap`: N, C, P, k, φ, `feeBps`, pot, thăm hợp lệ ngẫu nhiên: `commission(...) + bid · L ≤ room` (INV-11), `commission ≤ ⌊pot · feeBps / 10_000⌋`, bằng 0 khi L = 0; thăm tối đa `bidCapAfterShare` + `commission` không bao giờ vượt `room`.
+10. (v1.2) `testFuzz_reserveSplit`: R, N ≤ 30, `lateCount` và cờ vỡ nợ ngẫu nhiên: Σ phần chia = R; ai có w = 0 nhận 0 (trừ khi Σw = 0 thì chia đều); w lớn hơn không nhận ít hơn w nhỏ hơn quá 1 đơn vị; dư lẻ về `joinIndex` nhỏ nhất có w > 0.
 
 ---
 
@@ -119,20 +123,23 @@ Mọi đầu vào `bound()` về miền của 03: N 3..30, C 1..10.000 USDC, P 1
 | `ghostAnyShortfall`, `ghostAnyLate` | Đã có khoản thiếu nào, đã có trả trễ nào |
 | `ghostUnauthorizedSuccess` | Số lần kẻ tấn công gọi thành công hàm có quyền |
 
-### 4.4. Ánh xạ INV-01..INV-10
+### 4.4. Ánh xạ INV-01..INV-13
 
 | Mã | Hàm invariant | Kiểm |
 |---|---|---|
-| INV-01 | `invariant_INV01_ledger` | `usdc.balanceOf(circle) == bondRemaining + reserve + totalHoldback + totalFeeEscrow + revealBondsHeld + totalClaimable`; thêm Σ `holdback` của thành viên = `totalHoldback`, Σ `claimable` = `totalClaimable`, Σ `feeEscrow` = `totalFeeEscrow` |
+| INV-01 | `invariant_INV01_ledger` | `usdc.balanceOf(circle) == bondRemaining + reserve + totalHoldback + totalFeeEscrow + revealBondsHeld + totalClaimable` (giữ đúng khi tiền công trả ngay mỗi kỳ, kể cả khi chủ hụi bị chặn nhận và khoản đó thành `claimable`); thêm Σ `holdback` của thành viên = `totalHoldback`, Σ `claimable` = `totalClaimable`, Σ `feeEscrow` = `totalFeeEscrow` |
 | INV-02 | `invariant_INV02_oneWinEach` | `ghostWins[m] ≤ 1` với mọi m; `settledRounds ≤ N`; nếu Completed thì `settledRounds == N` và Σ `ghostWins` = N |
-| INV-03 | `invariant_INV03_bidCap` | Mọi kỳ đã chi: `winningBid ≤ ghostMaxBidAtSettle[k]` và `winningBid < C` |
+| INV-03 | `invariant_INV03_bidCap` | Mọi kỳ đã chi: `winningBid ≤ ghostMaxBidAtSettle[k]` (với φ > 0 là `bidCap_k`, ghost đọc view `maxBid` trước khi chi) và `winningBid < C` |
 | INV-04 | `invariant_INV04_noOverPull` | `ghostPulledInCall[m] ≤ ghostAllowedInCall[m]` sau mỗi lời gọi |
 | INV-05 | `invariant_INV05_potSplit` | Mọi kỳ: `pot − (payout + fee + premium + holdback)` = 0 nếu người hốt không đóng băng, ≥ 0 và bằng phần trả nợ nếu đóng băng (`RoundInfo` không có trường trả nợ nên Handler tính) |
 | INV-06 | `invariant_INV06_holdback` | Với mọi d đã hốt chưa vỡ nợ, m = `settledRounds`: `holdback[d] ≤ α·(N − m)·C/10_000` (cộng sai số ≤ N đơn vị). Bằng nhau khi d không có khoản thiếu đang mở và `ghostFullH[d]` (lúc hốt nhận đủ H). Nếu chưa từng có khoản thiếu: Σ holdback = α·O(m) |
-| INV-07 | `invariant_INV07_noAdminPayout` | `ghostAdminReceived == 0` và `ghostUnexpectedRecipient == 0`; `ghostUnauthorizedSuccess == 0` |
+| INV-07 | `invariant_INV07_noAdminPayout` | `ghostAdminReceived == 0` và `ghostUnexpectedRecipient == 0`; `ghostUnauthorizedSuccess == 0` (chủ hụi là người nhận hợp lệ của `FeePaid`) |
 | INV-08 | `invariant_INV08_fullCoverage` (trong `HuiInvariantsFullCoverage`) | Σ `uncovered` của mọi kỳ = 0 khi mọi người đã hốt ngừng đóng trong cùng một kỳ (cú sốc đồng thời; bỏ đóng lần lượt: xem 03 mục 7.3) |
 | INV-09 | `invariant_INV09_schedule` | `ghostSettledBeforeDeadline == 0`; sau `activate()`, hash của `params()` không đổi |
 | INV-10 | Tĩnh | Job `privacy` của CI và rà soát (mục 8.3, mục 12) |
+| INV-11 | `invariant_INV11_commissionInRoom` | Mọi kỳ đã chi của dây φ > 0: `fee + winningBid · ghostPayers[k] ≤ ghostRoom[k]`, `fee ≤ pot · feeBps / 10_000`, `fee = 0` nếu người hốt là chủ hụi (`ghostPayers`, `ghostRoom` ghi lúc commit đầu tiên hoặc lúc chi, từ view `commissionRoom`) |
+| INV-12 | `invariant_INV12_reserveSplit` | Sau `finalize`: Σ `ghostReserveShare[m]` = `ghostReserveBeforeFinalize`; người vỡ nợ nhận 0; `lateCount` lớn hơn thì `ghostReserveShare` không lớn hơn (trừ dư lẻ 1 đơn vị) |
+| INV-13 | `invariant_INV13_feeTiming` | Mỗi `FeePaid(k, …)` chỉ xuất hiện ở kỳ có `ghostShortfallCount[k] = 0` và đi kèm `feeEscrow[k] = 0`; kỳ có khoản thiếu có `feeEscrow[k] > 0` hoặc `feeForfeited` (hoặc fee = 0); `ghostFeesToOrganizer` = Σ `FeePaid` + `feesPaid` của `finalize` ≤ Σ `RoundInfo.fee` |
 
 Về INV-06: bản đầu của 03 viết "tổng bằng α·O(m)", đẳng thức này sai khi có người trả trễ. 03 đã sửa theo hai điểm. Thứ nhất, INV-06 giờ phát biểu theo từng người như hàng trên. Thứ hai, `payLate` nhả phần holdback bị bỏ qua của kỳ trễ (03 mục 6.8, bước 4), nên ở nhánh A, sau `payLate(2)` holdback của M4 là 60 và tổng về đúng α·O(2) = 120 USDC. Ở nhánh B, M4 vỡ nợ nên bị loại khỏi tổng.
 
@@ -173,8 +180,8 @@ Tái hiện 03 mục 8, so từng đơn vị (USDC có 6 chữ số thập phân
 
 | Kỳ | Thăm | Người hốt, b | Kéo được | Bù | pot | Tiền công | Quỹ dự phòng | H | Nhận |
 |---|---|---|---|---|---|---|---|---|---|
-| 1 | M2 4, M4 6 | M4, 6 | 376 | 0 | 376 | 3,76 | 3,76 | 80 | 288,48 |
-| 2 | M1 3, M2 3, M1 commit trước | M1, 3 | 291 (M4 thiếu 100) | 100: 80 holdback của M4, 20 ký quỹ (còn 460) | 391 | 3,91 | 3,91 (cộng dồn 7,67) | 60 | 323,18 |
+| 1 | M2 4, M4 6 | M4, 6 | 376 | 0 | 376 | 3,76 (kỳ không có khoản thiếu: trả ngay chủ hụi, `FeePaid`) | 3,76 | 80 | 288,48 |
+| 2 | M1 3, M2 3, M1 commit trước | M1, 3 | 291 (M4 thiếu 100) | 100: 80 holdback của M4, 20 ký quỹ (còn 460) | 391 | 3,91 (kỳ có khoản thiếu: escrow) | 3,91 (cộng dồn 7,67) | 60 | 323,18 |
 
 **Nhánh A: M4 trả trong ân hạn, sau 1 ngày danh nghĩa** (bản thật: 86.400 giây; demo: 6 giây).
 
@@ -184,7 +191,8 @@ Tái hiện 03 mục 8, so từng đơn vị (USDC có 6 chữ số thập phân
 | Kỳ 3, M2 hốt, b = 0 | Kéo 400; tiền công 4; quỹ dự phòng 4; H 40; nhận 352; nhả 20 cho M1 và M4 |
 | Kỳ 4, M3 hốt | Kéo 400; 4; 4; H 20; nhận 372; nhả 20 cho M1, M2, M4 |
 | Kỳ 5, M5 hốt | Kéo 400; 4; 4; H 0; nhận 392; nhả 20 cho M1, M2, M3, M4 |
-| `finalize()` | Holdback còn lại 0 (M4 đã được nhả 20 lúc `payLate`); tiền công 19,67 về chủ hụi; ký quỹ 480 về chủ hụi; quỹ dự phòng 19,697396 chia 5: mỗi người 3,939479, dư 0,000001 cho M1 |
+| `FeePaid` các kỳ 3, 4, 5 | 4 + 4 + 4 trả ngay chủ hụi lúc chi (không có khoản thiếu mới từ kỳ 3); `feeEscrow[3..5]` = 0 |
+| `finalize()` | Holdback còn lại 0 (M4 đã được nhả 20 lúc `payLate`); tiền công còn trong escrow 3,91 (kỳ 2) về chủ hụi, cộng 3,76 + 12 đã trả ngay là 19,67 tổng; ký quỹ 480 về chủ hụi; quỹ dự phòng 19,697396 chia theo đúng hạn (vector V1, w = 4, 4, 4, 3, 4): M1 4,146821, M2, M3, M5 4,146820, M4 3,110115 |
 | Sổ cái | Vào 2.447,027397 = ra 2.447,027397; số dư contract 0 |
 
 **Nhánh B: M4 không trả, ai đó gọi `markDefault(M4)` sau ân hạn.**
@@ -195,11 +203,13 @@ Tái hiện 03 mục 8, so từng đơn vị (USDC có 6 chữ số thập phân
 | Kỳ 3, M2 hốt, b = 0 | Kéo 300; phần của M4 bù 100 từ ký quỹ (còn 360); pot 400; 4; 4; H 40; nhận 352; nhả 20 cho M1 |
 | Kỳ 4, M3 hốt | Kéo 300; ký quỹ còn 260; pot 400; 4; 4; H 20; nhận 372; nhả 20 cho M1, M2 |
 | Kỳ 5, M5 hốt | Kéo 300; ký quỹ còn 160; pot 400; 4; 4; H 0; nhận 392; nhả 20 cho M1, M2, M3 |
-| `finalize()` | Ký quỹ 160 và tiền công 15,76 (kỳ 1, 3, 4, 5) về chủ hụi; quỹ dự phòng 23,58 chia đều M1, M2, M3, M5, mỗi người 5,895; M4 không nhận gì; `recordCompleted` cho 4 người |
+| `finalize()` | Ký quỹ 160 và tiền công 12 (kỳ 3, 4, 5, đang trong escrow vì có khoản thiếu của M4) về chủ hụi; tiền công kỳ 1 (3,76) đã trả ngay; quỹ dự phòng 23,58 chia theo đúng hạn (cùng trọng số 4) M1, M2, M3, M5, mỗi người 5,895; M4 không nhận gì; `recordCompleted` cho 4 người |
 | Khoản thiếu của M4 | Kỳ 2: 100 = 80 holdback + 20 ký quỹ; kỳ 3 đến 5: mỗi kỳ 100 từ ký quỹ; tổng 400 = 80 + 320, đúng 03; `uncovered` = 0 mọi kỳ |
 | Sổ cái | Vào 2.047 = ra 2.047; số dư contract 0 |
 
 Sau mỗi giao dịch, test gọi lại kiểm INV-01. Cùng bảng này là kỳ vọng của `sim/tests/test_worked_example.py` (08 mục 7).
+
+**Biến thể v1.2 (hoa hồng nằm trong trần lãi, φ = 5000, `feeBps` = 300):** test `test_WorkedExample_CommissionShare` tái hiện 03 mục 8.1 (kỳ 1: thăm 3, tiền công 11,64, M4 nhận 292,48; kỳ 2: thăm 2,4, tiền công 7,397259, M1 nhận 321,474741), kiểm `RevealBid` thăm 3,3 ở kỳ 1 bị `BidTooHigh(3_300_000, 3_287_671)`, kiểm biến thể chủ hụi là M1 (kỳ 2 tiền công 0, M1 nhận 328,872) và biến thể M4 thiếu 100 ở kỳ 2 (tiền công kỳ 2 vào escrow). Hai nhánh gốc ở trên chạy với φ = 0 để các số tiền công, pot, nhận không đổi.
 
 ---
 

@@ -35,13 +35,16 @@ maxBid(k) = capBps·D·(N−k)·P / (10_000·365 days·L),  D = (N − k)·C,  L
 timeScale = periodSeconds / roundDuration           (bản thật = 1)
 lateFee   = amount·lateRateBps·elapsedSeconds·timeScale / (10_000·365 days)
             (bản thật, lateRateBps = 1000: lateFee = amount·1000·số ngày trễ/(10_000·365))
-fee       = commissionMode ? pot·feeBps/10_000 : 0  → escrow theo kỳ
+fee       = !commissionMode hoặc người hốt là chủ hụi ? 0 : φ = 0 ? pot·feeBps/10_000 : min(room_k·φ/10_000, pot·feeBps/10_000)
+            room_k = maxBid_luật(k)·L_k ;  φ = commissionShareBps (0..5000, chỉ Bidding + commissionMode + feeBps > 0)
+            thăm thực thi: bidCap_k = ⌊maxBid_luật(k)·(10_000 − φ)/10_000⌋  ⇒ fee + b·L_k ≤ room_k (INV-11)
+            kỳ KHÔNG có khoản thiếu: trả ngay chủ hụi (FeePaid); kỳ có khoản thiếu: escrow theo kỳ
 premium   = pot·reserveBps/10_000                    → quỹ dự phòng
 revealBond        = revealBondBps·C/10_000
 requiredAllowance = (N − 1)·(C + revealBond)          → allowance ký permit khi vào dây
 ```
 
-Tên hàm và thứ tự tham số (docs/05 mục 3.5; bản TS và Python dùng cùng tên): `exposure(n, k, c)`, `maxExposure(n, c)`, `holdbackFor(alphaBps, n, k, c)`, `releasePerRound(alphaBps, c)`, `coverageIndexBps(alphaBps, bond, reserve_, n, c)`, `maxBid(capBps, n, k, c, periodSec, payers)`, `lateFee(amount, lateRateBps, elapsedSec, periodSec, roundDuration)`, `bpsOf(amount, bps)`.
+Tên hàm và thứ tự tham số (docs/05 mục 3.5; bản TS và Python dùng cùng tên): `exposure(n, k, c)`, `maxExposure(n, c)`, `holdbackFor(alphaBps, n, k, c)`, `releasePerRound(alphaBps, c)`, `coverageIndexBps(alphaBps, bond, reserve_, n, c)`, `maxBid(capBps, n, k, c, periodSec, payers)`, `lateFee(amount, lateRateBps, elapsedSec, periodSec, roundDuration)`, `bpsOf(amount, bps)`; v1.2: `bidCapAfterShare(statutoryMaxBid, shareBps)`, `commissionRoom(statutoryMaxBid, payers)`, `commission(pot, feeBps, shareBps, room)`, `reserveShare(total, weight, weightSum)`, `onTimeWeight(n, lateCount, defaulted)`.
 
 Mọi phép chia: chia nguyên làm tròn xuống. Phần dư lẻ về người hốt kỳ đó; kết thúc dây quét dư vào quỹ dự phòng trước khi chia. Diễn giải trần lãi Điều 21 là ĐỀ XUẤT, cần luật sư xác nhận; giữ riêng trong `HuiMath.maxBid` để thay được.
 
@@ -54,8 +57,10 @@ Kiểm chứng Bản án 48/2024/DS-ST (Tây Ninh): 25 phần × 2 triệu, kỳ
 | `alphaBps` | 2000 | 0..10_000 |
 | `capBps` (trần lãi năm, Điều 21) | 2000 | ≤ `maxCapBps` = 2000 |
 | `lateRateBps` (Điều 22 k1: 50% trần) | 1000 | factory |
-| `minCoverageBps` | 5000 | `activate()` cần CI ≥ mức này |
-| `feeBps` (chỉ dây "họ hưởng hoa hồng") | 100 | ≤ 300; = 0 nếu không phải họ hưởng hoa hồng |
+| `minCoverageBps` | 10_000 trên Fuji (bắt buộc, ADR-22); 5000 chỉ anvil/test | `activate()` cần CI ≥ mức này; `B_min = ⌈(10_000 − α)·O_max/10_000⌉` |
+| `feeBps` (chỉ dây "họ hưởng hoa hồng") | 100 | ≤ 300; = 0 nếu không phải họ hưởng hoa hồng; khi φ > 0 là trần mỗi pot |
+| `commissionShareBps` (φ) | 0 (demo), 5000 (dây thật) | 0..5000; > 0 chỉ khi Bidding + `commissionMode` + `feeBps` > 0, sai thì `InvalidParams(15)` |
+| `termsHash` | — | khác 0, bất biến, `InvalidParams(16)` nếu 0; event `CircleTermsSet(termsHash, commissionShareBps)` |
 | `reserveBps` | 100 | ≤ 300 |
 | `revealBondBps` | 100 (1% C) | ≤ 500 |
 | `graceSeconds` | 172.800 (48 giờ) | ≥ 60 |
@@ -91,7 +96,7 @@ settleRound() gọi được khi now ≥ roundStart(k) + roundDuration (= deadli
 2. `due`: sống C − b; đã hốt C; Frozen C − b nhưng không kéo, cộng vào `debt`.
 3. Kéo `transferFrom` từng người trong `try`; thất bại thì ghi `Shortfall`.
 4. Bù ngay theo thác: (1) holdback của chính người đó → (2) ký quỹ → (3) quỹ dự phòng → (4) `uncovered` (người hốt nhận ít hơn, ghi khoản đòi công khai). Ghi rõ từng nguồn.
-5. pot = kéo được + đã bù; trích `fee` (escrow kỳ k) và `premium` (quỹ dự phòng).
+5. pot = kéo được + đã bù; trích `fee` (0 nếu người hốt là chủ hụi; kỳ không có `ContributionShortfall`: trả ngay chủ hụi bằng chi an toàn, event `FeePaid`; kỳ có khoản thiếu: escrow kỳ k) và `premium` (quỹ dự phòng).
 6. Holdback của w: `H = min(H(k), pot − fee − premium)`; w là Frozen thì H = 0 và trả nợ trước (mục 7).
 7. Chi `payout = pot − fee − premium − H` bằng chi an toàn: thử chuyển thẳng, thất bại thì cộng `claimable[addr]`, phát `PaymentDeferred`, người nhận tự `claim()`. Một người thất bại không làm hỏng cả kỳ.
 8. Nhả holdback α·C cho người đã hốt vừa đóng đủ, đúng hạn; ghi ReputationRegistry; phát event.
@@ -103,21 +108,25 @@ settleRound() gọi được khi now ≥ roundStart(k) + roundDuration (= deadli
 - `markDefault(member)` (ai cũng gọi, sau `settledAt + G`): đã hốt → DefaultedDead (các kỳ sau vẫn thử kéo C, thiếu thì bù theo thác); chưa hốt → Frozen. Tiền công escrow của kỳ có khoản thiếu đó chuyển vào quỹ dự phòng (`FeeForfeited`). Ghi `recordDefault`.
 - Frozen: mỗi kỳ sau phần C − b của họ được bù theo thác và cộng vào `debt`; họ hốt sau cùng (theo `joinIndex`); pot của họ (H = 0, tính trên `pot − fee − premium`) trả gốc các khoản thiếu theo thứ tự hoàn, rồi lãi chậm góp vào quỹ dự phòng, phần còn lại mới chuyển cho họ; không đủ thì họ nhận 0 và nợ còn lại là khoản đòi công khai. Cam kết CI 100% áp dụng cho rủi ro chính là người đã hốt bỏ đóng; Frozen không gây lỗ ròng, ký quỹ chỉ ứng thanh khoản.
 - `repayDebt(amount)`: `amount` là phần gốc muốn trả (vượt tổng gốc còn nợ thì `RepayTooLarge(amount, debt)`); áp theo thứ tự hoàn và kéo `amount + Σ lateFee` của các phần gốc đó (allowance thiếu thì revert); không nhả holdback cho người vỡ nợ; vẫn là vỡ nợ, `recordRepaid` khi nợ về 0.
-- `finalize()` sau kỳ N + ân hạn: holdback còn lại của người không vỡ nợ trả chính họ; của người vỡ nợ thì trả gốc còn nợ theo thứ tự hoàn (`uncovered`, quỹ dự phòng, ký quỹ) rồi lãi chậm góp, dư trả lại họ; tiền công escrow hợp lệ trả chủ hụi; ký quỹ còn lại trả chủ hụi; quỹ dự phòng chia đều cho thành viên không vỡ nợ (dư lẻ cho `joinIndex` nhỏ nhất); `recordCompleted`; khoản `uncovered` còn lại giữ làm khoản đòi công khai.
-- `Paused` (admin = Safe; testnet: ví deployer): mọi hàm đổi trạng thái revert `CircleIsPaused()` (event vẫn là `CirclePaused(uint64 at)`), trừ `claim()`; thời gian dừng cộng vào `pausedTotal`. Admin chỉ thao tác qua factory: `pauseCircle`, `unpauseCircle`, `unwindCircle`. `emergencyUnwind()` chỉ factory gọi, chỉ sau 48 giờ tạm dừng liên tục (sớm hơn: `UnwindTooEarly`), trả theo sổ: ký quỹ còn lại về chủ hụi, holdback về chủ của nó, tiền công escrow vào quỹ dự phòng, quỹ dự phòng chia đều cho người không vỡ nợ, cọc mở thăm về người nộp. Không có hàm nào cho admin rút tiền người dùng.
+- `finalize()` sau kỳ N + ân hạn: holdback còn lại của người không vỡ nợ trả chính họ; của người vỡ nợ thì trả gốc còn nợ theo thứ tự hoàn (`uncovered`, quỹ dự phòng, ký quỹ) rồi lãi chậm góp, dư trả lại họ; tiền công escrow hợp lệ (chỉ kỳ có khoản thiếu) trả chủ hụi; ký quỹ còn lại trả chủ hụi; quỹ dự phòng chia theo đúng hạn (ADR-24): `w = max(0, (N − 1) − lateCount)`, vỡ nợ w = 0, `share = ⌊R·w/Σw⌋`, dư lẻ cho `joinIndex` nhỏ nhất có w > 0, Σw = 0 thì chia đều, mỗi người một `ReserveShared`; `recordCompleted`; khoản `uncovered` còn lại giữ làm khoản đòi công khai.
+- `Paused` (admin = Safe; testnet: ví deployer): mọi hàm đổi trạng thái revert `CircleIsPaused()` (event vẫn là `CirclePaused(uint64 at)`), trừ `claim()`; thời gian dừng cộng vào `pausedTotal`. Admin chỉ thao tác qua factory: `pauseCircle`, `unpauseCircle`, `unwindCircle`. `emergencyUnwind()` chỉ factory gọi, chỉ sau 48 giờ tạm dừng liên tục (sớm hơn: `UnwindTooEarly`), trả theo sổ: ký quỹ còn lại về chủ hụi, holdback về chủ của nó, tiền công escrow vào quỹ dự phòng, quỹ dự phòng chia ĐỀU cho người không vỡ nợ (không theo đúng hạn), cọc mở thăm về người nộp. Không có hàm nào cho admin rút tiền người dùng.
 
-## 8. Bất biến (bảng đầy đủ docs/03 mục 7.2; INV-01..INV-09 mỗi cái một hàm invariant, INV-10 kiểm tĩnh; cách kiểm ở docs/09 mục 4.4)
+## 8. Bất biến (bảng đầy đủ docs/03 mục 7.2; INV-01..INV-09 và INV-11..INV-13 mỗi cái một hàm invariant, INV-10 kiểm tĩnh; cách kiểm ở docs/09 mục 4.4)
 
 - INV-01 sổ cái: `usdc.balanceOf(circle) == bondRemaining + reserve + totalHoldback + Σ feeEscrow + revealBondsHeld + totalClaimable`.
 - INV-02 mỗi thành viên hốt đúng một lần; Completed thì đúng N kỳ đã chi.
-- INV-03 không thăm thắng nào vượt `maxBid(k)` hay ≥ C.
+- INV-03 không thăm thắng nào vượt `maxBid(k)` (φ > 0: `bidCap_k`) hay ≥ C.
 - INV-04 không kéo của ai quá `due` + cọc + lãi chậm góp họ tự trả.
 - INV-05 `payout + fee + premium + H (+ trả nợ) == pot`.
 - INV-06 sau m kỳ đã chi, mỗi người đã hốt chưa vỡ nợ d có `holdback[d] ≤ α·(N − m)·C/10_000`; bằng (sai số ≤ N đơn vị) khi d không còn khoản thiếu mở và lúc hốt đã giữ đủ H = `holdbackFor(α, N, r_d, C)`; hệ quả: mọi người đóng đúng hạn thì tổng = α·O(m). Thấy docs/03 và docs/09 lệch nhau thì báo người.
-- INV-07 USDC không bao giờ tới admin; chỉ tới thành viên, chủ hụi (ký quỹ, tiền công) và người có `claimable`.
+- INV-07 USDC không bao giờ tới admin; chỉ tới thành viên, chủ hụi (ký quỹ, tiền công, kể cả trả ngay mỗi kỳ) và người có `claimable`.
 - INV-08 CI ≥ 100% và chỉ người đã hốt bỏ đóng, tất cả trong CÙNG một kỳ (cú sốc đồng thời lớn nhất) ⇒ `uncovered == 0` mọi kỳ. Bỏ đóng lần lượt có thể vượt ký quỹ (N = 5: thiếu 1000 > O_max 600, kỳ 5 `uncovered` 304); cận bù đủ B_seq = (1 − α)·N(N − 1)/2·C = 800 là roadmap. Chữ pitch: "Chỉ số bảo chứng 100% nghĩa là ký quỹ chịu được cú sốc lớn nhất: mọi người đã hốt cùng bỏ đóng một lúc." Không viết "không bao giờ mất tiền".
 - INV-09 kỳ k chỉ chi sau kỳ k − 1 và sau `deadline(k)`; tham số không đổi sau `activate()`.
 - INV-10 không dữ liệu cá nhân on-chain (kiểm tĩnh: job `privacy` của CI quét ABI, không tham số `string` trong event và hàm ghi).
+- INV-11 hoa hồng trong trần lãi: φ > 0 thì mọi kỳ `fee + b·L_k ≤ room_k`, `fee ≤ pot·feeBps/10_000`, chủ hụi hốt thì `fee = 0`.
+- INV-12 chia quỹ dự phòng: Σ phần chia = quỹ dự phòng; vỡ nợ nhận 0; trễ nhiều hơn không nhận nhiều hơn (trừ dư lẻ).
+- INV-13 tiền công trả ngay chỉ ở kỳ không có khoản thiếu (`feeEscrow[k] = 0`); kỳ có khoản thiếu giữ escrow; ledger INV-01 vẫn đúng.
+- Câu cam kết ví ảo (docs/03 mục 7.3): "Cọc 100% chặn được chủ hụi dùng một ví ảo: làm vậy chủ hụi tự lỗ. Nhiều ví ảo thì chặn bằng xác thực mỗi người một tài khoản, và mọi người thấy trước rủi ro tối đa." Hai ví ảo hốt kỳ 1-2 rồi bỏ vẫn lời 41,47 (tổng không bù được 56,56); không viết "cọc 100% chặn gian lận".
 
 Ví dụ số chuẩn (N = 5, C = 100, B = 480, α = 20%, maxBid kỳ 1..4 = 6,575342 / 4,931506 / 3,287671 / 1,643835 USDC; M4 nhận 288,48; M1 nhận 323,18; nhánh A trả trễ, nhánh B vỡ nợ, ký quỹ còn 160) ở docs/03 mục 8, là test `contracts/test/integration/WorkedExample.t.sol`. Demo live trên Fuji chạy cùng kịch bản thu nhỏ C = 10 USDC (mọi số chia 10: ký quỹ 48, thăm thắng kỳ 1 là 0,6, M4 nhận 28,848, M1 nhận 32,318, ký quỹ còn 16) vì faucet USDC có hạn; test tích hợp chạy cả hai mức.
 

@@ -38,13 +38,16 @@ struct CircleParams {
     uint32  graceSeconds;     // ân hạn
     uint16  alphaBps;         // holdback
     bool    commissionMode;   // họ hưởng hoa hồng (NĐ 19 Điều 4 khoản 8)
-    uint16  feeBps;           // tiền công; = 0 nếu !commissionMode
+    uint16  feeBps;           // tiền công; = 0 nếu !commissionMode; khi φ > 0 là trần mỗi pot
     uint16  reserveBps;       // quỹ dự phòng
     uint16  revealBondBps;    // cọc mở thăm, tính trên C
     uint16  capBps;           // trần lãi năm, ≤ factory.maxCapBps
     uint64  joinDeadline;
     bool    organizerIsMember;
     bytes32 label;            // tên ngắn, không ghi tên người
+    // ---- v1.2 (A13): chỉ NỐI THÊM ở cuối struct ----
+    uint16  commissionShareBps; // φ, 0..5000; 0 = tiền công cố định feeBps·pot; > 0 = hoa hồng trong trần lãi (03 mục 2.7)
+    bytes32 termsHash;        // keccak256 văn bản thỏa thuận dây (ADR-27), khác 0; bất biến, có trong event CircleTermsSet
 }
 
 struct MemberInfo {
@@ -127,6 +130,8 @@ struct FactoryConfig {
 }
 ```
 
+`FactoryConfig` không đổi ở v1.2: trần φ là hằng số của factory `MAX_COMMISSION_SHARE_BPS = 5000` (như `MIN_CONTRIBUTION`), không phải tham số cấu hình. Trên Fuji `minCoverageBps = 10_000` (ADR-22).
+
 Quy tắc cứng của factory (constructor và `setConfig` đều kiểm, vượt thì `InvalidConfig()`): `MIN_CONTRIBUTION = 1 USDC` (1_000_000, `contribution` nhỏ hơn thì `InvalidParams(2)`; `maxContribution ≥ MIN_CONTRIBUTION`); `maxFeeBps ≤ 300`, `maxReserveBps ≤ 300`, `maxCapBps ≤ 2000`, `lateRateBps ≤ 1000`, mọi giá trị bps ≤ 10_000; `3 ≤ minMembers ≤ maxMembers ≤ 30`; `config.forwarder` phải bằng forwarder của chính factory và bằng `trustedForwarder()` của implementation (forwarder là immutable, `setConfig` không đổi được); `config.usdc`, `reputation`, `attester`, `forwarder` khác địa chỉ 0. `admin` là `immutable` của factory (đổi admin = deploy factory mới).
 
 ### 2.1. Bố cục lưu trữ của `HuiCircle`
@@ -170,6 +175,8 @@ uint256 public totalHoldback;
 mapping(address => uint256) public claimable;
 uint256 public totalClaimable;
 ```
+
+Gói A13 (v1.2): `CircleParams` thêm `commissionShareBps` và `termsHash` ở CUỐI struct nên `_params` dài thêm hai slot và mọi biến lưu trữ khai báo sau `_params` dịch xuống tương ứng (chấp nhận được vì chưa có deployment nào; vẫn chạy `HuiCircleLens.t.sol` để chứng minh lens và dây dùng chung bố cục). Không thêm biến lưu trữ mới ngoài hai trường đó: `feeEscrow` chỉ còn giữ tiền công của kỳ có khoản thiếu.
 
 Lưu ý SDK/UI (chủ hụi kiêm thành viên): `depositBond` và `join` cùng ghi đè allowance của ví chủ hụi, nên permit của chủ hụi phải ký tổng `requiredAllowance + bond`. `organizerIsMember` hiện chỉ lưu trong `params`, contract chưa ép buộc.
 
@@ -251,7 +258,10 @@ interface IHuiCircle {
     function roundInfo(uint32 k) external view returns (RoundInfo memory);
     function commitOf(uint32 k, address m) external view returns (Commit memory);
     function shortfallOf(uint32 k, address m) external view returns (Shortfall memory);
-    function maxBid(uint32 k) external view returns (uint256);
+    function maxBid(uint32 k) external view returns (uint256);                    // trần thăm THỰC THI: φ = 0 thì bằng trần luật; φ > 0 thì ⌊trần luật·(10000−φ)/10000⌋ (03 mục 2.7)
+    function statutoryMaxBid(uint32 k) external view returns (uint256);           // trần theo luật (HuiMath.maxBid), chưa trừ phần hoa hồng
+    function commissionRoom(uint32 k) external view returns (uint256);            // room_k = statutoryMaxBid(k)·L_k (xem được cả khi φ = 0; chỉ φ > 0 mới dùng để tính tiền công)
+    function onTimeWeight(address m) external view returns (uint16);              // max(0, (N−1) − lateCount); 0 nếu vỡ nợ (ADR-24)
     function exposure(uint32 k) external view returns (uint256);
     function maxExposure() external view returns (uint256);
     function coverageIndexBps() external view returns (uint256);                  // dùng reserve hiện tại
@@ -339,10 +349,22 @@ library HuiMath {
     function lateFee(uint256 amount, uint256 lateRateBps, uint256 elapsedSec, uint256 periodSec, uint256 roundDuration)
         internal pure returns (uint256);
     function bpsOf(uint256 amount, uint256 bps) internal pure returns (uint256);                 // amount·bps/10000
+
+    // ---- v1.2 (A13); hàm cũ giữ nguyên tên và thứ tự tham số ----
+    function bidCapAfterShare(uint256 statutoryMaxBid, uint256 shareBps) internal pure returns (uint256);
+                                                                                                 // ⌊statutoryMaxBid·(10000−φ)/10000⌋
+    function commissionRoom(uint256 statutoryMaxBid, uint256 payers) internal pure returns (uint256);
+                                                                                                 // room_k = statutoryMaxBid·payers
+    function commission(uint256 pot, uint256 feeBps, uint256 shareBps, uint256 room) internal pure returns (uint256);
+                                                                                                 // φ = 0: ⌊pot·feeBps/10000⌋; φ > 0: min(⌊room·φ/10000⌋, ⌊pot·feeBps/10000⌋)
+    function reserveShare(uint256 total, uint256 weight, uint256 weightSum) internal pure returns (uint256);
+                                                                                                 // ⌊total·weight/weightSum⌋ (weightSum > 0); dư lẻ xử lý ở HuiCircle
+    function onTimeWeight(uint256 n, uint256 lateCount, bool defaulted) internal pure returns (uint256);
+                                                                                                 // defaulted ? 0 : max(0, (n−1) − lateCount)
 }
 ```
 
-Bản `packages/sdk/src/huiMath.ts` (dùng `bigint`) và `sim/huisim/math.py` (dùng `int`) phải cho kết quả giống hệt. Test differential đối chiếu cả ba (xem 09).
+Bản `packages/sdk/src/huiMath.ts` (dùng `bigint`) và `sim/huisim/math.py` (dùng `int`) phải cho kết quả giống hệt, kể cả năm hàm v1.2 ở trên (vector V1, V7 trong `contracts/test/vectors/huimath.json`). Test differential đối chiếu cả ba (xem 09).
 
 ---
 
@@ -362,6 +384,10 @@ event BidCommitted(uint32 indexed round, address indexed member, bytes32 commitH
 event BidRevealed(uint32 indexed round, address indexed member, uint256 bid);
 event RevealBondForfeited(uint32 indexed round, address indexed member, uint256 amount);
 
+event CircleTermsSet(bytes32 termsHash, uint16 commissionShareBps);   // phát trong initialize (ADR-27); bất biến từ đây
+// Tiền công kỳ KHÔNG có khoản thiếu, chuyển cho chủ hụi ngay lúc chi kỳ bằng chi an toàn (03 mục 6.5 bước 6);
+// nếu chuyển thất bại thì còn phát PaymentDeferred và ghi claimable. Kỳ có khoản thiếu: không có FeePaid, tiền công nằm trong feeEscrow.
+event FeePaid(uint32 indexed round, address indexed organizer, uint256 amount);
 event ContributionPulled(uint32 indexed round, address indexed member, uint256 amount);
 event ContributionShortfall(uint32 indexed round, address indexed member, uint256 amount);
 event ShortfallCovered(uint32 indexed round, address indexed member, CoverSource source, uint256 amount);
@@ -384,7 +410,10 @@ event FeeForfeited(uint32 indexed round, uint256 amount);
 
 event PaymentDeferred(address indexed to, uint256 amount);   // chuyển thất bại → claimable
 event Claimed(address indexed to, uint256 amount);
+// feesPaid chỉ gồm tiền công còn trong escrow lúc finalize (tiền công đã trả ngay có event FeePaid)
 event CircleFinalized(uint256 bondReturned, uint256 feesPaid, uint256 reserveDistributed);
+// Chia quỹ dự phòng cuối dây theo đúng hạn (ADR-24); weight = onTimeWeight, 0 với người vỡ nợ. Không phát khi emergencyUnwind (chia đều).
+event ReserveShared(address indexed member, uint256 amount, uint16 weight);
 event CirclePaused(uint64 at);
 event CircleUnpaused(uint64 at, uint64 pausedTotal);
 event CircleUnwound();
@@ -450,6 +479,10 @@ Lỗi riêng của `HuiFactory` (khai báo trong factory): `NotAdmin()`, `NotCir
 | 12 | `capBps` > `maxCapBps` |
 | 13 | `joinDeadline` ≤ now |
 | 14 | `graceSeconds` ≥ `roundDuration` |
+| 15 | `commissionShareBps` > 5000, hoặc > 0 mà `mode` không phải `Bidding`, `commissionMode` tắt hoặc `feeBps` = 0 |
+| 16 | `termsHash` = 0 |
+
+(Mã 15 và 16 đã dời từ bản vá v1.2 của leader sang đây vì mã 14 đã dùng cho `graceSeconds`. Mã 15 trong bản v1.2 gốc dành cho `organizerTakesFirst`; ADR-23 đã bỏ khỏi bản thi nên mã đó không dùng, và nếu sau này làm thì lấy mã 17.)
 
 ---
 
@@ -609,8 +642,8 @@ export interface CircleView {
   params: {
     N: number; C: bigint; periodSeconds: number; roundDuration: number;
     commitWindow: number; revealWindow: number; graceSeconds: number;
-    alphaBps: number; commissionMode: boolean; feeBps: number; reserveBps: number;
-    revealBondBps: number; capBps: number; joinDeadline: number;
+    alphaBps: number; commissionMode: boolean; feeBps: number; commissionShareBps: number; reserveBps: number;
+    revealBondBps: number; capBps: number; joinDeadline: number; termsHash: `0x${string}`;
   };
   startTime?: number;
   currentRound: number;
@@ -725,7 +758,7 @@ Sổ họ dựng hoàn toàn từ event, xuất JSON và PDF.
 | Ngày giờ (giờ VN) | timestamp của block |
 | Kỳ | `round` |
 | Thành viên | `member` |
-| Loại | góp (`ContributionPulled`), thiếu (`ContributionShortfall`), bù (`ShortfallCovered` + nguồn), hốt (`RoundSettled`), giữ lại / nhả (`HoldbackReleased`), trả trễ (`LatePaid`), hoàn nguồn bù và trả khoản đòi (`ShortfallRestored` + nguồn), vỡ nợ (`MemberDefaulted`), trả nợ (`DebtRepaid`) |
+| Loại | góp (`ContributionPulled`), thiếu (`ContributionShortfall`), bù (`ShortfallCovered` + nguồn), hốt (`RoundSettled`), giữ lại / nhả (`HoldbackReleased`), trả trễ (`LatePaid`), hoàn nguồn bù và trả khoản đòi (`ShortfallRestored` + nguồn), vỡ nợ (`MemberDefaulted`), trả nợ (`DebtRepaid`), tiền công trả ngay cho chủ hụi (`FeePaid`), chia quỹ dự phòng cuối dây theo đúng hạn (`ReserveShared`) |
 | Số tiền | USDC, kèm quy đổi VND theo tỷ giá cấu hình (ghi rõ là quy đổi tham khảo) |
 | Bằng chứng | tx hash; người ký là `from` của forward request (chữ ký EIP-712 của chính thành viên) |
 
@@ -837,7 +870,8 @@ export interface CircleDraft {
   alphaBps: number;
   bondUsdc: string;          // ký quỹ dự kiến
   commissionMode: boolean;
-  feeBps: number;
+  feeBps: number;            // φ = 0: tiền công cố định; φ > 0: trần mỗi pot
+  commissionShareBps?: number; // φ, 0..5000 (03 mục 2.7); mặc định 0
   reserveBps: number;
   revealBondBps: number;
   capBps: number;            // ≤ 2000
