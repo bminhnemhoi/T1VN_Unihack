@@ -57,7 +57,8 @@ test.describe('S05 /moi/dang-gom', () => {
     await expect(page.getByRole('table', { name: /Số tiền tối đa mỗi chỗ/ })).toBeVisible();
     await expect(page.getByTestId('agreement-hash')).toHaveText(/^0x[0-9a-f]{64}$/);
     await page.getByText('Đọc toàn văn thỏa thuận').click();
-    await expect(page.getByText('tổ chức dây nhưng không cầm tiền góp của ai')).toBeVisible();
+    await expect(page.getByText('Chủ hụi không giữ tiền, nhưng ký quỹ bảo lãnh.')).toBeVisible();
+    await expect(page.getByText('Hoa hồng chủ hụi nằm trong trần lãi: 50% quỹ lãi tối đa của kỳ')).toBeVisible();
 
     await page.getByRole('button', { name: 'Vào dây' }).click();
     await expect(toast(page, 'đủ 18 tuổi và đồng ý luật dây')).toBeVisible();
@@ -219,8 +220,10 @@ test.describe('circle sections', () => {
   test('S12 settlement: net, interest received and paid, reserve reward, then "Nhận tiền"', async ({ page }) => {
     await page.goto('/circles/da-xong/tat-toan');
     await expect(page.getByRole('heading', { level: 2 }).first()).toContainText(/Bạn (lời|trả) ròng/);
-    await expect(page.getByText('Lãi thăm đã nhận')).toBeVisible();
-    await expect(page.getByText('Lãi thăm đã trả')).toBeVisible();
+    await expect(page.getByText('Lãi thăm đã nhận', { exact: false }).first()).toBeVisible();
+    await expect(page.getByText('Lãi thăm đã trả (khi hốt)')).toBeVisible();
+    await expect(page.getByText('Tiền công đã trả ngay lúc chi kỳ')).toBeVisible();
+    await expect(page.getByText('Tiền công trả khi kết thúc dây')).toBeVisible();
     await expect(page.getByText('Thưởng đúng hạn từ quỹ dự phòng')).toBeVisible();
     await expect(page.getByRole('table', { name: /Tất toán của từng thành viên/ }).getByRole('row')).toHaveCount(9);
     await page.getByRole('button', { name: /^Nhận tiền/ }).click();
@@ -255,7 +258,7 @@ test.describe('09/11 decisions in the screens', () => {
     const calc = page.getByRole('region', { name: 'Máy tính thăm' });
     await calc.getByLabel('Thử thăm kỳ 3').fill('1,5');
     await expect(calc).toContainText('Bạn cầm ngay nếu thắng');
-    await expect(calc).toContainText('Tổng lãi thăm bạn trả');
+    await expect(calc).toContainText('Lãi thăm bạn trả cho');
     await expect(calc).toContainText('mỗi tháng');
     await expect(calc).toContainText('Hoa hồng chủ hụi kỳ này');
     await expect(calc).toContainText('Kỳ 1: Thành viên 4'); // past winning bids

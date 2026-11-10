@@ -4,7 +4,7 @@
  * Demo timing (docs/03 section 3.3): 180 s rounds, 90 s / 60 s windows, 120 s grace, circle stays "30 days" for the interest rules.
  */
 import { stringToHex } from 'viem';
-import { buildTermsText, termsHashOf } from 'sdk';
+import { buildTermsText, termsHashOf, type TermsInput } from 'sdk';
 import { DEMO } from 'config';
 import type { CreateCircleInput } from '@/lib/chain/write';
 import type { FormState, Valid } from '@/lib/circleForm';
@@ -19,6 +19,30 @@ export function circleLabel(n: bigint, c: bigint): string {
   const usdc = c % 1_000_000n === 0n ? (c / 1_000_000n).toString() : (Number(c) / 1_000_000).toString();
   const text = `Dây ${n} người, ${usdc} USDC`;
   return new TextEncoder().encode(text).length <= 31 ? text : 'Dây hụi';
+}
+
+/** The agreement input of the form: the same values `buildCreateInput` sends, so the text shown is the text that gets hashed. */
+export function formTermsInput(f: FormState, v: Valid, o: { demo: boolean }): TermsInput {
+  const bidding = f.mode === 'bidding';
+  const periodSeconds = o.demo ? DEMO.periodSeconds : Number(v.periodDays) * DAY;
+  const roundDuration = o.demo ? DEMO.roundDuration : periodSeconds;
+  return {
+    mode: bidding ? 'bidding' : 'fixed',
+    memberCount: Number(v.n),
+    contribution: v.c,
+    periodSeconds,
+    roundDuration,
+    commitWindow: bidding ? (o.demo ? DEMO.commitWindow : Math.floor(roundDuration * 0.5)) : 0,
+    revealWindow: bidding ? (o.demo ? DEMO.revealWindow : Math.floor(roundDuration * 0.25)) : 0,
+    graceSeconds: o.demo ? DEMO.graceSeconds : REAL_GRACE,
+    alphaBps: Number(v.alphaBps),
+    commissionMode: f.commission,
+    feeBps: f.commission ? Number(v.feeBps) : 0,
+    commissionShareBps: Number(v.shareBps),
+    reserveBps: Number(v.reserveBps),
+    revealBondBps: bidding ? 100 : 0,
+    capBps: bidding ? 2000 : 0,
+  };
 }
 
 export function buildCreateInput(f: FormState, v: Valid, o: { nowSec: number; demo: boolean }): CreateCircleInput {
@@ -49,25 +73,7 @@ export function buildCreateInput(f: FormState, v: Valid, o: { nowSec: number; de
     joinDeadline: BigInt(o.nowSec + (o.demo ? JOIN_WINDOW_DEMO : JOIN_WINDOW_REAL)),
     organizerIsMember: false,
     label: stringToHex(circleLabel(v.n, v.c), { size: 32 }),
-    commissionShareBps: 0,
-    termsHash: termsHashOf(
-      buildTermsText({
-        mode: bidding ? 'bidding' : 'fixed',
-        memberCount: Number(v.n),
-        contribution: v.c,
-        periodSeconds,
-        roundDuration,
-        commitWindow,
-        revealWindow,
-        graceSeconds,
-        alphaBps: Number(v.alphaBps),
-        commissionMode: f.commission,
-        feeBps,
-        commissionShareBps: 0,
-        reserveBps: Number(v.reserveBps),
-        revealBondBps,
-        capBps,
-      }),
-    ),
+    commissionShareBps: Number(v.shareBps),
+    termsHash: termsHashOf(buildTermsText(formTermsInput(f, v, o))),
   };
 }

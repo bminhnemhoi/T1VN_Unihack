@@ -3,9 +3,9 @@
  * reputation tiers. Everything is `bigint` USDC base units and goes through `huiMath` (docs/03 section 2), so a number
  * on screen is the same number the contract would compute. No I/O, no randomness (CLAUDE.md hard rule 3).
  */
-import { huiMath } from 'sdk';
+import { formatUsdcNumber, huiMath } from 'sdk';
 
-const { bpsOf, holdbackFor, releasePerRound, maxBid } = huiMath;
+const { bpsOf, holdbackFor, releasePerRound, maxBid, bidCapAfterShare, commissionRoom, commission, reserveShare, onTimeWeight } = huiMath;
 const BPS = 10_000n;
 const DAY = 86_400n;
 
@@ -16,17 +16,44 @@ export interface Terms {
   c: bigint;
   periodDays: bigint;
   alphaBps: bigint;
-  /** 0 when the circle has no commission. */
+  /** 0 when the circle has no commission. With `shareBps > 0` it is the ceiling of each pot (docs/03 section 2.7). */
   feeBps: bigint;
   reserveBps: bigint;
   capBps: bigint;
+  /** phi (docs/03 section 2.7): share of the interest room the organizer takes as commission, 0..5000. Missing = 0 (fixed fee). */
+  shareBps?: bigint;
 }
 
-/** Bid ceiling of round k with nobody frozen (docs/03 section 2.4). Fixed circles have no bids. */
-export function capOf(t: Terms, k: number): bigint {
+const shareOf = (t: Terms): bigint => (t.mode === 'bidding' && t.feeBps > 0n ? (t.shareBps ?? 0n) : 0n);
+
+/** Bid ceiling set by the law (docs/03 section 2.4), nobody frozen. Fixed circles have no bids. */
+export function statutoryCapOf(t: Terms, k: number): bigint {
   if (t.mode === 'fixed') return 0n;
   const kk = BigInt(k);
   return maxBid(t.capBps, t.n, kk, t.c, t.periodDays * DAY, t.n - kk);
+}
+
+/** Bid ceiling the contract enforces: the legal one minus the commission share (docs/03 section 2.7). */
+export function capOf(t: Terms, k: number): bigint {
+  return bidCapAfterShare(statutoryCapOf(t, k), shareOf(t));
+}
+
+/** room_k: the most interest the law lets the winner of round k pay, with nobody frozen (L_k = n - k). */
+export function roomOf(t: Terms, k: number): bigint {
+  return commissionRoom(statutoryCapOf(t, k), t.n - BigInt(k));
+}
+
+/** Organizer commission of round k for a pot (docs/03 sections 2.6, 2.7). Zero when the organizer himself takes the pot. */
+export function feeOf(t: Terms, k: number, pot: bigint, organizerWins = false): bigint {
+  if (organizerWins || t.feeBps === 0n) return 0n;
+  return commission(pot, t.feeBps, shareOf(t), roomOf(t, k));
+}
+
+/** Number first shown in a bid box: 2 USDC when the ceiling allows it, otherwise half the ceiling (rounded down to a cent), never above it. */
+export function startingBid(cap: bigint): string {
+  if (cap >= 2_000_000n) return '2';
+  const half = (cap / 2n / 10_000n) * 10_000n;
+  return formatUsdcNumber(half > 0n ? half : cap);
 }
 
 export interface RoundSplit {
@@ -44,13 +71,14 @@ export interface RoundSplit {
 /**
  * Split of the pot of round k when every shortfall is covered (docs/03 section 6.5): pot = (n-k)(C-b) + (k-1)C,
  * then fee, reserve premium and holdback come off the top. `uncovered` shrinks the pot (docs/03 section 6.5 step 5).
+ * `organizerWins`: the organizer's own seat takes this pot, so no commission (docs/03 section 6.5 step 6).
  */
-export function roundSplit(t: Terms, k: number, bid: bigint, uncovered = 0n): RoundSplit {
+export function roundSplit(t: Terms, k: number, bid: bigint, uncovered = 0n, organizerWins = false): RoundSplit {
   const kk = BigInt(k);
   const live = t.n - kk;
   const dead = kk - 1n;
   const pot = live * (t.c - bid) + dead * t.c - uncovered;
-  const fee = bpsOf(pot, t.feeBps);
+  const fee = feeOf(t, k, pot, organizerWins);
   const premium = bpsOf(pot, t.reserveBps);
   const free = pot - fee - premium;
   const want = holdbackFor(t.alphaBps, t.n, kk, t.c);
@@ -61,7 +89,10 @@ export function roundSplit(t: Terms, k: number, bid: bigint, uncovered = 0n): Ro
 export interface BidQuote extends RoundSplit {
   k: number;
   bid: bigint;
+  /** Ceiling the contract enforces (already minus the commission share). */
   cap: bigint;
+  /** Ceiling set by the law, before the commission share. Equal to `cap` when phi = 0. */
+  statutoryCap: bigint;
   /** Why the bid is not allowed, or undefined when it is. */
   problem?: 'over-cap' | 'at-least-c';
   /** Interest the winner pays through the discount the others get: bid x live payers. */
@@ -84,9 +115,9 @@ const monthlyBps = (cost: bigint, t: Terms, k: number): bigint | undefined => {
 };
 
 /** The bid calculator (decided 09/11): what you hold now, what you pay for it, and the rate it equals. Numbers only, no advice. */
-export function bidQuote(t: Terms, k: number, bid: bigint): BidQuote {
+export function bidQuote(t: Terms, k: number, bid: bigint, organizerWins = false): BidQuote {
   const cap = capOf(t, k);
-  const split = roundSplit(t, k, bid);
+  const split = roundSplit(t, k, bid, 0n, organizerWins);
   const interest = bid * BigInt(split.livePayers);
   const problem = bid >= t.c ? 'at-least-c' : bid > cap ? 'over-cap' : undefined;
   return {
@@ -94,6 +125,7 @@ export function bidQuote(t: Terms, k: number, bid: bigint): BidQuote {
     k,
     bid,
     cap,
+    statutoryCap: statutoryCapOf(t, k),
     ...(problem ? { problem } : {}),
     interest,
     releaseEach: releasePerRound(t.alphaBps, t.c),
@@ -103,6 +135,60 @@ export function bidQuote(t: Terms, k: number, bid: bigint): BidQuote {
       ? { allInRateBpsPerMonth: monthlyBps(interest + split.fee + split.premium, t, k)! }
       : {}),
   };
+}
+
+// ---------------------------------------------------------------------------------------------------------------------
+// Commission inside the interest cap (docs/03 section 2.7) and the on-time reserve split (ADR-24)
+// ---------------------------------------------------------------------------------------------------------------------
+
+export interface CommissionRow {
+  k: number;
+  /** L_k with nobody frozen. */
+  payers: number;
+  /** Ceiling set by the law. */
+  statutoryCap: bigint;
+  /** Ceiling the contract enforces on bids (legal ceiling minus the share). */
+  cap: bigint;
+  /** room_k: the most interest the law lets the winner pay. */
+  room: bigint;
+  /** Commission of this round at most (pot at its largest, i.e. a bid of 0); 0 in the last round. */
+  fee: bigint;
+}
+
+/** One row per round, in money, for the create form: phi turned into "how many USDC does the organizer take in round k". */
+export function commissionSchedule(t: Terms): CommissionRow[] {
+  const biggestPot = (t.n - 1n) * t.c;
+  return Array.from({ length: Number(t.n) }, (_, i) => {
+    const k = i + 1;
+    return { k, payers: Number(t.n) - k, statutoryCap: statutoryCapOf(t, k), cap: capOf(t, k), room: roomOf(t, k), fee: feeOf(t, k, biggestPot) };
+  });
+}
+
+/** Reserve at the end of the circle: what is in it now plus the premium of each round still to come (bids of 0). A rough estimate. */
+export function reserveEstimate(t: Terms, settledRounds: number, reserveNow: bigint): bigint {
+  let r = reserveNow;
+  for (let k = settledRounds + 1; k <= Number(t.n); k++) r += bpsOf((t.n - 1n) * t.c, t.reserveBps);
+  return r;
+}
+
+export interface LateRewardLoss {
+  /** Share of the end-of-circle reserve with the late rounds the member has now. */
+  now: bigint;
+  /** Same, after one more late round. */
+  after: bigint;
+  loss: bigint;
+}
+
+/** What one more late round (or an unrevealed bid) costs in the reserve split, others all on time (ADR-24, docs/03 section 5.3). */
+export function lateRewardLoss(n: bigint, lateBefore: bigint, reserveEnd: bigint): LateRewardLoss {
+  const others = (n - 1n) * (n - 1n);
+  const share = (late: bigint): bigint => {
+    const w = onTimeWeight(n, late, false);
+    return w === 0n ? 0n : reserveShare(reserveEnd, w, w + others);
+  };
+  const now = share(lateBefore);
+  const after = share(lateBefore + 1n);
+  return { now, after, loss: now - after };
 }
 
 // ---------------------------------------------------------------------------------------------------------------------
@@ -161,6 +247,9 @@ export function fairness(t: Terms, bond: bigint, bidPctOfCapBps: bigint): Fairne
       warnings.push(
         `Trần thăm kỳ 1 chỉ bằng ${pct.toLocaleString('vi-VN')}% mức góp. Thăm gần như không phân biệt được ai cần tiền gấp, nhiều người sẽ cùng đặt mức trần. Cân nhắc kiểu Cố định hoặc kỳ dài hơn.`,
       );
+    }
+    if (bond > 0n && t.feeBps > 0n && totalFee * 50n < bond) {
+      warnings.push('Hoa hồng cả dây chưa tới 2% ký quỹ: chủ hụi gần như không có lời, và chỉ cần một người bỏ đóng là lỗ. Hụi tuần ít người hay rơi vào trường hợp này; kỳ tháng hoặc nhiều người hơn thì hoa hồng lớn hơn.');
     }
     if (n < 5) warnings.push('Dây dưới 5 người: có ít người bỏ thăm nên khó chia thắng thua. Dây từ 5 người trở lên chạy ổn hơn.');
   }
@@ -309,6 +398,10 @@ export interface Settlement {
   members: MemberSettlement[];
   reserveTotal: bigint;
   feesToOrganizer: bigint;
+  /** Commission paid to the organizer the moment each clean round settled (`FeePaid`). In a clean circle that is all of it. */
+  feesPaidNow: bigint;
+  /** Commission that waited in escrow until `finalize` (rounds with a shortfall). Zero in a clean circle. */
+  feesAtFinalize: bigint;
   bondReturned: bigint;
 }
 
@@ -346,7 +439,7 @@ export function settleCleanCircle(s: SettlementInput): Settlement {
       net: sp.payout + sp.holdback + reward - paid,
     };
   });
-  return { members, reserveTotal, feesToOrganizer, bondReturned: s.bond };
+  return { members, reserveTotal, feesToOrganizer, feesPaidNow: feesToOrganizer, feesAtFinalize: 0n, bondReturned: s.bond };
 }
 
 /** Deterministic sample bids: `pct`% of each round's ceiling, rounded down to a cent. */

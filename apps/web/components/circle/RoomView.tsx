@@ -14,6 +14,7 @@ import { Badge } from '@/components/ui/badge';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { toLedger, toSampleMembers } from '@/lib/chain/adapter';
 import { DEMO_LEDGER, DEMO_MEMBERS, VIEWER, usdc } from '@/lib/sample';
+import { lateImpact } from '@/lib/live/lateImpact';
 import type { SampleCircleData } from '@/lib/sample-circles';
 import { TOGGLE_ON } from '@/lib/utils';
 
@@ -42,6 +43,7 @@ export function RoomView({ c }: { c: SampleCircleData }) {
   const owing = new Set(c.shortfalls.filter((s) => s.status !== 'paid').map((s) => s.member));
   const bidders = members.flatMap((m, i) => (m.status === 'live' && !owing.has(i) ? [i === viewer ? `${m.name} (bạn)` : m.name] : []));
   const n = Number(c.terms.n);
+  const impact = lateImpact(c);
 
   return (
     <main id="noi-dung" className="mx-auto max-w-6xl px-4 py-10">
@@ -92,6 +94,7 @@ export function RoomView({ c }: { c: SampleCircleData }) {
               items={[
                 { label: `Trần thăm kỳ ${k}`, value: formatUsdc(maxBid) },
                 { label: 'Cọc mở thăm', value: formatUsdc(revealBond) },
+                { label: 'Quên mở thăm đã nộp', value: `mất cọc, bớt khoảng ${formatUsdc(impact.nextLoss)} thưởng đúng hạn` },
                 { label: 'Được bỏ thăm', value: bidders.join(', ') || 'Không còn ai' },
               ]}
             />
@@ -103,7 +106,7 @@ export function RoomView({ c }: { c: SampleCircleData }) {
       </section>
 
       <div className="mt-6 grid gap-6 lg:grid-cols-[3fr_2fr] lg:items-start [&>*]:min-w-0">
-        <BidCalculator terms={c.terms} round={k} past={past} />
+        <BidCalculator terms={c.terms} round={k} past={past} bidderIsOrganizer={c.viewerIsOrganizer && viewer >= 0} />
         <section aria-labelledby="nguoi-trong-day" className="o-phang p-6">
           <h3 id="nguoi-trong-day" className="font-display text-h3 font-bold">
             Người trong dây

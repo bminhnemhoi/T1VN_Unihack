@@ -13,7 +13,8 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Field, FieldLabel } from '@/components/ui/field';
-import { agreementClauses, agreementHash } from '@/lib/agreement';
+import { TermsBox } from '@/components/circle/TermsBox';
+import { termsViewOf } from '@/lib/live/terms';
 import { capOf } from '@/lib/hui-calc';
 import { useCircleData } from '@/lib/live/useCircleData';
 import { useMinCoverageBps } from '@/lib/live/useMinCoverage';
@@ -37,6 +38,7 @@ export function InviteView({ c: C }: { c: SampleCircleData }) {
   const router = useRouter();
   const tx = useTx();
   const live = C.live;
+  const terms = termsViewOf(C);
   const { show } = useToast();
   const [agreed, setAgreed] = useState(false);
   const box = useRef<HTMLButtonElement>(null);
@@ -93,6 +95,9 @@ export function InviteView({ c: C }: { c: SampleCircleData }) {
               { label: 'Chỉ số bảo chứng tối thiểu', value: formatBps(preview.coverageBps) },
               { label: 'Tiền giữ lại khi bạn hốt', value: formatBps(t.alphaBps) },
               { label: 'Trần thăm kỳ 1', value: formatUsdc(capOf(t, 1)) },
+              ...(t.feeBps > 0n
+                ? [{ label: 'Hoa hồng chủ hụi', value: (t.shareBps ?? 0n) > 0n ? `${formatBps(t.shareBps!)} quỹ lãi mỗi kỳ, tối đa ${formatBps(t.feeBps)} tiền hốt` : `${formatBps(t.feeBps)} tiền hốt mỗi kỳ` }]
+                : []),
               { label: 'Ân hạn trả trễ', value: '48 giờ' },
             ]}
           />
@@ -138,18 +143,9 @@ export function InviteView({ c: C }: { c: SampleCircleData }) {
         <h2 id="thoa-thuan" className="font-display text-h2 font-bold">
           Thỏa thuận bạn đồng ý
         </h2>
-        <details className="o-phang mt-3 p-5">
-          <summary className="min-h-12 cursor-pointer py-2 font-semibold">Đọc toàn văn thỏa thuận ({agreementClauses(C).length} điều)</summary>
-          <ol className="mt-3 list-decimal space-y-2 pl-6">
-            {agreementClauses(C).map((x, i) => (
-              <li key={i}>{x}</li>
-            ))}
-          </ol>
-        </details>
-        <p className="mt-3 text-muted-foreground">Mã băm của đúng văn bản trên (sẽ được ghi lên mạng khi tạo dây thật, để không ai sửa lén được):</p>
-        <p className="so-ke mt-1 rounded-lg bg-secondary p-3 break-all" data-testid="agreement-hash">
-          {agreementHash(C)}
-        </p>
+        <div className="mt-3">
+          <TermsBox view={terms} source={live ? 'chain' : 'sample'} />
+        </div>
       </section>
 
       <section aria-labelledby="vao" className="to-giay mt-10 p-6 md:p-8">
@@ -173,9 +169,16 @@ export function InviteView({ c: C }: { c: SampleCircleData }) {
             <a href={`/circles/${C.id}`} className="text-primary underline underline-offset-4">Mở dây</a>
           </p>
         ) : (
-          <Button type="button" size="lg" className="mt-3" onClick={join} disabled={tx.pending}>
-            {tx.pending ? 'Đang gửi…' : 'Vào dây'}
-          </Button>
+          <>
+            <Button type="button" size="lg" className="mt-3" onClick={join} disabled={tx.pending || terms.check === 'mismatch'} aria-describedby={terms.check === 'mismatch' ? 'vao-khong-khop' : undefined}>
+              {tx.pending ? 'Đang gửi…' : 'Vào dây'}
+            </Button>
+            {terms.check === 'mismatch' && (
+              <p id="vao-khong-khop" className="mt-2 font-semibold text-state-bad">
+                Nút vào dây tắt vì thỏa thuận không khớp mã băm trên mạng.
+              </p>
+            )}
+          </>
         )}
         <TxNotice state={tx} chainId={tx.chainId} success="Bạn đã vào dây." needed={allowance} />
         {!live && <p className="mt-2 text-muted-foreground">Bạn sẽ đăng nhập ở bước sau. Hiện là màn hình mẫu, chưa có gì được gửi đi.</p>}
