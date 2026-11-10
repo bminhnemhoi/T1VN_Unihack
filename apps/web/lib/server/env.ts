@@ -10,7 +10,7 @@ import { NetworkError, resolveNetwork } from 'config/network';
 import { huiFactoryAbi, erc2771ForwarderAbi, mockUsdcAbi } from 'sdk';
 import { createAttestHandler, ATTEST_PER_HOUR, type AttestDeps } from './attest';
 import { chainFor, ConfigError, loadDeployment, makePublicClient } from './chain';
-import { consoleLogger, errorResponse, makeRequestIdGenerator } from './http';
+import { consoleLogger, errorResponse, makeRequestIdGenerator, trustProxyFrom } from './http';
 import { createPrivyVerifier } from './privy';
 import { SlidingWindowLimiter } from './ratelimit';
 import {
@@ -68,6 +68,7 @@ export async function buildAttestHandler(env: Env = process.env): Promise<Handle
       publicClient.readContract({ address: deployment.factory, abi: huiFactoryAbi, functionName: 'isCircle', args: [circle] }),
     userLimiter: new SlidingWindowLimiter(ATTEST_PER_HOUR),
     ipLimiter: new SlidingWindowLimiter(120),
+    trustProxy: trustProxyFrom(env),
     now: Date.now,
     requestId: makeRequestIdGenerator(),
     log: consoleLogger,
@@ -82,6 +83,7 @@ interface RelayShared {
   address: `0x${string}`;
   ipLimiter: SlidingWindowLimiter;
   globalLimiter: SlidingWindowLimiter;
+  trustProxy: boolean;
   sendLock: ReturnType<typeof createMutex>;
 }
 
@@ -121,6 +123,7 @@ function relayShared(env: Env): Promise<RelayShared> {
         address: account.address,
         ipLimiter: new SlidingWindowLimiter(IP_PER_HOUR),
         globalLimiter: new SlidingWindowLimiter(GLOBAL_PER_HOUR),
+        trustProxy: trustProxyFrom(env),
         sendLock: createMutex(),
       };
     })();
@@ -152,6 +155,7 @@ export async function buildRelayPermitHandler(env: Env = process.env): Promise<H
     ownerLimiter: new SlidingWindowLimiter(PERMIT_PER_HOUR),
     ipLimiter: sh.ipLimiter,
     globalLimiter: sh.globalLimiter,
+    trustProxy: sh.trustProxy,
     sendLock: sh.sendLock,
     now: Date.now,
     requestId: makeRequestIdGenerator(),
@@ -175,6 +179,7 @@ export async function buildRelayHandler(env: Env = process.env): Promise<Handler
     limiter: new SlidingWindowLimiter(RELAY_PER_HOUR),
     ipLimiter: sh.ipLimiter,
     globalLimiter: sh.globalLimiter,
+    trustProxy: sh.trustProxy,
     sendLock: sh.sendLock,
     verifier: createPrivyVerifier(requireVar(env, 'NEXT_PUBLIC_PRIVY_APP_ID'), requireVar(env, 'PRIVY_APP_SECRET')),
     createLimiter: new SlidingWindowLimiter(CREATE_CIRCLE_PER_HOUR),

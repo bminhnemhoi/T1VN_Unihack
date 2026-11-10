@@ -48,6 +48,24 @@ const call = (h: (r: Request) => Promise<Response>, body: unknown, token: string
     }),
   );
 
+describe('POST /api/attest IP limit', () => {
+  const withIp = (h: (r: Request) => Promise<Response>, ip: string) =>
+    h(new Request('http://x/api/attest', { method: 'POST', headers: { authorization: 'Bearer alice', 'x-forwarded-for': ip }, body: JSON.stringify({ circle, ageConfirmed: true }) }));
+
+  it('without TRUST_PROXY there is no IP gate to exhaust (audit A14 H-01, A15 H-01)', async () => {
+    const h = createAttestHandler(makeDeps({ ipLimiter: new SlidingWindowLimiter(1, 3_600_000, () => NOW) }));
+    expect((await withIp(h, '1.2.3.4')).status).toBe(200);
+    expect((await withIp(h, '5.6.7.8')).status).toBe(200);
+  });
+
+  it('with TRUST_PROXY the proxy-observed address is the bucket key', async () => {
+    const h = createAttestHandler(makeDeps({ trustProxy: true, ipLimiter: new SlidingWindowLimiter(1, 3_600_000, () => NOW) }));
+    expect((await withIp(h, '1.2.3.4')).status).toBe(200);
+    expect((await withIp(h, '5.6.7.8')).status).toBe(200);
+    expect((await withIp(h, '5.6.7.8')).status).toBe(429);
+  });
+});
+
 describe('POST /api/attest', () => {
   it('issues an attestation the attester signed, for the Privy wallet, valid one hour', async () => {
     const deps = makeDeps();

@@ -289,10 +289,18 @@ describe('POST /api/relay', () => {
     expect((await post(small, body())).status).toBe(200);
     expect((await post(small, body())).status).toBe(200);
     expect(await code(await post(small, body()))).toBe('RelayBusy');
-    const ipOnly = createRelayHandler({ ...t.deps, ipLimiter: new SlidingWindowLimiter(1, 3_600_000, () => NOW) });
+    const ipOnly = createRelayHandler({ ...t.deps, trustProxy: true, ipLimiter: new SlidingWindowLimiter(1, 3_600_000, () => NOW) });
     expect((await post(ipOnly, body(), { 'x-forwarded-for': '1.2.3.4' })).status).toBe(200);
     expect((await post(ipOnly, body(), { 'x-forwarded-for': '1.2.3.4' })).status).toBe(429);
     expect((await post(ipOnly, body(), { 'x-forwarded-for': '5.6.7.8' })).status).toBe(200);
+  });
+
+  it('without TRUST_PROXY junk traffic cannot lock a valid signer out (audit A14 H-01, A15 H-01)', async () => {
+    const t = harness();
+    const h = createRelayHandler({ ...t.deps, ipLimiter: new SlidingWindowLimiter(1, 3_600_000, () => NOW) });
+    for (let i = 0; i < 5; i++) expect((await post(h, '{}', { 'x-forwarded-for': `6.6.6.${i}` })).status).toBe(400);
+    expect((await post(h, body(), { 'x-forwarded-for': '1.2.3.4' })).status).toBe(200);
+    expect((await post(h, body(), { 'x-forwarded-for': '5.6.7.8' })).status).toBe(200);
   });
 
   it('junk and invalid signatures do not use the global hourly budget (audit H-01)', async () => {

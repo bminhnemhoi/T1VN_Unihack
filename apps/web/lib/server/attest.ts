@@ -7,7 +7,7 @@
 import { encodePacked, keccak256, type Hex } from 'viem';
 import { z } from 'zod';
 import { attestationTypes, huiSafeDomain } from 'sdk';
-import { errorResponse, jsonResponse, readLimited, clientIp, type Logger } from './http';
+import { errorResponse, jsonResponse, readLimited, takeIp, type Logger } from './http';
 import { InvalidTokenError, NoWalletError, type PrivyVerifier } from './privy';
 import type { SlidingWindowLimiter } from './ratelimit';
 
@@ -43,6 +43,8 @@ export interface AttestDeps {
   isCircle(circle: Address): Promise<boolean>;
   userLimiter: SlidingWindowLimiter;
   ipLimiter: SlidingWindowLimiter;
+  /** Read the client IP from proxy headers (`TRUST_PROXY=true`); default false = one shared bucket. */
+  trustProxy?: boolean;
   now: () => number;
   requestId: () => string;
   log: Logger;
@@ -66,7 +68,7 @@ export function createAttestHandler(deps: AttestDeps): (req: Request) => Promise
       return res;
     };
 
-    const ip = deps.ipLimiter.take(clientIp(req));
+    const ip = takeIp(deps.ipLimiter, req, deps.trustProxy);
     if (!ip.ok) {
       return done(
         errorResponse(429, 'RateLimited', 'Bạn gửi quá nhiều yêu cầu. Hãy thử lại sau.', {
