@@ -119,6 +119,16 @@ async function rpcChainId(): Promise<string | undefined> {
   }
 }
 
+/** Kills a detached child and everything it forked (pnpm -> node keeper loop). */
+function killGroup(child: ChildProcess): void {
+  if (child.pid === undefined) return;
+  try {
+    process.kill(-child.pid, 'SIGTERM');
+  } catch {
+    child.kill();
+  }
+}
+
 async function startAnvil(): Promise<ChildProcess> {
   if ((await rpcChainId()) !== undefined) throw new Error('something already listens on 127.0.0.1:8545; stop it first');
   const child = spawn('anvil', ['--silent', '--port', '8545', '--chain-id', '31337'], { env: baseEnv(), stdio: 'ignore' });
@@ -441,6 +451,7 @@ async function scenario(): Promise<void> {
     cwd: ROOT,
     env: { ...baseEnv(), HUISAFE_NETWORK: 'anvil', KEEPER_PRIVATE_KEY: keyOf(keeperAcct), KEEPER_INTERVAL_SECONDS: '3600' },
     stdio: ['ignore', 'pipe', 'pipe'],
+    detached: true, // own process group: pnpm forks node, and killing only pnpm leaves the keeper loop alive
   });
   const seen = await new Promise<string>((resolve) => {
     let out = '';
@@ -453,7 +464,7 @@ async function scenario(): Promise<void> {
       }
     });
   });
-  child.kill();
+  killGroup(child);
   check('keeper process logged "keeper started" and "scan done"', seen.includes('keeper started') && seen.includes('scan done'), true);
   check('keeper logs contain no key material', seen.includes(keyOf(keeperAcct).slice(2)), false);
 
@@ -538,7 +549,11 @@ async function scenario(): Promise<void> {
   check('server logs contain no private key or full signature', allLogs.includes(keyOf(M[0]!).slice(2)) || /0x[0-9a-f]{130}/i.test(allLogs), false);
 }
 
-main().catch((e: unknown) => {
-  console.error(e instanceof Error ? e.message : e);
-  process.exit(1);
-});
+// Explicit exit codes: success exits 0 even if some library keeps a socket or timer alive; any failure exits 1.
+main().then(
+  () => process.exit(0),
+  (e: unknown) => {
+    console.error(e instanceof Error ? e.message : e);
+    process.exit(1);
+  },
+);

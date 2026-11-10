@@ -30,6 +30,8 @@ import {FactoryConfig} from "../src/libraries/HuiTypes.sol";
 ///                         and `deployments/anvil.json` on anvil.
 ///   WRITE_DEPLOYMENT      Fuji only: the json file is written only when this is `true`, so a simulation never
 ///                         overwrites the committed fuji.json. Anvil always writes.
+///   MIN_COVERAGE_BPS      optional; `FactoryConfig.minCoverageBps` (the floor for `activate()`). Default 10000 on Fuji
+///                         (09/11 decision, ADR-22: bond 100%) and 5000 on anvil (the local rehearsal keeps docs/03 2.3).
 ///   ALLOW_UNWIRED         Fuji only: by default the admin must equal the deployer so the script can call
 ///                         `registry.setFactory`; `true` allows a different admin (json then records `"wired": false`).
 ///                         On Fuji the attester must differ from both the deployer and the admin (ADR-21).
@@ -142,7 +144,9 @@ contract Deploy is Script {
         }
     }
 
-    function _config(Deployment memory d) internal pure returns (FactoryConfig memory c) {
+    function _config(Deployment memory d) internal view returns (FactoryConfig memory c) {
+        uint256 minCoverage = vm.envOr("MIN_COVERAGE_BPS", block.chainid == FUJI_CHAIN_ID ? 10_000 : 5000);
+        if (minCoverage > 10_000) revert SanityCheckFailed("MIN_COVERAGE_BPS");
         c = FactoryConfig({
             usdc: d.usdc,
             forwarder: d.forwarder,
@@ -150,7 +154,7 @@ contract Deploy is Script {
             attester: d.attester,
             maxCapBps: 2000,
             lateRateBps: 1000,
-            minCoverageBps: 5000,
+            minCoverageBps: uint16(minCoverage),
             maxFeeBps: 300,
             maxReserveBps: 300,
             minMembers: 3,
@@ -169,6 +173,9 @@ contract Deploy is Script {
         if (c.usdc != d.usdc) revert SanityCheckFailed("config.usdc");
         if (ReputationRegistry(d.reputation).admin() != d.admin) revert SanityCheckFailed("registry.admin");
         if (c.attester != d.attester) revert SanityCheckFailed("config.attester");
+        if (block.chainid == FUJI_CHAIN_ID && c.minCoverageBps != 10_000) {
+            revert SanityCheckFailed("config.minCoverageBps");
+        }
         if (HuiCircle(payable(d.implementation)).trustedForwarder() != d.forwarder) {
             revert SanityCheckFailed("implementation.forwarder");
         }
