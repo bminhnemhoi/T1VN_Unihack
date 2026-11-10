@@ -16,7 +16,7 @@ test.describe('shell: navigation on every route', () => {
       const nav = mainNav(page);
       await expect(nav.locator('[aria-current="page"]')).toHaveCount(1);
       await expect(nav.getByRole('link', { name: r.label, exact: true })).toHaveAttribute('aria-current', 'page');
-      await expect(page.getByRole('status').filter({ hasText: 'CHẾ ĐỘ DEMO' })).toBeVisible();
+      await expect(page.getByRole('status').filter({ hasText: 'Chế độ demo: 1 kỳ = 3 phút, lãi tính như hụi tháng' })).toBeVisible();
       await noHorizontalOverflow(page);
       errs.expectClean();
     });

@@ -25,7 +25,7 @@ export const RiskTable = memo(function RiskTable({ terms, bond, highlight, class
           Nếu người đã hốt bỏ đóng lần lượt qua nhiều kỳ, tổng khoản thiếu có thể vượt ký quỹ, và người hốt cuối bị nhận thiếu. Khoản thiếu đó thành khoản đòi công khai, không biến mất.
         </p>
       )}
-      <div className="o-phang mt-4 overflow-x-auto">
+      <div className="o-phang mt-4 overflow-x-auto" tabIndex={0} role="region" aria-label="Bảng số tiền tối đa mỗi chỗ có thể mất, kéo ngang để xem hết">
         <table className="w-full min-w-[34rem] text-base">
           <caption className="sr-only">Số tiền tối đa mỗi chỗ có thể mất, theo kỳ hốt</caption>
           <thead>

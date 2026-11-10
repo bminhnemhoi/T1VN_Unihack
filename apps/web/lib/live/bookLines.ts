@@ -20,6 +20,28 @@ export interface BookLine {
 const SOURCE = ['tiền giữ lại', 'ký quỹ', 'quỹ dự phòng', 'chưa bù được'] as const;
 const big = (v: unknown): bigint => (typeof v === 'bigint' ? v : BigInt(String(v ?? 0)));
 
+export interface BookTotals {
+  contributed: bigint;
+  paidOut: bigint;
+  /** Shortfall actually covered by holdback, bond or reserve (the "chưa bù được" part is a claim, not cover). */
+  covered: bigint;
+  /** Still-open claims (uncovered amounts nobody has repaid yet). */
+  claims: bigint;
+}
+
+const UNCOVERED = 'chưa bù được';
+
+/** Footer of the book (docs/05 section 10): totals of the lines plus the open claims read from the circle. */
+export function bookTotals(lines: BookLine[], claims: bigint): BookTotals {
+  const sum = (pick: (l: BookLine) => boolean) => lines.filter(pick).reduce((a, l) => a + l.amount, 0n);
+  return {
+    contributed: sum((l) => l.kind === 'Góp'),
+    paidOut: sum((l) => l.kind === 'Hốt'),
+    covered: sum((l) => l.kind === 'Bù' && l.detail !== UNCOVERED),
+    claims,
+  };
+}
+
 export function eventsToLines(events: CircleEvent[], nameOf: (address: string) => string): BookLine[] {
   const out: BookLine[] = [];
   for (const e of events) {

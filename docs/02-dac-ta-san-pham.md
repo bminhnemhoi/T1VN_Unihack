@@ -118,7 +118,7 @@ Là hụi sống, tôi muốn bỏ thăm kín và biết trước mình nhận b
 - **AC-09.2** Dây demo nhánh B: chủ hụi nhận lại 160 USDC ký quỹ cùng tiền công các kỳ không bị mất; quỹ dự phòng chia đều cho M1, M2, M3, M5; M4 ghi vỡ nợ ở ReputationRegistry. Khoản chuyển thất bại thành nút "Nhận tiền"; `claim` chạy cả khi dây tạm dừng.
 
 ### US-10. Banner chế độ demo
-- **AC-10.1** Given `huisafe.demoMode = true` hoặc dây đang xem có `roundDuration < periodSeconds`, Then mọi màn hình có dải băng cố định, không tắt được: "CHẾ ĐỘ DEMO: 1 kỳ = 3 phút, ân hạn 2 phút. Trần lãi và lãi chậm góp vẫn tính như kỳ 30 ngày. Tiền là USDC thử nghiệm trên Fuji, không có giá trị."
+- **AC-10.1** Given `huisafe.demoMode = true` hoặc dây đang xem có `roundDuration < periodSeconds`, Then mọi màn hình có dải băng cố định, không tắt được: "Chế độ demo: 1 kỳ = 3 phút, lãi tính như hụi tháng. Ân hạn 2 phút. Tiền là USDC thử nghiệm trên Fuji, không có giá trị." Bản dựng với `NEXT_PUBLIC_HUISAFE_DEMO=true` luôn hiện dải này; khi chưa triển khai (số liệu mẫu) dải cũng hiện, thêm câu "Màn hình này dùng số liệu mẫu."
 - **AC-10.2** `role="status"`, tương phản ≥ 4,5:1, không che nút chính. Bật lãi giả lập (bonus) thì thêm "Lãi hiển thị là giả lập."
 
 ### US-11. Trợ lý chủ hụi

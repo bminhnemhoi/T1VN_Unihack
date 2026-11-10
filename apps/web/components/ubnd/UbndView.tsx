@@ -55,7 +55,7 @@ export function UbndView() {
     <main id="noi-dung" className="mx-auto max-w-6xl px-4 py-10">
       <h1 className="font-display text-h1 font-bold">Thông báo gửi UBND</h1>
       <p className="mt-2 max-w-prose text-lead text-muted-foreground">
-        Nghị định 19 Điều 14 yêu cầu chủ họ thông báo bằng văn bản cho UBND cấp xã khi đã có dây khác đang chạy, hoặc khi giá trị một kỳ từ 100.000.000 đ trở lên. Đây là mẫu tham khảo, cần luật sư xác nhận trước khi nộp.
+        Nghị định 19 Điều 14 yêu cầu chủ hụi thông báo bằng văn bản cho UBND cấp xã khi đã có dây khác đang chạy, hoặc khi giá trị một kỳ từ 100.000.000 đ trở lên. Đây là mẫu tham khảo, cần luật sư xác nhận trước khi nộp.
       </p>
 
       <div className="mt-8 grid gap-6 lg:grid-cols-[2fr_3fr] lg:items-start [&>*]:min-w-0">

@@ -49,7 +49,7 @@ export const NumberField = memo(function NumberField({ id, label, hint, unit, va
           = {echo}
         </p>
       )}
-      {disabled && <FieldDescription>Đang tắt vì họ này không hưởng hoa hồng.</FieldDescription>}
+      {disabled && <FieldDescription>Đang tắt vì dây này không hưởng hoa hồng.</FieldDescription>}
       {hint && <FieldDescription id={`${id}-hint`}>{hint}</FieldDescription>}
       {error && <FieldError id={`${id}-err`}>{error}</FieldError>}
     </Field>
