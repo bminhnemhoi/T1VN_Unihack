@@ -162,8 +162,8 @@ describe('repayDebt without approve (M-02)', () => {
   });
 });
 
-describe('join tops the permit up by one contribution (DE-XUAT-M02 section 6.1)', () => {
-  it('signs requiredAllowance + C', async () => {
+describe('join keeps the permit at exactly requiredAllowance', () => {
+  it('the circle permits exactly that value, so a larger one would make join revert', async () => {
     const { ctx, calls } = setup(0n, undefined);
     const att = { member: wallet.address, circle: CIRCLE, attestationId: `0x${'3'.repeat(64)}`, expiry: '1800003600' };
     const f: FetchLike = async (url, init) => {
@@ -174,6 +174,7 @@ describe('join tops the permit up by one contribution (DE-XUAT-M02 section 6.1)'
     const r = await join({ ...ctx, fetchFn: f, getAccessToken: async () => 'tok' }, CIRCLE, { ageConfirmed: true });
     expect(r.ok).toBe(true);
     const data = (calls.find((c) => c.url === '/api/relay')!.body.request as { data: string }).data;
-    expect(data).toContain((50_400_000n).toString(16).padStart(64, '0')); // 40.4 + 10 USDC
+    expect(data).toContain((40_400_000n).toString(16).padStart(64, '0')); // requiredAllowance, not + C
+    expect(data).not.toContain((50_400_000n).toString(16).padStart(64, '0'));
   });
 });

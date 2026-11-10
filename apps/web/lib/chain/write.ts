@@ -246,9 +246,10 @@ export function depositBond(ctx: TxContext, circle: Address, amount: bigint): Pr
 }
 
 /**
- * Join: attestation from `/api/attest` (needs the user's own 18+ tick) plus a permit of `requiredAllowance` + 1 C. The
- * extra C (M-02, DE-XUAT-M02 section 6) absorbs the late fees of a few small late payments without a new permit;
- * `join` only demands allowance >= `requiredAllowance`.
+ * Join: attestation from `/api/attest` (needs the user's own 18+ tick) plus a permit of EXACTLY `requiredAllowance`.
+ * The circle calls `permit(member, circle, requiredAllowance, ...)` itself, so a permit signed for any other value
+ * (for example 1 C extra, as DE-XUAT-M02 section 6.1 suggested) fails the signature check silently and `join` then
+ * reverts `InsufficientAllowance`. Headroom for late fees is added later by the repay permit instead.
  */
 export function join(ctx: TxContext, circle: Address, opts: { ageConfirmed: boolean }): Promise<TxResult> {
   return safely(() => joinInner(ctx, circle, opts));
@@ -270,11 +271,7 @@ async function joinInner(ctx: TxContext, circle: Address, opts: { ageConfirmed: 
   }
   let data: Hex;
   try {
-    const [required, params] = await Promise.all([
-      readCircleFn<bigint>(ctx, circle, 'requiredAllowance'),
-      readCircleFn<{ contribution: bigint }>(ctx, circle, 'params'),
-    ]);
-    const permit = await permitFor(ctx, circle, required + params.contribution);
+    const permit = await permitFor(ctx, circle, await readCircleFn<bigint>(ctx, circle, 'requiredAllowance'));
     data = encodeJoin(att.value.attestation, att.value.signature, permit);
   } catch {
     return fail('SignRejected', 'Ví không ký được hoặc bạn đã huỷ. Chưa có giao dịch nào được gửi.');
