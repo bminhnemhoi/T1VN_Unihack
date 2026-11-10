@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { OrganizerEconomics, OrganizerSybil } from '@/components/lab/OrganizerLab';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import type { LabData, LabDesign } from '@/lib/lab-data';
 import { cn, TOGGLE_ON } from '@/lib/utils';
@@ -156,6 +157,9 @@ export function LabView({ data }: { data: LabData }) {
           </div>
         </section>
       )}
+
+      {data.economics && <OrganizerEconomics data={data.economics} />}
+      {data.sybil && <OrganizerSybil data={data.sybil} />}
     </main>
   );
 }

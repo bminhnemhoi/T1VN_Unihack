@@ -736,7 +736,7 @@ Dựng sổ họ (mục 10) từ event. `format=pdf` trả file PDF tiếng Vi�
 
 ### 8.5. `GET /api/sim/results?scenario=<id>`
 
-Trả file JSON kết quả mô phỏng đã sinh sẵn trong `sim/outputs/` (mục 11).
+Trả nguyên file JSON kết quả mô phỏng đã sinh sẵn `sim/outputs/<id>.json` (mục 11), chỉ đọc, không có tham số khác. `scenario` là tên của một file kết quả đã có: `baseline`, `baseline_calibrated`, `inv08`, `organizer_economics` (lời của chủ hụi theo chu kỳ, N, φ), `organizer_sybil` (một hoặc hai ví ảo ở CI 50% và 100%); file `.meta.json` không phải kịch bản. Thiếu hoặc sai tham số (không khớp `^[a-z0-9_]{1,64}$`, nên không đọc được đường dẫn): 400 `BadRequest`; chưa có kết quả: 404 `NoResults`. Trang `/lab` (S16) đọc cùng các file này lúc dựng và vẽ cả hai phần của chủ hụi; số trong bảng ví ảo lấy từ file, khớp docs/03 mục 7.3.
 
 ---
 
