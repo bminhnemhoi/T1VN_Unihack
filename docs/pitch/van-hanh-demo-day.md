@@ -2,22 +2,23 @@
 
 Trạng thái: NHÁP chờ Towfienes duyệt. File này là lịch chạy và đường dự phòng trước giờ trình bày. Kịch bản lời nói 3 phút nằm ở [docs/12 mục 3](../12-pitch-demo-nop-bai.md); file này nói về việc phải làm để kịch bản đó chạy được, và nói rõ chỗ kịch bản đang lệch với thứ có thật trên Fuji.
 
-## 1. Trạng thái thật trên Fuji (đọc ngày 11/11/2026, 05:13 giờ Việt Nam)
+## 1. Trạng thái thật trên Fuji (đọc ngày 11/11/2026; số USDC của organizer và deployer đọc lại sau ví dụ vỡ nợ)
 
-Nguồn: `bash scripts/demo-check.sh` (không FAIL) và `cast call` chỉ đọc.
+Nguồn: `bash scripts/demo-check.sh` (không FAIL) và `cast call` chỉ đọc; dây vỡ nợ theo `docs/DEPLOY-FUJI.md` mục 15b.
 
 | Hạng mục | Giá trị | Ý nghĩa cho Demo Day |
 |---|---|---|
 | Factory | `0x5004477143F8Db65f80992A0BD79c1DAb75C8b21`, admin là Safe 2/3 `0xc7BeE5Cc787833C8Fd76b9066d334Ab131E7c3F5`, `minCoverageBps` 10000 | Sẵn sàng |
 | Dây 1 `0x58f60387386a75c29CA281509a818C8a50D8F9E2` | Bidding φ = 0, `Forming`, 0/5 người, ký quỹ 48 USDC, CI 100% | Hạn vào dây 17/11 17:20 UTC: HẾT HẠN trước Demo Day |
-| Dây 2 `0xd231db0b842dE1C1B153511618341C659F7f7F29` | Bidding φ = 50%, `Forming`, 0/5, ký quỹ 48, CI 100% | Như trên; dùng cho buổi thử người dùng 15 đến 16/11 |
+| Dây 2 `0xd231db0b842dE1C1B153511618341C659F7f7F29` | Bidding φ = 50%, `Forming` (đọc lại `state()` = 0 ngày 11/11), 0/5, ký quỹ 48, CI 100% | Như trên; dùng cho buổi thử người dùng 15 đến 16/11 |
 | Dây 3 `0xABA89dFfA4e157927710419b01C32bD307bF2461` | Fixed N = 3, `Completed`, 3 kỳ đã chi, số dư USDC về 0 | Dùng làm "dây đã hoàn tất" để mở sổ hụi và Snowtrace |
+| Dây 4 `0xc62828b2f72D288298A6E2fFd0814D0Cb6e15Bfc` (`huisafe-demo-default`) | Bidding N = 5, C = 10, `Completed` (đọc `state()` = 3), ví dụ docs/03 mục 8 nhánh B chạy thật: M4 vỡ nợ, thác bù 8 + 2, `finalize`, 104 kiểm tra | Bằng chứng "dây vỡ nợ thật" cho đoạn 1:50 đến 2:40 của kịch bản. Do script chạy bằng ví demo, không phải người dùng thật |
 | Relayer `0x6C03fDfD5aB26Aea68878a62942E9E80811055DB` | 0,05 AVAX | Đủ (cần ≥ 0,02, dưới 0,005 relay dừng) |
-| Organizer demo `0x19881652EF890353462D2367B81E862ee8867447` | 48,6 USDC, 0,005 AVAX | THIẾU để tạo bộ dây mới (cần 112 USDC) |
+| Organizer demo `0x19881652EF890353462D2367B81E862ee8867447` | 18,176 USDC (đọc lại sau ví dụ vỡ nợ; trước đó 48,6), 0,005 AVAX (lần đọc đầu) | THIẾU để tạo bộ dây mới (cần 112 USDC) |
 | Deployer `0x077ab81E81FAD22CcA7BefD65D90F2F668B20aB7` | 46 USDC, 0,04 AVAX | Không đủ để bù cho organizer |
-| M1..M5 | mỗi ví 121,8 USDC (đã đọc ba ví đầu) | Nguồn USDC cho ví người thử và dây mới |
+| M1..M5 | mỗi ví 121,8 USDC theo lần đọc đầu (đã đọc ba ví đầu); ví dụ vỡ nợ đã dùng USDC của M1..M5, chưa đọc lại | Nguồn USDC cho ví người thử và dây mới. Đọc lại số dư trước khi chuyển |
 
-Hệ quả: trước Demo Day phải tạo dây mới (mục 2 T-1 ngày), và phải gom thêm USDC testnet (faucet Circle chỉ cho 20 USDC mỗi 2 giờ mỗi ví, [faucet.circle.com](https://faucet.circle.com/); rủi ro R5 ở docs/11 mục 6).
+Hệ quả: trước Demo Day phải tạo dây mới (mục 2 T-1 ngày; riêng "dây vỡ nợ" đã có thật, không phải tạo lại), và phải gom thêm USDC testnet (faucet Circle chỉ cho 20 USDC mỗi 2 giờ mỗi ví, [faucet.circle.com](https://faucet.circle.com/); rủi ro R5 ở docs/11 mục 6).
 
 ## 2. Lịch chạy
 
@@ -29,7 +30,8 @@ Giờ ghi theo "T = lúc bắt đầu trình bày". Mỗi việc có người ch
 |---|---|---|---|
 | Nạp USDC cho organizer demo tới ≥ 112 (cộng thêm cho ví người thử nếu cần) | Chuyển từ M1..M5 (mỗi ví 121,8) hoặc gom faucet; chỉ Fuji. `FundDemoWallets` chạy được nếu deployer có đủ (`docs/DEPLOY-FUJI.md` mục 6) | | [ ] |
 | Tạo bộ dây mới (Bidding φ = 0, Bidding φ = 50%, Fixed N = 3), hạn vào dây dài | Mô phỏng: `DEMO_FORCE=true JOIN_WINDOW_SECONDS=172800 forge script script/CreateDemoCircles.s.sol --rpc-url fuji`; duyệt rồi thêm `--broadcast`. `DEMO_FORCE` cần vì hai dây Bidding cũ vẫn `Forming` (script từ chối tạo khi đã có dây sống cùng loại), và script tạo luôn cả ba dây, ký quỹ 48 + 48 + 16 = 112 USDC. Khóa organizer đọc bằng `vm.envUint("DEMO_ORGANIZER_PRIVATE_KEY")`, không gõ trên dòng lệnh | Người giữ khóa | [ ] |
-| Cho M1..M3 vào dây Fixed mới và kích hoạt | `DEMO_JOIN=fixed forge script script/JoinDemoCircles.s.sol --rpc-url fuji --broadcast` (chạy lại an toàn). Hai dây Bidding mới giữ `Forming` | Người giữ khóa | [ ] |
+| Cho M1..M3 vào dây Fixed mới và kích hoạt (dây Bidding giữ `Forming`; muốn chừa ghế cho "Demo Mời" 4/5 thì `DEMO_MEMBERS=4`, xem mục 7) | `DEMO_JOIN=fixed forge script script/JoinDemoCircles.s.sol --rpc-url fuji --broadcast` (chạy lại an toàn). Hai dây Bidding mới giữ `Forming` | Người giữ khóa | [ ] |
+| Kích hoạt dây "Demo Sống" khi đủ người (không bấm được từ web vì chủ hụi là ví script) | `export CIRCLE=<địa chỉ dây>`, `forge script script/ActivateDemoCircle.s.sol --rpc-url fuji` (mô phỏng, script tự kiểm: dây của factory, đúng chủ hụi, `Forming`, đủ N, còn hạn, bảo chứng đạt), duyệt rồi thêm `--broadcast`. Chi tiết `docs/DEPLOY-FUJI.md` mục 8b | Người giữ khóa | [ ] |
 | Chạy keeper tới khi dây Fixed mới `Completed` | Mục T-60 | | [ ] |
 | Quay sẵn đoạn video dự phòng và chụp ảnh | Mục 5 | | [ ] |
 | Cập nhật `contracts/deployments/fuji.json`? | Không đổi: dây mới không nằm trong file này, chỉ factory và hạ tầng. Ghi địa chỉ dây mới vào mục 1 của file này | | [ ] |
@@ -111,16 +113,18 @@ Mỗi tài khoản Privy phải có sẵn 45 USDC testnet hoặc hơn, và ít n
 
 ## 7. Khoảng trống giữa kịch bản docs/12 và những gì có thật (cần Towfienes quyết)
 
-1. **Dây do script tạo không "Bắt đầu dây" được từ web.** Chủ hụi của các dây demo là ví organizer của script, không phải tài khoản Privy; nút "Bắt đầu dây" (kịch bản docs/12 mục 3.2, giây 0:00) chỉ chủ hụi bấm được. Hai cách: (a) tạo "Demo Sống" ngay trên web bằng tài khoản Privy của P3 (màn Tạo dây, nạp ký quỹ 48 USDC, bấm "Bắt đầu dây"), khi đó thành viên cũng phải là tài khoản Privy; (b) người giữ khóa organizer gọi `activate()` bằng `cast send` ở máy hạ tầng khi đủ 5 người, và phần "P3 bấm Bắt đầu dây" được diễn lại bằng lời. Cần chọn một trước 29/11.
-2. **Không dựng được "Demo Mời 4/5" bằng script.** `JoinDemoCircles` luôn cho M1..M5 vào cả 5 ghế của dây Bidding (hoặc M1..M3 ở dây Fixed); không có tham số chừa một ghế. Để một ghế cho người vào live, cần để người vào bằng Privy trước và bỏ `JoinDemoCircles` cho dây đó, hoặc vào dây thủ công cho 4 thành viên đội bằng tài khoản Privy.
-3. **Chưa có dây vỡ nợ thật trên Fuji.** Dây Completed duy nhất là dây Fixed, không ai bỏ đóng. Đoạn "kỳ 2, M4 không đóng, bù 80 từ tiền giữ lại và 20 từ ký quỹ" của kịch bản chỉ xem được trên dữ liệu mẫu hoặc anvil. Phải ghi nhãn đúng khi chiếu; hoặc tạo trước một dây Bidding thật, cho một ví thử rút hết USDC sau kỳ 1 (cần khoảng 17 phút chạy và keeper).
+1. **Dây hết hạn vào dây (ĐÃ CÓ CÔNG CỤ).** Hai dây Bidding hiện tại hết hạn 17/11 17:20 UTC, trước Demo Day. Lệnh tạo bộ mới: `DEMO_FORCE=true JOIN_WINDOW_SECONDS=172800 forge script script/CreateDemoCircles.s.sol --rpc-url fuji` (mô phỏng), duyệt rồi thêm `--broadcast`; tạo cả ba dây, cần organizer có ít nhất 112 USDC (hiện 18,176, nên phải nạp trước; mục 1 và mục 2 T-1 ngày). Còn lại là việc nạp USDC, không còn thiếu công cụ.
+2. **Chủ hụi là ví script, không bấm "Bắt đầu dây" được từ web (ĐÃ CÓ CÔNG CỤ).** `ActivateDemoCircle.s.sol` (A20): `export CIRCLE=<địa chỉ dây>`, `forge script script/ActivateDemoCircle.s.sol --rpc-url fuji`, rồi `--broadcast` khi người duyệt đồng ý; script kiểm trước (`NotACircle`, `NotOrganizer`, `NotForming`, `NotFull`, `JoinDeadlinePassed`, `CoverageBelowMinimum`). Giây 0:00 của kịch bản docs/12 vẫn phải đổi: người cầm khóa organizer chạy lệnh này ở máy hạ tầng, và phần "P3 bấm Bắt đầu dây" diễn lại bằng lời, hoặc tạo "Demo Sống" ngay trên web bằng tài khoản Privy của P3 (khi đó thành viên cũng phải là tài khoản Privy). Cần chọn một trước 29/11.
+3. **Chừa ghế cho "Demo Mời 4/5" (ĐÃ CÓ CÔNG CỤ).** `DEMO_MEMBERS=4 DEMO_ACTIVATE=false forge script script/JoinDemoCircles.s.sol --rpc-url fuji` đưa M1..M4 vào, dây Bidding còn đúng một ghế cho người vào live bằng Privy; `DEMO_ACTIVATE=false` để chắc chắn dây không bị kích hoạt khi có thể có người lạ chen vào, rồi kích hoạt riêng bằng `ActivateDemoCircle` khi đủ 5 người. Hai giới hạn: nếu người lạ đã chiếm đúng ghế mà một M đã chọn cần thì `join` của M đó revert `CircleFull` và lần chạy dừng (đưa M vào trước khi mở dây cho người ngoài); dây Fixed vẫn chỉ nhận tối đa 3 người (`docs/DEPLOY-FUJI.md` mục 8b).
+3b. **Dây vỡ nợ thật trên Fuji (ĐÃ ĐÓNG).** Dây `0xc62828b2f72D288298A6E2fFd0814D0Cb6e15Bfc` đã chạy trọn ví dụ nhánh B (104 kiểm tra; tx kỳ 2 `0x1cb02efe008f73e87ccb44b327e7fff0786eba5da95005df4916d6b23c010185`, `markDefault` `0x33886575dc944a9d66f25209b5e56096a1c0941247ac71c079a11961d6ab9b66`, `finalize` `0xf415cfb744bcd159657fe7be86ce9d32221b4bdf626742499b7efb2de649bc32`; `docs/DEPLOY-FUJI.md` mục 15b). Đoạn 1:50 đến 2:40 chiếu từ trang dây và sổ hụi của dây này, không còn phải chiếu từ anvil hay dữ liệu mẫu. Phải nói rõ: số tiền là bản thu nhỏ 10 lần (mục 3), và đây là ví dụ do script chạy bằng ví demo, không phải người dùng thật bỏ đóng. Dây chạy ngày 11/11, không phải sáng Demo Day. Chạy lại ví dụ làm M4 ghi thêm một vỡ nợ vào sổ uy tín và cần keeper cùng RPC riêng (khoảng 17 phút); chỉ chạy lại khi cần dây mới và sau buổi quay.
 4. **Số của docs/12 mục 3 là 100 USDC; dây thật là 10 USDC.** Đã thêm vế khai báo thu nhỏ 10 lần ở mục 3.
-5. **docs/12 mục 3.1 ghi `script/CreateDemoCircle.s.sol` (số ít).** Repo có cả `CreateDemoCircle.s.sol` (cũ) lẫn `CreateDemoCircles.s.sol` (số nhiều, bộ ba dây dùng ở đây). Kịch bản docs/12 chưa sửa trong lần này.
+5. **docs/12 mục 3.1 tên script (ĐÃ ĐÓNG).** docs/12 đã ghi `CreateDemoCircles.s.sol` (số nhiều); `CreateDemoCircle.s.sol` (số ít) là bản cũ.
 6. **"Gửi trực tiếp" và RPC dự phòng tự động** được nhắc trong docs/12 mục 4 và docs/04 mục 8 nhưng chưa có trong web (đã kiểm: không có chuỗi này trong `apps/web/components`, `lib`, `app`).
 
 ## Nguồn
 
 - Trạng thái chuỗi: `scripts/demo-check.sh`, `contracts/deployments/fuji.json`, `cast call` chỉ đọc ngày 11/11/2026.
+- Dây vỡ nợ thật, `ActivateDemoCircle`, `DEMO_MEMBERS`: `docs/DEPLOY-FUJI.md` mục 8b, 12b, 15b; `contracts/script/ActivateDemoCircle.s.sol`. Số dư organizer và deployer, `state()` của ba dây: `cast call` chỉ đọc ngày 11/11/2026.
 - Lệnh tạo và vào dây: `docs/DEPLOY-FUJI.md` mục 6 đến 9, `contracts/script/CreateDemoCircles.s.sol` (đầu file: `DEMO_FORCE`, `JOIN_WINDOW_SECONDS`), `contracts/script/JoinDemoCircles.s.sol` (đầu file: `DEMO_JOIN`, `DEMO_ACTIVATE`).
 - Keeper, web, hạn mức: `docs/DEPLOY-FUJI.md` mục 9, 10; `apps/keeper/package.json`; `apps/web/package.json`; `apps/web/lib/chain/server.ts` (`HUISAFE_DEMO`).
 - Anvil: `README.md` mục "Trên anvil", `apps/web/scripts/anvil-playground.ts`, `apps/web/package.json` (`e2e:anvil`).

@@ -15,9 +15,10 @@ Cách đọc: "Agent" là việc Claude Code đã làm trong repo và có bằng
 | Ghi công starter code của BTC trong README | Người | CHƯA: không có thông tin trong repo | [ ] |
 | Contract deploy và verify trên Fuji, `contracts/deployments/fuji.json` đã commit | Agent | Đã deploy 10/11/2026 (commit `494e923`), `fuji.json` có trong `main`; `docs/DEPLOY-FUJI.md` ghi 5/5 contract đã verify trên Routescan | [ ] |
 | Mở link Snowtrace của HuiFactory bằng tab ẩn danh và thấy "Contract verified" | Người | CHƯA KIỂM: README và form dùng link `testnet.snowtrace.io`, nhưng chỉ biết verify trên Routescan. Nếu Snowtrace chưa hiện, đổi link trong form sang trang đã verify | [ ] |
-| `forge test` xanh (unit, fuzz, invariant) | Agent | Đạt: 617 test, 0 lỗi (463 unit, 36 fuzz, 54 invariant) ngày 11/11 | [ ] |
-| Bằng chứng Fuji thật: dây Fixed Completed (3 kỳ + `finalize`) | Agent | Đạt 11/11: dây `0xABA89dFfA4e157927710419b01C32bD307bF2461` state = Completed, `settledRounds` = 3, số dư USDC của dây = 0 (lệnh chỉ đọc); hash giao dịch viết tắt ở `docs/TIEN-DO.md`, cần lấy đủ từ Snowtrace khi dán vào form | [ ] |
-| `pnpm -r lint`, `typecheck`, `test` xanh | Agent | Đạt (sdk 105, web 359, keeper 18, config 10); `pytest` 71 đạt | [ ] |
+| `forge test` xanh (unit, fuzz, invariant) | Agent | Theo `docs/TIEN-DO.md` sau A20: 632 test. Lần đo trước (617 test, 463 unit, 36 fuzz, 54 invariant, ngày 11/11) đạt 0 lỗi; chạy lại `forge test` trên commit cuối trước khi nộp | [ ] |
+| Bằng chứng Fuji thật: dây Fixed Completed (3 kỳ + `finalize`) | Agent | Đạt 11/11: dây `0xABA89dFfA4e157927710419b01C32bD307bF2461` state = Completed, `settledRounds` = 3, số dư USDC của dây = 0 (lệnh chỉ đọc); hash giao dịch đầy đủ ở `docs/DEPLOY-FUJI.md` mục 15 | [ ] |
+| Bằng chứng Fuji thật: dây vỡ nợ Completed (thác bù 8 + 2, `markDefault`, `finalize`) | Agent | Đạt 11/11: dây `0xc62828b2f72D288298A6E2fFd0814D0Cb6e15Bfc` state = 3 (Completed, đọc `cast call state()`); 104 kiểm tra; tx kỳ 2 `0x1cb02efe008f73e87ccb44b327e7fff0786eba5da95005df4916d6b23c010185`; link https://testnet.snowtrace.io/address/0xc62828b2f72D288298A6E2fFd0814D0Cb6e15Bfc; hash từng bước `docs/DEPLOY-FUJI.md` mục 15b. Phải nói đây là ví dụ do script chạy bằng ví demo, số tiền thu nhỏ 10 lần | [ ] |
+| `pnpm -r lint`, `typecheck`, `test` xanh | Agent | Đạt (sdk 126, web 369, keeper 18, config 13); Playwright 469 + 6 kiểm chế độ chuỗi; `pytest` 71 đạt | [ ] |
 | CI xanh trên commit cuối | Người | CHƯA KIỂM: CI chỉ chạy sau khi push; xem tab Actions | [ ] |
 | Slither không còn mức high | Người | `docs/TIEN-DO.md` ghi Slither high 0 ở lần A13; chạy lại `slither .` trên commit cuối trước khi nộp | [ ] |
 | Không có bí mật trong repo (khóa, `.env*`, token, secret Privy) | Người | CHƯA KIỂM: agent bị hook chặn không quét. Chạy gitleaks hoặc skill `security-gate` trên toàn lịch sử trước khi push. Lưu ý: secret Privy cũ đã lộ (docs/TIEN-DO.md), phải dùng secret mới và không để secret cũ trong lịch sử | [ ] |
@@ -30,7 +31,7 @@ Cách đọc: "Agent" là việc Claude Code đã làm trong repo và có bằng
 | Web chạy công khai (Live app) với địa chỉ mở được không cần đăng nhập | Người | CHƯA: chưa có link app; triển khai là việc của người (relayer chạy MỘT tiến trình Node liên tục, docs/05 mục 8.2) | [ ] |
 | Ví relayer còn ít nhất 0,02 AVAX, keeper có AVAX và đang chạy | Người | CHƯA KIỂM lúc nộp; xem `/demo-check` | [ ] |
 | Chia tiền ví demo, tạo 3 dây demo (Bidding φ = 0, Bidding φ = 5000, Fixed N = 3), vào dây, chạy keeper | Người | Script đã sẵn (`FundDemoWallets`, `CreateDemoCircles`, `JoinDemoCircles`, `docs/DEPLOY-FUJI.md`); phần chạy trên Fuji là việc của người điều phối | [ ] |
-| "Demo Hoàn Tất": chạy trọn nhánh B của docs/03 mục 8 trong cùng ngày quay, trên Fuji | Người | CHƯA (docs/12 mục 3.1) | [ ] |
+| "Demo Hoàn Tất": nhánh B của docs/03 mục 8 chạy trọn trên Fuji | Agent | ĐÃ CÓ 11/11: dây `0xc62828b2f72D288298A6E2fFd0814D0Cb6e15Bfc` (`docs/DEPLOY-FUJI.md` mục 15b). Chạy lại trong cùng ngày quay chỉ cần khi muốn nói "sáng nay"; chạy lại cần keeper, RPC riêng, khoảng 17 phút, và ghi thêm một vỡ nợ cho M4 vào sổ uy tín | [ ] |
 | Giao diện B10, B11, B12 duyệt xong | Người (Towfienes) | CHƯA: đang chờ duyệt (`docs/TIEN-DO.md`) | [ ] |
 | Chế độ demo: build có `NEXT_PUBLIC_HUISAFE_DEMO=true`, dải khai báo hiện đúng chữ | Agent + người | Dải khai báo đã có (B11); người kiểm trên bản triển khai thật | [ ] |
 

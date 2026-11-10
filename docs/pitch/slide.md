@@ -73,10 +73,11 @@ Viết ngày 11/11/2026 (B14, pitch). Nền: `docs/12-pitch-demo-nop-bai.md` m�
 - Kỳ 2: M4 không đóng 100. Bù 80 từ tiền giữ lại của M4 và 20 từ ký quỹ. M1 nhận đủ 323,18.
 - Quá ân hạn: M4 bị ghi vỡ nợ. Ký quỹ: 460, 360, 260, 160.
 - Dòng cuối: "Trong kịch bản này, người góp trung thực nhận đủ."
+- Chân slide: "Đã chạy thật trên Fuji (11/11/2026): dây 0xc628…5Bfc, số thu nhỏ 10 lần (thiếu 10 = 8 + 2). Ví dụ do script chạy, không phải người dùng thật."
 
 **Lời nói.** Theo bảng bấm giờ docs/12 mục 3.2.
 
-**Hình.** Ảnh chụp S07 Kết quả kỳ, S09 Bảo chứng, S11 Sổ họ của dây "Demo Hoàn Tất".
+**Hình.** Ảnh chụp S07 Kết quả kỳ, S09 Bảo chứng, S11 Sổ họ của dây vỡ nợ thật `0xc628…5Bfc` trên Fuji (số thu nhỏ 10 lần; ghi chú trên hình: ví dụ do script chạy, không phải người dùng thật).
 
 **Nguồn số.** docs/03 mục 8 (bảng trần thăm, Kỳ 1, Kỳ 2, nhánh B). Nếu demo C = 10: 28,848; 32,318; ký quỹ 48 và còn 16; thăm thắng 0,6 (docs/03 mục 8, phần thu nhỏ).
 
@@ -109,8 +110,9 @@ Viết ngày 11/11/2026 (B14, pitch). Nền: `docs/12-pitch-demo-nop-bai.md` m�
 
 - Chân bảng, chữ đậm: "Kết quả của giả định, không phải dự báo. Giả định: người hốt bỏ đóng 2,04% (sớm) và 0,59% (muộn) MỖI KỲ, lấy cảm hứng từ Klonner & Rai (2008); sốc chung 2% x 5; thăm ngẫu nhiên dưới trần. Cách đọc mỗi kỳ là kịch bản bi quan."
 - Bản hiệu chỉnh (hazard quy đổi khoảng 0,29% mỗi kỳ): HụiSafe 0,00% tổn thất và 0,00% dây có người nhận thiếu; truyền thống 3,82% và 9,42%; on-chain đơn giản 1,06% và 26,81%.
-- Kiểm thử (10 đến 11/11/2026): 617 forge test, trong đó 54 bài bất biến; sdk 105, web 359, keeper 18 test; Slither mức cao 0; rà soát bảo mật nội bộ không còn Critical, High, Medium. Chưa có audit độc lập.
-- Chạy thật trên Fuji (11/11/2026): dây Fixed N = 3 `0xABA89dFfA4e157927710419b01C32bD307bF2461` chạy trọn trên Fuji ngày 11/11/2026: vào dây qua relay (thành viên không cần AVAX), keeper chốt 3 kỳ (`0xecfcfaeb…4669`, `0xc7e8f352…c4bb`, `0xba1208d7…79d6`) và `finalize` (`0x7159ec48…b290`); trạng thái Completed, 3 kỳ đã chi, số dư USDC của dây về 0 (đọc lại bằng lệnh chỉ đọc). Hash viết tắt theo `docs/TIEN-DO.md`; tra đủ trên Snowtrace theo địa chỉ dây.
+- Kiểm thử (10 đến 11/11/2026): 632 forge test (54 bài bất biến ở lần đo trước); sdk 126, web 369, keeper 18, config 13 test; Playwright 469 kiểm giao diện cộng 6 kiểm chế độ chuỗi; Slither mức cao 0; rà soát bảo mật nội bộ không còn Critical, High, Medium. Chưa có audit độc lập.
+- Chạy thật trên Fuji (11/11/2026): dây Fixed N = 3 `0xABA89dFfA4e157927710419b01C32bD307bF2461` chạy trọn trên Fuji ngày 11/11/2026: vào dây qua relay (thành viên không cần AVAX), keeper chốt 3 kỳ (`0xecfcfaeb…4669`, `0xc7e8f352…c4bb`, `0xba1208d7…79d6`) và `finalize` (`0x7159ec48…b290`); trạng thái Completed, 3 kỳ đã chi, số dư USDC của dây về 0 (đọc lại bằng lệnh chỉ đọc). Hash viết tắt; hash đầy đủ ở `docs/DEPLOY-FUJI.md` mục 15, tra trên Snowtrace theo địa chỉ dây.
+- Dây vỡ nợ thật (Fuji, 11/11/2026): dây Bidding N = 5, C = 10 USDC `0xc62828b2f72D288298A6E2fFd0814D0Cb6e15Bfc` chạy trọn ví dụ nhánh B của docs/03 mục 8 qua relay và keeper, 104 kiểm tra đạt. M4 thu hồi allowance trước kỳ 2 nên thiếu 10 USDC, bù 8 từ tiền giữ lại của M4 và 2 từ ký quỹ (tx kỳ 2 `0x1cb02efe…0185`), rồi `markDefault(M4)`, ký quỹ bù kỳ 3 đến 5, `finalize`, dây về 0. Số tiền là bản thu nhỏ 10 lần; đây là ví dụ do script chạy bằng ví demo của đội, không phải người dùng thật bỏ đóng. Hash đầy đủ: `docs/DEPLOY-FUJI.md` mục 15b.
 - Người dùng thật thử: chưa có số (kế hoạch 15-16/11, `docs/11` mục 11).
 
 **Lời nói.** "Trong cùng giả định, hụi truyền thống có 23% dây khiến ai đó nhận thiếu, on-chain đơn giản 62%, HụiSafe 0,01%. Đây là kết quả của giả định, không phải dự báo."
@@ -225,8 +227,8 @@ Viết ngày 11/11/2026 (B14, pitch). Nền: `docs/12-pitch-demo-nop-bai.md` m�
 | 3,110115; 4,146820 | 6 | docs/03 mục 8.2 | |
 | 4,99; 6,37; 0,0003; 24,04; 23,90; 0,00; 23,33; 62,46; 0,01; 58,42; 313,89; 0,03 | 7 | sim/outputs/baseline.json | 08/11/2026 |
 | 3,82; 9,42; 1,06; 26,81; 0,00 | 7 | sim/outputs/baseline_calibrated.json | 08/11/2026 |
-| 617, 54 | 7 | docs/TIEN-DO.md | 10/11/2026 |
-| sdk 105, web 359, keeper 18; dây Fixed Completed trên Fuji | 7 | docs/TIEN-DO.md dòng M3 và dòng Kiểm thử | 11/11/2026 |
+| 632; 54 | 7 | docs/TIEN-DO.md (A20); 54 là số đo lần trước | 11/11/2026 |
+| sdk 126, web 369, keeper 18, config 13; Playwright 469 + 6; dây Fixed và dây vỡ nợ Completed trên Fuji | 7 | docs/TIEN-DO.md; docs/DEPLOY-FUJI.md mục 15, 15b | 11/11/2026 |
 | 14,97; 29,15; -19,64; -5,65; -15,51; -1,50; 3,40; 6,71; 1,75; 5,04; 5,19; 8,51; 1,50; 3,42; 3,88; 5,83; 5,24; 7,19; 150,37; 86,16; -59,07; 18,38 | 8 | sim/outputs/organizer_economics.json | 10/11/2026 |
 | -8,60 | 8 | sim/outputs/baseline.json (`organizerNetReturnPct`) | 08/11/2026 |
 | -18,04; 41,47; 120,76; 0; 56,56; 120,51; 392; 336,57; 297,68 | 9 | sim/outputs/organizer_sybil.json | 10/11/2026 |
