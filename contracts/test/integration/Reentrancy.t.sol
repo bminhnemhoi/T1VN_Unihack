@@ -76,14 +76,15 @@ contract ReentrancyTest is CircleScenario {
         assertEq(c.memberInfo(_M(1)).holdback, 80 * U);
         assertEq(c.totalHoldback(), 80 * U);
         assertEq(c.reserve(), 4 * U);
-        assertEq(c.totalFeeEscrow(), 4 * U);
+        assertEq(c.totalFeeEscrow(), 0, "a round without shortfalls pays its fee at once");
+        assertEq(usdc.balanceOf(organizer), 4 * U, "the organizer holds exactly the fee of round 1");
         assertEq(c.bondRemaining(), 480 * U);
         assertEq(c.totalClaimable(), 0);
         assertEq(usdc.balanceOf(_M(1)), before[0] + 312 * U);
         for (uint256 i = 2; i <= 5; i++) {
             assertEq(usdc.balanceOf(_M(i)), before[i - 1] - 100 * U, "pulled once, not twice");
         }
-        assertEq(usdc.balanceOf(address(c)), 480 * U + 80 * U + 4 * U + 4 * U);
+        assertEq(usdc.balanceOf(address(c)), 480 * U + 80 * U + 4 * U);
         _assertLedger();
         _assertConserved();
     }
@@ -216,7 +217,7 @@ contract ReentrancyTest is CircleScenario {
         vm.warp(_graceEnd(5) + 1);
     }
 
-    /// @dev The organizer receives bond + fees, a member receives its reserve share: each tries to re-enter
+    /// @dev The organizer receives the bond, a member receives its reserve share: each tries to re-enter
     /// `finalize` (double payout), `claim`, `withdrawBond` and the rest. The circle empties exactly once.
     function test_Reentrancy_DuringFinalizePayouts_EveryGuardedEntryPointIsBlocked() public {
         _toFinalizable();
@@ -231,8 +232,8 @@ contract ReentrancyTest is CircleScenario {
                 c.finalize();
                 _assertBlocked();
                 assertEq(uint8(c.state()), uint8(CircleState.Completed));
-                // bond 480 + fees 5 x 4 = 500 to the organizer, once
-                assertEq(usdc.balanceOf(organizer) - orgBefore, 500 * U);
+                // bond 480 to the organizer, once (the fees of rounds without a shortfall were paid at settlement)
+                assertEq(usdc.balanceOf(organizer) - orgBefore, 480 * U);
                 assertEq(usdc.balanceOf(address(c)), 0, "nothing left to drain");
                 assertEq(c.totalClaimable(), 0);
                 _assertLedger();

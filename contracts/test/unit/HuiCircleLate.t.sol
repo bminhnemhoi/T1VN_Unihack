@@ -398,8 +398,8 @@ contract HuiCircleLateTest is CircleScenario {
         assertEq(mi.debt, 100 * U, "debt is kept");
         assertEq(c.liveCount(), live, "a dead member is not part of the live set");
         assertEq(c.feeEscrow(2), 0);
-        assertEq(c.feeEscrow(1), 3_760_000, "other rounds keep their fee");
-        assertEq(c.totalFeeEscrow(), 3_760_000);
+        assertEq(c.feeEscrow(1), 0, "round 1 had no shortfall: its fee was paid at once, nothing to keep");
+        assertEq(c.totalFeeEscrow(), 0);
         assertEq(c.reserve(), reserveBefore + 3_910_000);
         assertTrue(c.roundInfo(2).feeForfeited);
         assertFalse(c.roundInfo(1).feeForfeited);

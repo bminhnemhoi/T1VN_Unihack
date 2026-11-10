@@ -53,6 +53,9 @@ struct CircleParams {
     uint64 joinDeadline;
     bool organizerIsMember;
     bytes32 label; // short name, never a person's name
+    // ---- v1.2 (A13): appended at the END of the struct only ----
+    uint16 commissionShareBps; // phi, 0..5000; 0 = fixed fee feeBps*pot, > 0 = commission inside the interest cap
+    bytes32 termsHash; // keccak256 of the circle's agreement text (ADR-27), non-zero, immutable
 }
 
 /// @notice Per-member state inside a circle.

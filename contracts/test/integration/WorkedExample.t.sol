@@ -129,6 +129,13 @@ abstract contract WorkedExampleBase is CircleScenario {
         emit IHuiCircle.RoundSettled(k, w, _v(bid), _v(pot), _v(payout), _v(h), _v(fee), _v(prem), 0);
     }
 
+    function _hadShortfall(uint32 k) internal view returns (bool) {
+        for (uint256 i = 1; i <= 5; i++) {
+            if (c.shortfallOf(k, _M(i)).amount != 0) return true;
+        }
+        return false;
+    }
+
     /// @dev Every number of the round record, INV-03 (bid within the docs table and below C), INV-05, and the
     /// scenario's "nobody is short-changed" (INV-08).
     function _assertRound(
@@ -154,7 +161,8 @@ abstract contract WorkedExampleBase is CircleScenario {
         assertEq(uint256(ri.payout) + ri.fee + ri.premium + ri.holdback, ri.pot, "INV-05");
         assertLe(ri.winningBid, _maxBidDocs(k), "INV-03 cap");
         assertLt(ri.winningBid, cU, "INV-03 b < C");
-        assertEq(c.feeEscrow(k), ri.feeForfeited ? 0 : ri.fee, "fee escrow of the round");
+        // v1.2: a round without any shortfall paid its fee to the organizer at once; the others hold it in escrow.
+        assertEq(c.feeEscrow(k), (ri.feeForfeited || !_hadShortfall(k)) ? 0 : ri.fee, "fee escrow of the round");
         assertEq(c.currentRound(), k == 5 ? 5 : k + 1);
         assertEq(c.settledRounds(), k);
     }
@@ -219,9 +227,10 @@ abstract contract WorkedExampleBase is CircleScenario {
         assertEq(c.memberInfo(_M(4)).holdback, _v(80 * U), "H = 20% x 4 x C");
         assertEq(c.totalHoldback(), _v(80 * U));
         assertEq(c.reserve(), _v(3_760_000));
-        assertEq(c.totalFeeEscrow(), _v(3_760_000));
+        assertEq(c.totalFeeEscrow(), 0, "round 1 had no shortfall: the fee went to the organizer at once");
+        assertEq(usdc.balanceOf(organizer), _v(3_760_000), "organizer holds the fee of round 1");
         assertEq(c.bondRemaining(), _v(480 * U));
-        assertEq(usdc.balanceOf(address(c)), _v(480 * U + 80 * U + 3_760_000 + 3_760_000));
+        assertEq(usdc.balanceOf(address(c)), _v(480 * U + 80 * U + 3_760_000));
         _step();
     }
 
@@ -277,7 +286,7 @@ abstract contract WorkedExampleBase is CircleScenario {
 
         assertEq(c.bondRemaining(), _v(460 * U), "bond 480 - 20");
         assertEq(c.reserve(), _v(7_670_000), "3.76 + 3.91");
-        assertEq(c.totalFeeEscrow(), _v(7_670_000));
+        assertEq(c.totalFeeEscrow(), _v(3_910_000));
         assertEq(c.memberInfo(_M(1)).holdback, _v(60 * U), "H = 20% x 3 x C");
         assertEq(c.totalHoldback(), _v(60 * U));
         assertEq(registry.reputationOf(_M(4)).late, 1);
@@ -455,27 +464,36 @@ abstract contract WorkedExampleBase is CircleScenario {
         assertEq(c.totalHoldback(), 0);
         assertEq(c.bondRemaining(), _v(480 * U));
         assertEq(c.reserve(), _v(7_670_000) + fee + _v(12 * U));
-        assertEq(c.totalFeeEscrow(), _v(7_670_000) + _v(12 * U), "19.67");
+        // v1.2: rounds 1, 3, 4, 5 had no shortfall and paid 3.76 + 12 to the organizer at once; round 2 waits in escrow.
+        assertEq(c.totalFeeEscrow(), _v(3_910_000), "only the fee of round 2 (3.91) is still in escrow");
+        assertEq(usdc.balanceOf(organizer), _v(3_760_000) + _v(12 * U), "organizer already holds the fees of rounds 1, 3, 4, 5");
         _assertEverybodyReceivedOnce();
 
         // --- finalize
         uint256 reserveFinal = _v(19_670_000) + fee;
-        uint256 share = reserveFinal / 5;
-        uint256 dust = reserveFinal - share * 5;
+        // ADR-24 / vector V1: weights M1 4, M2 4, M3 4, M4 3 (late once), M5 4; sum 19; dust to M1.
+        uint256[5] memory wt = [uint256(4), 4, 4, 3, 4];
+        uint256[5] memory shares;
+        uint256 paidOut;
+        for (uint256 i = 0; i < 5; i++) {
+            shares[i] = reserveFinal * wt[i] / 19;
+            paidOut += shares[i];
+        }
+        shares[0] += reserveFinal - paidOut;
         uint256 orgBefore = usdc.balanceOf(organizer);
         _snap();
         vm.warp(_graceEndW(5) + 1);
         _drain();
         vm.expectEmit(false, false, false, true, address(c));
-        emit IHuiCircle.CircleFinalized(_v(480 * U), _v(19_670_000), reserveFinal);
+        emit IHuiCircle.CircleFinalized(_v(480 * U), _v(3_910_000), reserveFinal);
         vm.prank(stranger);
         c.finalize();
         assertEq(_count(_drain(), IHuiCircle.HoldbackReleased.selector), 0, "finalize pays 0 holdback");
 
         assertEq(uint8(c.state()), uint8(CircleState.Completed));
-        assertEq(usdc.balanceOf(organizer) - orgBefore, _v(480 * U) + _v(19_670_000), "bond 480 + fees 19.67");
+        assertEq(usdc.balanceOf(organizer) - orgBefore, _v(480 * U) + _v(3_910_000), "bond 480 + escrowed fee 3.91");
         for (uint256 i = 1; i <= 5; i++) {
-            assertEq(_d(i), int256(share + (i == 1 ? dust : 0)), "reserve shared by 5, dust to M1");
+            assertEq(_d(i), int256(shares[i - 1]), "reserve shared by on-time weight, dust to M1");
             Reputation memory r = registry.reputationOf(_M(i));
             assertEq(r.completed, 1);
             assertEq(r.defaults, 0);
@@ -516,7 +534,7 @@ abstract contract WorkedExampleBase is CircleScenario {
         assertEq(c.reserve(), _v(11_580_000), "7.67 + forfeited 3.91");
         assertEq(c.feeEscrow(2), 0);
         assertTrue(c.roundInfo(2).feeForfeited);
-        assertEq(c.totalFeeEscrow(), _v(3_760_000));
+        assertEq(c.totalFeeEscrow(), 0, "round 1 was paid at once, round 2 was forfeited");
         MemberInfo memory m4 = c.memberInfo(_M(4));
         assertTrue(m4.defaulted);
         assertTrue(m4.received, "DefaultedDead");
@@ -534,7 +552,7 @@ abstract contract WorkedExampleBase is CircleScenario {
         _noBidRound(5, true);
         assertEq(c.bondRemaining(), _v(160 * U));
         assertEq(c.reserve(), _v(23_580_000), "11.58 + 3 x 4");
-        assertEq(c.totalFeeEscrow(), _v(15_760_000), "fees of rounds 1, 3, 4, 5");
+        assertEq(c.totalFeeEscrow(), _v(12 * U), "fees of rounds 3, 4, 5 (M4's shortfalls); round 1 was paid at once");
         assertEq(c.totalHoldback(), 0);
         _assertEverybodyReceivedOnce();
 
@@ -560,13 +578,13 @@ abstract contract WorkedExampleBase is CircleScenario {
         vm.warp(_graceEndW(5) + 1);
         _drain();
         vm.expectEmit(false, false, false, true, address(c));
-        emit IHuiCircle.CircleFinalized(_v(160 * U), _v(15_760_000), _v(23_580_000));
+        emit IHuiCircle.CircleFinalized(_v(160 * U), _v(12 * U), _v(23_580_000));
         vm.prank(stranger);
         c.finalize();
         assertEq(_count(_drain(), IHuiCircle.HoldbackReleased.selector), 0);
 
         assertEq(uint8(c.state()), uint8(CircleState.Completed));
-        assertEq(usdc.balanceOf(organizer) - orgBefore, _v(160 * U) + _v(15_760_000), "bond 160 + fees 15.76");
+        assertEq(usdc.balanceOf(organizer) - orgBefore, _v(160 * U) + _v(12 * U), "bond 160 + escrowed fees 12");
         for (uint256 i = 1; i <= 5; i++) {
             assertEq(_d(i), i == 4 ? int256(0) : int256(_v(5_895_000)), "5.895 each to M1, M2, M3, M5");
             Reputation memory r = registry.reputationOf(_M(i));

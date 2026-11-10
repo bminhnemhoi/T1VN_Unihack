@@ -83,4 +83,37 @@ library HuiMath {
     function bpsOf(uint256 amount, uint256 bps) internal pure returns (uint256) {
         return (amount * bps) / BPS; // rounds down
     }
+
+    // ------------------------------------------------------------------ v1.2 (A13)
+
+    /// @notice Enforced bid ceiling when the organizer takes a share phi of the interest room:
+    /// floor(statutoryMaxBid * (10_000 - shareBps) / 10_000) (docs/03 section 2.7). shareBps <= 10_000.
+    function bidCapAfterShare(uint256 statutoryMaxBid, uint256 shareBps) internal pure returns (uint256) {
+        return (statutoryMaxBid * (BPS - shareBps)) / BPS; // rounds down
+    }
+
+    /// @notice room_k = statutoryMaxBid * payers: the total interest the law lets the winner of round k pay.
+    function commissionRoom(uint256 statutoryMaxBid, uint256 payers) internal pure returns (uint256) {
+        return statutoryMaxBid * payers;
+    }
+
+    /// @notice Organizer fee of one round (docs/03 sections 2.6, 2.7). shareBps == 0: floor(pot * feeBps / 10_000);
+    /// shareBps > 0: min(floor(room * shareBps / 10_000), floor(pot * feeBps / 10_000)). Both divisions round DOWN.
+    function commission(uint256 pot, uint256 feeBps, uint256 shareBps, uint256 room) internal pure returns (uint256) {
+        uint256 capped = (pot * feeBps) / BPS; // rounds down
+        if (shareBps == 0) return capped;
+        uint256 shared = (room * shareBps) / BPS; // rounds down
+        return shared < capped ? shared : capped;
+    }
+
+    /// @notice floor(total * weight / weightSum) (docs/03 section 5.3 step 5). Reverts if weightSum is zero.
+    function reserveShare(uint256 total, uint256 weight, uint256 weightSum) internal pure returns (uint256) {
+        return (total * weight) / weightSum; // rounds down
+    }
+
+    /// @notice On-time weight of a member for the reserve split (ADR-24): 0 if defaulted, else max(0, (n - 1) - lateCount).
+    function onTimeWeight(uint256 n, uint256 lateCount, bool defaulted) internal pure returns (uint256) {
+        if (defaulted || lateCount >= n - 1) return 0;
+        return (n - 1) - lateCount;
+    }
 }

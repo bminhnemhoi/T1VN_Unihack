@@ -342,15 +342,14 @@ contract HuiCircleEmergencyTest is CircleScenario {
 
     function test_Unwind_ExactPayouts_AfterRoundTwoWithAShortfall() public {
         _m4FailsRound2();
-        assertEq(usdc.balanceOf(address(c)), 535_340_000, "bond 460 + holdback 60 + reserve 7.67 + fee escrow 7.67");
+        assertEq(usdc.balanceOf(address(c)), 531_580_000, "bond 460 + holdback 60 + reserve 7.67 + fee escrow 3.91");
         uint256 orgBefore = usdc.balanceOf(organizer);
         uint256[5] memory before = _balances();
         assertEq(factory.activeCirclesOf(organizer), 1);
 
         _pauseNow();
         vm.warp(_now() + 48 hours);
-        vm.expectEmit(true, false, false, true, address(c));
-        emit IHuiCircle.FeeForfeited(1, 3_760_000);
+        // v1.2: round 1 had no shortfall, its fee 3.76 was paid to the organizer at settlement; only round 2 is escrowed.
         vm.expectEmit(true, false, false, true, address(c));
         emit IHuiCircle.FeeForfeited(2, 3_910_000);
         vm.expectEmit(true, true, false, true, address(c));
@@ -361,10 +360,10 @@ contract HuiCircleEmergencyTest is CircleScenario {
 
         assertEq(uint8(c.state()), uint8(CircleState.Unwound));
         assertEq(usdc.balanceOf(organizer) - orgBefore, 460 * U, "remaining bond back to the organizer");
-        // reserve 7.67 + fee escrows 7.67 = 15.34 shared by the 5 non-defaulted members: 3.068 each, no dust
+        // reserve 7.67 + fee escrow 3.91 = 11.58 shared EQUALLY (no on-time weights in an emergency unwind): 2.316 each
         for (uint256 i = 1; i <= 5; i++) {
             uint256 got = usdc.balanceOf(_M(i)) - before[i - 1];
-            assertEq(got, i == 1 ? 60 * U + 3_068_000 : 3_068_000, "holdback to its owner + equal reserve share");
+            assertEq(got, i == 1 ? 60 * U + 2_316_000 : 2_316_000, "holdback to its owner + equal reserve share");
         }
         _assertEmptyBooks();
         assertEq(usdc.balanceOf(address(c)), 0);
@@ -382,11 +381,11 @@ contract HuiCircleEmergencyTest is CircleScenario {
         c.markDefault(_M(4)); // fee escrow of round 2 (3.91) already moved to the reserve
         uint256[5] memory before = _balances();
         _pauseWaitUnwind();
-        // reserve 7.67 + 3.91 + fee escrow of round 1 (3.76) = 15.34 over M1, M2, M3, M5 = 3.835 each
+        // reserve 7.67 + 3.91 = 11.58 over M1, M2, M3, M5 = 2.895 each (round 1's fee was paid at settlement)
         for (uint256 i = 1; i <= 5; i++) {
             uint256 got = usdc.balanceOf(_M(i)) - before[i - 1];
             if (i == 4) assertEq(got, 0, "DefaultedDead: no share");
-            else assertEq(got, i == 1 ? 60 * U + 3_835_000 : 3_835_000);
+            else assertEq(got, i == 1 ? 60 * U + 2_895_000 : 2_895_000);
         }
         _assertEmptyBooks();
         _assertConserved();
@@ -399,8 +398,8 @@ contract HuiCircleEmergencyTest is CircleScenario {
         }
         uint256 orgBefore = usdc.balanceOf(organizer);
         _pauseWaitUnwind();
-        // bond 480 + reserve (premium 4 + fee escrow 4)
-        assertEq(usdc.balanceOf(organizer) - orgBefore, 480 * U + 8 * U);
+        // bond 480 + reserve (premium 4; the fee of round 1 was paid at settlement)
+        assertEq(usdc.balanceOf(organizer) - orgBefore, 480 * U + 4 * U);
         assertEq(usdc.balanceOf(admin), 0);
         _assertEmptyBooks();
         _assertConserved();
@@ -421,9 +420,9 @@ contract HuiCircleEmergencyTest is CircleScenario {
         vm.warp(_now() + 48 hours);
         _unwindNow();
 
-        // bond 480 to the organizer; M1 holdback 80; reserve = premium 4 + fee escrow 4 = 8 -> 1.6 each
+        // bond 480 to the organizer; M1 holdback 80; reserve = premium 4 -> 0.8 each
         assertEq(usdc.balanceOf(organizer) - orgBefore, 480 * U);
-        uint256 share = 1_600_000;
+        uint256 share = 800_000;
         assertEq(usdc.balanceOf(_M(1)) - before[0], 80 * U + share);
         assertEq(usdc.balanceOf(_M(2)) - before[1], 1 * U + share, "open reveal bond back");
         assertEq(usdc.balanceOf(_M(3)) - before[2], 1 * U + share, "open reveal bond back");
@@ -440,7 +439,7 @@ contract HuiCircleEmergencyTest is CircleScenario {
         _settleRounds(1, 5);
         uint256 orgBefore = usdc.balanceOf(organizer);
         _pauseWaitUnwind();
-        // bond 480; reserve = 5 premiums + 5 fee escrows = 40 -> 8 each
+        // bond 480; reserve = 5 premiums = 20 -> 4 each (the fees were paid at settlement)
         assertEq(usdc.balanceOf(organizer) - orgBefore, 480 * U);
         assertEq(uint8(c.state()), uint8(CircleState.Unwound));
         _assertEmptyBooks();
@@ -460,7 +459,7 @@ contract HuiCircleEmergencyTest is CircleScenario {
 
         assertEq(uint8(c.state()), uint8(CircleState.Unwound), "one blocked address cannot block the unwind");
         assertEq(c.claimable(organizer), 460 * U);
-        assertEq(c.claimable(_M(1)), 60 * U + 3_068_000);
+        assertEq(c.claimable(_M(1)), 60 * U + 2_316_000);
         assertEq(usdc.balanceOf(address(c)), c.totalClaimable());
         _assertLedger();
 

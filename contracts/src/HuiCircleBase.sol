@@ -80,17 +80,28 @@ abstract contract HuiCircleBase is ERC2771Context, EIP712, Initializable, Reentr
         return nominal + pausedTotal;
     }
 
-    /// @dev Bid ceiling for round `k` with the current number of paying live members (live minus the winner).
-    function _maxBid(uint32 k) internal view returns (uint256) {
-        // The bid cap of a round is fixed by its first commit, so a `markDefault` between commit and reveal cannot
-        // push an honest sealed bid above the cap (audit M-02). Before any commit the view follows the live count.
-        uint256 payers = _bids[k].payers;
+    /// @dev L_k: paying live members of round `k` (live minus the winner). Fixed by the first commit of the round, so a
+    /// `markDefault` between commit and reveal cannot push an honest sealed bid above the cap (audit M-02). Before
+    /// any commit it follows the live count.
+    function _payers(uint32 k) internal view returns (uint256 payers) {
+        payers = _bids[k].payers;
         if (payers == 0) {
             uint256 live = liveCount;
             payers = live > 0 ? live - 1 : 0;
         }
+    }
+
+    /// @dev Statutory bid ceiling of round `k` (Decree 19 Art. 21 interpretation), before the organizer's share.
+    function _statutoryMaxBid(uint32 k) internal view returns (uint256) {
         return
-            HuiMath.maxBid(_params.capBps, _params.memberCount, k, _params.contribution, _params.periodSeconds, payers);
+            HuiMath.maxBid(
+                _params.capBps, _params.memberCount, k, _params.contribution, _params.periodSeconds, _payers(k)
+            );
+    }
+
+    /// @dev Enforced bid ceiling: the statutory cap minus the organizer's commission share phi (docs/03 section 2.7).
+    function _maxBid(uint32 k) internal view returns (uint256) {
+        return HuiMath.bidCapAfterShare(_statutoryMaxBid(k), _params.commissionShareBps);
     }
 
     /// @notice `settledRounds + 1`, capped at N.

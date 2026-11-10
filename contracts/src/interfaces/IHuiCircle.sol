@@ -26,11 +26,15 @@ interface IHuiCircle {
     event MemberLeft(address indexed member);
     event CircleActivated(uint64 startTime, uint256 guaranteedCoverageBps);
     event CircleCancelled();
+    /// @dev Emitted once in `initialize` (ADR-27); both values are immutable from then on.
+    event CircleTermsSet(bytes32 termsHash, uint16 commissionShareBps);
 
     event BidCommitted(uint32 indexed round, address indexed member, bytes32 commitHash, uint32 commitIndex);
     event BidRevealed(uint32 indexed round, address indexed member, uint256 bid);
     event RevealBondForfeited(uint32 indexed round, address indexed member, uint256 amount);
 
+    /// @dev Fee of a round without any shortfall, paid to the organizer in the settling transaction (docs/03 6.5 step 6).
+    event FeePaid(uint32 indexed round, address indexed organizer, uint256 amount);
     event ContributionPulled(uint32 indexed round, address indexed member, uint256 amount);
     event ContributionShortfall(uint32 indexed round, address indexed member, uint256 amount);
     event ShortfallCovered(uint32 indexed round, address indexed member, CoverSource source, uint256 amount);
@@ -61,6 +65,8 @@ interface IHuiCircle {
     /// @dev Transfer failed, amount recorded in claimable.
     event PaymentDeferred(address indexed to, uint256 amount);
     event Claimed(address indexed to, uint256 amount);
+    /// @dev Reserve split by on-time weight at `finalize` (ADR-24); weight 0 for defaulted members.
+    event ReserveShared(address indexed member, uint256 amount, uint16 weight);
     event CircleFinalized(uint256 bondReturned, uint256 feesPaid, uint256 reserveDistributed);
     event CirclePaused(uint64 at);
     event CircleUnpaused(uint64 at, uint64 pausedTotal);
@@ -144,7 +150,14 @@ interface IHuiCircle {
     function roundInfo(uint32 k) external view returns (RoundInfo memory);
     function commitOf(uint32 k, address m) external view returns (Commit memory);
     function shortfallOf(uint32 k, address m) external view returns (Shortfall memory);
+    /// @notice Enforced bid ceiling: the statutory cap, minus the organizer's share phi when phi > 0 (docs/03 2.7).
     function maxBid(uint32 k) external view returns (uint256);
+    /// @notice Statutory bid cap (Decree 19 Art. 21 interpretation), before the organizer's share.
+    function statutoryMaxBid(uint32 k) external view returns (uint256);
+    /// @notice room_k = statutoryMaxBid(k) * L_k, the interest room the commission lives inside.
+    function commissionRoom(uint32 k) external view returns (uint256);
+    /// @notice max(0, (N - 1) - lateCount); 0 for defaulted members (ADR-24).
+    function onTimeWeight(address m) external view returns (uint16);
     function exposure(uint32 k) external view returns (uint256);
     function maxExposure() external view returns (uint256);
     /// @notice Uses the current reserve.

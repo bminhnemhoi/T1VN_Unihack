@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.24;
 
+import {Vm} from "forge-std/Vm.sol";
 import {Initializable} from "@openzeppelin/contracts/proxy/utils/Initializable.sol";
 
 import {BaseTest} from "../utils/BaseTest.sol";
@@ -63,7 +64,9 @@ contract HuiFactoryTest is BaseTest {
             capBps: 2000,
             joinDeadline: uint64(block.timestamp + 7 days),
             organizerIsMember: false,
-            label: bytes32("demo")
+            label: bytes32("demo"),
+            commissionShareBps: 0,
+            termsHash: keccak256("huisafe-test-terms")
         });
     }
 
@@ -186,6 +189,75 @@ contract HuiFactoryTest is BaseTest {
         assertEq(got.joinDeadline, p.joinDeadline);
         assertEq(got.organizerIsMember, p.organizerIsMember);
         assertEq(got.label, p.label);
+        assertEq(got.commissionShareBps, p.commissionShareBps);
+        assertEq(got.termsHash, p.termsHash);
+    }
+
+    // ================================================================ v1.2 (A13): phi and termsHash
+
+    function test_CreateCircle_CommissionShare_ValidAndEmitsTerms() public {
+        CircleParams memory p = _params();
+        p.commissionShareBps = 5000;
+        p.feeBps = 300;
+        address circle = _create(p);
+        CircleParams memory got = IHuiCircle(circle).params();
+        assertEq(got.commissionShareBps, 5000);
+        assertEq(got.feeBps, 300);
+        assertEq(got.termsHash, p.termsHash);
+    }
+
+    function test_CreateCircle_EmitsCircleTermsSetOnTheClone() public {
+        CircleParams memory p = _params();
+        p.commissionShareBps = 2500;
+        vm.recordLogs();
+        address circle = _create(p);
+        Vm.Log[] memory logs = vm.getRecordedLogs();
+        bool found;
+        for (uint256 i = 0; i < logs.length; i++) {
+            if (logs[i].emitter == circle && logs[i].topics[0] == IHuiCircle.CircleTermsSet.selector) {
+                (bytes32 h, uint16 phi) = abi.decode(logs[i].data, (bytes32, uint16));
+                assertEq(h, p.termsHash);
+                assertEq(phi, 2500);
+                found = true;
+            }
+        }
+        assertTrue(found);
+    }
+
+    function test_CreateCircle_RevertWhen_ShareAboveHalf() public {
+        CircleParams memory p = _params();
+        p.commissionShareBps = 5001;
+        _expectInvalid(p, 15);
+    }
+
+    function test_CreateCircle_RevertWhen_ShareOnFixedCircle() public {
+        CircleParams memory p = _params();
+        p.mode = CircleMode.Fixed;
+        p.commitWindow = 0;
+        p.revealWindow = 0;
+        p.commissionShareBps = 5000;
+        _expectInvalid(p, 15);
+    }
+
+    function test_CreateCircle_RevertWhen_ShareWithoutCommissionMode() public {
+        CircleParams memory p = _params();
+        p.commissionMode = false;
+        p.feeBps = 0;
+        p.commissionShareBps = 5000;
+        _expectInvalid(p, 15);
+    }
+
+    function test_CreateCircle_RevertWhen_ShareWithZeroFeeCeiling() public {
+        CircleParams memory p = _params();
+        p.feeBps = 0;
+        p.commissionShareBps = 5000;
+        _expectInvalid(p, 15);
+    }
+
+    function test_CreateCircle_RevertWhen_TermsHashZero() public {
+        CircleParams memory p = _params();
+        p.termsHash = bytes32(0);
+        _expectInvalid(p, 16);
     }
 
     function test_CreateCircle_IsEip1167Clone() public {

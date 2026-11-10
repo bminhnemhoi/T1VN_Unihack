@@ -306,4 +306,103 @@ contract HuiMathTest is Test {
 
         assertEq(48 * USDC - (2 * USDC + 3 * c10), 16 * USDC); // bond left in branch B
     }
+
+    // ================================================================ v1.2 (A13)
+
+    function test_BidCapAfterShare_Table83() public pure {
+        assertEq(HuiMath.bidCapAfterShare(6_575_342, 5000), 3_287_671);
+        assertEq(HuiMath.bidCapAfterShare(4_931_506, 5000), 2_465_753);
+        assertEq(HuiMath.bidCapAfterShare(3_287_671, 5000), 1_643_835); // 1_643_835.5 rounds down
+        assertEq(HuiMath.bidCapAfterShare(1_643_835, 5000), 821_917); // 821_917.5 rounds down
+        assertEq(HuiMath.bidCapAfterShare(0, 5000), 0);
+        assertEq(HuiMath.bidCapAfterShare(6_575_342, 0), 6_575_342); // phi = 0: statutory cap
+    }
+
+    function test_CommissionRoom_Table83() public pure {
+        assertEq(HuiMath.commissionRoom(6_575_342, 4), 26_301_368);
+        assertEq(HuiMath.commissionRoom(4_931_506, 3), 14_794_518);
+        assertEq(HuiMath.commissionRoom(3_287_671, 2), 6_575_342);
+        assertEq(HuiMath.commissionRoom(1_643_835, 1), 1_643_835);
+        assertEq(HuiMath.commissionRoom(1_643_835, 0), 0);
+    }
+
+    function test_Commission_Table83() public pure {
+        // round 1: the 3% pot ceiling binds; round 2: phi * room binds
+        assertEq(HuiMath.commission(388 * USDC, 300, 5000, 26_301_368), 11_640_000);
+        assertEq(HuiMath.commission(392_800_000, 300, 5000, 14_794_518), 7_397_259);
+        // phi = 0 is the old fixed fee, whatever the room
+        assertEq(HuiMath.commission(376 * USDC, 100, 0, 0), 3_760_000);
+        assertEq(HuiMath.commission(376 * USDC, 100, 0, 26_301_368), 3_760_000);
+        // last round: no payers, no room, no fee
+        assertEq(HuiMath.commission(400 * USDC, 300, 5000, 0), 0);
+    }
+
+    function test_ReserveShare_VectorV1() public pure {
+        uint256 r = 19_697_396;
+        assertEq(HuiMath.reserveShare(r, 4, 19), 4_146_820);
+        assertEq(HuiMath.reserveShare(r, 3, 19), 3_110_115);
+        assertEq(4 * HuiMath.reserveShare(r, 4, 19) + HuiMath.reserveShare(r, 3, 19), r - 1); // 1 unit of dust
+    }
+
+    function test_OnTimeWeight() public pure {
+        assertEq(HuiMath.onTimeWeight(5, 0, false), 4);
+        assertEq(HuiMath.onTimeWeight(5, 1, false), 3);
+        assertEq(HuiMath.onTimeWeight(5, 4, false), 0);
+        assertEq(HuiMath.onTimeWeight(5, 6, false), 0); // clamped, no underflow
+        assertEq(HuiMath.onTimeWeight(5, 0, true), 0); // defaulted
+    }
+
+    /// @dev INV-11 at the library level: the largest legal bid plus the fee never exceeds the room.
+    function testFuzz_commissionWithinCap(
+        uint256 n,
+        uint256 c,
+        uint256 p,
+        uint256 k,
+        uint256 phi,
+        uint256 feeBps,
+        uint256 potExtra
+    ) public pure {
+        n = bound(n, 3, 30);
+        c = bound(c, USDC, 10_000 * USDC);
+        p = bound(p, 1 days, 31 days);
+        k = bound(k, 1, n);
+        phi = bound(phi, 1, 5000);
+        feeBps = bound(feeBps, 1, 300);
+        uint256 payers = n - k;
+        uint256 statutory = HuiMath.maxBid(2000, n, k, c, p, payers);
+        uint256 room = HuiMath.commissionRoom(statutory, payers);
+        uint256 pot = bound(potExtra, 0, 30 * c);
+        uint256 fee = HuiMath.commission(pot, feeBps, phi, room);
+        uint256 bid = HuiMath.bidCapAfterShare(statutory, phi);
+        assertLe(fee + bid * payers, room);
+        assertLe(fee, HuiMath.bpsOf(pot, feeBps));
+        assertLe(fee, HuiMath.bpsOf(room, phi));
+        if (payers == 0) assertEq(fee, 0);
+    }
+
+    /// @dev Reserve split as finalize will do it: sum is exact, weights are monotone, zero weight gets zero.
+    function testFuzz_reserveSplit(uint256 total, uint8 count, uint256 seed) public pure {
+        total = bound(total, 0, 1e15);
+        uint256 n = bound(count, 3, 30);
+        uint256[] memory w = new uint256[](n);
+        uint256 sum;
+        for (uint256 i = 0; i < n; i++) {
+            uint256 late = uint256(keccak256(abi.encode(seed, i))) % (n + 2);
+            bool dead = uint256(keccak256(abi.encode(seed, i, "d"))) % 4 == 0;
+            w[i] = HuiMath.onTimeWeight(n, late, dead);
+            sum += w[i];
+        }
+        if (sum == 0) return;
+        uint256 paid;
+        for (uint256 i = 0; i < n; i++) {
+            uint256 share = HuiMath.reserveShare(total, w[i], sum);
+            if (w[i] == 0) assertEq(share, 0);
+            paid += share;
+            for (uint256 j = 0; j < n; j++) {
+                if (w[j] > w[i]) assertGe(HuiMath.reserveShare(total, w[j], sum), share);
+            }
+        }
+        assertLe(paid, total);
+        assertLt(total - paid, n); // dust below one unit per member
+    }
 }
