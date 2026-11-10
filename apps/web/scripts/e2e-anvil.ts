@@ -38,6 +38,7 @@ import {
   quoteRepay,
   readCircle,
   signForwardRequest,
+  termsHashOf,
   type FetchLike,
   type SignContext,
 } from 'sdk';
@@ -492,6 +493,8 @@ async function scenario(): Promise<void> {
     joinDeadline: BigInt((await chainNow()) + 1800),
     organizerIsMember: false,
     label: stringToHex('e2e-second', { size: 32 }),
+    commissionShareBps: 0,
+    termsHash: termsHashOf('e2e anvil: second circle'),
   });
   if (!created.ok) throw new Error(`createCircle flow: ${created.code} ${created.message}`);
   const c2 = created.circle;

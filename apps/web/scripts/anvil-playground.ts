@@ -16,7 +16,7 @@ import { createPublicClient, createWalletClient, http, stringToHex, toHex, type 
 import { mnemonicToAccount, type HDAccount } from 'viem/accounts';
 import { loadAddresses } from 'config/addresses';
 import { resolveNetwork } from 'config/network';
-import { erc2771ForwarderAbi, huiFactoryAbi, memorySaltStore, mockUsdcAbi, type FetchLike } from 'sdk';
+import { erc2771ForwarderAbi, huiFactoryAbi, memorySaltStore, mockUsdcAbi, termsHashOf, type FetchLike } from 'sdk';
 import { createChainConfig } from '../lib/chain/config';
 import { devWallet } from '../lib/chain/wallet';
 import { activate, createCircle, depositBond, join, type TxContext } from '../lib/chain/write';
@@ -145,6 +145,7 @@ async function main(): Promise<void> {
     mode: 1, memberCount: 5, contribution: 10n * ONE, periodSeconds: 30 * 86_400, roundDuration: 180, commitWindow: 90, revealWindow: 60,
     graceSeconds: 120, alphaBps: 2000, commissionMode: true, feeBps: 100, reserveBps: 100, revealBondBps: 100, capBps: 2000,
     joinDeadline: BigInt(now + 3600), organizerIsMember: false, label: stringToHex('Hụi đang gom', { size: 32 }),
+    commissionShareBps: 0, termsHash: termsHashOf('anvil playground: circle still gathering'),
   });
   if (!second.ok) throw new Error(`second circle: ${second.code} ${second.message}`);
   const dep2 = await depositBond(ctx(-1), second.circle, 16n * ONE);

@@ -190,6 +190,10 @@ export interface CreateCircleInput {
   joinDeadline: bigint;
   organizerIsMember: boolean;
   label: Hex;
+  /** phi in bps of the interest room (docs/03 2.7); 0 = fixed fee. */
+  commissionShareBps: number;
+  /** keccak256 of the agreement text (ADR-27), see `termsHashOf` in the SDK. */
+  termsHash: Hex;
 }
 
 /** `factory.createCircle`. Needs a Privy login (the relay checks it). Returns the new circle address. */

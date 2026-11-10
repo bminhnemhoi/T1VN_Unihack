@@ -4,6 +4,7 @@
  * Demo timing (docs/03 section 3.3): 180 s rounds, 90 s / 60 s windows, 120 s grace, circle stays "30 days" for the interest rules.
  */
 import { stringToHex } from 'viem';
+import { buildTermsText, termsHashOf } from 'sdk';
 import { DEMO } from 'config';
 import type { CreateCircleInput } from '@/lib/chain/write';
 import type { FormState, Valid } from '@/lib/circleForm';
@@ -42,5 +43,21 @@ export function buildCreateInput(f: FormState, v: Valid, o: { nowSec: number; de
     joinDeadline: BigInt(o.nowSec + (o.demo ? JOIN_WINDOW_DEMO : JOIN_WINDOW_REAL)),
     organizerIsMember: false,
     label: stringToHex(circleLabel(v.n, v.c), { size: 32 }),
+    commissionShareBps: 0,
+    termsHash: termsHashOf(
+      buildTermsText({
+        mode: bidding ? 'bidding' : 'fixed',
+        memberCount: Number(v.n),
+        contribution: v.c,
+        periodSeconds,
+        alphaBps: Number(v.alphaBps),
+        commissionMode: f.commission,
+        feeBps: f.commission ? Number(v.feeBps) : 0,
+        commissionShareBps: 0,
+        reserveBps: Number(v.reserveBps),
+        capBps: bidding ? 2000 : 0,
+        graceSeconds: o.demo ? DEMO.graceSeconds : REAL_GRACE,
+      }),
+    ),
   };
 }

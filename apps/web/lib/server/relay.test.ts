@@ -157,6 +157,8 @@ describe('POST /api/relay', () => {
           joinDeadline: 1n,
           organizerIsMember: false,
           label: `0x${'00'.repeat(32)}`,
+          commissionShareBps: 0,
+          termsHash: `0x${'11'.repeat(32)}`,
         },
       ],
     });
@@ -266,6 +268,8 @@ describe('POST /api/relay', () => {
           joinDeadline: 1n,
           organizerIsMember: false,
           label: `0x${'00'.repeat(32)}`,
+          commissionShareBps: 0,
+          termsHash: `0x${'11'.repeat(32)}`,
         },
       ],
     });
