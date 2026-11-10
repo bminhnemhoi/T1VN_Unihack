@@ -19,7 +19,19 @@ Người đọc: leader. Làm một lần, khoảng 20 phút. Cần xong **trư�
 | Người ký 2 | Minh (leader) |
 | Người ký 3 | Ví dự phòng tạm, do Towfienes hoặc Minh giữ. Khi chọn được thành viên đóng góp tốt nhất thì thay bằng ví của người đó (xem bước 5) |
 
-## Các bước
+## Cách nhanh (đã chốt 10/11, leader đồng ý): tạo bằng script
+
+Fuji đã có sẵn bộ contract Safe v1.4.1 chính thức (đã kiểm có code: SafeProxyFactory `0x4e1DCf7AD4e460CfD30791CCC4F9c8a4f820ec67`, SafeL2 `0x29fcB43b46531BcA003ddC8FCB67FFE91900C762`, fallback handler `0xfd0732Dc9E303f09fCEf3a7388Ad10A83459Ec99`). Script `contracts/script/CreateSafe.s.sol` tạo Safe 2/3 bằng một giao dịch; ví DEPLOYER chỉ **trả phí**, không đứng tên chủ Safe (ADR-21). Có test chạy trên bản sao Fuji: `HUISAFE_FORK_TESTS=true forge test --match-path test/fork/CreateSafeScript.t.sol` (4 ca).
+
+1. Lấy 3 **địa chỉ** người ký (công khai, không phải bí mật): Towfienes, Minh, ví dự phòng. Ví ký phải là ví người thật cầm trong trình duyệt (Core hoặc MetaMask), **không** dùng ví vai trò của dự án (DEPLOYER, RELAYER, ATTESTER, KEEPER, ORGANIZER, M1-M5). Chưa có địa chỉ của Minh thì tạm dùng một tài khoản thứ ba của Towfienes, thay sau (bước 5 bên dưới), địa chỉ Safe không đổi.
+2. Thêm vào `.env.local` (người tự điền): `SAFE_OWNER_1=`, `SAFE_OWNER_2=`, `SAFE_OWNER_3=`. Mở Claude với khóa đã nạp (`bash -c 'set -a; . ./.env.local; set +a; exec claude ...'`).
+3. Mô phỏng: `forge script script/CreateSafe.s.sol --rpc-url fuji`. Duyệt rồi mới thêm `--broadcast` (qua `/deploy-fuji`).
+4. Ghi địa chỉ Safe in ra vào `ADMIN` của bước deploy (`docs/DEPLOY-FUJI.md`): factory nhận admin là Safe, registry vẫn admin deployer, Safe gọi `setFactory` một lần (calldata trong runbook).
+5. Ký lệnh Safe về sau (tạm dừng, mở lại, thay người ký): dùng Ash Wallet (<https://wallet.ash.center>), mạng Fuji, "thêm Safe có sẵn" bằng địa chỉ Safe. Người ký cần một ít AVAX để gửi lệnh đã đủ chữ ký.
+
+**Lưu ý:** admin của factory không đổi được sau deploy, nên bản deploy để thi phải dùng địa chỉ Safe này. Bản deploy thử bằng ví deployer làm admin chỉ để chạy thử, không dùng khi thi.
+
+## Cách thủ công (dự phòng): tạo bằng giao diện
 
 ### 1. Mỗi người ký chuẩn bị một ví testnet riêng
 - Tạo ví mới bằng Core hoặc MetaMask. Dùng ví **chỉ cho việc ký Safe**.

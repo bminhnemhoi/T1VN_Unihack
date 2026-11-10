@@ -19,8 +19,10 @@ import {FactoryConfig} from "../src/libraries/HuiTypes.sol";
 /// mainnet 43114 included, reverts before anything is broadcast. The deployer key is read with
 /// `vm.envUint("DEPLOYER_PRIVATE_KEY")` (never passed on the command line in real use). Environment read by `run()`:
 ///   DEPLOYER_PRIVATE_KEY  required, testnet wallet.
-///   ADMIN                 optional, defaults to the deployer (testnet). If it differs from the deployer the
-///                         script cannot call `registry.setFactory` and says so; the admin must call it.
+///   ADMIN                 optional factory admin, defaults to the deployer. For the contest build this is the
+///                         2-of-3 Safe (ADR-26, `script/CreateSafe.s.sol`). The ReputationRegistry admin is always
+///                         the deployer (v1.2, docs/05 3.3): its only power is the one-time `setFactory`, which this
+///                         script calls itself, so no Safe signature is needed at deploy time.
 ///   ATTESTER_ADDRESS      address of the attester signing key. Required on Fuji (role separation, ADR-21);
 ///                         defaults to the deployer on anvil.
 ///   USDC                  optional; defaults to Circle's Fuji USDC. On anvil, unset means a fresh MockUSDC.
@@ -32,9 +34,7 @@ import {FactoryConfig} from "../src/libraries/HuiTypes.sol";
 ///                         overwrites the committed fuji.json. Anvil always writes.
 ///   MIN_COVERAGE_BPS      optional; `FactoryConfig.minCoverageBps` (the floor for `activate()`). Default 10000 on Fuji
 ///                         (09/11 decision, ADR-22: bond 100%) and 5000 on anvil (the local rehearsal keeps docs/03 2.3).
-///   ALLOW_UNWIRED         Fuji only: by default the admin must equal the deployer so the script can call
-///                         `registry.setFactory`; `true` allows a different admin (json then records `"wired": false`).
-///                         On Fuji the attester must differ from both the deployer and the admin (ADR-21).
+///   On Fuji the attester must differ from both the deployer and the admin (ADR-21).
 contract Deploy is Script {
     uint256 internal constant FUJI_CHAIN_ID = 43113;
     uint256 internal constant ANVIL_CHAIN_ID = 31337;
@@ -47,8 +47,6 @@ contract Deploy is Script {
     error MissingEnv(string name);
     /// @dev Fuji: the attester key must not be the deployer or the admin (ADR-21 role separation).
     error AttesterNotSeparate(address attester);
-    /// @dev Fuji: admin differs from the deployer and `ALLOW_UNWIRED` is not set.
-    error AdminNotDeployer(address admin, address deployer);
     /// @dev A post-deploy sanity check failed.
     error SanityCheckFailed(string what);
 
@@ -62,7 +60,6 @@ contract Deploy is Script {
         string gitCommit;
         string outPath;
         bool writeDeployment; // Fuji: write the json file only when true (anvil always writes)
-        bool allowUnwired; // Fuji: allow admin != deployer (registry.setFactory is then left to the admin)
     }
 
     /// @notice Addresses produced by a run (also written to the json file).
@@ -77,6 +74,7 @@ contract Deploy is Script {
         address attester;
         address relayer;
         bool wired;
+        address registryAdmin; // always the deployer (v1.2); only power: the one-time setFactory, already called
     }
 
     /// @notice Reads the environment and calls `execute`; this is the entry point for `forge script`.
@@ -92,7 +90,6 @@ contract Deploy is Script {
         if (block.chainid == FUJI_CHAIN_ID) defaultPath = "deployments/fuji.json";
         p.outPath = vm.envOr("DEPLOY_OUT", defaultPath);
         p.writeDeployment = vm.envOr("WRITE_DEPLOYMENT", false);
-        p.allowUnwired = vm.envOr("ALLOW_UNWIRED", false);
         return execute(p);
     }
 
@@ -114,7 +111,6 @@ contract Deploy is Script {
         if (d.usdc == address(0) && block.chainid == FUJI_CHAIN_ID) d.usdc = FUJI_USDC;
         if (block.chainid == FUJI_CHAIN_ID) {
             if (d.attester == deployer || d.attester == d.admin) revert AttesterNotSeparate(d.attester);
-            if (d.admin != deployer && !p.allowUnwired) revert AdminNotDeployer(d.admin, deployer);
             if (d.usdc.code.length == 0) revert SanityCheckFailed("usdc.code");
             if (IERC20Metadata(d.usdc).decimals() != 6) revert SanityCheckFailed("usdc.decimals");
         }
@@ -123,16 +119,15 @@ contract Deploy is Script {
         if (d.usdc == address(0)) d.usdc = address(new MockUSDC());
         // 1. forwarder  2. registry  3. lens  4. implementation  5. factory  6. wiring.
         d.forwarder = address(new ERC2771Forwarder("HuiSafeForwarder"));
-        ReputationRegistry registry = new ReputationRegistry(d.admin);
+        ReputationRegistry registry = new ReputationRegistry(deployer);
         d.reputation = address(registry);
         d.lens = address(new HuiCircleLens());
         d.implementation = address(new HuiCircle(d.forwarder, d.lens));
         HuiFactory factory = new HuiFactory(d.admin, d.implementation, _config(d));
         d.factory = address(factory);
-        if (d.admin == deployer) {
-            registry.setFactory(d.factory);
-            d.wired = true;
-        }
+        registry.setFactory(d.factory);
+        d.wired = true;
+        d.registryAdmin = deployer;
         vm.stopBroadcast();
 
         _sanityCheck(d);
@@ -171,7 +166,7 @@ contract Deploy is Script {
         if (c.forwarder != d.forwarder) revert SanityCheckFailed("config.forwarder");
         if (c.reputation != d.reputation) revert SanityCheckFailed("config.reputation");
         if (c.usdc != d.usdc) revert SanityCheckFailed("config.usdc");
-        if (ReputationRegistry(d.reputation).admin() != d.admin) revert SanityCheckFailed("registry.admin");
+        if (ReputationRegistry(d.reputation).admin() != d.registryAdmin) revert SanityCheckFailed("registry.admin");
         if (c.attester != d.attester) revert SanityCheckFailed("config.attester");
         if (block.chainid == FUJI_CHAIN_ID && c.minCoverageBps != 10_000) {
             revert SanityCheckFailed("config.minCoverageBps");

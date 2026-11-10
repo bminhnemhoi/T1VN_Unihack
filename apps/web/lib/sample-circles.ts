@@ -51,8 +51,6 @@ export interface LiveInfo {
   address: `0x${string}`;
   viewerAddress?: `0x${string}`;
   nowMs: number;
-  /** `termsHash` written on the chain by the organizer (ADR-27); undefined until it is read. */
-  termsHash?: `0x${string}`;
 }
 
 export interface SampleCircleData {

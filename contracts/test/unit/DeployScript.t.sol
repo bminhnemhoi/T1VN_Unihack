@@ -127,19 +127,20 @@ contract DeployScriptTest is Test {
         _cleanup();
     }
 
-    function test_Execute_AdminDifferentFromDeployer_SkipsWiring() public {
+    function test_Execute_SafeAdmin_RegistryAdminIsDeployerAndWired() public {
         vm.chainId(31337);
         address safe = makeAddr("safe");
         Deploy.Params memory p = _params("safe");
         p.admin = safe;
         Deploy.Deployment memory d = script.execute(p);
-        assertFalse(d.wired);
-        assertEq(ReputationRegistry(d.reputation).factory(), address(0));
+        assertTrue(d.wired);
         assertEq(HuiFactory(d.factory).admin(), safe);
-        // The admin finishes the wiring, exactly once.
-        vm.prank(safe);
-        ReputationRegistry(d.reputation).setFactory(d.factory);
+        assertEq(ReputationRegistry(d.reputation).admin(), deployer);
         assertEq(ReputationRegistry(d.reputation).factory(), d.factory);
+        // Wiring happens exactly once: a second setFactory reverts even for the registry admin.
+        vm.prank(deployer);
+        vm.expectRevert();
+        ReputationRegistry(d.reputation).setFactory(makeAddr("other"));
         _cleanup();
     }
 
@@ -174,29 +175,21 @@ contract DeployScriptTest is Test {
         address safe = makeAddr("safe");
         p.admin = safe;
         p.attester = safe;
-        p.allowUnwired = true;
         vm.expectRevert(abi.encodeWithSelector(Deploy.AttesterNotSeparate.selector, safe));
         script.execute(p);
     }
 
-    function test_Execute_Fuji_RevertsIfAdminNotDeployer() public {
-        Deploy.Params memory p = _fujiParams("fujiAdmin");
+    function test_Execute_Fuji_SafeAdmin_WiresWithoutSafeSignature() public {
+        Deploy.Params memory p = _fujiParams("fujiSafe");
         address safe = makeAddr("safe");
         p.admin = safe;
-        vm.expectRevert(abi.encodeWithSelector(Deploy.AdminNotDeployer.selector, safe, deployer));
-        script.execute(p);
-    }
-
-    function test_Execute_Fuji_AllowUnwired_WritesWiredFalse() public {
-        Deploy.Params memory p = _fujiParams("fujiUnwired");
-        address safe = makeAddr("safe");
-        p.admin = safe;
-        p.allowUnwired = true;
         p.writeDeployment = true;
         Deploy.Deployment memory d = script.execute(p);
-        assertFalse(d.wired);
-        assertEq(ReputationRegistry(d.reputation).admin(), safe);
-        assertFalse(vm.parseJsonBool(vm.readFile(out), ".wired"));
+        assertTrue(d.wired);
+        assertEq(HuiFactory(d.factory).admin(), safe);
+        assertEq(ReputationRegistry(d.reputation).admin(), deployer);
+        assertEq(ReputationRegistry(d.reputation).factory(), d.factory);
+        assertFalse(vm.keyExistsJson(vm.readFile(out), ".wired"));
         _cleanup();
     }
 
@@ -235,7 +228,6 @@ contract DeployScriptTest is Test {
         vm.setEnv("ADMIN", "");
         vm.setEnv("USDC", "");
         vm.setEnv("WRITE_DEPLOYMENT", "");
-        vm.setEnv("ALLOW_UNWIRED", "");
         vm.setEnv("MIN_COVERAGE_BPS", "");
         vm.chainId(31337);
 

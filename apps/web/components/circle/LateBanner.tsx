@@ -3,9 +3,10 @@
 import { TriangleAlert } from 'lucide-react';
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
-import { formatUsdc, huiMath, quoteRepay } from 'sdk';
+import { formatUsdc, huiMath, quoteRepay, repayPermitQuote } from 'sdk';
 import { ActionButton } from '@/components/chain/ActionButton';
 import { Countdown } from '@/components/brand/Countdown';
+import { PermitHint } from '@/components/circle/PermitHint';
 import { Button } from '@/components/ui/button';
 import { lateImpact } from '@/lib/live/lateImpact';
 import { formatVnTime, nowMsOf, type SampleCircleData, type SampleShortfall } from '@/lib/sample-circles';
@@ -31,6 +32,7 @@ export function LateBanner({ circle, shortfall, onPay, payHref }: { circle: Samp
   const me = live?.viewerAddress;
   // Chain data: the exact amount the contract will pull (`quoteRepay` mirrors it), refreshed every second.
   const quote = live && me ? quoteRepay(live.view, me, Math.floor(live.nowMs / 1000) + extra, { round: shortfall.round }) : undefined;
+  const permit = live && me ? repayPermitQuote(live.view, me, Math.floor(live.nowMs / 1000) + extra + 120, { round: shortfall.round }) : undefined;
   const fee = quote ? quote.lateFee : lateFeeOf(circle, shortfall, shortfall.sinceSeconds + extra);
   const owed = quote ? quote.principal : shortfall.amount;
   const impact = lateImpact(circle);
@@ -63,6 +65,7 @@ export function LateBanner({ circle, shortfall, onPay, payHref }: { circle: Samp
           Trả ngay {formatUsdc(owed + fee)}
         </ActionButton>
       )}
+      {live && !payHref && permit && <PermitHint quote={permit} />}
       {!live && onPay && (
         <Button type="button" size="lg" className="mt-4" onClick={onPay}>
           Trả ngay {formatUsdc(shortfall.amount + fee)}

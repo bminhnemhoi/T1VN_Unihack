@@ -37,6 +37,11 @@ contract CreateDemoCircle is Script {
     uint32 internal constant GRACE_SECONDS = 120;
     uint256 internal constant DEFAULT_JOIN_WINDOW = 7 days;
 
+    /// @notice `keccak256` of the standard agreement text of this demo circle, `buildTermsText(DEMO_TERMS_INPUT)` in
+    /// `packages/sdk/src/terms.ts` (ADR-27). `test/vectors/terms.json` pins text and hash; regenerate both with
+    /// `pnpm --filter sdk generate:terms` whenever the text changes. The web verifies it with `verifyTerms`.
+    bytes32 public constant DEMO_TERMS_HASH = 0xd635fa40006e68e86ab9a09230677cb732f9f06da1dfa920561f3d79349389c6;
+
     /// @dev Chain is neither Fuji nor anvil (mainnet 43114 lands here).
     error UnsupportedChain(uint256 chainId);
     /// @dev The deployment file is missing a contract or the factory has no code.
@@ -103,7 +108,7 @@ contract CreateDemoCircle is Script {
             organizerIsMember: false,
             label: bytes32(bytes(label)),
             commissionShareBps: 0,
-            termsHash: keccak256("HuiSafe demo circle terms v1.2 (fixed 1% fee, phi = 0)")
+            termsHash: DEMO_TERMS_HASH
         });
 
         vm.startBroadcast(organizerKey);

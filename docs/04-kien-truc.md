@@ -574,7 +574,7 @@ Chi tiết từng job:
 Lệnh, cờ verifier Routescan và checklist ở [06](06-avalanche-va-blockchain.md), mục 6. Luồng:
 
 1. Bốn ví testnet tách vai (ADR-21), nạp AVAX.
-2. `Deploy.s.sol` deploy theo thứ tự cố định ở 05 mục 3.3: `ERC2771Forwarder("HuiSafeForwarder")` → `ReputationRegistry(admin)` → `HuiCircleLens` → implementation `HuiCircle(forwarder, lens)` (constructor gọi `_disableInitializers()`, revert `LensNotDeployed()` nếu lens không có code) → `HuiFactory(admin, implementation, config)` → `registry.setFactory(factory)` (chỉ admin, đúng một lần). Sau đó verify (Routescan, ADR-16) và ghi `contracts/deployments/fuji.json` (05 mục 6.2).
+2. `Deploy.s.sol` deploy theo thứ tự cố định ở 05 mục 3.3: `ERC2771Forwarder("HuiSafeForwarder")` → `ReputationRegistry(deployer)` → `HuiCircleLens` → implementation `HuiCircle(forwarder, lens)` (constructor gọi `_disableInitializers()`, revert `LensNotDeployed()` nếu lens không có code) → `HuiFactory(admin, implementation, config)` → `registry.setFactory(factory)` (deployer gọi trong script, đúng một lần; admin factory là Safe). Sau đó verify (Routescan, ADR-16) và ghi `contracts/deployments/fuji.json` (05 mục 6.2).
 3. `pnpm --filter sdk generate`. `packages/config` đọc `fuji.json`, nên web không cần biến môi trường cho địa chỉ.
 4. Đặt bí mật cho nền tảng chạy web (mục 7.4), deploy web, chạy keeper, tạo dây demo bằng `CreateDemoCircle.s.sol`, commit `fuji.json`, cập nhật README.
 

@@ -22,7 +22,6 @@ Deploy (`Deploy.s.sol`):
 | `FUJI_RPC_URL` | có | RPC Fuji (`foundry.toml` đọc qua `--rpc-url fuji`) |
 | `DEPLOYER_PRIVATE_KEY` | có | ví deployer, chỉ cần AVAX |
 | `ADMIN` | có | địa chỉ Safe (công khai) |
-| `ALLOW_UNWIRED` | có, đặt `true` | cho phép admin khác deployer; script ghi `"wired": false` và để Safe gọi `setFactory` |
 | `ATTESTER_ADDRESS` | có | địa chỉ của khóa `ATTESTER_PRIVATE_KEY`; phải khác deployer và khác admin |
 | `RELAYER_ADDRESS` | nên có | chỉ ghi vào `fuji.json` |
 | `GIT_COMMIT` | nên có | `export GIT_COMMIT=$(git rev-parse --short HEAD)` |
@@ -80,18 +79,11 @@ forge script script/Deploy.s.sol --rpc-url fuji --broadcast --verify \
   --etherscan-api-key "${SNOWTRACE_API_KEY:-verifyContract}"
 ```
 
-Script revert trước khi gửi gì nếu chain không phải 43113/31337, attester trùng deployer hoặc admin, admin khác deployer mà chưa đặt `ALLOW_UNWIRED`, hoặc USDC không có code. Kết quả: `contracts/deployments/fuji.json` (có `"wired": false`) và thư mục `contracts/broadcast/Deploy.s.sol/43113/` (dành cho commit, theo `/deploy-fuji`).
+Script revert trước khi gửi gì nếu chain không phải 43113/31337, attester trùng deployer hoặc admin, hoặc USDC không có code. Kết quả: `contracts/deployments/fuji.json` và thư mục `contracts/broadcast/Deploy.s.sol/43113/` (dành cho commit, theo `/deploy-fuji`).
 
-### 5.1. Bước của Safe (bắt buộc trước khi tạo dây nào)
+### 5.1. Safe và registry
 
-Vì `ADMIN` là Safe, deployer không gọi được `registry.setFactory`. Registry chưa nối nghĩa là mọi dây tạo ra chưa ghi được uy tín (`recordX` bị từ chối). Safe phải gửi đúng một giao dịch:
-
-- To: địa chỉ `reputation` trong `fuji.json`; value 0.
-- Data: `cast calldata "setFactory(address)" <địa chỉ factory trong fuji.json>`.
-- Cần 2 trên 3 chữ ký, một người thực thi (trả phí).
-- Kiểm: `cast call <reputation> "factory()(address)" --rpc-url fuji` bằng địa chỉ factory. Gọi lần hai sẽ revert `FactoryAlreadySet` (đã thử).
-
-Sau đó xoá dòng `"wired": false` khỏi `fuji.json` (thiếu trường nghĩa là đã nối, docs/05 mục 6.2) và commit.
+Tạo Safe trước bằng `script/CreateSafe.s.sol` (docs/HUONG-DAN-VI-SAFE.md), đặt `ADMIN` = địa chỉ Safe. Registry nhận admin là deployer và được nối ngay trong script, không cần chữ ký Safe lúc deploy. Kiểm: `cast call <reputation> "factory()(address)" --rpc-url fuji` bằng địa chỉ factory; `cast call <factory> "admin()(address)"` bằng địa chỉ Safe.
 
 ### 5.2. Kiểm sau deploy
 

@@ -2,9 +2,10 @@
 
 import Link from 'next/link';
 import { useState } from 'react';
-import { formatUsdc, quoteRepay } from 'sdk';
+import { formatUsdc, quoteRepay, repayPermitQuote } from 'sdk';
 import { ActionButton } from '@/components/chain/ActionButton';
 import { CirclePageHead, EmptyNote } from '@/components/circle/CirclePageHead';
+import { PermitHint } from '@/components/circle/PermitHint';
 import { LateBanner, lateFeeOf } from '@/components/circle/LateBanner';
 import { LedgerList } from '@/components/LedgerList';
 import { useToast } from '@/components/shell/Toast';
@@ -20,6 +21,12 @@ const STATUS = {
 } as const;
 
 /** S08: missing contributions, who covered them, the grace deadline and "Trả ngay". Paying changes the page, locally. */
+/** What was covered when the round settled, per source: the chain view's `covered` (never shrinks), else the open amounts (sample data). */
+function coveredOf(c: SampleCircleData, s: SampleShortfall): { holdback: bigint; bond: bigint; reserve: bigint } {
+  const sf = c.live?.view.rounds.find((r) => r.k === s.round)?.shortfalls.find((x) => c.seats[s.member]?.address?.toLowerCase() === x.member.toLowerCase());
+  return sf?.covered ?? { holdback: s.fromHoldback, bond: s.fromBond, reserve: s.fromReserve };
+}
+
 export function ShortfallView({ c }: { c: SampleCircleData }) {
   const id = c.id;
   const { show } = useToast();
@@ -39,6 +46,7 @@ export function ShortfallView({ c }: { c: SampleCircleData }) {
   const me = live?.viewerAddress;
   const debtOpen = live && me ? c.shortfalls.filter((s) => s.member === c.viewer && s.status === 'defaulted') : [];
   const debtPrincipal = debtOpen.reduce((a, s) => a + s.fromHoldback + s.fromBond + s.fromReserve + s.uncovered, 0n);
+  const debtPermit = live && me && debtPrincipal > 0n ? repayPermitQuote(live.view, me, Math.floor(live.nowMs / 1000) + 120, { principal: debtPrincipal }) : undefined;
   const debtQuote = live && me && debtPrincipal > 0n ? quoteRepay(live.view, me, Math.floor(live.nowMs / 1000), { principal: debtPrincipal }) : undefined;
 
   return (
@@ -83,6 +91,7 @@ export function ShortfallView({ c }: { c: SampleCircleData }) {
           >
             Trả nợ {formatUsdc(debtQuote.total)}
           </ActionButton>
+          {debtPermit && <PermitHint quote={debtPermit} />}
         </section>
       )}
 
@@ -125,6 +134,7 @@ export function ShortfallView({ c }: { c: SampleCircleData }) {
             {rows.map((s) => {
               const st = result && s.member === result.member && s.round === result.round ? STATUS.paid : STATUS[s.status];
               const winner = settledRound(c, s.round);
+              const cv = coveredOf(c, s);
               return (
                 <li key={`${s.round}-${s.member}`} className="dong-ke p-5 last:border-b-0">
                   <div className="flex flex-wrap items-baseline justify-between gap-2">
@@ -135,7 +145,7 @@ export function ShortfallView({ c }: { c: SampleCircleData }) {
                   </div>
                   <p className="so-ke mt-1 text-lead">
                     Đã bù{' '}
-                    {[s.fromHoldback > 0n && `${formatUsdc(s.fromHoldback)} từ tiền giữ lại của ${c.seats[s.member]!.name}`, s.fromBond > 0n && `${formatUsdc(s.fromBond)} từ ký quỹ`, s.fromReserve > 0n && `${formatUsdc(s.fromReserve)} từ quỹ dự phòng`].filter(Boolean).join(', ')}
+                    {[cv.holdback > 0n && `${formatUsdc(cv.holdback)} từ tiền giữ lại của ${c.seats[s.member]!.name}`, cv.bond > 0n && `${formatUsdc(cv.bond)} từ ký quỹ`, cv.reserve > 0n && `${formatUsdc(cv.reserve)} từ quỹ dự phòng`].filter(Boolean).join(', ') || 'không có khoản nào từ tiền giữ lại, ký quỹ hay quỹ dự phòng'}
                     {s.uncovered > 0n ? `, còn ${formatUsdc(s.uncovered)} chưa bù được` : ''}. Người hốt kỳ {s.round} ({c.seats[winner.winner]!.name}) vẫn nhận đủ {formatUsdc(winner.payout)}.
                   </p>
                   {live && s.status === 'defaulted' && c.seats[s.member]?.address && live.view.members.find((m) => m.address === c.seats[s.member]!.address)?.status !== 'frozen' && live.view.members.find((m) => m.address === c.seats[s.member]!.address)?.status !== 'defaultedDead' && (
