@@ -122,7 +122,7 @@ Dùng: plan mode → `/implement` → `solidity-engineer`, `test-engineer`. Ki�
 Ràng buộc:
 - depositBond(amount, permit) chỉ organizer; withdrawBond chỉ khi Cancelled; join(att, attSig, permit): kiểm att.member == _msgSender(), att.circle == address(this), expiry, chữ ký attester (EIP-712 domain "HuiSafe" version "1", verifyingContract = clone), attestationId chưa dùng; permit trong try, lỗi thì vẫn nhận nếu allowance ≥ requiredAllowance(); ghi joinIndex.
 - leave() trước kích hoạt: người vào sau lùi lên một bậc giữ nguyên thứ tự, joinIndex luôn liên tục từ 0; rời rồi không vào lại được dây đó (attestationId theo cặp người dùng, dây đã bị đánh dấu dùng).
-- activate() chỉ organizer, đủ N (thiếu thì CircleNotFull(have, need)), trước joinDeadline, coverageIndexBps ≥ minCoverageBps (5000); cancel() ai cũng gọi sau joinDeadline; withdrawBond lần hai thì NothingToWithdraw.
+- activate() chỉ organizer, đủ N (thiếu thì CircleNotFull(have, need)), trước joinDeadline, coverageIndexBps ≥ minCoverageBps (Fuji 10000, ADR-22; 5000 chỉ anvil/test); cancel() ai cũng gọi sau joinDeadline; withdrawBond lần hai thì NothingToWithdraw.
 - requiredAllowance() = (N − 1)·(C + revealBond); guaranteedCoverageBps() dùng R = 0.
 - Mỗi thay đổi trạng thái một event (docs/05 mục 4.1). Implementation gọi _disableInitializers().
 Tiêu chí chấp nhận: test happy path và từng lỗi (BadAttestation, AttestationUsed, AttestationExpired, InsufficientAllowance, CoverageTooLow, CircleNotFull, JoinClosed, CircleFull, AlreadyMember, NothingToWithdraw); test permit bị gửi trước vẫn join được; test leave dồn joinIndex và chặn vào lại; INV-01 đúng sau mỗi hàm.
@@ -307,7 +307,7 @@ Dùng: `/implement` → `frontend-engineer`. Kiểm chứng: xem trước CI và
 
 Đọc trước: docs/02 mục 6 (user story tạo dây) và 7-8, docs/03 mục 2-3, docs/05 mục 4.3, 7.2 (buildCreateCircleParams).
 Ràng buộc:
-- Form từng bước; xem trước chỉ số bảo chứng tối thiểu (R = 0), ký quỹ gợi ý cho 100% (B = (1 − α)·O_max), bảng trần thăm từng kỳ, lãi chậm góp; chặn activate khi CI < 50%.
+- Form từng bước; xem trước chỉ số bảo chứng tối thiểu (R = 0), ký quỹ gợi ý cho 100% (B = (1 − α)·O_max), bảng trần thăm từng kỳ, lãi chậm góp; chặn activate khi CI < mức sàn của factory (Fuji 100%).
 - Cảnh báo Điều 14 theo docs/02 AC-01.4 (giá trị một kỳ N·C quy đổi ≥ 100 triệu VND, hoặc chủ hụi đã có ≥ 1 dây đang chạy nên dây mới là dây thứ hai) và nút sang S15.
 - Gửi createCircle qua relay; sau đó nạp ký quỹ bằng permit ("cho phép trích tiền").
 - Chữ theo docs/02 mục 8 (không "gas", "permit", "commit" trên màn hình chính).

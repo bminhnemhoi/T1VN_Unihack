@@ -152,7 +152,7 @@ fee_k       = 0 nếu người hốt kỳ k là chủ hụi (chân của chủ h
 | `roundDuration` | ≥ 120 giây; bản thật = `periodSeconds` | demo 180 giây |
 | `commitWindow`, `revealWindow` | ≥ 30 giây mỗi cửa sổ; tổng ≤ `roundDuration` (Fixed: cả hai = 0) | demo 90 / 60 giây |
 | `graceSeconds` | ≥ 60 giây và < `roundDuration` (để khoản trả trễ của kỳ k luôn hết ân hạn trước khi kỳ k + 1 chi, giữ INV-06) | 172.800 (demo 120) |
-| `alphaBps` | 0..10_000 | 2000 |
+| `alphaBps` | 0..10_000 trong contract; giao diện và trợ lý giới hạn ≤ 5000 (α = 100% với ký quỹ 0 vẫn cho CI 100% nhưng holdback bị cắt theo pot nên bảo đảm mất nghĩa, audit A16 L-02; chặn ở contract là roadmap) | 2000 |
 | `commissionMode`, `feeBps` | `feeBps` ≤ 300; = 0 nếu không phải họ hưởng hoa hồng | true, 100 |
 | `commissionShareBps` (φ) | 0..5000; > 0 chỉ khi `Bidding`, `commissionMode` và `feeBps > 0` (mục 2.7); vi phạm: `InvalidParams(15)` | 0 (dây demo); 5000 (dây thật) |
 | `reserveBps` | ≤ 300 | 100 |
