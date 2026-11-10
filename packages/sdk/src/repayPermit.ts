@@ -20,6 +20,8 @@ export interface RepayPermitQuote {
   futureContributions: bigint;
   /** The allowance to sign, USDC base units: what the UI shows as "số USDC sẽ được cấp". */
   value: bigint;
+  /** True when the need exceeded 2 x requiredAllowance and `value` was cut: warn the member (audit I-01). */
+  capped: boolean;
 }
 
 /** Allowance needed to repay and still afford the rest of the circle. `nowSec` should include the request lifetime. */
@@ -35,7 +37,7 @@ export function repayPermitQuote(
   const futureContributions = remaining * perRound;
   const cap = 2n * view.requiredAllowance;
   const need = quote.total + futureContributions;
-  return { quote, futureContributions, value: need > cap ? cap : need };
+  return { quote, futureContributions, value: need > cap ? cap : need, capped: need > cap };
 }
 
 /** Quote and sign the permit in one step; the caller sends it to `/api/relay/permit` (`relayPermit`). */

@@ -1,3 +1,4 @@
+import { HttpRequestError } from 'viem';
 import { describe, expect, it } from 'vitest';
 import { PERMIT_PER_HOUR, createRelayPermitHandler, type PermitArgs, type RelayPermitDeps } from './relayPermit';
 import { createMutex } from './relay';
@@ -21,6 +22,7 @@ interface Harness {
   state: {
     isCircle: boolean;
     joined: boolean;
+    debt: bigint;
     circleState: number;
     permitReverts: boolean;
     allowance: bigint;
@@ -36,6 +38,7 @@ function harness(): Harness {
   const state = {
     isCircle: true,
     joined: true,
+    debt: 10_000_000n,
     circleState: 1,
     permitReverts: false,
     allowance: 0n,
@@ -49,7 +52,7 @@ function harness(): Harness {
         case 'isCircle':
           return state.isCircle && a.args?.[0] === circle;
         case 'memberInfo':
-          return { joined: state.joined && a.args?.[0] === member };
+          return { joined: state.joined && a.args?.[0] === member, debt: state.debt };
         case 'state':
           return state.circleState;
         case 'requiredAllowance':
@@ -140,17 +143,20 @@ describe('POST /api/relay/permit', () => {
     expect(t.sent).toHaveLength(0);
   });
 
-  it('check 2: the owner must have joined, and the circle must be Forming or Active', async () => {
+  it('check 2: the owner must have joined, the circle must be Active and the owner must owe something (audit L-01)', async () => {
     const t = harness();
     const h = createRelayPermitHandler(t.deps);
     expect(await code(await post(h, permitBody({ owner: other })))).toBe('NotAMember');
-    for (const s of [2, 3, 4, 5]) {
+    for (const s of [0, 2, 3, 4, 5]) {
       t.state.circleState = s;
       const res = await post(h, permitBody());
       expect(res.status).toBe(409);
       expect(await code(res)).toBe('WrongState');
     }
-    t.state.circleState = 0; // Forming is allowed (join tops up allowance before activation)
+    t.state.circleState = 1;
+    t.state.debt = 0n; // nothing to repay: the route would only burn relayer gas
+    expect(await code(await post(h, permitBody()))).toBe('WrongState');
+    t.state.debt = 10_000_000n;
     expect((await post(h, permitBody())).status).toBe(200);
     expect(t.sent).toHaveLength(1);
   });
@@ -200,15 +206,23 @@ describe('POST /api/relay/permit', () => {
     expect(t.sent).toHaveLength(PERMIT_PER_HOUR);
   });
 
-  it('shares the IP limit and the global hourly budget, and refuses to send when the relayer is out of AVAX', async () => {
+  it('the global hourly budget is charged only for permits that will be sent, so junk cannot exhaust it (audit H-01)', async () => {
     const t = harness();
     t.deps.globalLimiter = new SlidingWindowLimiter(1, 3_600_000, () => NOW);
     const h = createRelayPermitHandler(t.deps);
-    expect((await post(h, permitBody())).status).toBe(200);
+    for (const bad of ['nope', { permit: {} }, permitBody({ v: 0 }), permitBody({ owner: other }), permitBody({ spender: stranger })]) {
+      await post(h, bad);
+    }
+    t.state.permitReverts = true;
+    expect((await post(h, permitBody())).status).toBe(422);
+    t.state.permitReverts = false;
+    expect((await post(h, permitBody())).status).toBe(200); // the only unit of budget is still there
     const busy = await post(h, permitBody());
     expect(busy.status).toBe(503);
     expect(await code(busy)).toBe('RelayBusy');
+  });
 
+  it('shares the IP limit, and refuses to send when the relayer is out of AVAX', async () => {
     const t2 = harness();
     t2.state.balance = 4n * 10n ** 15n;
     const empty = await post(createRelayPermitHandler(t2.deps), permitBody());
@@ -221,6 +235,23 @@ describe('POST /api/relay/permit', () => {
     const h3 = createRelayPermitHandler(t3.deps);
     expect((await post(h3, permitBody())).status).toBe(200);
     expect((await post(h3, permitBody())).status).toBe(429);
+  });
+
+  it('a transport error while simulating answers 502, not "sign again" (audit L-03)', async () => {
+    const t = harness();
+    t.deps.publicClient = {
+      ...t.deps.publicClient,
+      readContract: t.deps.publicClient.readContract,
+      getBlock: t.deps.publicClient.getBlock,
+      getBalance: t.deps.publicClient.getBalance,
+      simulateContract: async () => {
+        throw new HttpRequestError({ url: 'http://rpc.invalid' });
+      },
+    } as unknown as RelayPermitDeps['publicClient'];
+    const res = await post(createRelayPermitHandler(t.deps), permitBody());
+    expect(res.status).toBe(502);
+    expect(await code(res)).toBe('ChainUnavailable');
+    expect(t.sent).toHaveLength(0);
   });
 
   it('serialises sends through the shared mutex and never logs signature parts', async () => {

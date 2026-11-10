@@ -4,14 +4,16 @@
  * permit authenticates itself by signature, no forwarder is involved. The request is never altered: a tampered permit
  * simply fails the simulation. The relayer key lives only in the injected `sender`.
  *
- * Before the checks: per-IP limit and the same global hourly budget as /api/relay. Then, in order:
+ * Before the checks: the per-IP limit. Then, in order:
  *   1. `factory.isCircle(spender)`                          4. `now < deadline <= now + 1 hour` (chain time)
- *   2. `owner` joined that circle; circle Forming or Active  5. simulate `USDC.permit`; a revert is accepted only when
- *   3. 0 < value <= 2 x requiredAllowance                       the allowance is already >= value (nothing is sent)
- *   6. 10 requests/hour per owner, charged ONLY after step 5 passed (junk cannot burn a victim's quota)
- * then the hard stop when the relayer is nearly out of AVAX, and the send through the shared nonce mutex.
+ *   2. `owner` joined that circle, which is Active and        5. simulate `USDC.permit`; a revert is accepted only when
+ *      where `owner` has debt (the only use of this route)       the allowance is already >= value (nothing is sent)
+ *   3. 0 < value <= 2 x requiredAllowance                    6. 10 requests/hour per owner, charged ONLY after step 5
+ * then the global hourly budget (shared with /api/relay, charged only for a permit that will be sent, so junk cannot
+ * lock honest members out, audit H-01), the hard stop when the relayer is nearly out of AVAX, and the send through
+ * the shared nonce mutex.
  */
-import type { PublicClient } from 'viem';
+import { BaseError, HttpRequestError, TimeoutError, type PublicClient } from 'viem';
 import { z } from 'zod';
 import { decodeError, huiCircleFullAbi, huiFactoryAbi, mockUsdcAbi } from 'sdk';
 import { clientIp, errorResponse, jsonResponse, readLimited, type Logger } from './http';
@@ -28,7 +30,6 @@ export const PERMIT_VALUE_FACTOR = 2n;
 const PERMIT_GAS = 150_000n;
 const MAX_BODY_BYTES = 4_096;
 
-const FORMING = 0;
 const ACTIVE = 1;
 
 const addr = z.string().regex(/^0x[0-9a-fA-F]{40}$/);
@@ -78,6 +79,11 @@ export interface RelayPermitDeps {
   log: Logger;
 }
 
+/** True when the failure is the RPC transport (network, timeout), not a revert of the contract call. */
+function isTransportError(e: unknown): boolean {
+  return e instanceof BaseError && e.walk((x) => x instanceof HttpRequestError || x instanceof TimeoutError) !== null;
+}
+
 export function createRelayPermitHandler(deps: RelayPermitDeps): (req: Request) => Promise<Response> {
   return async function POST(req: Request): Promise<Response> {
     const requestId = deps.requestId();
@@ -101,16 +107,6 @@ export function createRelayPermitHandler(deps: RelayPermitDeps): (req: Request) 
         'ip-limited',
       );
     }
-    const budget = deps.globalLimiter.take('all');
-    if (!budget.ok) {
-      return done(
-        errorResponse(503, 'RelayBusy', 'Dịch vụ miễn phí đang quá tải. Hãy thử lại sau ít phút.', {
-          'retry-after': String(budget.retryAfterSec),
-        }),
-        'global-budget',
-      );
-    }
-
     const raw = await readLimited(req, MAX_BODY_BYTES).catch(() => null);
     if (raw === null) return done(errorResponse(413, 'TooLarge', 'Yêu cầu quá lớn.'), 'too-large');
     let parsed;
@@ -147,15 +143,16 @@ export function createRelayPermitHandler(deps: RelayPermitDeps): (req: Request) 
         return done(errorResponse(403, 'TargetNotAllowed', 'Địa chỉ nhận quyền không phải một dây của HụiSafe.'), 'bad-spender');
       }
       const [info, state, requiredAllowance] = await Promise.all([
-        read<{ joined: boolean }>(permit.spender, huiCircleFullAbi, 'memberInfo', [permit.owner]),
+        read<{ joined: boolean; debt: bigint }>(permit.spender, huiCircleFullAbi, 'memberInfo', [permit.owner]),
         read<number>(permit.spender, huiCircleFullAbi, 'state'),
         read<bigint>(permit.spender, huiCircleFullAbi, 'requiredAllowance'),
       ]);
       if (!info.joined) {
         return done(errorResponse(403, 'NotAMember', 'Ví này không phải thành viên của dây.'), 'not-member');
       }
-      if (state !== FORMING && state !== ACTIVE) {
-        return done(errorResponse(409, 'WrongState', 'Dây không còn ở trạng thái cho phép cấp quyền.'), 'wrong-state');
+      // The route exists for payLate/repayDebt, which only an Active circle and a member with an open debt can use.
+      if (state !== ACTIVE || info.debt === 0n) {
+        return done(errorResponse(409, 'WrongState', 'Chỉ dây đang chạy và thành viên còn khoản thiếu mới cần cấp quyền này.'), 'wrong-state');
       }
       required = requiredAllowance;
     } catch {
@@ -187,6 +184,8 @@ export function createRelayPermitHandler(deps: RelayPermitDeps): (req: Request) 
         gas: PERMIT_GAS,
       });
     } catch (simError) {
+      // A node outage says nothing about the signature: do not tell the member to sign again (audit L-03).
+      if (isTransportError(simError)) return chainDown();
       let allowance: bigint;
       try {
         allowance = await read<bigint>(deps.usdc, mockUsdcAbi, 'allowance', [permit.owner, permit.spender]);
@@ -207,6 +206,16 @@ export function createRelayPermitHandler(deps: RelayPermitDeps): (req: Request) 
       return done(
         errorResponse(429, 'RateLimited', 'Bạn gửi quá nhiều yêu cầu. Hãy thử lại sau.', { 'retry-after': String(quota.retryAfterSec) }),
         'rate-limited',
+      );
+    }
+
+    const budget = deps.globalLimiter.take('all');
+    if (!budget.ok) {
+      return done(
+        errorResponse(503, 'RelayBusy', 'Dịch vụ miễn phí đang quá tải. Hãy thử lại sau ít phút.', {
+          'retry-after': String(budget.retryAfterSec),
+        }),
+        'global-budget',
       );
     }
 

@@ -373,35 +373,49 @@ async function ensureRepayAllowance(
   ctx: TxContext,
   circle: Address,
   view: CircleView,
-  nowSec: number,
+  /** Chain time plus the request lifetime: the permit is signed for this (late fees keep growing). */
+  nowWithMargin: number,
+  /** Chain time now: what is needed this very second, so a retry right after a permit does not sign another one. */
+  nowExact: number,
   opts: { round?: number; principal?: bigint },
 ): Promise<TxFailure | undefined> {
-  const q = repayPermitQuote(view, ctx.wallet.address, nowSec, opts);
-  const allowance = (await ctx.chain.client.readContract({
-    address: ctx.chain.usdc,
-    abi: mockUsdcAbi,
-    functionName: 'allowance',
-    args: [ctx.wallet.address, circle],
-  })) as bigint;
-  if (allowance >= q.value) return undefined;
+  const readAllowance = async (): Promise<bigint> =>
+    (await ctx.chain.client.readContract({
+      address: ctx.chain.usdc,
+      abi: mockUsdcAbi,
+      functionName: 'allowance',
+      args: [ctx.wallet.address, circle],
+    })) as bigint;
+
+  const needNow = repayPermitQuote(view, ctx.wallet.address, nowExact, opts);
+  if ((await readAllowance()) >= needNow.value) return undefined;
 
   let signed;
   try {
-    signed = await signRepayPermit(signCtx(ctx), ctx.chain.usdc, view, nowSec, opts, BigInt((await chainNow(ctx)) + REPAY_PERMIT_TTL_SEC));
+    signed = await signRepayPermit(signCtx(ctx), ctx.chain.usdc, view, nowWithMargin, opts, BigInt((await chainNow(ctx)) + REPAY_PERMIT_TTL_SEC));
   } catch {
     return fail('SignRejected', 'Ví không ký được hoặc bạn đã huỷ. Chưa có giao dịch nào được gửi.');
   }
   const sent = await relayPermit(ctx.fetchFn ?? defaultFetch, ctx.permitUrl ?? '/api/relay/permit', ctx.wallet.address, circle, signed.permit);
-  if (!sent.ok) return sent;
-  if (sent.txHash) {
+  let problem: TxFailure | undefined = sent.ok ? undefined : sent;
+  if (sent.ok && sent.txHash) {
     try {
       const receipt = await ctx.chain.client.waitForTransactionReceipt({ hash: sent.txHash });
-      if (receipt.status !== 'success') return fail('Reverted', 'Việc cấp quyền trích tiền bị từ chối trên mạng.');
+      if (receipt.status !== 'success') problem = fail('Reverted', 'Việc cấp quyền trích tiền bị từ chối trên mạng.');
     } catch (e) {
-      return fail(decodeError(e).code, 'Đã gửi yêu cầu cấp quyền nhưng chưa xác nhận được. Hãy tải lại trang rồi thử lại.');
+      problem = fail(decodeError(e).code, 'Đã gửi yêu cầu cấp quyền nhưng chưa xác nhận được. Hãy tải lại trang rồi thử lại.');
     }
   }
-  return undefined;
+  if (!problem) return undefined;
+  // The chain decides, not the transport (audit M-01): somebody may have front-run the very same permit (our
+  // transaction then reverts although the allowance is set), or the relay may have answered late. When the allowance
+  // already covers this payment, go on; otherwise report why the permit failed.
+  try {
+    if ((await readAllowance()) >= needNow.quote.total) return undefined;
+  } catch {
+    /* keep the original problem */
+  }
+  return problem;
 }
 
 /** Pay a late contribution inside the grace period: principal of that round plus late fee. No `approve` needed. */
@@ -413,12 +427,12 @@ async function payLateInner(ctx: TxContext, circle: Address, round: number): Pro
   const bad = guard(ctx);
   if (bad) return bad;
   const view = await viewOf(ctx, circle);
-  const nowSec = (await chainNow(ctx)) + QUOTE_MARGIN_SEC;
+  const nowExact = await chainNow(ctx);
   const opts = { round };
-  if (repayPermitQuote(view, ctx.wallet.address, nowSec, opts).quote.principal === 0n) {
+  if (repayPermitQuote(view, ctx.wallet.address, nowExact, opts).quote.principal === 0n) {
     return fail('NoShortfall', 'Không có khoản thiếu nào cần xử lý ở kỳ này.');
   }
-  const short = await ensureRepayAllowance(ctx, circle, view, nowSec, opts);
+  const short = await ensureRepayAllowance(ctx, circle, view, nowExact + QUOTE_MARGIN_SEC, nowExact, opts);
   if (short) return short;
   return circleCall(ctx, circle, 'payLate', [round], GAS.repay);
 }
@@ -435,8 +449,8 @@ async function repayDebtInner(ctx: TxContext, circle: Address, principal: bigint
   const view = await viewOf(ctx, circle);
   const owed = repayPermitQuote(view, ctx.wallet.address, 0).quote;
   if (principal > owed.principal) return fail('RepayTooLarge', `Số tiền trả vượt quá khoản còn nợ (${formatUsdc(owed.principal)}).`);
-  const nowSec = (await chainNow(ctx)) + QUOTE_MARGIN_SEC;
-  const short = await ensureRepayAllowance(ctx, circle, view, nowSec, { principal });
+  const nowExact = await chainNow(ctx);
+  const short = await ensureRepayAllowance(ctx, circle, view, nowExact + QUOTE_MARGIN_SEC, nowExact, { principal });
   if (short) return short;
   return circleCall(ctx, circle, 'repayDebt', [principal], GAS.repay);
 }

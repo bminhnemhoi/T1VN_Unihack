@@ -144,16 +144,6 @@ export function createRelayHandler(deps: RelayDeps): (req: Request) => Promise<R
         'ip-limited',
       );
     }
-    const budget = deps.globalLimiter.take('all');
-    if (!budget.ok) {
-      return done(
-        errorResponse(503, 'RelayBusy', 'Dịch vụ miễn phí đang quá tải. Hãy thử lại sau ít phút.', {
-          'retry-after': String(budget.retryAfterSec),
-        }),
-        'global-budget',
-      );
-    }
-
     const raw = await readLimited(req, MAX_BODY_BYTES).catch(() => null);
     if (raw === null) return done(errorResponse(413, 'TooLarge', 'Yêu cầu quá lớn.'), 'too-large');
     let parsed;
@@ -301,6 +291,18 @@ export function createRelayHandler(deps: RelayDeps): (req: Request) => Promise<R
       }
       fields.error = decoded.code;
       return done(errorResponse(422, decoded.code, decoded.message), 'simulation-reverted');
+    }
+
+    // Global hourly budget for the relayer's gas: charged only for a request that passed every check and would be
+    // sent, so junk (bad bodies, bad signatures) cannot exhaust it and lock honest members out (audit H-01).
+    const budget = deps.globalLimiter.take('all');
+    if (!budget.ok) {
+      return done(
+        errorResponse(503, 'RelayBusy', 'Dịch vụ miễn phí đang quá tải. Hãy thử lại sau ít phút.', {
+          'retry-after': String(budget.retryAfterSec),
+        }),
+        'global-budget',
+      );
     }
 
     // Hard stop when the relayer cannot pay for gas; warn (log only) below 0.02 AVAX after a send.

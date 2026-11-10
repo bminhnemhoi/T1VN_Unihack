@@ -4,7 +4,7 @@
  * only and never carry a `NEXT_PUBLIC_` prefix. Handlers are built lazily on first request, so `next build` and
  * unit tests never need the variables; a missing variable becomes a 503 that names the variable in the log only.
  */
-import { createWalletClient, http, fallback, type Hex } from 'viem';
+import { createWalletClient, http, fallback, nonceManager, type Hex } from 'viem';
 import { privateKeyToAccount } from 'viem/accounts';
 import { NetworkError, resolveNetwork } from 'config/network';
 import { huiFactoryAbi, erc2771ForwarderAbi, mockUsdcAbi } from 'sdk';
@@ -89,14 +89,19 @@ interface RelayShared {
  * Relayer wallet, chain client, nonce mutex and the IP/global budgets, built once per process and shared by
  * /api/relay and /api/relay/permit: one account pays for both, so one nonce sequence and one gas budget.
  */
-const sharedByEnv = new WeakMap<Env, Promise<RelayShared>>();
+const SHARED_KEY = Symbol.for('huisafe.relayShared');
+type SharedHolder = { [SHARED_KEY]?: WeakMap<Env, Promise<RelayShared>> };
 function relayShared(env: Env): Promise<RelayShared> {
+  // Kept on globalThis so the two route bundles of one Node process see ONE mutex and ONE set of budgets (audit L-02).
+  const holder = globalThis as SharedHolder;
+  const sharedByEnv = (holder[SHARED_KEY] ??= new WeakMap());
   let p = sharedByEnv.get(env);
   if (!p) {
     p = (async (): Promise<RelayShared> => {
       const network = resolveNetwork(env);
       const deployment = loadDeployment(network);
-      const account = privateKeyToAccount(requireKey(env, 'RELAYER_PRIVATE_KEY'));
+      // nonceManager: the relayer's nonce counter lives in this process, so a flaky RPC fallback cannot hand out a stale one.
+      const account = privateKeyToAccount(requireKey(env, 'RELAYER_PRIVATE_KEY'), { nonceManager });
       const publicClient = makePublicClient(network);
       await assertChainId(publicClient, network.chainId);
       const transports = network.rpcUrls.map((u) => http(u));

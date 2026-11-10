@@ -45,12 +45,13 @@ beforeEach(() => {
 
 type Call = { url: string; body: Record<string, unknown> };
 
-function setup(allowance: bigint, fetchOver?: FetchLike) {
+function setup(allowance: bigint, fetchOver?: FetchLike, afterPermit?: { allowance: bigint; receipt: 'success' | 'reverted' }) {
+  let current = allowance;
   const calls: Call[] = [];
   const waited: string[] = [];
   const client = {
     async readContract({ functionName }: { functionName: string }) {
-      if (functionName === 'allowance') return allowance;
+      if (functionName === 'allowance') return current;
       if (functionName === 'nonces') return 0n;
       if (functionName === 'name') return 'USDC';
       if (functionName === 'version') return '2';
@@ -63,6 +64,10 @@ function setup(allowance: bigint, fetchOver?: FetchLike) {
     },
     async waitForTransactionReceipt({ hash }: { hash: string }) {
       waited.push(hash);
+      if (afterPermit && hash === PERMIT_HASH) {
+        current = afterPermit.allowance; // the permit (ours or a front-runner's) took effect
+        return { status: afterPermit.receipt, blockNumber: 7n, gasUsed: 100n, logs: [] };
+      }
       return { status: 'success', blockNumber: 7n, gasUsed: 100n, logs: [] };
     },
   };
@@ -140,6 +145,50 @@ describe('payLate without approve (M-02)', () => {
     const { ctx, calls } = setup(0n);
     expect(await payLate(ctx, CIRCLE, 3)).toMatchObject({ ok: false, code: 'NoShortfall' });
     expect(calls).toHaveLength(0);
+  });
+});
+
+describe('the chain decides, not the transport (audit M-01)', () => {
+  it('our permit transaction reverted because somebody front-ran it, but the allowance is set: payLate still goes', async () => {
+    const { ctx, calls } = setup(1n * U, undefined, { allowance: 100n * U, receipt: 'reverted' });
+    expect((await payLate(ctx, CIRCLE, 2)).ok).toBe(true);
+    expect(calls.map((c) => c.url)).toEqual(['/api/relay/permit', '/api/relay']);
+  });
+
+  it('the relay refused the permit (429) but the allowance already covers the payment: payLate still goes', async () => {
+    const { ctx } = setup(1n * U);
+    let n = 0;
+    const urls: string[] = [];
+    const r = await payLate(
+      {
+        ...ctx,
+        chain: {
+          ...ctx.chain,
+          client: {
+            ...ctx.chain.client,
+            // allowance is low for the first check and enough once the permit call failed
+            readContract: async (a: { functionName: string }) => (a.functionName === 'allowance' ? (++n === 1 ? 1n * U : 100n * U) : (ctx.chain.client.readContract as (x: unknown) => unknown)(a)),
+          },
+        } as never,
+        fetchFn: async (url) => {
+          urls.push(url);
+          return url.endsWith('/permit')
+            ? new Response(JSON.stringify({ error: { code: 'RateLimited', message: 'x' } }), { status: 429 })
+            : new Response(JSON.stringify({ txHash: HASH }), { status: 200 });
+        },
+      },
+      CIRCLE,
+      2,
+    );
+    expect(r.ok).toBe(true);
+    expect(urls).toEqual(['/api/relay/permit', '/api/relay']);
+  });
+
+  it('a retry right after a successful permit does not sign a second one (fees grew by a few seconds only)', async () => {
+    const { ctx, calls } = setup(1n * U, undefined, { allowance: 45n * U, receipt: 'success' });
+    expect((await payLate(ctx, CIRCLE, 2)).ok).toBe(true);
+    expect((await payLate(ctx, CIRCLE, 2)).ok).toBe(true);
+    expect(calls.filter((c) => c.url.endsWith('/permit'))).toHaveLength(1);
   });
 });
 
