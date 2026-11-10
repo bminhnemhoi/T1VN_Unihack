@@ -1,112 +1,142 @@
-# Bộ tài liệu triển khai HụiSafe
+# HụiSafe
 
-Phiên bản 1.1, ngày 06/11/2026. Dự án dự thi Team1 Vietnam UniHack 2026 (Avalanche). Hạn nộp: 23:59 thứ Bảy 21/11/2026; mục tiêu nộp: tối 20/11.
+NHÁP chờ Towfienes duyệt (B14). Số liệu trong file này lấy từ lệnh đã chạy ngày 10 đến 11/11/2026 hoặc từ `contracts/deployments/fuji.json`; chỗ nào là giả định đều ghi rõ.
 
-Bộ tài liệu này đủ để một đội 3 người cùng AI lập trình (Claude Code) dựng HụiSafe từ con số không đến bài nộp. Gồm:
+**Chủ hụi không cầm tiền, nhưng vẫn phải bảo lãnh.**
 
-- Đặc tả sản phẩm, đặc tả giao thức, kiến trúc, cấu trúc dữ liệu.
-- Phần Avalanche, AI agentic, phòng mô phỏng, kiểm thử và bảo mật.
-- Pháp lý, kế hoạch, pitch, tài liệu tham khảo.
-- Bộ cấu hình Claude Code dùng ngay: `CLAUDE.md`, skill, subagent, lệnh, hook, settings.
+HụiSafe là hụi bỏ thăm (ROSCA đấu thăm) chạy bằng smart contract trên Avalanche Fuji C-Chain (chainId 43113), dự thi Team1 Vietnam UniHack 2026, track Social finance. Tiền nằm trong ví từng thành viên cho đến lúc chi: lúc vào dây thành viên ký một lần (EIP-2612 `permit`), đến hạn `settleRound()` kéo tiền góp bằng `transferFrom` và chi cho người hốt trong cùng một giao dịch. Chủ hụi không giữ tiền của ai, nhưng phải ký quỹ bảo lãnh; người hốt sớm bị giữ lại một phần tiền hốt; có quỹ dự phòng nhỏ. Các quy định của Nghị định 19/2019/NĐ-CP (trần lãi, lãi chậm góp, ngưỡng thông báo UBND cấp xã) chạy trong code. Người dùng đăng nhập bằng ví nhúng Privy và không trả gas nhờ meta-transaction ERC-2771 qua relayer.
 
-Thư mục được sắp đúng như gốc repo, nên chỉ cần chép vào là dùng.
+Hai câu cam kết, đúng như đặc tả (docs/03 mục 7.3):
 
----
+- "Chỉ số bảo chứng 100% nghĩa là ký quỹ chịu được cú sốc lớn nhất: mọi người đã hốt cùng bỏ đóng một lúc."
+- "Cọc 100% chặn được chủ hụi dùng một ví ảo: làm vậy chủ hụi tự lỗ. Dùng nhiều ví ảo thì bị chặn bằng xác thực mỗi người một tài khoản (OTP, attestation), và mọi người thấy trước rủi ro tối đa của mình."
 
-## 1. Cách dùng trong 5 bước
+## Khai báo chế độ demo
 
-1. **Chép vào repo.** Chép toàn bộ nội dung thư mục này vào gốc repo `Towfienes/T1VN_Unihack`, giữ nguyên `CLAUDE.md`, `.claude/` và `docs/`. Chuyển file cũ `docs/MASTER_RESEARCH_REPORT.md` vào `docs/archive/`; file đó có nhiều chỗ sai, xem mục 6. Commit một lần: `docs: add HuiSafe implementation pack v1.1`.
-2. **Cài Claude Code** và mở trong thư mục repo. Đọc [docs/ai-workflow/01-thiet-lap-claude-code.md](docs/ai-workflow/01-thiet-lap-claude-code.md) để bật hook, quyền và MCP. Cấp quyền chạy cho các script hook: `chmod +x .claude/hooks/*.sh`.
-3. **Chạy prompt khởi động** ở mục 2, rồi đi lần lượt từng mốc theo [docs/ai-workflow/02-prompt-playbook.md](docs/ai-workflow/02-prompt-playbook.md).
-4. **Giữ tài liệu là nguồn sự thật.** Muốn đổi luật vận hành: sửa `docs/03` trước, rồi `docs/05`, rồi test, rồi mới đến code. Claude Code được dặn làm đúng thứ tự này trong `CLAUDE.md`.
-5. **Trước khi nộp:** chạy `/demo-check` và đi hết checklist trong [docs/11-ke-hoach-trien-khai.md](docs/11-ke-hoach-trien-khai.md).
+Đọc ở đầu mọi buổi trình bày (docs/12 mục 1): "Trước khi bắt đầu, chúng em xin khai báo dev toggle: bản demo chạy ở chế độ demo trên Avalanche Fuji testnet. Thời gian được tua nhanh: mỗi kỳ hụi 3 phút thay vì 30 ngày, ân hạn 2 phút thay vì 48 giờ; trần lãi và lãi chậm góp vẫn tính như kỳ 30 ngày. Tiền trong demo là USDC thử nghiệm, không có giá trị, và sản phẩm không sinh lãi."
 
-## 2. Prompt khởi động (dán vào Claude Code)
+Chỉ có USDC testnet. Không nhận tiền thật, không có token, không có dữ liệu cá nhân trên chuỗi (chỉ địa chỉ ví và mã băm).
 
-`CLAUDE.md` tự nạp kèm `docs/03` và `docs/05`, nên không cần bảo Claude đọc lại hai file đó. Cách nhanh nhất là gõ `/plan-milestone M0`. Nếu muốn mở đầu bằng lời, dán prompt sau:
+## Kiến trúc
 
-```text
-Bạn là kỹ sư chính của dự án HụiSafe. CLAUDE.md, docs/03 và docs/05 đã được nạp sẵn.
-Đọc thêm docs/00-tong-quan.md, docs/04-kien-truc.md mục 4 (cây thư mục) và mục 5 (pipeline, CI),
-docs/11-ke-hoach-trien-khai.md mục 1, 3 và 4.
-Sau đó vào plan mode và lập kế hoạch cho mốc M0: setup monorepo (Foundry, pnpm workspaces,
-Next.js, sim Python, CI, deployments rỗng). Liệt kê file sẽ tạo và lệnh kiểm tra.
-Chưa viết code cho tới khi tôi duyệt kế hoạch.
-Mọi luật vận hành phải khớp docs/03; mọi tên hàm, struct, event, lỗi phải khớp docs/05.
+```mermaid
+flowchart LR
+    U["Thành viên và chủ hụi<br/>(ví nhúng Privy)"] -->|"ký EIP-712: permit, vào dây, thăm"| W["apps/web<br/>Next.js 15"]
+    W -->|"forward request đã ký"| R["/api/relay<br/>relayer trả gas"]
+    W -->|"attestation: một người một ví"| A["/api/attest"]
+    W -->|"hỏi đáp, chỉ đọc và tính"| AI["/api/copilot<br/>trợ lý, không ký, không chuyển tiền"]
+    R --> F["ERC2771Forwarder"]
+    F --> C["HuiCircle (clone EIP-1167)<br/>settleRound: kéo và chi trong 1 giao dịch"]
+    FA["HuiFactory"] -->|"tạo clone"| C
+    C --> REP["ReputationRegistry"]
+    K["apps/keeper<br/>settleRound, markDefault, finalize, cancel"] --> C
+    C --> USDC["USDC (Circle) trên Fuji"]
+    SIM["sim/ (Python)<br/>mô phỏng, vector HuiMath"] -.->|"vector khớp từng đơn vị"| C
 ```
 
-## 3. Thứ tự đọc theo vai trò
+Thư mục (pnpm workspaces): `contracts/` (Foundry), `packages/sdk` (ABI sinh bằng `@wagmi/cli`, đọc và ghi, typed data, `huiMath.ts`), `packages/config` (chain, địa chỉ, hằng số), `apps/web`, `apps/keeper`, `sim/`, `tools/hui-economics` (máy tính dòng tiền đối chiếu), `docs/`.
 
-| Vai trò | Đọc theo thứ tự |
+## Địa chỉ trên Avalanche Fuji
+
+Đọc từ `contracts/deployments/fuji.json` (deploy 10/11/2026, commit `494e923`, block 60843937). Admin của factory là Safe 2/3, không có hàm rút tiền người dùng. Trang verify mã nguồn: `docs/DEPLOY-FUJI.md` ghi 5/5 contract đã verify trên Routescan; trạng thái hiển thị trên Snowtrace chưa kiểm lại.
+
+| Thành phần | Địa chỉ |
 |---|---|
-| Trưởng nhóm / điều phối | 00 → 11 → 02 → 12 → 10 |
-| Người làm contract (P1) | 00 → 03 → 05 → 09 → 06 → `.claude/skills/hui-protocol`, `foundry-fuji` |
-| Người làm frontend, ví, relayer, keeper (P2) | 00 → 02 → 04 → 05 → 06 → `.claude/skills/web3-frontend` |
-| Người làm mô phỏng, AI, pitch (P3) | 00 → 01 → 08 → 07 → 12 → 10 |
-| AI (Claude Code) | `CLAUDE.md` tự nạp cùng `docs/03` và `docs/05` (dẫn bằng `@`); các file khác chỉ mở khi cần, theo danh sách trong `CLAUDE.md` |
+| HuiFactory | [`0x5004477143F8Db65f80992A0BD79c1DAb75C8b21`](https://testnet.snowtrace.io/address/0x5004477143F8Db65f80992A0BD79c1DAb75C8b21) |
+| ReputationRegistry | [`0xf8F05aa2804144F5aC71485614480f801927E5c3`](https://testnet.snowtrace.io/address/0xf8F05aa2804144F5aC71485614480f801927E5c3) |
+| ERC2771Forwarder | [`0x789621cFD56Cc79ec47eF6C449B6C53c40516b2C`](https://testnet.snowtrace.io/address/0x789621cFD56Cc79ec47eF6C449B6C53c40516b2C) |
+| HuiCircle (implementation) | [`0x3A72591e0d451802F051789497eD5f2B2256673d`](https://testnet.snowtrace.io/address/0x3A72591e0d451802F051789497eD5f2B2256673d) |
+| HuiCircleLens | [`0xb4Ebda56d43db9e629C1FD6b226ac828BE0637a6`](https://testnet.snowtrace.io/address/0xb4Ebda56d43db9e629C1FD6b226ac828BE0637a6) |
+| Admin (Safe 2/3) | [`0xc7BeE5Cc787833C8Fd76b9066d334Ab131E7c3F5`](https://testnet.snowtrace.io/address/0xc7BeE5Cc787833C8Fd76b9066d334Ab131E7c3F5) |
+| Attester | [`0x112bda0e04AdB60E6e6d2039498aE1B66a1b95B9`](https://testnet.snowtrace.io/address/0x112bda0e04AdB60E6e6d2039498aE1B66a1b95B9) |
+| Relayer | [`0x6C03fDfD5aB26Aea68878a62942E9E80811055DB`](https://testnet.snowtrace.io/address/0x6C03fDfD5aB26Aea68878a62942E9E80811055DB) |
+| USDC (Circle) | [`0x5425890298aed601595a70AB815c96711a31Bc65`](https://testnet.snowtrace.io/address/0x5425890298aed601595a70AB815c96711a31Bc65) |
 
-## 4. Bản đồ file
+Mỗi dây là một clone riêng, địa chỉ lấy từ `HuiFactory.allCircles()`.
+
+## Chạy thử
+
+Yêu cầu: Node 22 hoặc mới hơn với pnpm, Foundry, Python 3.11 hoặc mới hơn. Biến môi trường chỉ cần cho web và keeper: chép `.env.example` thành `.env.local` rồi tự điền (không bao giờ commit; `.env.example` chỉ có tên biến).
+
+```bash
+pnpm install
+pnpm -r build && pnpm -r lint && pnpm -r typecheck
+```
+
+**Trên anvil (máy mình, không tốn gì):**
+
+```bash
+# kiểm toàn bộ luồng bằng anvil: deploy, tạo dây, vào dây, thăm, chốt kỳ, trả trễ
+pnpm --filter web e2e:anvil
+# để tự bấm: dựng anvil và hai route API giả lập Privy, giữ chạy (đọc đầu file để biết cách nối web)
+pnpm --filter web exec tsx scripts/anvil-playground.ts
+HUISAFE_NETWORK=anvil pnpm --filter web exec next dev -p 3300
+```
+
+Chưa có `contracts/deployments/<mạng>.json` thì web chạy chế độ dữ liệu mẫu (có dải báo "dữ liệu mẫu").
+
+**Trên Fuji (testnet thật):** đọc `docs/DEPLOY-FUJI.md`. Deploy và verify chỉ qua lệnh `forge script script/Deploy.s.sol --rpc-url fuji --broadcast --verify` với người duyệt từng lệnh broadcast; không bao giờ broadcast lên mainnet (43114). Sau khi đã có `fuji.json`:
+
+```bash
+pnpm --filter web dev          # web đọc dây thật từ Fuji (HUISAFE_NETWORK mặc định là fuji)
+pnpm --filter keeper start     # keeper gọi settleRound, markDefault, finalize, cancel khi đến hạn
+```
+
+**Mô phỏng:**
+
+```bash
+cd sim
+python -m huisim.cli run --scenario baseline --seed 42
+python -m huisim.cli run --scenario organizer_economics --seed 42   # lời của chủ hụi theo hoa hồng (docs/08 mục 2.7)
+python -m huisim.cli run --scenario organizer_sybil --seed 42       # chủ hụi dùng 1 hoặc 2 ví ảo
+```
+
+## Lệnh kiểm thử và kết quả
+
+Số liệu đo ngày 10 đến 11/11/2026 trên nhánh `Towfienes/sim-ai` (sau B13), máy của người làm.
+
+| Lệnh | Kết quả |
+|---|---|
+| `cd contracts && forge test` | 617 test đạt, 0 lỗi (463 unit, 36 fuzz, 54 invariant, phần còn lại là integration, gas, fork) |
+| `forge test --match-path "test/invariant/*"` | 54 đạt (bất biến tiền INV-01..INV-09, INV-11..INV-13; INV-10 kiểm tĩnh ở CI) |
+| `pnpm -r test` | sdk 101, web 316, keeper 14, config 10: đều đạt |
+| `pnpm -r lint` và `pnpm -r typecheck` | sạch |
+| `pnpm --filter web test:e2e` (Playwright, gồm kiểm axe về khả năng truy cập; mobile 390 và desktop 1440) | 335 đạt, 7 bỏ qua có chủ đích (test bàn phím chỉ chạy trên desktop) |
+| `pnpm --filter web e2e:anvil` | 106 kiểm tra đạt |
+| `cd sim && pytest` | 71 đạt; `mypy --strict` sạch |
+| Eval trợ lý, chế độ mock (`lib/copilot/evals/run.ts --mode mock`) | 33/33 ca đạt. Đây là kịch bản viết tay để kiểm tool, bộ kiểm đầu ra và cách chấm, KHÔNG phải số đo mô hình thật; eval với mô hình thật chưa chạy |
+
+Slither mức cao và audit nội bộ: xem `docs/TIEN-DO.md` (0 Critical, High, Medium theo rà soát nội bộ của nhóm, không phải audit độc lập).
+
+## Giới hạn đã biết
+
+- Mọi thứ chỉ chạy trên Fuji testnet với USDC thử nghiệm. Tiền mã hóa không phải phương tiện thanh toán hợp pháp ở Việt Nam, nên bản thật cần chế độ VND và ý kiến luật sư (docs/10).
+- Chỉ số bảo chứng 100% bảo vệ trước cú sốc đồng thời lớn nhất (mọi người đã hốt cùng bỏ đóng một lúc). Nếu người đã hốt bỏ đóng lần lượt, kỳ này sang kỳ khác, tổng khoản thiếu có thể vượt ký quỹ: đã khóa bằng test và mô phỏng (docs/03 mục 7.3).
+- Một chủ hụi dùng nhiều ví ảo thì cọc không chặn được; phải chặn bằng xác thực mỗi người một tài khoản. Hiện attestation chỉ là một ví một tài khoản đăng nhập, chưa thu giấy tờ nên chưa chống được người tạo nhiều tài khoản.
+- Công thức trần thăm (NĐ 19 Điều 21), chia hòa tất định thay bốc thăm (Điều 20) và việc hoa hồng nằm trong trần lãi là cách hiểu của HụiSafe, cần luật sư xác nhận.
+- Kết quả mô phỏng dựa trên giả định về tỷ lệ bỏ đóng (lấy cảm hứng từ Klonner & Rai 2008) và thăm 50% trần; đó là so sánh giữa các thiết kế, không phải dự báo (docs/08 mục 9).
+- Chưa có: lãi trên ký quỹ (sản phẩm không sinh lãi), passkey, chế độ VND, mainnet, thử nghiệm với người dùng thật, eval trợ lý với mô hình thật, audit độc lập.
+- Giao diện B10 đến B12 chờ người duyệt (docs/TIEN-DO.md).
+
+## Lộ trình (kế hoạch, chưa cam kết)
+
+1. Thử testnet với 3 đến 5 nhóm, ghi lại phát hiện và sửa (12/2026).
+2. Ý kiến luật sư về Điều 14, 20, 21 và vai trò hoa hồng; chế độ VND.
+3. L1 riêng cho từng hội, ví passkey, mainnet sau Safe multisig; kiều bào chỉ sau khi có ý kiến pháp lý ở nước sở tại.
+
+## Tài liệu
+
+Nguồn sự thật: [docs/03-dac-ta-giao-thuc.md](docs/03-dac-ta-giao-thuc.md) (luật, công thức, bất biến) và [docs/05-cau-truc-du-lieu-va-api.md](docs/05-cau-truc-du-lieu-va-api.md) (tên hàm, event, lỗi, API). Code mâu thuẫn với tài liệu thì tài liệu thắng; muốn đổi luật thì sửa 03, rồi 05, rồi mới sửa code và test.
 
 | File | Nội dung |
 |---|---|
-| `CLAUDE.md` | Bộ nhớ dự án cho Claude Code: tổng quan, lệnh, quy ước, luật cứng, quy trình, định nghĩa xong |
-| `docs/00-tong-quan.md` | Một trang tổng quan |
-| `docs/01-nghien-cuu-nen-tang.md` | Kinh tế học ROSCA, vụ vỡ hụi, dự án trước, phương pháp SOTA, cơ hội viết paper |
-| `docs/02-dac-ta-san-pham.md` | PRD: persona, user story có tiêu chí nghiệm thu, màn hình, phạm vi |
-| `docs/03-dac-ta-giao-thuc.md` | **Nguồn sự thật**: ký hiệu, công thức, vòng đời, từng bước một kỳ, thác bù, bất biến, ví dụ số |
-| `docs/04-kien-truc.md` | Kiến trúc C4, sơ đồ tuần tự, cây thư mục, pipeline, ADR, yêu cầu phi chức năng |
-| `docs/05-cau-truc-du-lieu-va-api.md` | **Nguồn sự thật**: struct, interface, event, lỗi, EIP-712, SDK, API, keeper, sổ họ, schema mô phỏng, tool của trợ lý |
-| `docs/06-avalanche-va-blockchain.md` | Fuji, USDC, phí, chuẩn EIP/ERC, deploy và verify, kế hoạch L1 bonus |
-| `docs/07-ai-agentic.md` | Trợ lý chủ hụi, guardrail, bộ eval, bot nhắc hụi |
-| `docs/08-phong-mo-phong.md` | Mô hình mô phỏng, thí nghiệm, chỉ số, cách dùng kết quả |
-| `docs/09-kiem-thu-va-bao-mat.md` | Unit, fuzz, invariant, differential test, Slither, threat model, checklist |
-| `docs/10-phap-ly-va-tuan-thu.md` | Nghị định 19, luật tiền mã hóa, dữ liệu cá nhân, câu nói khi pitch |
-| `docs/11-ke-hoach-trien-khai.md` | Mốc, lịch từng ngày, phân việc, rủi ro, danh sách cắt giảm, checklist nộp |
-| `docs/12-pitch-demo-nop-bai.md` | Slide, kịch bản demo, video, nội dung form nộp, chuẩn bị hỏi đáp |
-| `docs/13-tai-lieu-tham-khao.md` | Toàn bộ nguồn, có link |
-| `docs/ai-workflow/01-thiet-lap-claude-code.md` | Cài đặt, settings, hook, MCP, plugin, quản lý ngữ cảnh |
-| `docs/ai-workflow/02-prompt-playbook.md` | Prompt dán sẵn cho từng mốc M0 đến M7 |
-| `docs/ai-workflow/03-quy-trinh-lam-viec.md` | Nhánh, PR, vòng review với subagent, CI, nhịp làm việc |
-| `.claude/settings.json` | Quyền và hook |
-| `.claude/hooks/` | Script hook: chặn đọc/ghi file bí mật, chặn broadcast ngoài Fuji, tự format và build file .sol, in mốc và việc hôm nay khi mở phiên. `test-hooks.sh` tự kiểm cả bộ (`bash .claude/hooks/test-hooks.sh`, cần `jq`) |
-| `.claude/skills/` | Kiến thức chuyên môn: `hui-protocol`, `foundry-fuji`, `web3-frontend`, `vn-legal-pitch` |
-| `.claude/agents/` | Subagent: `solidity-engineer`, `test-engineer`, `security-auditor`, `frontend-engineer`, `simulation-analyst`, `pitch-writer` |
-| `.claude/commands/` | Lệnh: `/plan-milestone`, `/implement`, `/audit`, `/deploy-fuji`, `/demo-check`, `/sync-abi` |
+| `docs/00-tong-quan.md`, `docs/02-dac-ta-san-pham.md` | Tổng quan, PRD, các màn S01 đến S16 |
+| `docs/04-kien-truc.md` | Kiến trúc, ADR, gas, biến môi trường, sự cố |
+| `docs/06-avalanche-va-blockchain.md` | Fuji, USDC, phí, deploy |
+| `docs/07-ai-agentic.md`, `docs/08-phong-mo-phong.md` | Trợ lý chủ hụi, eval, phòng mô phỏng |
+| `docs/09-kiem-thu-va-bao-mat.md`, `docs/10-phap-ly-va-tuan-thu.md` | Kiểm thử, bảo mật, pháp lý |
+| `docs/12-pitch-demo-nop-bai.md`, `docs/pitch/` | Pitch, kịch bản demo, bản nháp form nộp bài |
+| `docs/DEPLOY-FUJI.md`, `docs/TIEN-DO.md` | Runbook deploy, tiến độ |
+| `CLAUDE.md`, `.claude/` | Cấu hình cho Claude Code (luật cứng, subagent, hook) |
 
-Thứ bậc khi có mâu thuẫn: `docs/03` > `docs/05` > `docs/04` > các file còn lại. `CLAUDE.md` và skill chỉ tóm tắt và dẫn về các file này.
-
-## 5. Phải kiểm tra lại trước khi code
-
-| Việc | Vì sao | Ở đâu |
-|---|---|---|
-| Địa chỉ USDC trên Fuji `0x5425890298aed601595a70AB815c96711a31Bc65` | Lấy từ tài liệu Avalanche và Circle; cần đối chiếu lần cuối | developers.circle.com, `docs/06` |
-| `name()` và `version()` của USDC cho permit | Không hard-code domain EIP-712 | `docs/05` mục 5.2 |
-| API `ERC2771Forwarder` của đúng phiên bản OpenZeppelin đã cài | Tên trường và typehash có thể khác giữa các bản | `docs/05` mục 5.3 |
-| URL verify contract trên Snowtrace/Routescan | Định dạng có thể đổi | `docs/06` |
-| Diễn giải trần lãi (Điều 21) và quy tắc chia hòa thay bốc thăm (Điều 20-21) | Cần luật sư hoặc mentor xác nhận | `docs/10` |
-| Phiên bản Claude Code và định dạng hook | Claude Code cập nhật thường xuyên; hook mới được thử bằng JSON mẫu, chưa chạy trong phiên thật | `docs/ai-workflow/01` |
-| Hook của repo có chạy trên runner GitHub Actions không | Chưa thử; CI không được dựa vào hook để chặn lỗi | `docs/ai-workflow/01` mục 15 |
-| Cấu hình Privy tự tạo ví (`embeddedWallets.ethereum.createOnLogin`) | Tên khóa khác giữa các bản SDK | `.claude/skills/web3-frontend` |
-
-## 6. Điểm khác so với tài liệu trước của nhóm
-
-So với `docs/MASTER_RESEARCH_REPORT.md` (Gemini viết):
-
-- **YieldGO không nên là lựa chọn số 1.** BTC xếp độ khó 5/5 và đã có đội làm.
-- **Không làm tokenomics để niêm yết.** Luật cuộc thi cấm bán token cho công chúng.
-- **Không có gì bảo đảm "L1 + ICM ăn trọn 25/25".**
-- **Không dùng Avalanche-CLI.** Công cụ này chỉ còn chế độ bảo trì từ 12/2025; dùng Builder Console.
-- **Dev toggle phải khai báo ngay đầu buổi pitch.**
-
-So với bản phân tích top 5 ý tưởng trước đó:
-
-- **Thang 25 điểm Avalanche Integration có chia 5 phần × 5 điểm**, ghi trong `topics.json`.
-- **Demo x402 và Privy của BTC tải được dạng ZIP** ở trang demos, chỉ là không có repo GitHub.
-- **Đổi lựa chọn ví.** Không dùng ví passkey ERC-4337 làm chính nữa, vì BTC dặn không tự build ERC-4337 và C-Chain chưa có EIP-7702. Thay bằng ví nhúng Privy cộng meta-transaction ERC-2771; passkey chỉ là bonus.
-- **Mục tiêu nộp dời sang 20/11**, để 21/11 làm ngày dự phòng.
-
-## 7. Ghi chú
-
-- Mọi nội dung pháp lý là tổng hợp nghiên cứu, không phải tư vấn pháp lý.
-- Số liệu mô phỏng trong tài liệu là chỗ trống cho tới khi đội chạy phòng mô phỏng; không đưa số chưa chạy vào slide.
-- Ngẫu nhiên chỉ dùng trong mô phỏng ngoại tuyến (có seed) và để sinh salt giữ bí mật thăm. Sản phẩm không dùng ngẫu nhiên để chia tiền hay chọn người hốt.
+Quy ước: code, tên biến, commit message bằng tiếng Anh; tài liệu và giao diện bằng tiếng Việt. Commit theo Conventional Commits.
