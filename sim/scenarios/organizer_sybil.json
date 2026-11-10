@@ -1,0 +1,17 @@
+{
+  "id": "organizer_sybil",
+  "kind": "organizer_sybil",
+  "seed": 42,
+  "N": 5,
+  "C": 100,
+  "periodDays": 30,
+  "alphaBps": 2000,
+  "feeBps": 100,
+  "reserveBps": 100,
+  "cases": [
+    { "label": "1 ví ảo, CI 100%", "wallets": 1, "bondBps": 8000 },
+    { "label": "2 ví ảo, CI 100%", "wallets": 2, "bondBps": 8000 },
+    { "label": "1 ví ảo, CI 50% (luật v1.1)", "wallets": 1, "bondBps": 3000 }
+  ],
+  "assumptions": "The organizer's wallets win the first rounds bidding the ceiling and stop paying right after; the other members are honest and do not bid. Fixed 1% fee (phi = 0) as in docs/03 section 7.3. Assumptions, not measurements."
+}

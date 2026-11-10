@@ -1,0 +1,58 @@
+{
+  "kind": "organizer_sybil",
+  "generatedAt": "2026-11-10T17:01:09Z",
+  "scenario": "organizer_sybil",
+  "N": 5,
+  "C": 100,
+  "alphaBps": 2000,
+  "cases": [
+    {
+      "label": "1 v\u00ed \u1ea3o, CI 100%",
+      "wallets": 1,
+      "bondUsdc": 480.0,
+      "bondBps": 8000,
+      "coverageBps": 10000,
+      "organizerNetUsdc": -18.038354,
+      "walletsNetUsdc": 286.22466,
+      "uncoveredUsdc": 0.0,
+      "lastReceiverIsHonest": true,
+      "lastReceiverPayoutUsdc": 392.0,
+      "lastReceiverNormalUsdc": 392.0,
+      "round1PayoutUsdc": 286.22466,
+      "round2PayoutUsdc": null
+    },
+    {
+      "label": "2 v\u00ed \u1ea3o, CI 100%",
+      "wallets": 2,
+      "bondUsdc": 480.0,
+      "bondBps": 8000,
+      "coverageBps": 10000,
+      "organizerNetUsdc": 41.472772,
+      "walletsNetUsdc": 510.301376,
+      "uncoveredUsdc": 56.558906,
+      "lastReceiverIsHonest": true,
+      "lastReceiverPayoutUsdc": 336.572274,
+      "lastReceiverNormalUsdc": 392.0,
+      "round1PayoutUsdc": 286.22466,
+      "round2PayoutUsdc": 317.501374
+    },
+    {
+      "label": "1 v\u00ed \u1ea3o, CI 50% (lu\u1eadt v1.1)",
+      "wallets": 1,
+      "bondUsdc": 180.0,
+      "bondBps": 3000,
+      "coverageBps": 5000,
+      "organizerNetUsdc": 120.756588,
+      "walletsNetUsdc": 286.22466,
+      "uncoveredUsdc": 120.505645,
+      "lastReceiverIsHonest": true,
+      "lastReceiverPayoutUsdc": 297.682223,
+      "lastReceiverNormalUsdc": 392.0,
+      "round1PayoutUsdc": 286.22466,
+      "round2PayoutUsdc": null
+    }
+  ],
+  "charts": [
+    "outputs/organizer_sybil.png"
+  ]
+}

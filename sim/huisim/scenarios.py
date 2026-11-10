@@ -28,7 +28,8 @@ class HuisafeCfg:
     alpha_bps: int
     bond_ratio: float
     reserve_bps: int
-    fee_bps: int
+    fee_bps: int  # fixed fee, or the per-pot ceiling when share_bps > 0 (docs/03 section 2.7)
+    share_bps: int = 0  # phi: organizer's share of the interest room; 0 = fixed fee (v1.1)
 
 
 @dataclass(frozen=True)
@@ -107,6 +108,9 @@ def parse_scenario(raw: dict[str, Any]) -> Scenario:
                 bond_ratio=bond_ratio,
                 reserve_bps=_int(hs["reserveBps"], "huisafe.reserveBps", 0, 300),
                 fee_bps=_int(hs["feeBps"], "huisafe.feeBps", 0, 300),
+                share_bps=_int(
+                    hs.get("commissionShareBps", 0), "huisafe.commissionShareBps", 0, 5000
+                ),
             ),
             traditional=TraditionalCfg(
                 abscond_prob=_prob(
