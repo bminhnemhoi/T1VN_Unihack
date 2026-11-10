@@ -5,7 +5,7 @@ import {stdStorage, StdStorage} from "forge-std/StdStorage.sol";
 
 import {Handler} from "./Handler.sol";
 import {IHuiCircle} from "../../src/interfaces/IHuiCircle.sol";
-import {CircleState} from "../../src/libraries/HuiTypes.sol";
+import {CircleParams, CircleState} from "../../src/libraries/HuiTypes.sol";
 import {HuiInvariants, HuiInvariantsFixed, HuiInvariantsFullCoverage, HuiInvariantsLens} from "./Invariants.t.sol";
 
 /// @notice "Teeth" checks for the invariant suite: each test corrupts the system on purpose (or drives it into the
@@ -476,5 +476,102 @@ contract HuiInvariantsFixedTeeth is HuiInvariantsFixed {
         stdstore.target(address(handler)).sig("ghostFixedChecked()").checked_write(uint256(0));
         vm.expectRevert();
         this.invariant_FIXED_orderFollowsJoinIndex();
+    }
+}
+
+/// @notice A13 teeth: INV-11 (commission inside the room), INV-12 (reserve split) and INV-13 (fee timing) must fail
+/// when the matching ghost record or the circle is corrupted, on a circle with phi = 50%.
+contract HuiInvariantsCommissionTeeth is HuiInvariants {
+    using stdStorage for StdStorage;
+
+    function _circleParams() internal view override returns (CircleParams memory p) {
+        p = _params();
+        p.commissionShareBps = 5000;
+        p.feeBps = 300;
+    }
+
+    function _selectors() internal pure override returns (bytes4[] memory s) {
+        s = new bytes4[](1);
+        s[0] = Handler.warp.selector;
+    }
+
+    function _label() internal pure override returns (string memory) {
+        return "HuiInvariantsCommissionTeeth";
+    }
+
+    function _play(uint256 n) internal {
+        for (uint256 i = 0; i < n; i++) {
+            handler.advanceRound(1);
+        }
+        assertEq(circle.settledRounds(), n, "setup: rounds settled");
+    }
+
+    function _writeK(string memory sig, uint32 k, uint256 v) internal {
+        stdstore.target(address(handler)).sig(sig).with_key(k).checked_write(v);
+    }
+
+    function _finalize() internal {
+        _play(5);
+        vm.warp(vm.getBlockTimestamp() + 1 days);
+        handler.finalize();
+        assertTrue(handler.ghostFinalized(), "setup: finalized");
+    }
+
+    function test_Teeth_Commission_Healthy() public {
+        _finalize();
+        assertGt(circle.roundInfo(1).fee, 0, "setup: a fee was charged");
+        this.invariant_INV01_ledger();
+        this.invariant_INV05_potSplit();
+        this.invariant_INV11_commissionInRoom();
+        this.invariant_INV12_reserveSplit();
+        this.invariant_INV13_feeTiming();
+        assertGt(handler.ghostReserveSharedCount(), 0, "setup: reserve was shared by weight");
+    }
+
+    function test_Teeth_INV11_FailsWhenTheRoomIsTooSmall() public {
+        _play(1);
+        this.invariant_INV11_commissionInRoom();
+        _writeK("ghostRoomAtSettle(uint32)", 1, 1);
+        vm.expectRevert();
+        this.invariant_INV11_commissionInRoom();
+    }
+
+    function test_Teeth_INV11_FailsWhenAFeeIsRecordedAboveTheCeiling() public {
+        _play(1);
+        circle.exposed_setRoundFee(1, uint128(circle.roundInfo(1).pot));
+        vm.expectRevert();
+        this.invariant_INV11_commissionInRoom();
+    }
+
+    function test_Teeth_INV13_FailsWhenTheFeeWasNotPaidAtOnce() public {
+        _play(1);
+        this.invariant_INV13_feeTiming();
+        _writeK("ghostFeePaidAtSettle(uint32)", 1, 0);
+        vm.expectRevert();
+        this.invariant_INV13_feeTiming();
+    }
+
+    function test_Teeth_INV13_FailsWhenARoundWithoutShortfallKeepsEscrow() public {
+        _play(1);
+        circle.exposed_setFeeEscrow(1, 1);
+        vm.expectRevert();
+        this.invariant_INV13_feeTiming();
+    }
+
+    function test_Teeth_INV12_FailsWhenTheSharesDoNotAddUp() public {
+        _finalize();
+        stdstore.target(address(handler))
+            .sig("ghostReserveSharedSum()")
+            .checked_write(handler.ghostReserveSharedSum() + 1);
+        vm.expectRevert();
+        this.invariant_INV12_reserveSplit();
+    }
+
+    function test_Teeth_INV12_FailsWhenAMemberOfLowerWeightGetsMore() public {
+        _finalize();
+        // pretend M2 was late twice: its weight drops, yet its recorded share stays the largest
+        circle.exposed_setLateCount(actors[1], 2);
+        vm.expectRevert();
+        this.invariant_INV12_reserveSplit();
     }
 }

@@ -214,6 +214,77 @@ abstract contract HuiInvariantsBase is StdInvariant, CircleFixture {
         assertEq(handler.ghostBidCapBreach(), 0, "INV-03 a bid above the cap was revealed");
     }
 
+    /// @notice INV-11 (docs/03 section 2.7): with phi > 0 every settled round has `fee + bid * L_k <= room_k`,
+    /// `fee <= pot * feeBps / 10_000` and a winning bid within the enforced cap. L_k and room_k are the Handler's own.
+    function invariant_INV11_commissionInRoom() public view {
+        CircleParams memory p = circle.params();
+        if (p.commissionShareBps == 0) return;
+        uint32 settled = circle.settledRounds();
+        for (uint32 k = 1; k <= settled; k++) {
+            RoundInfo memory ri = circle.roundInfo(k);
+            assertLe(
+                uint256(ri.fee) + uint256(ri.winningBid) * handler.ghostPayersAtSettle(k),
+                handler.ghostRoomAtSettle(k),
+                "INV-11 fee + interest above the room"
+            );
+            assertLe(ri.fee, HuiMath.bpsOf(ri.pot, p.feeBps), "INV-11 fee above the per-pot ceiling");
+            assertLe(
+                ri.fee, HuiMath.bpsOf(handler.ghostRoomAtSettle(k), p.commissionShareBps), "INV-11 fee above phi*room"
+            );
+            if (handler.ghostPayersAtSettle(k) == 0) assertEq(ri.fee, 0, "INV-11 no payers, no fee");
+        }
+    }
+
+    /// @notice INV-13: a round without any shortfall paid its whole fee to the organizer in the settling transaction
+    /// and holds no escrow; a round with a shortfall paid nothing then and keeps (or has forfeited/paid out) escrow.
+    /// The total ever paid out immediately never exceeds the fees of the rounds.
+    function invariant_INV13_feeTiming() public view {
+        uint32 settled = circle.settledRounds();
+        uint256 sumFees;
+        for (uint32 k = 1; k <= settled; k++) {
+            RoundInfo memory ri = circle.roundInfo(k);
+            sumFees += ri.fee;
+            if (handler.ghostShortfallsAtSettle(k) == 0) {
+                assertEq(handler.ghostFeePaidAtSettle(k), ri.fee, "INV-13 fee not paid at once");
+                assertEq(circle.feeEscrow(k), 0, "INV-13 escrow in a round without shortfall");
+            } else {
+                assertEq(handler.ghostFeePaidAtSettle(k), 0, "INV-13 fee paid in a round with a shortfall");
+                assertLe(circle.feeEscrow(k), ri.fee, "INV-13 escrow above the fee");
+            }
+        }
+        assertLe(handler.ghostFeePaidTotal() + handler.ghostFinalizeFees(), sumFees, "INV-13 more fees than rounds");
+    }
+
+    /// @notice INV-12 (ADR-24): after `finalize`, the `ReserveShared` amounts add up to the reserve distributed, a
+    /// defaulted member gets no share, and a member with more late payments gets no more than one with fewer (up to
+    /// the rounding dust, below N units).
+    function invariant_INV12_reserveSplit() public view {
+        if (!handler.ghostFinalized() || handler.ghostReserveSharedCount() == 0) return;
+        assertEq(handler.ghostReserveSharedSum(), handler.ghostReserveDistributed(), "INV-12 shares != reserve");
+        for (uint256 i = 0; i < N; i++) {
+            address a = actors[i];
+            MemberInfo memory mi = circle.memberInfo(a);
+            if (mi.defaulted) {
+                assertEq(handler.ghostReserveShare(a), 0, "INV-12 defaulted member got a share");
+                continue;
+            }
+            assertEq(
+                handler.ghostReserveWeight(a),
+                HuiMath.onTimeWeight(N, mi.lateCount, false),
+                "INV-12 weight is not (N - 1) - lateCount"
+            );
+            for (uint256 j = 0; j < N; j++) {
+                address b = actors[j];
+                if (circle.memberInfo(b).defaulted) continue;
+                if (handler.ghostReserveWeight(a) > handler.ghostReserveWeight(b)) {
+                    assertGe(
+                        handler.ghostReserveShare(a) + N, handler.ghostReserveShare(b), "INV-12 monotone in weight"
+                    );
+                }
+            }
+        }
+    }
+
     /// @notice INV-04: in no call was a member pulled for more than it owed (due, reveal bond, late payment with
     /// fee, repayment with fee). Measured with `RecordingUSDC`.
     function invariant_INV04_noOverPull() public view {
@@ -250,7 +321,15 @@ abstract contract HuiInvariantsBase is StdInvariant, CircleFixture {
             );
             assertEq(ri.uncovered, handler.ghostUncoveredAtSettle(k), "INV-05 uncovered");
             assertEq(ri.premium, HuiMath.bpsOf(ri.pot, p.reserveBps), "INV-05 premium");
-            assertEq(ri.fee, p.commissionMode ? HuiMath.bpsOf(ri.pot, p.feeBps) : 0, "INV-05 fee");
+            if (p.commissionShareBps == 0) {
+                assertEq(ri.fee, p.commissionMode ? HuiMath.bpsOf(ri.pot, p.feeBps) : 0, "INV-05 fee");
+            } else {
+                assertEq(
+                    ri.fee,
+                    HuiMath.commission(ri.pot, p.feeBps, p.commissionShareBps, handler.ghostRoomAtSettle(k)),
+                    "INV-05 fee inside the room"
+                );
+            }
             assertLe(ri.holdback, HuiMath.holdbackFor(p.alphaBps, N, k, C), "INV-05 holdback above H");
         }
     }
@@ -337,7 +416,7 @@ abstract contract HuiInvariantsBase is StdInvariant, CircleFixture {
 
     /// @dev Every read-only call checked by the two view invariants, as calldata. Members, the organizer and k = 1..N.
     function _viewCalls() internal view returns (bytes[] memory cs) {
-        cs = new bytes[](140);
+        cs = new bytes[](160);
         uint256 n;
         uint32 kMax = circle.settledRounds() + 1;
         cs[n++] = abi.encodeWithSignature("params()");
@@ -352,6 +431,8 @@ abstract contract HuiInvariantsBase is StdInvariant, CircleFixture {
             cs[n++] = abi.encodeWithSignature("deadline(uint32)", k);
             cs[n++] = abi.encodeWithSignature("maxBid(uint32)", k);
             cs[n++] = abi.encodeWithSignature("exposure(uint32)", k);
+            cs[n++] = abi.encodeWithSignature("statutoryMaxBid(uint32)", k);
+            cs[n++] = abi.encodeWithSignature("commissionRoom(uint32)", k);
             cs[n++] = abi.encodeWithSignature("roundInfo(uint32)", k);
             // Per-member records only exist up to the round in progress; later rounds are empty storage.
             if (k > kMax) continue;
@@ -364,6 +445,7 @@ abstract contract HuiInvariantsBase is StdInvariant, CircleFixture {
         }
         for (uint256 i = 0; i < N; i++) {
             cs[n++] = abi.encodeWithSignature("memberInfo(address)", actors[i]);
+            cs[n++] = abi.encodeWithSignature("onTimeWeight(address)", actors[i]);
         }
         cs[n++] = abi.encodeWithSignature("dueOf(address,uint32,uint256)", actors[0], uint32(1), 3e6);
         cs[n++] = abi.encodeWithSignature("dueOf(address,uint32,uint256)", organizer, uint32(1), 3e6);
@@ -899,5 +981,29 @@ contract HuiInvariantsFixedFullCoverage is HuiInvariantsFullCoverage {
         s[n++] = Handler.stopReceivers.selector;
         s[n++] = Handler.attackPrivileged.selector;
         s[n++] = Handler.attackForgedRequest.selector;
+    }
+}
+
+/// @notice A13: the same campaign as `HuiInvariants` but the commission lives inside the interest room (phi = 50%,
+/// `feeBps` = 3% as the per-pot ceiling), on a clone of the real `HuiCircle`. Exercises INV-11, INV-12 and INV-13.
+contract HuiInvariantsCommission is HuiInvariants {
+    function _circleParams() internal view virtual override returns (CircleParams memory p) {
+        p = _params();
+        p.commissionShareBps = 5000;
+        p.feeBps = 300;
+    }
+
+    function _realClone() internal pure virtual override returns (bool) {
+        return true;
+    }
+
+    function _label() internal pure virtual override returns (string memory) {
+        return "HuiInvariantsCommission";
+    }
+
+    /// @dev Not vacuous: the circle really runs with phi > 0.
+    function test_Commission_CampaignRunsWithPhi() public view {
+        assertEq(circle.params().commissionShareBps, 5000);
+        assertEq(circle.maxBid(1), HuiMath.bidCapAfterShare(circle.statutoryMaxBid(1), 5000));
     }
 }

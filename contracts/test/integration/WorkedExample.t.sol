@@ -466,7 +466,11 @@ abstract contract WorkedExampleBase is CircleScenario {
         assertEq(c.reserve(), _v(7_670_000) + fee + _v(12 * U));
         // v1.2: rounds 1, 3, 4, 5 had no shortfall and paid 3.76 + 12 to the organizer at once; round 2 waits in escrow.
         assertEq(c.totalFeeEscrow(), _v(3_910_000), "only the fee of round 2 (3.91) is still in escrow");
-        assertEq(usdc.balanceOf(organizer), _v(3_760_000) + _v(12 * U), "organizer already holds the fees of rounds 1, 3, 4, 5");
+        assertEq(
+            usdc.balanceOf(organizer),
+            _v(3_760_000) + _v(12 * U),
+            "organizer already holds the fees of rounds 1, 3, 4, 5"
+        );
         _assertEverybodyReceivedOnce();
 
         // --- finalize

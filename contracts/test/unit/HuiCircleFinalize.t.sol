@@ -393,7 +393,9 @@ contract HuiCircleFinalizeTest is CircleScenario {
         vm.expectEmit(false, false, false, true, address(c));
         emit IHuiCircle.CircleFinalized(480 * U, 0, 20 * U);
         c.finalize();
-        assertEq(usdc.balanceOf(organizer) - orgBefore, 480 * U + 20 * U, "bond + reserve (fees were paid at settlement)");
+        assertEq(
+            usdc.balanceOf(organizer) - orgBefore, 480 * U + 20 * U, "bond + reserve (fees were paid at settlement)"
+        );
         for (uint256 i = 1; i <= 5; i++) {
             assertEq(rep.reputationOf(_M(i)).completed, 0);
         }

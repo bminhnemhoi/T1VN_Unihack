@@ -43,7 +43,7 @@ def test_committed_file_recomputes_with_math_module() -> None:
         assert case["hash"] == commit_hash(
             case["circle"], int(case["round"]), case["member"], int(case["bid"]), case["salt"]
         )
-    assert total == 2000
+    assert total == 2630  # 2000 of v1.1 + 630 for the five v1.2 functions
 
 
 def test_all_numbers_are_decimal_strings_and_edges_present() -> None:
@@ -66,3 +66,17 @@ def test_all_numbers_are_decimal_strings_and_edges_present() -> None:
     }
     assert any(c["in"]["n"] == "25" and c["out"] == "657534" for c in fns["maxBid"])
     assert any(c["out"] == "27397" for c in fns["lateFee"])
+
+
+def test_v12_functions_match_the_worked_numbers() -> None:
+    from huisim import math as hm
+
+    assert hm.bid_cap_after_share(6_575_342, 5000) == 3_287_671
+    assert hm.commission_room(6_575_342, 4) == 26_301_368
+    assert hm.commission(388_000_000, 300, 5000, 26_301_368) == 11_640_000
+    assert hm.commission(392_800_000, 300, 5000, 14_794_518) == 7_397_259
+    assert hm.commission(376_000_000, 100, 0, 0) == 3_760_000
+    assert hm.reserve_share(19_697_396, 4, 19) == 4_146_820
+    assert hm.reserve_share(19_697_396, 3, 19) == 3_110_115
+    assert [hm.on_time_weight(5, late, 0) for late in (0, 1, 4, 6)] == [4, 3, 0, 0]
+    assert hm.on_time_weight(5, 0, 1) == 0

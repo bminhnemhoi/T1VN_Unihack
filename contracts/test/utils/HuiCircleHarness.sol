@@ -91,6 +91,14 @@ contract HuiCircleHarness is HuiCircle, HuiCircleViews {
     }
 
     /// @dev Test-only: makes the circle pull a different amount than the spec allows (INV-04 teeth).
+    function exposed_setRoundFee(uint32 round, uint128 v) external {
+        _rounds[round].fee = v;
+    }
+
+    function exposed_setFeeEscrow(uint32 round, uint256 v) external {
+        feeEscrow[round] = v;
+    }
+
     function exposed_setContribution(uint96 v) external {
         _params.contribution = v;
     }

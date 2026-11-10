@@ -144,30 +144,85 @@ contract DifferentialTest is Test {
         }
     }
 
-    // ------------------------------------------------------------ commit hash
+    // ------------------------------------------------------------ v1.2 (A13)
 
-    function test_Differential_CommitHash() public {
-        uint256 cases = 100;
-        for (uint256 i = 0; i < cases; i++) {
-            string memory p = string.concat(".commitHash[", vm.toString(i), "].");
-            // Same formula as docs/03 section 6.2 and docs/05 section 5.4 (round is uint32, bid is uint256).
-            bytes32 got = keccak256(
-                abi.encode(
-                    vm.parseJsonAddress(json, string.concat(p, "circle")),
-                    uint32(vm.parseJsonUint(json, string.concat(p, "round"))),
-                    vm.parseJsonAddress(json, string.concat(p, "member")),
-                    vm.parseJsonUint(json, string.concat(p, "bid")),
-                    vm.parseJsonBytes32(json, string.concat(p, "salt"))
-                )
-            );
-            assertEq(got, vm.parseJsonBytes32(json, string.concat(p, "hash")), _msg("commitHash", i));
+    function test_Differential_BidCapAfterShare() public view {
+        uint256[] memory outs = _outs("bidCapAfterShare");
+        uint256[] memory stat = _col("bidCapAfterShare", "statutoryMaxBid");
+        uint256[] memory share = _col("bidCapAfterShare", "shareBps");
+        assertGt(outs.length, 0);
+        for (uint256 i = 0; i < outs.length; i++) {
+            assertEq(HuiMath.bidCapAfterShare(stat[i], share[i]), outs[i], _msg("bidCapAfterShare", i));
         }
-        // The file must hold exactly `cases` entries.
-        vm.expectRevert();
-        this.parseAt(string.concat(".commitHash[", vm.toString(cases), "].hash"));
     }
 
-    function parseAt(string memory key) external view returns (bytes32) {
-        return vm.parseJsonBytes32(json, key);
+    function test_Differential_CommissionRoom() public view {
+        uint256[] memory outs = _outs("commissionRoom");
+        uint256[] memory stat = _col("commissionRoom", "statutoryMaxBid");
+        uint256[] memory payers = _col("commissionRoom", "payers");
+        assertGt(outs.length, 0);
+        for (uint256 i = 0; i < outs.length; i++) {
+            assertEq(HuiMath.commissionRoom(stat[i], payers[i]), outs[i], _msg("commissionRoom", i));
+        }
+    }
+
+    function test_Differential_Commission() public view {
+        uint256[] memory outs = _outs("commission");
+        uint256[] memory pot = _col("commission", "pot");
+        uint256[] memory fee = _col("commission", "feeBps");
+        uint256[] memory share = _col("commission", "shareBps");
+        uint256[] memory room = _col("commission", "room");
+        assertGt(outs.length, 0);
+        for (uint256 i = 0; i < outs.length; i++) {
+            assertEq(HuiMath.commission(pot[i], fee[i], share[i], room[i]), outs[i], _msg("commission", i));
+        }
+    }
+
+    function test_Differential_ReserveShare() public view {
+        uint256[] memory outs = _outs("reserveShare");
+        uint256[] memory total = _col("reserveShare", "total");
+        uint256[] memory weight = _col("reserveShare", "weight");
+        uint256[] memory sum = _col("reserveShare", "weightSum");
+        assertGt(outs.length, 0);
+        for (uint256 i = 0; i < outs.length; i++) {
+            assertEq(HuiMath.reserveShare(total[i], weight[i], sum[i]), outs[i], _msg("reserveShare", i));
+        }
+    }
+
+    function test_Differential_OnTimeWeight() public view {
+        uint256[] memory outs = _outs("onTimeWeight");
+        uint256[] memory n = _col("onTimeWeight", "n");
+        uint256[] memory late = _col("onTimeWeight", "lateCount");
+        uint256[] memory dead = _col("onTimeWeight", "defaulted");
+        assertGt(outs.length, 0);
+        for (uint256 i = 0; i < outs.length; i++) {
+            assertEq(HuiMath.onTimeWeight(n[i], late[i], dead[i] != 0), outs[i], _msg("onTimeWeight", i));
+        }
+    }
+
+    // ------------------------------------------------------------ commit hash
+
+    function test_Differential_CommitHash() public view {
+        // One JSON parse per column: parsing the (large) document once per case runs out of gas. Hex columns come
+        // back as static 32-byte words (addresses left-padded), decimal columns as strings.
+        bytes32[] memory circle = abi.decode(vm.parseJson(json, ".commitHash[*].circle"), (bytes32[]));
+        bytes32[] memory member = abi.decode(vm.parseJson(json, ".commitHash[*].member"), (bytes32[]));
+        bytes32[] memory salt = abi.decode(vm.parseJson(json, ".commitHash[*].salt"), (bytes32[]));
+        bytes32[] memory hash = abi.decode(vm.parseJson(json, ".commitHash[*].hash"), (bytes32[]));
+        assertEq(hash.length, 100, "the file must hold exactly 100 commitHash entries");
+        for (uint256 i = 0; i < hash.length; i++) {
+            // Same formula as docs/03 section 6.2 and docs/05 section 5.4 (round is uint32, bid is uint256).
+            string memory at = string.concat(".commitHash[", vm.toString(i), "].");
+            bytes32 got = keccak256(
+                abi.encode(
+                    address(uint160(uint256(circle[i]))),
+                    uint32(vm.parseJsonUint(json, string.concat(at, "round"))),
+                    address(uint160(uint256(member[i]))),
+                    vm.parseJsonUint(json, string.concat(at, "bid")),
+                    salt[i]
+                )
+            );
+            assertEq(got, hash[i], _msg("commitHash", i));
+        }
     }
 }

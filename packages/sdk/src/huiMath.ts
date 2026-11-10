@@ -113,3 +113,46 @@ export function bpsOf(amount: bigint, bps: bigint): bigint {
   assertU(amount, bps);
   return u(amount * bps) / BPS;
 }
+
+// --- v1.2 (A13): commission inside the interest cap, reserve split by on-time weight -----------
+
+/** Enforced bid ceiling: floor(statutoryMaxBid * (10_000 - shareBps) / 10_000) (docs/03 section 2.7). */
+export function bidCapAfterShare(statutoryMaxBid: bigint, shareBps: bigint): bigint {
+  assertU(statutoryMaxBid, shareBps);
+  if (shareBps > BPS) throw new RangeError('shareBps > 10_000');
+  return u(statutoryMaxBid * (BPS - shareBps)) / BPS;
+}
+
+/** room_k = statutoryMaxBid * payers: the interest the law lets the round winner pay (exact). */
+export function commissionRoom(statutoryMaxBid: bigint, payers: bigint): bigint {
+  assertU(statutoryMaxBid, payers);
+  return u(statutoryMaxBid * payers);
+}
+
+/**
+ * Organizer fee of one round (docs/03 sections 2.6, 2.7). shareBps = 0: floor(pot * feeBps / 10_000);
+ * otherwise min(floor(room * shareBps / 10_000), floor(pot * feeBps / 10_000)).
+ */
+export function commission(pot: bigint, feeBps: bigint, shareBps: bigint, room: bigint): bigint {
+  assertU(pot, feeBps, shareBps, room);
+  const capped = u(pot * feeBps) / BPS;
+  if (shareBps === 0n) return capped;
+  const shared = u(room * shareBps) / BPS;
+  return shared < capped ? shared : capped;
+}
+
+/** floor(total * weight / weightSum) (docs/03 section 5.3 step 5); weightSum must be positive. */
+export function reserveShare(total: bigint, weight: bigint, weightSum: bigint): bigint {
+  assertU(total, weight, weightSum);
+  if (weightSum === 0n) throw new RangeError('weightSum is zero');
+  return u(total * weight) / weightSum;
+}
+
+/** ADR-24 weight: 0 if defaulted, else max(0, (n - 1) - lateCount). `defaulted` may be a bigint 0/1 (vectors). */
+export function onTimeWeight(n: bigint, lateCount: bigint, defaulted: bigint | boolean): bigint {
+  assertU(n, lateCount);
+  if (n === 0n) throw new RangeError('n is zero');
+  const dead = typeof defaulted === 'boolean' ? defaulted : defaulted !== 0n;
+  if (dead || lateCount >= n - 1n) return 0n;
+  return n - 1n - lateCount;
+}
