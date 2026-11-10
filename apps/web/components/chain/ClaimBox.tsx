@@ -21,7 +21,7 @@ export function ClaimBox({ c }: { c: SampleCircleData }) {
       <p className="so-ke mt-2 text-lead">
         Có <strong>{formatUsdc(q.data)}</strong> chờ bạn nhận. Lần chuyển tự động không tới được ví của bạn, nên tiền được giữ an toàn trong dây.
       </p>
-      <ActionButton size="lg" className="mt-3" noticeClassName="text-foreground" run={(a) => a.claim(live.address)} success="Đã nhận tiền.">
+      <ActionButton size="lg" allowWhenPaused className="mt-3" noticeClassName="text-foreground" run={(a) => a.claim(live.address)} success="Đã nhận tiền.">
         Nhận tiền
       </ActionButton>
     </section>

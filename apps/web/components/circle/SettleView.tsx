@@ -34,7 +34,7 @@ export function SettleView({ c }: { c: SampleCircleData }) {
   const lastSettled = live?.view.rounds.find((r) => r.k === Number(c.terms.n))?.settledAt;
   const canFinalize = Boolean(live && live.view.state === 'active' && c.settled === Number(c.terms.n) && lastSettled !== undefined && nowSec > lastSettled + c.graceSeconds + live.view.pausedTotal);
 
-  if (live && live.view.state === 'active' && c.settled === Number(c.terms.n)) {
+  if (live && (live.view.state === 'active' || live.view.state === 'paused') && c.settled === Number(c.terms.n)) {
     return (
       <main id="noi-dung" className="mx-auto max-w-6xl px-4 py-10">
         <CirclePageHead circle={c} title="Tất toán" />

@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { formatUsdc, previewCircle } from 'sdk';
+import { DEFAULT_MIN_COVERAGE_BPS, formatUsdc, previewCircle } from 'sdk';
 import { BidCalculator } from '@/components/circle/BidCalculator';
 import { LedgerGrid } from '@/components/circle/LedgerGrid';
 import { RepBadge, RepDisclaimer } from '@/components/circle/RepBadge';
@@ -17,7 +17,7 @@ import { DEMO_LEDGER, DEMO_MEMBERS, VIEWER, usdc } from '@/lib/sample';
 import type { SampleCircleData } from '@/lib/sample-circles';
 import { TOGGLE_ON } from '@/lib/utils';
 
-const sampleCap = previewCircle({ n: 5n, c: usdc(100), periodDays: 30n, alphaBps: 2000n, bond: usdc(480), capBps: 2000n }).bidRows[2]!.maxBid; // 3,287671 USDC (docs/03 section 8)
+const sampleCap = previewCircle({ n: 5n, c: usdc(100), periodDays: 30n, alphaBps: 2000n, bond: usdc(480), capBps: 2000n, minCoverageBps: DEFAULT_MIN_COVERAGE_BPS }).bidRows[2]!.maxBid; // 3,287671 USDC (docs/03 section 8)
 
 const PHASE_OF = { commit: 'commit', reveal: 'reveal', 'awaiting-settle': 'settle', 'not-started': 'commit', done: 'settle' } as const;
 
@@ -38,7 +38,9 @@ export function RoomView({ c }: { c: SampleCircleData }) {
   const ledger = live ? toLedger(live.view) : DEMO_LEDGER;
   const past = c.winnerByRound.map((w, i) => ({ k: i + 1, winner: c.seats[w]!.name, bid: c.bids[i]! }));
   const winners = c.winnerByRound.map((w) => c.seats[w]!.name);
-  const bidders = members.flatMap((m, i) => (m.status === 'live' ? [i === viewer ? `${m.name} (bạn)` : m.name] : []));
+  // Eligible to bid: live and with no open shortfall (docs/03 section 6.1), same rule as the button in the bid card.
+  const owing = new Set(c.shortfalls.filter((s) => s.status !== 'paid').map((s) => s.member));
+  const bidders = members.flatMap((m, i) => (m.status === 'live' && !owing.has(i) ? [i === viewer ? `${m.name} (bạn)` : m.name] : []));
   const n = Number(c.terms.n);
 
   return (

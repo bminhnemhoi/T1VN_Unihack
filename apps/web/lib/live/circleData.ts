@@ -89,6 +89,7 @@ export function viewToCircleData(v: CircleView, viewer: Address | undefined, now
     label: v.label || 'Dây hụi',
     terms: termsOf(v),
     state: v.state === 'forming' ? 'forming' : v.state === 'active' || v.state === 'paused' ? 'active' : 'completed',
+    ...(v.state === 'paused' ? { paused: true } : {}),
     seats,
     viewer: viewerIdx,
     viewerIsOrganizer,

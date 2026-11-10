@@ -68,4 +68,14 @@ describe('viewToCircleData', () => {
     v.rounds = [round(1, { ...v.rounds[0]!, shortfalls: [{ round: 1, member: A(3), amount: 10n * U, fromHoldback: 0n, fromBond: 10n * U, fromReserve: 0n, uncovered: 0n, since: NOW - 200, resolved: false, pausedAtSettle: 0, graceEndsAt: NOW + 5 }] }), v.rounds[1]!];
     expect(viewToCircleData(v, undefined, NOW * 1000).bond).toBe(48n * U);
   });
+
+  it('keeps a paused circle in the active room but flags it paused', () => {
+    const d = viewToCircleData(view({ state: 'paused' }), A(1), NOW * 1000);
+    expect(d.state).toBe('active');
+    expect(d.paused).toBe(true);
+  });
+
+  it('does not flag an active circle as paused', () => {
+    expect(viewToCircleData(view(), A(1), NOW * 1000).paused).toBeUndefined();
+  });
 });

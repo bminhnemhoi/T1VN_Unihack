@@ -1,16 +1,17 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import { formatBps, formatUsdc, previewCircle } from 'sdk';
+import { DEFAULT_MIN_COVERAGE_BPS, formatBps, formatUsdc, previewCircle } from 'sdk';
 import { Seal } from '@/components/brand/Seal';
 import { BorderBeam } from '@/components/ui/border-beam';
 import { NumberTicker } from '@/components/ui/number-ticker';
+import { useMinCoverageBps } from '@/lib/live/useMinCoverage';
 
 const C = 100_000_000n; // 100 USDC
 const MAX_BOND = 480; // (1 - 20%) * O_max for N = 5, C = 100 (docs/03 section 8)
 
 // Does not depend on the bond: risk at its peak (600 USDC) and the 20% holdback that already covers part of it (120 USDC).
-const STATIC = previewCircle({ n: 5n, c: C, periodDays: 30n, alphaBps: 2000n, bond: 0n, capBps: 2000n });
+const STATIC = previewCircle({ n: 5n, c: C, periodDays: 30n, alphaBps: 2000n, bond: 0n, capBps: 2000n, minCoverageBps: DEFAULT_MIN_COVERAGE_BPS });
 const RISK = Number(STATIC.maxExposure / 1_000_000n); // 600
 const HELD = (RISK * 2000) / 10_000; // 120
 const num = (n: number) => n.toLocaleString('vi-VN');
@@ -18,10 +19,12 @@ const num = (n: number) => n.toLocaleString('vi-VN');
 /** The hero toy: drag the bond, watch the coverage index move. Same maths as the contract (previewCircle). */
 export function HeroMeter() {
   const [bond, setBond] = useState(MAX_BOND);
+  const floor = useMinCoverageBps();
   const p = useMemo(
-    () => previewCircle({ n: 5n, c: C, periodDays: 30n, alphaBps: 2000n, bond: BigInt(bond) * 1_000_000n, capBps: 2000n }),
-    [bond],
+    () => previewCircle({ n: 5n, c: C, periodDays: 30n, alphaBps: 2000n, bond: BigInt(bond) * 1_000_000n, capBps: 2000n, minCoverageBps: floor }),
+    [bond, floor],
   );
+  const floorPct = Number(floor) / 100;
   const pct = Number(p.coverageBps) / 100;
   const ok = p.canActivate;
   return (
@@ -57,10 +60,12 @@ export function HeroMeter() {
         className="relative mt-3 h-4 rounded-full bg-secondary shadow-[inset_0_0_0_1px_var(--input)]"
       >
         <div className={`h-full origin-left rounded-full transition-transform duration-200 ease-out ${ok ? 'bg-ngoc' : 'bg-nghe-fg'}`} style={{ transform: `scaleX(${pct / 100})` }} />
-        <div aria-hidden className="absolute -top-1.5 -bottom-1.5 left-1/2 w-0.5 bg-foreground" />
+        <div aria-hidden className="absolute -top-1.5 -bottom-1.5 w-0.5 bg-foreground" style={{ left: `${floorPct}%` }} />
       </div>
       <p aria-hidden className="relative mt-1 h-6 text-base text-muted-foreground">
-        <span className="absolute left-1/2 -translate-x-1/2">50% tối thiểu</span>
+        <span className={floorPct >= 100 ? 'absolute right-0' : 'absolute -translate-x-1/2'} style={floorPct >= 100 ? undefined : { left: `${floorPct}%` }}>
+          {formatBps(floor)} tối thiểu
+        </span>
       </p>
       <p className={`mt-1 font-semibold ${ok ? 'text-ngoc' : 'text-nghe-fg'}`}>
         {ok ? 'Đủ để bắt đầu dây.' : `Chưa đủ để bắt đầu dây. Cần thêm ${formatUsdc(p.bondMissing)} ký quỹ.`}

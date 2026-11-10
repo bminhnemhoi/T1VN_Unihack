@@ -60,6 +60,11 @@ export interface SampleCircleData {
   label: string;
   terms: Terms;
   state: 'forming' | 'active' | 'completed';
+  /**
+   * Chain only: the circle is `Paused` (it stays `state: 'active'` so the room still draws). While paused only `claim()`
+   * works on chain; every other button is locked and a banner says so (docs/03 section 5.4).
+   */
+  paused?: boolean;
   seats: SampleSeat[];
   /** Index into `seats` of the person looking at the screen. */
   viewer: number;

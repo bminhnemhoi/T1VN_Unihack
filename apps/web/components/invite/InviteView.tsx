@@ -16,6 +16,7 @@ import { Field, FieldLabel } from '@/components/ui/field';
 import { agreementClauses, agreementHash } from '@/lib/agreement';
 import { capOf } from '@/lib/hui-calc';
 import { useCircleData } from '@/lib/live/useCircleData';
+import { useMinCoverageBps } from '@/lib/live/useMinCoverage';
 import type { SampleCircleData } from '@/lib/sample-circles';
 
 const REVEAL_BOND_BPS = 100n;
@@ -44,7 +45,8 @@ export function InviteView({ c: C }: { c: SampleCircleData }) {
   const joined = C.seats.filter((s) => s.joined);
   const left = n - joined.length;
   const mySeat = joined.length + 1;
-  const preview = previewCircle({ n: t.n, c: t.c, periodDays: t.periodDays, alphaBps: t.alphaBps, bond: C.bond, capBps: t.capBps });
+  const floor = useMinCoverageBps(live?.address);
+  const preview = previewCircle({ n: t.n, c: t.c, periodDays: t.periodDays, alphaBps: t.alphaBps, bond: C.bond, capBps: t.capBps, minCoverageBps: floor });
   const allowance = live ? live.view.requiredAllowance : (t.n - 1n) * (t.c + (t.c * REVEAL_BOND_BPS) / 10_000n);
   const open = !live || live.view.state === 'forming';
   const already = live ? C.viewer >= 0 : false;

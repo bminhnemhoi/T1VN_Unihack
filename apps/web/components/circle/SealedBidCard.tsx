@@ -12,6 +12,7 @@ import { SoonButton } from '@/components/shell/SoonButton';
 import { Button } from '@/components/ui/button';
 import { Field, FieldDescription, FieldError, FieldLabel } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
+import { commitBlocker, eligibilityBlocker } from '@/lib/live/bidEligibility';
 import { useMyCommit } from '@/lib/live/useMyCommit';
 import type { SampleCircleData } from '@/lib/sample-circles';
 
@@ -134,19 +135,13 @@ function LiveCard({ c, phase, round, maxBid, revealBond }: { c: SampleCircleData
   const rv = view.rounds.find((r) => r.k === round);
   const nowSec = Math.floor(live.nowMs / 1000);
   const me = live.viewerAddress;
-  const member = me ? view.members.find((m) => m.address.toLowerCase() === me.toLowerCase()) : undefined;
   const commit = useMyCommit(live.address, round, me);
   const tx = useTx();
   const [text, setText] = useState('2');
   const mine = commit.data;
 
-  const ineligible = !me
-    ? 'Hãy đăng nhập để nộp thăm.'
-    : !member
-      ? 'Bạn chưa ở trong dây này nên không bỏ thăm được.'
-      : member.status !== 'live'
-        ? 'Bạn đã hốt hoặc đang bị đóng băng nên không bỏ thăm kỳ này.'
-        : undefined;
+  const ineligible = eligibilityBlocker(view, me);
+  const cannotCommit = commitBlocker(view, me);
 
   const onSeal = (bid: bigint) => void tx.run((a) => a.commitBid(live.address, round, bid));
   const until = phase === 'commit' ? rv?.commitEndsAt : phase === 'reveal' ? rv?.revealEndsAt : rv?.deadline;
@@ -169,10 +164,10 @@ function LiveCard({ c, phase, round, maxBid, revealBond }: { c: SampleCircleData
               </p>
             )}
             <p className="mt-3 text-muted-foreground">Muốn đổi số, nộp lại thăm mới trước khi hết giờ nộp (cọc giữ nguyên).</p>
-            <BidForm maxBid={maxBid} revealBond={revealBond} onSeal={onSeal} busy={tx.pending} disabledReason={ineligible} text={text} setText={setText} />
+            <BidForm maxBid={maxBid} revealBond={revealBond} onSeal={onSeal} busy={tx.pending} disabledReason={cannotCommit} text={text} setText={setText} />
           </>
         ) : (
-          <BidForm maxBid={maxBid} revealBond={revealBond} onSeal={onSeal} busy={tx.pending} disabledReason={ineligible} text={text} setText={setText} />
+          <BidForm maxBid={maxBid} revealBond={revealBond} onSeal={onSeal} busy={tx.pending} disabledReason={cannotCommit} text={text} setText={setText} />
         ))}
 
       {phase === 'reveal' && (

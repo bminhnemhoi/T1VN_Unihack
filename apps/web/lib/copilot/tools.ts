@@ -2,7 +2,7 @@
  * The 6 read-only tools of docs/05 section 12 / docs/07 3.3. Pure, deterministic functions over `sdk`'s
  * `huiMath` and the generated `sim/outputs`. No network, no writes, no signing, no randomness.
  */
-import { formatBps, huiMath, previewCircle } from 'sdk';
+import { DEFAULT_MIN_COVERAGE_BPS, formatBps, huiMath, previewCircle } from 'sdk';
 import { z } from 'zod';
 import { explainRule } from './rules';
 import { ubndNoticeMarkdown, UBND_PLACEHOLDERS } from './rules/ubnd';
@@ -71,7 +71,7 @@ function recommendBond(i: ToolInput<'recommend_bond'>) {
 function maxBidTable(i: ToolInput<'max_bid_table'>) {
   const n = BigInt(i.N);
   const c = units('C', i.C);
-  const p = previewCircle({ n, c, periodDays: BigInt(i.periodDays), alphaBps: 0n, bond: 0n, capBps: BigInt(i.capBps) });
+  const p = previewCircle({ n, c, periodDays: BigInt(i.periodDays), alphaBps: 0n, bond: 0n, capBps: BigInt(i.capBps), minCoverageBps: DEFAULT_MIN_COVERAGE_BPS });
   return { rows: p.bidRows.map((r) => ({ k: r.k, payers: r.payers, maxBid: toDecimal(r.maxBid) })) };
 }
 

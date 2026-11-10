@@ -41,7 +41,7 @@ describe('recommend_bond', () => {
   });
   it('agrees with previewCircle (bondFor100 and bondForMin)', async () => {
     for (const [n, c, alpha] of [[5n, 100_000_000n, 2000n], [10n, 37_500_000n, 1500n], [7n, 50_000_000n, 0n], [30n, 10_000_000n, 3333n]] as const) {
-      const p = previewCircle({ n, c, periodDays: 30n, alphaBps: alpha, bond: 0n, capBps: 2000n });
+      const p = previewCircle({ n, c, periodDays: 30n, alphaBps: alpha, bond: 0n, capBps: 2000n, minCoverageBps: 5000n });
       const full = (await runTool('recommend_bond', { N: Number(n), C: Number(c) / 1e6, alphaBps: Number(alpha), targetCoverageBps: 10000 })) as { bond: string };
       const min = (await runTool('recommend_bond', { N: Number(n), C: Number(c) / 1e6, alphaBps: Number(alpha), targetCoverageBps: 5000 })) as { bond: string };
       expect(full.bond).toBe(String(Number(p.bondFor100) / 1e6));
