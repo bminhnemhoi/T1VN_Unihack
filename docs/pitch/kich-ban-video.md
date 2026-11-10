@@ -74,4 +74,4 @@ Không cắt: cảnh 1 (khai báo dev toggle), cảnh 7 (bù vỡ nợ), cảnh 
 - Cảnh v1.2: có (cảnh 8: hoa hồng trong trần, quỹ dự phòng chia theo đúng hạn).
 - Số mô phỏng ghi là kết quả của giả định, không phải dự báo: có (cảnh 10, lời và chữ).
 - Chưa dùng ảnh, tên, giọng người thử nghiệm: đúng (docs/11 mục 11 yêu cầu phiếu đồng ý trước; buổi thử chưa diễn ra).
-- Cần người làm trước khi quay: (a) chạy lại `forge test` và thay số 617/54 nếu khác; (b) xác nhận dây φ = 50% đã tạo trên Fuji (TIEN-DO nói script `CreateDemoCircles` có dây Bidding φ = 5000, chưa nói đã chạy), nếu chưa thì cảnh 8 quay trên anvil và phải ghi "chạy cục bộ"; (c) thay ba link ở cảnh 12.
+- Cần người làm trước khi quay: (a) chạy lại `forge test` và thay số 617/54 nếu khác; (b) dây φ = 50% đã tạo trên Fuji (`0xd231…7F29`, đang Forming, theo `docs/TIEN-DO.md` ngày 11/11) nhưng chưa chạy qua các kỳ; nếu cảnh 8 cần kỳ đã chi với φ = 50% thì quay trên anvil và phải ghi "chạy cục bộ". Cảnh bằng chứng Fuji thật dùng dây Fixed N = 3 `0xABA8…2461` (Completed, 3 kỳ chi + `finalize`, ngày 11/11); (c) thay ba link ở cảnh 12.
