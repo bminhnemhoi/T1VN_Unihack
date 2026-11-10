@@ -7,6 +7,7 @@ import { createPublicClient, defineChain, fallback, http, type Chain, type Publi
 import { avalancheFuji } from 'viem/chains';
 import { loadAddresses, type Addresses } from 'config/addresses';
 import { resolveNetwork, type Network } from 'config/network';
+import { FUJI_EXPLORER_API, registerExplorerApi } from 'sdk';
 
 type Address = `0x${string}`;
 
@@ -25,10 +26,13 @@ export function chainFor(network: Network): Chain {
 
 export function makePublicClient(network: Network): PublicClient {
   const transports = network.rpcUrls.map((u) => http(u));
-  return createPublicClient({
+  const client = createPublicClient({
     chain: chainFor(network),
     transport: transports.length > 1 ? fallback(transports) : transports[0]!,
   }) as PublicClient;
+  // The sổ hụi route scans circle events: one explorer request instead of a throttled chunked RPC scan (A18).
+  if (network.name === 'fuji') registerExplorerApi(client, FUJI_EXPLORER_API);
+  return client;
 }
 
 export interface Deployment {

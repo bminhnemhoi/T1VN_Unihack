@@ -2,7 +2,7 @@
  * Chain reads for the UI (docs/05 sections 7.1 and 7.2, ADR-07: no indexer). `readCircle` builds a `CircleView` from
  * contract views (merged ABI incl. the lens views) plus events. Only plain viem calls; works with any `PublicClient`.
  */
-import { bytesToString, hexToBytes, type PublicClient } from 'viem';
+import { bytesToString, decodeEventLog, hexToBytes, type Hex as ViemHex, type PublicClient } from 'viem';
 import { DEFAULT_VND_PER_USDC, ND19_ARTICLE14_THRESHOLD_VND } from 'config';
 import { huiCircleFullAbi } from './abi';
 import { huiCircleAbi, huiFactoryAbi, iReputationRegistryAbi } from './generated';
@@ -97,6 +97,75 @@ export function vndPerRound(n: number, c: bigint, vndPerUsdc: number = DEFAULT_V
   return Number((BigInt(n) * c * BigInt(Math.round(vndPerUsdc))) / 1_000_000n);
 }
 
+type FetchFn = (url: string) => Promise<{ ok: boolean; status: number; json(): Promise<unknown> }>;
+const explorers = new WeakMap<object, { url: string; fetchFn: FetchFn }>();
+
+/** Fuji's Routescan (Etherscan-compatible) API: any block range in one request, CORS open, block timestamps included. */
+export const FUJI_EXPLORER_API = 'https://api.routescan.io/v2/network/testnet/evm/43113/etherscan/api';
+/** The explorer indexes a few seconds behind the node: a refresh re-reads this many blocks behind the head. */
+const EXPLORER_LAG_BLOCKS = 40n;
+const EXPLORER_PAGE = 1000;
+
+/**
+ * Use an Etherscan-compatible explorer API as the primary source of circle events for reads made with `client`
+ * (`getCircleEvents`, and so `readCircle`). Fuji's public RPC allows 100 blocks per `getLogs` and throttles bursts of
+ * requests hard (measured 11/11/2026), which makes a page that scans the chain in chunks unusable; the explorer answers
+ * the whole range in one request. Any explorer failure falls back to the chunked RPC scan.
+ */
+export function registerExplorerApi(client: PublicClient, url: string, fetchFn?: FetchFn): void {
+  explorers.set(client, { url, fetchFn: fetchFn ?? ((u) => fetch(u) as unknown as ReturnType<FetchFn>) });
+}
+
+interface ExplorerLog {
+  topics: string[];
+  data: string;
+  blockNumber: string;
+  timeStamp: string;
+  logIndex: string;
+  transactionHash: string;
+}
+
+async function explorerEvents(
+  ex: { url: string; fetchFn: FetchFn },
+  circle: Address,
+  fromBlock: bigint,
+  toBlock: bigint,
+): Promise<CircleEvent[]> {
+  const out: CircleEvent[] = [];
+  for (let page = 1; page <= 50; page++) {
+    const q = `module=logs&action=getLogs&address=${circle}&fromBlock=${fromBlock}&toBlock=${toBlock}&page=${page}&offset=${EXPLORER_PAGE}`;
+    const res = await ex.fetchFn(`${ex.url}?${q}`);
+    if (!res.ok) throw new Error(`explorer HTTP ${res.status}`);
+    const j = (await res.json()) as { status?: string; message?: string; result?: unknown };
+    if (!Array.isArray(j.result)) {
+      if (j.status === '0' && /no (records|logs)/i.test(String(j.message))) break; // empty range
+      throw new Error(`explorer: ${String(j.message ?? 'bad answer')}`);
+    }
+    for (const l of j.result as ExplorerLog[]) {
+      let eventName = 'Unknown';
+      let args: Record<string, unknown> = {};
+      try {
+        const d = decodeEventLog({ abi: huiCircleAbi, data: l.data as ViemHex, topics: l.topics as [ViemHex, ...ViemHex[]] });
+        eventName = String(d.eventName);
+        args = (d.args ?? {}) as Record<string, unknown>;
+      } catch {
+        continue; // an event this ABI does not know (cannot happen for our own circles)
+      }
+      out.push({
+        eventName,
+        args,
+        blockNumber: BigInt(l.blockNumber),
+        logIndex: Number(BigInt(l.logIndex)),
+        txHash: l.transactionHash as ViemHex,
+        timestamp: Number(BigInt(l.timeStamp)),
+      });
+    }
+    if (j.result.length < EXPLORER_PAGE) break;
+  }
+  out.sort((a, b) => (a.blockNumber === b.blockNumber ? a.logIndex - b.logIndex : a.blockNumber < b.blockNumber ? -1 : 1));
+  return out;
+}
+
 interface EventCacheEntry {
   /** The `fromBlock` the caller asked for (not the narrowed creation block). */
   requestedFrom: bigint;
@@ -147,6 +216,27 @@ async function scanEvents(client: PublicClient, circle: Address, opts: EventOpti
   if (entry && (latest < entry.scannedTo || requestedFrom < entry.requestedFrom)) {
     perClient.delete(key);
     entry = undefined;
+  }
+
+  const explorer = explorers.get(client);
+  if (explorer) {
+    try {
+      const from = entry
+        ? entry.scannedTo + 1n > EXPLORER_LAG_BLOCKS
+          ? entry.scannedTo + 1n - EXPLORER_LAG_BLOCKS
+          : 0n
+        : requestedFrom;
+      const lo = entry && from < entry.start ? entry.start : from;
+      const fresh = await explorerEvents(explorer, circle, lo, latest);
+      const kept = entry ? entry.events.filter((e) => e.blockNumber < lo) : [];
+      const out = [...kept, ...fresh];
+      // The explorer may trail the node by a few blocks: only claim what is safely behind the head.
+      const scannedTo = latest > EXPLORER_LAG_BLOCKS ? latest - EXPLORER_LAG_BLOCKS : 0n;
+      if (useCache) perClient.set(key, { requestedFrom: entry?.requestedFrom ?? requestedFrom, start: entry?.start ?? lo, scannedTo, events: out, timestamps: entry?.timestamps ?? new Map() });
+      return out.map((e) => ({ ...e }));
+    } catch {
+      // explorer down or throttled: fall through to the chunked RPC scan
+    }
   }
 
   let start = requestedFrom;
