@@ -286,3 +286,20 @@ Link: `https://testnet.snowtrace.io/tx/<hash>`.
 | `finalize` (Completed, số dư USDC của dây về 0) | `0x7159ec482321ad9bb6f8fad699d4d259b11a63112b6e3a35f978b1d94568b290` |
 
 Hệ thống deploy ở block 60843937 (`fuji.json`); các tx deploy, chia tiền, tạo dây và vào dây nằm trong `contracts/broadcast/*/43113/run-latest.json` trên máy deploy (không commit).
+
+### 15b. Ví dụ docs/03 mục 8 nhánh B (vỡ nợ, thác bù) chạy thật, 11/11/2026
+
+Dây `huisafe-demo-default` `0xc62828b2f72D288298A6E2fFd0814D0Cb6e15Bfc` (Bidding, N = 5, C = 10, ký quỹ 48), chạy bằng `pnpm --filter web worked-example:fuji -- --yes` qua relay thật, keeper thật chi kỳ: **104 kiểm tra đạt, mọi số khớp docs/03 mục 8 chia 10.** M4 thăm 0,6 hốt kỳ 1 nhận 28,848; trước kỳ 2 M4 thu hồi allowance (permit 0) nên thiếu 10, bù 8 từ tiền giữ lại của M4 và 2 từ ký quỹ, M1 hốt 32,318; `markDefault(M4)` đưa tiền công kỳ 2 vào quỹ dự phòng; kỳ 3-5 ký quỹ 36, 26, 16; `finalize` trả chủ hụi 16 + 1,2, quỹ dự phòng 2,358 chia 0,5895 cho M1, M2, M3, M5, M4 nhận 0, sổ uy tín M4 thêm một vỡ nợ, dây về 0.
+
+| Bước | Hash |
+|---|---|
+| `createCircle` | `0x2292a2eb43cf7656a167130a39a4ee96e83ab100b2b557bb6c1a2e84c09338a2` |
+| `activate` | `0xab305299b987ed0586b4e6b840579153f04866a76a99ae875a443a872affe597` |
+| Kỳ 1 `settleRound` (M4 hốt) | `0x07a470e539d6cb2bfa018df065d5b3a281b8ad452772a90d58964f2fb8d6682b` |
+| M4 thu hồi allowance (permit 0, relayer gửi) | `0x2b29bbaa13a4a61e374578468be84d22d869994fbbb4637842fbb435d378dab8` |
+| Kỳ 2 `settleRound` (M4 thiếu, thác bù 8 + 2) | `0x1cb02efe008f73e87ccb44b327e7fff0786eba5da95005df4916d6b23c010185` |
+| `markDefault(M4)` | `0x33886575dc944a9d66f25209b5e56096a1c0941247ac71c079a11961d6ab9b66` |
+| Kỳ 3, 4, 5 `settleRound` | `0x9f042bf5327ad0a68418003df47746bcc3b073a952626764a90a777ea10f2355`, `0x53c8e84a05682dbea3d040340e40d541c5b25aa4af6c47ee0d2e59c05a9d534d`, `0x5970a72092587fc455d526bf45e05298c12a476f24c9cd4f4a2a3f347b23c13e` |
+| `finalize` | `0xf415cfb744bcd159657fe7be86ce9d32221b4bdf626742499b7efb2de649bc32` |
+
+Các tx `join`, `commitBid`, `revealBid` nằm ở `/tmp/huisafe-worked-example/state.json` trên máy chạy.
