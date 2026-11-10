@@ -723,10 +723,10 @@ Chế độ demo là dev toggle, phải khai báo đầu buổi pitch (03, mục
 
 | Sự cố | Dấu hiệu | Còn chạy được | Cách xử lý |
 |---|---|---|---|
-| Relayer ngừng hoặc hết AVAX | `/api/relay` lỗi 5xx hoặc báo số dư thấp | Keeper vẫn chi kỳ (kéo tiền bằng allowance đã ký). Người có AVAX gọi trực tiếp | UI hiện nút "Gửi trực tiếp" kèm ước tính gas; ví demo được nạp sẵn ít AVAX. Đội nạp thêm AVAX, khởi động lại |
+| Relayer ngừng hoặc hết AVAX | `/api/relay` lỗi 5xx hoặc báo số dư thấp | Keeper vẫn chi kỳ (kéo tiền bằng allowance đã ký). Người có AVAX gọi trực tiếp | UI hiện nút "Gửi trực tiếp" kèm ước tính gas (ROADMAP, chưa có trong web); ví demo được nạp sẵn ít AVAX. Đội nạp thêm AVAX, khởi động lại |
 | Keeper ngừng | Kỳ quá `deadline` chưa chi | Ai cũng gọi được `settleRound`, `markDefault`, `finalize`, `cancel`; chỉ chậm, không mất tiền (03, mục 9) | `SettleButton` hiện khi quá hạn và gửi qua relayer (bốn selector này nằm trong allowlist, 05 mục 8.2), nên người bấm không tốn gas; relayer cũng ngừng thì người có AVAX gửi trực tiếp. Đội chạy keeper từ máy khác |
 | Privy ngừng | Không đăng nhập, không ký được | Tiền vẫn chạy: `settleRound` kéo bằng allowance; kỳ không ai thăm thì người sống có `joinIndex` nhỏ nhất hốt với b = 0. Người dùng ví ngoài (Core, MetaMask) vẫn gọi trực tiếp | Tạm dừng vào dây mới (attest cần token Privy). Báo người dùng, chờ Privy |
-| RPC giới hạn tần suất | Lỗi 429, timeout | Đọc qua RPC dự phòng | Transport `fallback` của viem với `FUJI_RPC_URL` và `FUJI_RPC_URL_FALLBACK`; thử lại có giãn cách; tăng `staleTime` của TanStack Query; keeper giãn chu kỳ |
+| RPC giới hạn tần suất | Lỗi 429, timeout | Đọc qua RPC dự phòng (ROADMAP, web chưa đọc `FUJI_RPC_URL_FALLBACK`) | Transport `fallback` của viem với `FUJI_RPC_URL` và `FUJI_RPC_URL_FALLBACK`; thử lại có giãn cách; tăng `staleTime` của TanStack Query; keeper giãn chu kỳ |
 | Nhà cung cấp mô hình (router hoặc Claude API) ngừng | `/api/copilot` lỗi | Các phép tính vẫn có | Hiện thẳng kết quả tool tất định, không có lời giải thích |
 | Fuji chậm hoặc sự cố | Không có receipt | Dây trên chuỗi không mất gì | Demo bằng Anvil local và video dự phòng; không hứa thời gian |
 | Lộ khóa attester | Attestation lạ xuất hiện | Dây đang chạy không bị ảnh hưởng tiền | Xoay khóa; `setConfig` cho dây mới; dây còn Forming thì cân nhắc `cancel` (09, mục 13) |

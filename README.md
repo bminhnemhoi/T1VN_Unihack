@@ -101,7 +101,8 @@ Số liệu đo ngày 10 đến 11/11/2026 trên nhánh `Towfienes/sim-ai` (sau 
 | `forge test --match-path "test/invariant/*"` | 54 đạt (bất biến tiền INV-01..INV-09, INV-11..INV-13; INV-10 kiểm tĩnh ở CI) |
 | `pnpm -r test` | sdk 105, web 359, keeper 18, config 10: đều đạt |
 | `pnpm -r lint` và `pnpm -r typecheck` | sạch |
-| `pnpm --filter web test:e2e` (Playwright, gồm kiểm axe về khả năng truy cập; mobile 390, desktop 1440; tablet 768 chỉ cho spec bố cục) | 467 đạt, 7 bỏ qua có chủ đích (test bàn phím chỉ chạy trên desktop) |
+| `pnpm --filter web test:e2e` (Playwright, gồm kiểm axe về khả năng truy cập; mobile 390, desktop 1440; tablet 768 chỉ cho spec bố cục) | 469 đạt, 7 bỏ qua có chủ đích (test bàn phím chỉ chạy trên desktop) |
+| `pnpm --filter web test:e2e:chain` (build chế độ chuỗi với deployment GIẢ và RPC chết cục bộ: không gọi Fuji; kiểm menu và 404) | 6 đạt (3 kiểm × mobile 390 và desktop 1440) |
 | `pnpm --filter web e2e:anvil` | 106 kiểm tra đạt |
 | `cd sim && pytest` | 71 đạt; `mypy --strict` sạch |
 | Eval trợ lý, chế độ mock (`lib/copilot/evals/run.ts --mode mock`) | 33/33 ca đạt. Đây là kịch bản viết tay để kiểm tool, bộ kiểm đầu ra và cách chấm, KHÔNG phải số đo mô hình thật; eval với mô hình thật chưa chạy |

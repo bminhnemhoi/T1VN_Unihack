@@ -2,16 +2,18 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { NAV, isActive } from '@/components/shell/nav';
+import { isActive, navFor } from '@/components/shell/nav';
+import { useChain } from '@/lib/chain/provider';
 import { cn } from '@/lib/utils';
 
 /** Mobile bottom navigation: icon + word for every item (never icon only), 64px tall. */
 export function BottomNav() {
   const pathname = usePathname();
+  const items = navFor(useChain() !== null);
   return (
     <nav aria-label="Điều hướng chính (điện thoại)" className="fixed inset-x-0 bottom-0 z-40 border-t border-border bg-card lg:hidden">
-      <ul className="grid grid-cols-4">
-        {NAV.map((l) => {
+      <ul className={items.length === 3 ? 'grid grid-cols-3' : 'grid grid-cols-4'}>
+        {items.map((l) => {
           const on = isActive(pathname, l.href);
           const Icon = l.icon;
           return (
