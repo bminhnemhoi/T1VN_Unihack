@@ -1,0 +1,12 @@
+{
+  "scenario": "organizer_economics",
+  "kind": "organizer_economics",
+  "seed": 42,
+  "randomness": "none: scripted bids and fixed default schedule; the seed is recorded only",
+  "scenarioSha256": "cd4fcf32de0516640aa863c536653dcf61b4969e693683fbf92c0c9ac897a1c6",
+  "gitCommit": "204bf3b",
+  "python": "3.14.7",
+  "numpy": "2.5.4",
+  "elapsedSeconds": 0.48,
+  "assumptions": "Every receiver k < N stops paying right after it receives, with the assumed Klonner & Rai lifetime rate of its half (2.04% for k <= N/2, 0.59% after), applied once; scale 0.5 halves it. Each round's winner is the seat of that round and bids 50% of the enforced ceiling. Bond = (1 - alpha) x O_max (CI 100%). Assumptions, not measurements."
+}

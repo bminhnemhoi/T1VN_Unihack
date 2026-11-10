@@ -131,3 +131,95 @@ def plot_inv08(doc: dict[str, Any], path: Path) -> None:
     )
     fig.savefig(path, dpi=DPI, bbox_inches="tight")
     plt.close(fig)
+
+
+def _viet(x: float, digits: int = 1) -> str:
+    return f"{x:.{digits}f}".replace(".", ",")
+
+
+def plot_organizer_economics(doc: dict[str, Any], path: Path) -> None:
+    """Organizer return per year on the bond after default risk, by circle shape and commission."""
+    labels = list(dict.fromkeys(c["schedule"] for c in doc["cells"]))
+    pal = ["#8a8f98", "#d9822b", "#1f6feb"]
+    fig, axes = plt.subplots(1, 2, figsize=(12, 5), sharey=True, constrained_layout=True)
+    for ax, period in zip(axes, (7, 30), strict=True):
+        cells = [c for c in doc["cells"] if c["periodDays"] == period]
+        members = sorted({c["members"] for c in cells})
+        width = 0.8 / len(labels)
+        for j, (label, color) in enumerate(zip(labels, pal, strict=False)):
+            vals = [
+                next(c for c in cells if c["members"] == n and c["schedule"] == label)[
+                    "annualReturnPctByHazardScale"
+                ]["1"]
+                for n in members
+            ]
+            xs = [i + (j - (len(labels) - 1) / 2) * width for i in range(len(members))]
+            bars = ax.bar(xs, vals, width, color=color, label=label)
+            ax.bar_label(bars, labels=[_viet(v) for v in vals], padding=2, fontsize=7)
+        ax.axhline(0, color="#333333", linewidth=0.8)
+        ax.set_xticks(range(len(members)), [f"{n} người" for n in members])
+        ax.set_title("Hụi tuần (7 ngày)" if period == 7 else "Hụi tháng (30 ngày)")
+        ax.spines[["top", "right"]].set_visible(False)
+    axes[0].set_ylabel("Lời của chủ hụi sau rủi ro (% mỗi năm trên ký quỹ)")
+    axes[1].legend(frameon=False, loc="lower left", fontsize=8)
+    axes[1].set_ylim(top=max(c["annualReturnPctByHazardScale"]["1"] for c in doc["cells"]) * 1.25)
+    fig.suptitle(
+        "Chủ hụi lời bao nhiêu? Hoa hồng cố định và hoa hồng trong trần lãi",
+        fontsize=14,
+        fontweight="bold",
+    )
+    fig.text(
+        0.5,
+        -0.04,
+        "Kết quả mô phỏng với tham số giả định, không phải dự báo. "
+        f"C={doc['C']} USDC, α={doc['alphaBps'] // 100}%, ký quỹ cho CI 100%, "
+        "người hốt bỏ đóng theo "
+        f"tỷ lệ giả định (Klonner & Rai: {_viet(100 * doc['risk']['early'], 2)}% nửa đầu, "
+        f"{_viet(100 * doc['risk']['late'], 2)}% nửa sau). Số tất định, không ngẫu nhiên.",
+        ha="center",
+        fontsize=8,
+        color="#555555",
+    )
+    fig.savefig(path, dpi=DPI, bbox_inches="tight")
+    plt.close(fig)
+
+
+def plot_organizer_sybil(doc: dict[str, Any], path: Path) -> None:
+    """Organizer profit or loss with one or two fake wallets; last honest receiver payout."""
+    cases = doc["cases"]
+    labels = [c["label"].replace(", ", "\n") for c in cases]
+    net = [c["organizerNetUsdc"] for c in cases]
+    last = [c["lastReceiverPayoutUsdc"] for c in cases]
+    normal = cases[0]["lastReceiverNormalUsdc"]
+    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(11, 5), constrained_layout=True)
+    colors = ["#b3261e" if v < 0 else "#2e7d32" for v in net]
+    bars = ax1.bar(range(len(cases)), net, 0.55, color=colors)
+    ax1.bar_label(bars, labels=[_viet(v, 2) for v in net], padding=3)
+    ax1.axhline(0, color="#333333", linewidth=0.8)
+    ax1.set_xticks(range(len(cases)), labels)
+    ax1.set_ylabel("Lời (+) hoặc lỗ (−) của chủ hụi, USDC")
+    ax1.set_title("Chủ hụi chơi bằng ví ảo: lời hay lỗ?")
+    bars2 = ax2.bar(range(len(cases)), last, 0.55, color="#1f6feb")
+    ax2.bar_label(bars2, labels=[_viet(v, 2) for v in last], padding=3)
+    ax2.axhline(normal, color="#555555", linestyle="--", linewidth=1)
+    ax2.text(
+        len(cases) - 0.5, normal, f"nhận đủ {_viet(normal, 0)}", ha="right", va="bottom", fontsize=8
+    )
+    ax2.set_xticks(range(len(cases)), labels)
+    ax2.set_ylabel("Người hốt cuối (trung thực) nhận, USDC")
+    ax2.set_title("Người trung thực hốt cuối nhận bao nhiêu?")
+    for ax in (ax1, ax2):
+        ax.spines[["top", "right"]].set_visible(False)
+    fig.suptitle("Cọc 100% chặn một ví ảo, không chặn nhiều ví ảo", fontsize=14, fontweight="bold")
+    fig.text(
+        0.5,
+        -0.04,
+        "Kết quả mô phỏng với tham số giả định, không phải dự báo. "
+        f"N={doc['N']}, C={doc['C']} USDC, α={doc['alphaBps'] // 100}%. "
+        "Số tất định, không ngẫu nhiên.",
+        ha="center",
+        fontsize=8,
+        color="#555555",
+    )
+    fig.savefig(path, dpi=DPI, bbox_inches="tight")
+    plt.close(fig)

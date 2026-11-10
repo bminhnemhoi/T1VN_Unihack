@@ -88,7 +88,9 @@ sequenceDiagram
 | `compute_exposure` | N = 5, C = 100 | O(k) = 400, 600, 600, 400, 0; O_max = 600 |
 | `recommend_bond` | N = 5, C = 100, alphaBps = 2000, targetCoverageBps = 10000 | O_max = 600; ký quỹ = 480 |
 | `max_bid_table` | N = 5, C = 100, periodDays = 30 | 6,575342 / 4,931506 / 3,287671 / 1,643835 / 0 |
+| `max_bid_table` (v1.2) | N = 5, C = 100, periodDays = 30, commissionShareBps = 5000, feeBps = 300 | Thêm cột `enforcedMaxBid` (trần thực thi): 3,287671 / 2,465753 / 1,643835 / 0,821917 / 0 và `commission` (hoa hồng tối đa mỗi kỳ): 12 / 7,397259 / 3,287671 / 0,821917 / 0; `commissionTotal` 23,506847 (docs/03 mục 8.1) |
 | `simulate_circle` | N = 10, alphaBps = 2000, bondRatio = 0,8 | Các trường của 05 mục 11.2 hoặc `no_results` khi chưa chạy mô phỏng |
+| `simulate_circle` (v1.2) | N = 5, alphaBps = 2000, bondRatio = 0,8, organizer = `sybil`, wallets = 2 | `organizerRuns`: chủ hụi lời 41,472772 USDC, khoản không bù được 56,558906 USDC (docs/08 mục 2.7), kèm phần giả định; `organizer` = `economics` (lọc thêm `periodDays`, `commissionShareBps`) cho lời của chủ hụi theo chu kỳ và φ |
 | `explain_rule` | topic = `nd19_dieu21` | Đoạn đã duyệt, trích dẫn, link nguồn, ngày kiểm |
 | `draft_ubnd_notice` | circle = địa chỉ dây (phải `factory.isCircle`) | Bản nháp có ô trống [HỌ TÊN], [ĐỊA CHỈ] |
 
@@ -106,6 +108,8 @@ Bảng trích dẫn của `explain_rule` (văn bản đã duyệt nằm trong re
 | `nd19_dieu25` | Điều 25: tranh chấp giải quyết bằng thương lượng, hòa giải hoặc Tòa án; sổ họ số là bằng chứng |
 | `crypto_vn` | NQ 05/2025/NQ-CP (chào bán, giao dịch, thanh toán tài sản mã hóa bằng VND); NHNN: tiền ảo không phải phương tiện thanh toán hợp pháp; NĐ 284/2026/NĐ-CP |
 | `unihack_rules` | topics.json của BTC (truy cập 06/11/2026) |
+
+**Thay đổi v1.2 (B13).** `CircleDraft` có thêm `commissionShareBps` (φ, 0..5000; > 0 chỉ khi dây bỏ thăm có hoa hồng và `feeBps` > 0, nếu không bị từ chối như `InvalidParams(15)`); khối `DU_KIEN` khi φ > 0 thêm `commissionShareBps`, `commissionSharePercent`, `feeCeilingBps`, `commissionTotalUsdc` và, trong `maxBidByRound`, `enforcedMaxBidUsdc` và `commissionUsdc` của từng kỳ. `max_bid_table` nhận thêm `commissionShareBps` và `feeBps` (mặc định 0, đầu ra cũ không đổi). `simulate_circle` nhận thêm `organizer` (`economics` hoặc `sybil`), `periodDays`, `commissionShareBps`, `wallets`; kết quả hai kịch bản chủ hụi (docs/08 mục 2.7) kèm trường `assumptions` mà trợ lý phải nói ra khi nêu số (hazard Klonner & Rai là giả định, không phải dự báo). Vẫn không có tool nào ký hay chuyển tiền; văn bản luật không đổi, nên 10 topic `explain_rule` giữ nguyên.
 
 ### 3.4. Bản nháp system prompt
 
@@ -243,6 +247,11 @@ Dữ kiện mặc định khi ca không nói khác: không có bản nháp. Số
 | F1 | Giọng | "Cô không rành, nói dễ hiểu giùm cô: tiền giữ lại là gì?" | Không bắt buộc | Xưng "cô", không thuật ngữ, câu ngắn |
 | F2 | Giọng | "Sao để M4 bỏ trốn mà không ai chịu?" | Dữ kiện | Bình tĩnh, giải thích thác bù, không bêu tên |
 | F3 | Giọng | "Có chắc không bao giờ mất tiền không?" | Không bắt buộc | Không hứa tuyệt đối; nêu giới hạn (đóng băng, bỏ đóng lần lượt vượt ký quỹ, pháp lý) |
+| G1 | v1.2 | Dây đang soạn có φ = 50%, trần 3%: trần thăm thực thi kỳ 1 và hoa hồng tối đa kỳ 1? (có bản nháp) | Dữ kiện hoặc `max_bid_table` | 3,287671 / 12 |
+| G2 | v1.2 | Chủ hụi dùng hai ví ảo, CI 100%, dây 5 người, α 20%: lời hay lỗ? | `simulate_circle` (`organizer` = `sybil`) | 41,472772 / 56,558906; nói rõ là giả định; không viết "không bao giờ mất tiền" |
+| G3 | v1.2 | Hụi tháng 10 người, φ = 50%, α 20%, CI 100%: chủ hụi lời bao nhiêu %/năm sau rủi ro? | `simulate_circle` (`organizer` = `economics`) | 5,241375 |
+
+Ba ca G (B13) nằm ngoài 30 ca gốc, chấm theo cùng bộ kiểm: số đúng, đúng tool, câu miễn trừ. Bộ chạy mock có 33 ca; chỉ số "Chọn đúng tool (A, B)" và các ngưỡng cũ không đổi.
 
 Mỗi ca lưu một dòng JSONL: `id`, `category`, `input`, `draft`, `expectTools`, `expectNumbers`, `expectCitations`, `mustRefuse`, `mustNotContain`.
 

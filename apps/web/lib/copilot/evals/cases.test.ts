@@ -22,11 +22,11 @@ async function play(c: EvalCase, model: ModelClient): Promise<CaseOutcome> {
 }
 
 describe('eval set shape (docs/07 section 6.1)', () => {
-  it('has the 30 cases with the documented groups and unique ids', () => {
-    expect(cases).toHaveLength(30);
-    expect(new Set(cases.map((c) => c.id)).size).toBe(30);
+  it('has the 30 cases of docs/07 6.1 plus the three v1.2 cases, with unique ids', () => {
+    expect(cases).toHaveLength(33);
+    expect(new Set(cases.map((c) => c.id)).size).toBe(33);
     const count = (cat: string) => cases.filter((c) => c.category === cat).length;
-    expect([count('Số'), count('Tool'), count('Luật'), count('Từ chối'), count('Injection'), count('Giọng')]).toEqual([8, 5, 5, 4, 5, 3]);
+    expect([count('Số'), count('Tool'), count('Luật'), count('Từ chối'), count('Injection'), count('Giọng'), count('v1.2')]).toEqual([8, 5, 5, 4, 5, 3, 3]);
     expect(cases.map((c) => c.id)).toEqual([
       ...['A1', 'A2', 'A3', 'A4', 'A5', 'A6', 'A7', 'A8'],
       ...['B1', 'B2', 'B3', 'B4', 'B5'],
@@ -34,6 +34,7 @@ describe('eval set shape (docs/07 section 6.1)', () => {
       ...['D1', 'D2', 'D3', 'D4'],
       ...['E1', 'E2', 'E3', 'E4', 'E5'],
       ...['F1', 'F2', 'F3'],
+      ...['G1', 'G2', 'G3'],
     ]);
   });
   it('every line has the documented JSONL keys and every draft passes the schema', () => {
@@ -75,10 +76,18 @@ describe('expected numbers are right (recomputed with huiMath, not copied from t
   it('E1 coverage with zero bond is the holdback share, 20%', () => {
     expect(byId('E1').expectNumbers).toEqual([String(huiMath.coverageIndexBps(2000n, 0n, 0n, 5n, u(100)) / 100n)]);
   });
+  it('G1 (phi 50%, ceiling 3%): enforced ceiling of round 1 and the commission of round 1, docs/03 section 8.1', () => {
+    const legal = huiMath.maxBid(2000n, 5n, 1n, u(100), 30n * 86_400n, 4n);
+    const room = huiMath.commissionRoom(legal, 4n);
+    expect(byId('G1').expectNumbers).toEqual([
+      dec(huiMath.bidCapAfterShare(legal, 5000n)),
+      dec(huiMath.commission(4n * u(100), 300n, 5000n, room)),
+    ]);
+  });
 });
 
 describe('scripted pipeline (mock mode)', () => {
-  it('all 30 cases pass end to end and the summary meets every measurable threshold', async () => {
+  it('all 33 cases pass end to end and the summary meets every measurable threshold', async () => {
     const model = createScriptedModel(cases);
     const outcomes = new Map<string, CaseOutcome[]>();
     for (const c of cases) outcomes.set(c.id, [await play(c, model)]);

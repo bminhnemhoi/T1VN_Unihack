@@ -1,0 +1,736 @@
+{
+  "kind": "organizer_economics",
+  "generatedAt": "2026-11-10T17:01:08Z",
+  "scenario": "organizer_economics",
+  "C": 100,
+  "alphaBps": 2000,
+  "reserveBps": 100,
+  "bidPctOfCap": 50,
+  "risk": {
+    "early": 0.0204,
+    "late": 0.0059,
+    "scales": [
+      1.0,
+      0.5
+    ]
+  },
+  "cells": [
+    {
+      "schedule": "C\u1ed1 \u0111\u1ecbnh 1% (v1.1)",
+      "periodDays": 7,
+      "members": 5,
+      "shareBps": 0,
+      "feeBps": 100,
+      "bondUsdc": 480.0,
+      "grossFeeUsdc": 19.942464,
+      "expectedLossUsdc": 13.04988,
+      "netAfterRiskUsdc": 6.892584,
+      "annualReturnPctByHazardScale": {
+        "1": 14.974959,
+        "0.5": 29.151168
+      },
+      "seatNetUsdc": [
+        -7.018626,
+        -4.935889,
+        -3.420821,
+        -2.473426,
+        -2.093702
+      ],
+      "firstSeatNetUsdc": -7.018626,
+      "lastSeatNetUsdc": -2.093702,
+      "lastThirdNeverLoses": false,
+      "insideInterestCap": false
+    },
+    {
+      "schedule": "Trong tr\u1ea7n, \u03c6 = 33%",
+      "periodDays": 7,
+      "members": 5,
+      "shareBps": 3333,
+      "feeBps": 300,
+      "bondUsdc": 480.0,
+      "grossFeeUsdc": 3.835228,
+      "expectedLossUsdc": 12.874658,
+      "netAfterRiskUsdc": -9.03943,
+      "annualReturnPctByHazardScale": {
+        "1": -19.639237,
+        "0.5": -5.653374
+      },
+      "seatNetUsdc": [
+        -4.07843,
+        -1.786032,
+        -0.130341,
+        0.888647,
+        1.270928
+      ],
+      "firstSeatNetUsdc": -4.07843,
+      "lastSeatNetUsdc": 1.270928,
+      "lastThirdNeverLoses": true,
+      "insideInterestCap": true
+    },
+    {
+      "schedule": "Trong tr\u1ea7n, \u03c6 = 50%",
+      "periodDays": 7,
+      "members": 5,
+      "shareBps": 5000,
+      "feeBps": 300,
+      "bondUsdc": 480.0,
+      "grossFeeUsdc": 5.753421,
+      "expectedLossUsdc": 12.891992,
+      "netAfterRiskUsdc": -7.138571,
+      "annualReturnPctByHazardScale": {
+        "1": -15.509395,
+        "0.5": -1.504701
+      },
+      "seatNetUsdc": [
+        -4.593146,
+        -2.202601,
+        -0.481369,
+        0.570547,
+        0.953148
+      ],
+      "firstSeatNetUsdc": -4.593146,
+      "lastSeatNetUsdc": 0.953148,
+      "lastThirdNeverLoses": true,
+      "insideInterestCap": true
+    },
+    {
+      "schedule": "C\u1ed1 \u0111\u1ecbnh 1% (v1.1)",
+      "periodDays": 7,
+      "members": 8,
+      "shareBps": 0,
+      "feeBps": 100,
+      "bondUsdc": 1280.0,
+      "grossFeeUsdc": 55.731503,
+      "expectedLossUsdc": 39.427679,
+      "netAfterRiskUsdc": 16.303824,
+      "annualReturnPctByHazardScale": {
+        "1": 8.302031,
+        "0.5": 18.340468
+      },
+      "seatNetUsdc": [
+        -16.242865,
+        -12.457118,
+        -9.239042,
+        -6.588632,
+        -4.505891,
+        -2.990823,
+        -2.043428,
+        -1.663704
+      ],
+      "firstSeatNetUsdc": -16.242865,
+      "lastSeatNetUsdc": -1.663704,
+      "lastThirdNeverLoses": false,
+      "insideInterestCap": false
+    },
+    {
+      "schedule": "Trong tr\u1ea7n, \u03c6 = 33%",
+      "periodDays": 7,
+      "members": 8,
+      "shareBps": 3333,
+      "feeBps": 300,
+      "bondUsdc": 1280.0,
+      "grossFeeUsdc": 17.897744,
+      "expectedLossUsdc": 38.964056,
+      "netAfterRiskUsdc": -21.066312,
+      "annualReturnPctByHazardScale": {
+        "1": -10.727126,
+        "0.5": -0.806729
+      },
+      "seatNetUsdc": [
+        -12.489083,
+        -8.286568,
+        -4.72076,
+        -1.791651,
+        0.500747,
+        2.156438,
+        3.175426,
+        3.557707
+      ],
+      "firstSeatNetUsdc": -12.489083,
+      "lastSeatNetUsdc": 3.557707,
+      "lastThirdNeverLoses": true,
+      "insideInterestCap": true
+    },
+    {
+      "schedule": "Trong tr\u1ea7n, \u03c6 = 50%",
+      "periodDays": 7,
+      "members": 8,
+      "shareBps": 5000,
+      "feeBps": 300,
+      "bondUsdc": 1280.0,
+      "grossFeeUsdc": 26.849306,
+      "expectedLossUsdc": 39.078118,
+      "netAfterRiskUsdc": -12.228812,
+      "annualReturnPctByHazardScale": {
+        "1": -6.227004,
+        "0.5": 3.722433
+      },
+      "seatNetUsdc": [
+        -14.065671,
+        -9.667188,
+        -5.938015,
+        -2.878149,
+        -0.487603,
+        1.233629,
+        2.285545,
+        2.668146
+      ],
+      "firstSeatNetUsdc": -14.065671,
+      "lastSeatNetUsdc": 2.668146,
+      "lastThirdNeverLoses": true,
+      "insideInterestCap": true
+    },
+    {
+      "schedule": "C\u1ed1 \u0111\u1ecbnh 1% (v1.1)",
+      "periodDays": 7,
+      "members": 10,
+      "shareBps": 0,
+      "feeBps": 100,
+      "bondUsdc": 2000.0,
+      "grossFeeUsdc": 89.45342,
+      "expectedLossUsdc": 62.962808,
+      "netAfterRiskUsdc": 26.490612,
+      "annualReturnPctByHazardScale": {
+        "1": 6.906481,
+        "0.5": 15.114133
+      },
+      "seatNetUsdc": [
+        -24.278215,
+        -19.357119,
+        -15.003694,
+        -11.21794,
+        -7.999864,
+        -5.349454,
+        -3.266713,
+        -1.751645,
+        -0.80425,
+        -0.424526
+      ],
+      "firstSeatNetUsdc": -24.278215,
+      "lastSeatNetUsdc": -0.424526,
+      "lastThirdNeverLoses": false,
+      "insideInterestCap": false
+    },
+    {
+      "schedule": "Trong tr\u1ea7n, \u03c6 = 33%",
+      "periodDays": 7,
+      "members": 10,
+      "shareBps": 3333,
+      "feeBps": 300,
+      "bondUsdc": 2000.0,
+      "grossFeeUsdc": 36.434699,
+      "expectedLossUsdc": 62.346072,
+      "netAfterRiskUsdc": -25.911373,
+      "annualReturnPctByHazardScale": {
+        "1": -6.755465,
+        "0.5": 1.371791
+      },
+      "seatNetUsdc": [
+        -20.644674,
+        -15.168753,
+        -10.329524,
+        -6.127009,
+        -2.561201,
+        0.367908,
+        2.660306,
+        4.315997,
+        5.334985,
+        5.717266
+      ],
+      "firstSeatNetUsdc": -20.644674,
+      "lastSeatNetUsdc": 5.717266,
+      "lastThirdNeverLoses": true,
+      "insideInterestCap": true
+    },
+    {
+      "schedule": "Trong tr\u1ea7n, \u03c6 = 50%",
+      "periodDays": 7,
+      "members": 10,
+      "shareBps": 5000,
+      "feeBps": 300,
+      "bondUsdc": 2000.0,
+      "grossFeeUsdc": 54.657521,
+      "expectedLossUsdc": 62.599183,
+      "netAfterRiskUsdc": -7.941662,
+      "annualReturnPctByHazardScale": {
+        "1": -2.070505,
+        "0.5": 6.089746
+      },
+      "seatNetUsdc": [
+        -23.25101,
+        -17.513903,
+        -12.446089,
+        -8.0476,
+        -4.318427,
+        -1.258561,
+        1.131985,
+        2.853217,
+        3.905133,
+        4.287734
+      ],
+      "firstSeatNetUsdc": -23.25101,
+      "lastSeatNetUsdc": 4.287734,
+      "lastThirdNeverLoses": true,
+      "insideInterestCap": true
+    },
+    {
+      "schedule": "C\u1ed1 \u0111\u1ecbnh 1% (v1.1)",
+      "periodDays": 7,
+      "members": 12,
+      "shareBps": 0,
+      "feeBps": 100,
+      "bondUsdc": 2880.0,
+      "grossFeeUsdc": 131.029584,
+      "expectedLossUsdc": 91.968672,
+      "netAfterRiskUsdc": 39.060912,
+      "annualReturnPctByHazardScale": {
+        "1": 5.893367,
+        "0.5": 12.831314
+      },
+      "seatNetUsdc": [
+        -33.822237,
+        -27.765797,
+        -22.277028,
+        -17.355932,
+        -13.002507,
+        -9.216753,
+        -5.998677,
+        -3.348267,
+        -1.265526,
+        0.249542,
+        1.196937,
+        1.576661
+      ],
+      "firstSeatNetUsdc": -33.822237,
+      "lastSeatNetUsdc": 1.576661,
+      "lastThirdNeverLoses": false,
+      "insideInterestCap": false
+    },
+    {
+      "schedule": "Trong tr\u1ea7n, \u03c6 = 33%",
+      "periodDays": 7,
+      "members": 12,
+      "shareBps": 3333,
+      "feeBps": 300,
+      "bondUsdc": 2880.0,
+      "grossFeeUsdc": 64.687579,
+      "expectedLossUsdc": 91.260453,
+      "netAfterRiskUsdc": -26.572874,
+      "annualReturnPctByHazardScale": {
+        "1": -4.009217,
+        "0.5": 2.875303
+      },
+      "seatNetUsdc": [
+        -30.839056,
+        -24.08972,
+        -17.977088,
+        -12.501163,
+        -7.661934,
+        -3.459419,
+        0.106389,
+        3.035498,
+        5.327896,
+        6.983587,
+        8.002575,
+        8.384856
+      ],
+      "firstSeatNetUsdc": -30.839056,
+      "lastSeatNetUsdc": 8.384856,
+      "lastThirdNeverLoses": true,
+      "insideInterestCap": true
+    },
+    {
+      "schedule": "Trong tr\u1ea7n, \u03c6 = 50%",
+      "periodDays": 7,
+      "members": 12,
+      "shareBps": 5000,
+      "feeBps": 300,
+      "bondUsdc": 2880.0,
+      "grossFeeUsdc": 97.04108,
+      "expectedLossUsdc": 91.734822,
+      "netAfterRiskUsdc": 5.306258,
+      "annualReturnPctByHazardScale": {
+        "1": 0.800589,
+        "0.5": 7.720895
+      },
+      "seatNetUsdc": [
+        -34.732611,
+        -27.65687,
+        -21.250425,
+        -15.51331,
+        -10.445496,
+        -6.047007,
+        -2.317834,
+        0.742032,
+        3.132578,
+        4.85381,
+        5.905726,
+        6.288327
+      ],
+      "firstSeatNetUsdc": -34.732611,
+      "lastSeatNetUsdc": 6.288327,
+      "lastThirdNeverLoses": true,
+      "insideInterestCap": true
+    },
+    {
+      "schedule": "C\u1ed1 \u0111\u1ecbnh 1% (v1.1)",
+      "periodDays": 30,
+      "members": 5,
+      "shareBps": 0,
+      "feeBps": 100,
+      "bondUsdc": 480.0,
+      "grossFeeUsdc": 19.753423,
+      "expectedLossUsdc": 13.048172,
+      "netAfterRiskUsdc": 6.705251,
+      "annualReturnPctByHazardScale": {
+        "1": 3.39919,
+        "0.5": 6.706539
+      },
+      "seatNetUsdc": [
+        -16.936983,
+        -8.010958,
+        -1.517808,
+        2.542466,
+        4.16986
+      ],
+      "firstSeatNetUsdc": -16.936983,
+      "lastSeatNetUsdc": 4.16986,
+      "lastThirdNeverLoses": true,
+      "insideInterestCap": false
+    },
+    {
+      "schedule": "Trong tr\u1ea7n, \u03c6 = 33%",
+      "periodDays": 30,
+      "members": 5,
+      "shareBps": 3333,
+      "feeBps": 300,
+      "bondUsdc": 480.0,
+      "grossFeeUsdc": 16.436708,
+      "expectedLossUsdc": 12.988533,
+      "netAfterRiskUsdc": 3.448175,
+      "annualReturnPctByHazardScale": {
+        "1": 1.748033,
+        "0.5": 5.040265
+      },
+      "seatNetUsdc": [
+        -17.479006,
+        -7.654434,
+        -0.558604,
+        3.808491,
+        5.446845
+      ],
+      "firstSeatNetUsdc": -17.479006,
+      "lastSeatNetUsdc": 5.446845,
+      "lastThirdNeverLoses": true,
+      "insideInterestCap": true
+    },
+    {
+      "schedule": "Trong tr\u1ea7n, \u03c6 = 50%",
+      "periodDays": 30,
+      "members": 5,
+      "shareBps": 5000,
+      "feeBps": 300,
+      "bondUsdc": 480.0,
+      "grossFeeUsdc": 23.309586,
+      "expectedLossUsdc": 13.062822,
+      "netAfterRiskUsdc": 10.246764,
+      "annualReturnPctByHazardScale": {
+        "1": 5.19454,
+        "0.5": 8.505603
+      },
+      "seatNetUsdc": [
+        -18.336983,
+        -9.439723,
+        -2.063013,
+        2.445205,
+        4.084928
+      ],
+      "firstSeatNetUsdc": -18.336983,
+      "lastSeatNetUsdc": 4.084928,
+      "lastThirdNeverLoses": true,
+      "insideInterestCap": true
+    },
+    {
+      "schedule": "C\u1ed1 \u0111\u1ecbnh 1% (v1.1)",
+      "periodDays": 30,
+      "members": 8,
+      "shareBps": 0,
+      "feeBps": 100,
+      "bondUsdc": 1280.0,
+      "grossFeeUsdc": 54.849312,
+      "expectedLossUsdc": 39.416438,
+      "netAfterRiskUsdc": 15.432874,
+      "annualReturnPctByHazardScale": {
+        "1": 1.833659,
+        "0.5": 4.175293
+      },
+      "seatNetUsdc": [
+        -46.612324,
+        -30.387666,
+        -16.595891,
+        -5.236987,
+        3.689041,
+        10.182191,
+        14.242465,
+        15.869859
+      ],
+      "firstSeatNetUsdc": -46.612324,
+      "lastSeatNetUsdc": 15.869859,
+      "lastThirdNeverLoses": true,
+      "insideInterestCap": false
+    },
+    {
+      "schedule": "Trong tr\u1ea7n, \u03c6 = 33%",
+      "periodDays": 30,
+      "members": 8,
+      "shareBps": 3333,
+      "feeBps": 300,
+      "bondUsdc": 1280.0,
+      "grossFeeUsdc": 70.052501,
+      "expectedLossUsdc": 39.713382,
+      "netAfterRiskUsdc": 30.339119,
+      "annualReturnPctByHazardScale": {
+        "1": 3.604746,
+        "0.5": 5.96402
+      },
+      "seatNetUsdc": [
+        -46.872522,
+        -35.51388,
+        -20.231829,
+        -7.67852,
+        2.146054,
+        9.241884,
+        13.608979,
+        15.247333
+      ],
+      "firstSeatNetUsdc": -46.872522,
+      "lastSeatNetUsdc": 15.247333,
+      "lastThirdNeverLoses": true,
+      "insideInterestCap": true
+    },
+    {
+      "schedule": "Trong tr\u1ea7n, \u03c6 = 50%",
+      "periodDays": 30,
+      "members": 8,
+      "shareBps": 5000,
+      "feeBps": 300,
+      "bondUsdc": 1280.0,
+      "grossFeeUsdc": 86.15753,
+      "expectedLossUsdc": 40.017948,
+      "netAfterRiskUsdc": 46.139582,
+      "annualReturnPctByHazardScale": {
+        "1": 5.482079,
+        "0.5": 7.859448
+      },
+      "seatNetUsdc": [
+        -40.403417,
+        -32.397943,
+        -25.448629,
+        -12.33493,
+        -2.089725,
+        5.286985,
+        9.795203,
+        11.434926
+      ],
+      "firstSeatNetUsdc": -40.403417,
+      "lastSeatNetUsdc": 11.434926,
+      "lastThirdNeverLoses": true,
+      "insideInterestCap": true
+    },
+    {
+      "schedule": "C\u1ed1 \u0111\u1ecbnh 1% (v1.1)",
+      "periodDays": 30,
+      "members": 10,
+      "shareBps": 0,
+      "feeBps": 100,
+      "bondUsdc": 2000.0,
+      "grossFeeUsdc": 87.65753,
+      "expectedLossUsdc": 62.937864,
+      "netAfterRiskUsdc": 24.719666,
+      "annualReturnPctByHazardScale": {
+        "1": 1.50378,
+        "0.5": 3.41814
+      },
+      "seatNetUsdc": [
+        -74.478079,
+        -53.387667,
+        -34.730133,
+        -18.505475,
+        -4.7137,
+        6.645204,
+        15.571232,
+        22.064382,
+        26.124656,
+        27.75205
+      ],
+      "firstSeatNetUsdc": -74.478079,
+      "lastSeatNetUsdc": 27.75205,
+      "lastThirdNeverLoses": true,
+      "insideInterestCap": false
+    },
+    {
+      "schedule": "Trong tr\u1ea7n, \u03c6 = 33%",
+      "periodDays": 30,
+      "members": 10,
+      "shareBps": 3333,
+      "feeBps": 300,
+      "bondUsdc": 2000.0,
+      "grossFeeUsdc": 127.668819,
+      "expectedLossUsdc": 63.809586,
+      "netAfterRiskUsdc": 63.859233,
+      "annualReturnPctByHazardScale": {
+        "1": 3.88477,
+        "0.5": 5.825645
+      },
+      "seatNetUsdc": [
+        -69.766514,
+        -55.891849,
+        -43.617269,
+        -26.258624,
+        -10.976573,
+        1.576736,
+        11.40131,
+        18.49714,
+        22.864235,
+        24.502589
+      ],
+      "firstSeatNetUsdc": -69.766514,
+      "lastSeatNetUsdc": 24.502589,
+      "lastThirdNeverLoses": true,
+      "insideInterestCap": true
+    },
+    {
+      "schedule": "Trong tr\u1ea7n, \u03c6 = 50%",
+      "periodDays": 30,
+      "members": 10,
+      "shareBps": 5000,
+      "feeBps": 300,
+      "bondUsdc": 2000.0,
+      "grossFeeUsdc": 150.369857,
+      "expectedLossUsdc": 64.210268,
+      "netAfterRiskUsdc": 86.159589,
+      "annualReturnPctByHazardScale": {
+        "1": 5.241375,
+        "0.5": 7.194437
+      },
+      "seatNetUsdc": [
+        -59.073283,
+        -48.667806,
+        -39.462327,
+        -31.456847,
+        -18.507533,
+        -5.393834,
+        4.851371,
+        12.228081,
+        16.736299,
+        18.376022
+      ],
+      "firstSeatNetUsdc": -59.073283,
+      "lastSeatNetUsdc": 18.376022,
+      "lastThirdNeverLoses": true,
+      "insideInterestCap": true
+    },
+    {
+      "schedule": "C\u1ed1 \u0111\u1ecbnh 1% (v1.1)",
+      "periodDays": 30,
+      "members": 12,
+      "shareBps": 0,
+      "feeBps": 100,
+      "bondUsdc": 2880.0,
+      "grossFeeUsdc": 127.841091,
+      "expectedLossUsdc": 91.921922,
+      "netAfterRiskUsdc": 35.919169,
+      "annualReturnPctByHazardScale": {
+        "1": 1.264516,
+        "0.5": 2.882547
+      },
+      "seatNetUsdc": [
+        -108.809576,
+        -82.853425,
+        -59.330135,
+        -38.239723,
+        -19.582189,
+        -3.357531,
+        10.434244,
+        21.793148,
+        30.719176,
+        37.212326,
+        41.2726,
+        42.899994
+      ],
+      "firstSeatNetUsdc": -108.809576,
+      "lastSeatNetUsdc": 42.899994,
+      "lastThirdNeverLoses": true,
+      "insideInterestCap": false
+    },
+    {
+      "schedule": "Trong tr\u1ea7n, \u03c6 = 33%",
+      "periodDays": 30,
+      "members": 12,
+      "shareBps": 3333,
+      "feeBps": 300,
+      "bondUsdc": 2880.0,
+      "grossFeeUsdc": 202.687909,
+      "expectedLossUsdc": 93.57588,
+      "netAfterRiskUsdc": 109.112029,
+      "annualReturnPctByHazardScale": {
+        "1": 3.841232,
+        "0.5": 5.488377
+      },
+      "seatNetUsdc": [
+        -96.883543,
+        -79.808724,
+        -64.333985,
+        -50.459316,
+        -32.836885,
+        -14.826091,
+        0.45596,
+        13.009269,
+        22.833843,
+        29.929673,
+        34.296768,
+        35.935122
+      ],
+      "firstSeatNetUsdc": -96.883543,
+      "lastSeatNetUsdc": 35.935122,
+      "lastThirdNeverLoses": true,
+      "insideInterestCap": true
+    },
+    {
+      "schedule": "Trong tr\u1ea7n, \u03c6 = 50%",
+      "periodDays": 30,
+      "members": 12,
+      "shareBps": 5000,
+      "feeBps": 300,
+      "bondUsdc": 2880.0,
+      "grossFeeUsdc": 234.678074,
+      "expectedLossUsdc": 94.099131,
+      "netAfterRiskUsdc": 140.578943,
+      "annualReturnPctByHazardScale": {
+        "1": 4.949008,
+        "0.5": 6.605363
+      },
+      "seatNetUsdc": [
+        -80.910253,
+        -68.104796,
+        -56.499315,
+        -46.093835,
+        -36.888356,
+        -25.915751,
+        -9.933562,
+        3.180137,
+        13.425342,
+        20.802052,
+        25.31027,
+        26.949993
+      ],
+      "firstSeatNetUsdc": -80.910253,
+      "lastSeatNetUsdc": 26.949993,
+      "lastThirdNeverLoses": true,
+      "insideInterestCap": true
+    }
+  ],
+  "charts": [
+    "outputs/organizer_economics.png"
+  ]
+}

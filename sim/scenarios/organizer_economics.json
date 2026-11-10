@@ -1,0 +1,18 @@
+{
+  "id": "organizer_economics",
+  "kind": "organizer_economics",
+  "seed": 42,
+  "C": 100,
+  "alphaBps": 2000,
+  "reserveBps": 100,
+  "bidPctOfCap": 50,
+  "periodDays": [7, 30],
+  "members": [5, 8, 10, 12],
+  "schedules": [
+    { "label": "Cố định 1% (v1.1)", "commissionShareBps": 0, "feeBps": 100 },
+    { "label": "Trong trần, φ = 33%", "commissionShareBps": 3333, "feeBps": 300 },
+    { "label": "Trong trần, φ = 50%", "commissionShareBps": 5000, "feeBps": 300 }
+  ],
+  "risk": { "early": 0.0204, "late": 0.0059, "scales": [1.0, 0.5] },
+  "assumptions": "Every receiver k < N stops paying right after it receives, with the assumed Klonner & Rai lifetime rate of its half (2.04% for k <= N/2, 0.59% after), applied once; scale 0.5 halves it. Each round's winner is the seat of that round and bids 50% of the enforced ceiling. Bond = (1 - alpha) x O_max (CI 100%). Assumptions, not measurements."
+}

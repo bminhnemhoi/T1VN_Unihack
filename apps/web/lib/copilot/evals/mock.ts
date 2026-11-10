@@ -140,6 +140,38 @@ const PLANS: Record<string, Plan> = {
       return plain(`Đây là kết quả mô phỏng chạy sẵn, dựa trên giả định, không phải dự báo. ${parts.join(' ')}`);
     },
   },
+  G1: {
+    tools: [],
+    answer: (_r, facts) => ({
+      answer: `Ở kỳ 1, trần thăm thực thi của dây đang soạn là ${vi(facts!.maxBidByRound[0].enforcedMaxBidUsdc)} USDC (đã trừ phần hoa hồng; trần theo luật là ${vi(facts!.maxBidByRound[0].maxBidUsdc)} USDC, cách hiểu của HụiSafe, cần luật sư xác nhận). Chủ hụi nhận tối đa ${vi(facts!.maxBidByRound[0].commissionUsdc)} USDC ở kỳ đó.\n${DISCLAIMER}`,
+      figures: [fig(facts!.maxBidByRound[0].enforcedMaxBidUsdc, 'du_kien'), fig(facts!.maxBidByRound[0].commissionUsdc, 'du_kien')],
+      citations: [],
+    }),
+  },
+  G2: {
+    tools: [{ name: 'simulate_circle', input: { N: 5, alphaBps: 2000, bondRatio: 0.8, organizer: 'sybil', wallets: 2 } }],
+    answer: ([r]) => {
+      if (r!.status !== 'ok') return plain('Mình chưa có kết quả mô phỏng cho cấu hình này.');
+      const c = r!.organizerRuns[0].sybil[0] as Res;
+      return {
+        answer: `Theo mô phỏng chạy sẵn (giả định, không phải dự báo), với hai ví ảo ở chỉ số bảo chứng 100% thì chủ hụi lời ${vi(c.organizerNetUsdc)} USDC, còn khoản không được bù là ${vi(c.uncoveredUsdc)} USDC. Một ví ảo thì chủ hụi tự lỗ; nhiều ví ảo thì cọc không chặn được, phải chặn bằng xác thực mỗi người một tài khoản.\n${DISCLAIMER}`,
+        figures: [fig(String(c.organizerNetUsdc), 'simulate_circle'), fig(String(c.uncoveredUsdc), 'simulate_circle')],
+        citations: [],
+      };
+    },
+  },
+  G3: {
+    tools: [{ name: 'simulate_circle', input: { N: 10, alphaBps: 2000, bondRatio: 0.8, organizer: 'economics', periodDays: 30, commissionShareBps: 5000 } }],
+    answer: ([r]) => {
+      if (r!.status !== 'ok') return plain('Mình chưa có kết quả mô phỏng cho cấu hình này.');
+      const c = r!.organizerRuns[0].economics[0] as Res;
+      return {
+        answer: `Theo mô phỏng chạy sẵn (giả định về tỷ lệ bỏ đóng, không phải dự báo), hụi tháng 10 người với hoa hồng 50% quỹ lãi cho chủ hụi lời khoảng ${vi(c.annualReturnPctByHazardScale['1'])}% một năm trên ký quỹ, sau khi trừ rủi ro bỏ đóng.\n${DISCLAIMER}`,
+        figures: [fig(String(c.annualReturnPctByHazardScale['1']), 'simulate_circle')],
+        citations: [],
+      };
+    },
+  },
   B3: {
     tools: [{ name: 'explain_rule', input: { topic: 'nd19_dieu22' } }],
     answer: () =>

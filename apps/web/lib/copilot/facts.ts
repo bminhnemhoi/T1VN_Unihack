@@ -28,6 +28,18 @@ export function buildFacts(draft: CircleDraft, circle?: string): Record<string, 
   const roundValueUsdc = n * c;
   const roundValueVnd = usdcToVnd(roundValueUsdc, VND_PER_USDC);
   const active = draft.organizerActiveCircles;
+  // phi (docs/03 section 2.7): only when the draft really shares the interest room; then the table gets the enforced ceiling and the commission.
+  const share = BigInt(draft.commissionShareBps ?? 0);
+  const fee = BigInt(draft.feeBps);
+  const sharing = share > 0n && draft.mode === 'bidding' && draft.commissionMode && fee > 0n;
+  let commissionTotal = 0n;
+  const maxBidByRound = p.bidRows.map((r) => {
+    const row = { k: r.k, payers: r.payers, maxBidUsdc: toDecimal(r.maxBid) };
+    if (!sharing) return row;
+    const commission = huiMath.commission((n - 1n) * c, fee, share, huiMath.commissionRoom(r.maxBid, BigInt(r.payers)));
+    commissionTotal += commission;
+    return { ...row, enforcedMaxBidUsdc: toDecimal(huiMath.bidCapAfterShare(r.maxBid, share)), commissionUsdc: toDecimal(commission) };
+  });
   return {
     circle: circle ?? null,
     mode: draft.mode,
@@ -45,7 +57,10 @@ export function buildFacts(draft: CircleDraft, circle?: string): Record<string, 
     bondFor100Usdc: toDecimal(p.bondFor100),
     bondMissingToActivateUsdc: toDecimal(p.bondMissing),
     requiredAllowanceUsdc: toDecimal((n - 1n) * (c + revealBond)),
-    maxBidByRound: p.bidRows.map((r) => ({ k: r.k, payers: r.payers, maxBidUsdc: toDecimal(r.maxBid) })),
+    ...(sharing
+      ? { commissionShareBps: draft.commissionShareBps, commissionSharePercent: percent(share), feeCeilingBps: draft.feeBps, commissionTotalUsdc: toDecimal(commissionTotal) }
+      : {}),
+    maxBidByRound,
     article14: {
       vndPerUsdcReference: VND_PER_USDC,
       roundValueUsdc: toDecimal(roundValueUsdc),

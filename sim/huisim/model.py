@@ -13,7 +13,7 @@ from dataclasses import dataclass, field
 import numpy as np
 
 from . import math as hm
-from .policies import DefaultPlan, Design, UniformFractionOfCap
+from .policies import DefaultPlan, Design, ScriptedBids, UniformFractionOfCap
 from .scenarios import CAP_BPS, LATE_RATE_BPS, Scenario
 
 
@@ -86,6 +86,11 @@ class CircleOutcome:
     bond_returned: int = 0
     fees_to_organizer: int = 0
     abscond_cash: int = 0
+    got: list[int] = field(
+        default_factory=list
+    )  # per member: pot, holdback paid back, reserve share
+    reserve_end: int = 0  # reserve split at the end (docs/03 section 5.3 step 5, ADR-24)
+    reserve_shares: list[int] = field(default_factory=list)  # per member, 0 for defaulted members
 
     @property
     def organizer_net(self) -> int:
@@ -97,14 +102,18 @@ class CircleOutcome:
 
 
 def simulate_circle(
-    sc: Scenario, design: Design, draws: Draws, plan: DefaultPlan | None = None
+    sc: Scenario,
+    design: Design,
+    draws: Draws,
+    plan: DefaultPlan | None = None,
+    bids: UniformFractionOfCap | ScriptedBids | None = None,
 ) -> CircleOutcome:
     """Run all N rounds of one circle and finalize it. Raises if the ledger ever breaks."""
     n, c = sc.n, sc.c * hm.USDC
     period = sc.period_days * hm.DAY
     half = n // 2
     beh = sc.behaviour
-    bids = UniformFractionOfCap()
+    bids = bids or UniformFractionOfCap()
     release = hm.release_per_round(design.alpha_bps, c)
 
     bond0 = hm.bps_of(hm.max_exposure(n, c), design.bond_bps)
@@ -113,6 +122,7 @@ def simulate_circle(
     received = [0] * n
     defaulted = [False] * n
     contrib = [0] * n
+    got = [0] * n
     owed = [0] * n  # uncovered still owed to the member as a receiver
     winners = [0] * (n + 1)
     sched: dict[int, int] = dict(plan.fixed) if plan is not None else {}
@@ -120,6 +130,7 @@ def simulate_circle(
     out = CircleOutcome(design=design.name, bond0=bond0)
     out.receipt_round = received
     out.contributed = contrib
+    out.got = got
     out.uncovered_left = owed
     peak_used = 0
 
@@ -188,10 +199,12 @@ def simulate_circle(
         live = [i for i in range(n) if not received[i] and not defaulted[i]]
         if live:
             if len(live) > 1:
-                cap = hm.max_bid(CAP_BPS, n, k, c, period, len(live) - 1)
+                cap = hm.bid_cap_after_share(
+                    hm.max_bid(CAP_BPS, n, k, c, period, len(live) - 1), design.share_bps
+                )
                 best, w = -1, -1
                 for i in live:
-                    b = bids.bid(cap, draws.bid[k][i])
+                    b = bids.bid_for(i, k, cap, draws.bid[k][i])
                     if b > best:
                         best, w = b, i
                 bid = best
@@ -235,7 +248,9 @@ def simulate_circle(
             out.absconded, out.abscond_cash = True, pot
             break
 
-        fee = hm.bps_of(pot, design.fee_bps)
+        payers = max(len(live) - 1, 0)  # L_k: live members who pay this round (docs/03 section 2.7)
+        room = hm.commission_room(hm.max_bid(CAP_BPS, n, k, c, period, payers), payers)
+        fee = hm.commission(pot, design.fee_bps, design.share_bps, room)
         premium = hm.bps_of(pot, design.reserve_bps)
         reserve += premium
         if design.forfeit_fee:
@@ -254,11 +269,13 @@ def simulate_circle(
             holdback[w] += held
         payout = avail - held - repaid
         balance -= payout
+        got[w] += payout
         for d in paid_on_time:
             if received[d]:
                 x = min(holdback[d], release)
                 holdback[d] -= x
                 balance -= x
+                got[d] += x
 
         winners[k], received[w] = w, k
         owed[w] += round_unc
@@ -277,11 +294,26 @@ def simulate_circle(
             if defaulted[m] and holdback[m]:
                 holdback[m] -= restore(m, holdback[m], n)
             balance -= holdback[m]
+            got[m] += holdback[m]
             holdback[m] = 0
         out.fees_to_organizer += fee_escrow
         balance -= fee_escrow
         fee_escrow = 0
-        balance -= reserve  # shared by the honest members (not tracked per member)
+        # The reserve is split by on-time weight among members who did not default (ADR-24). Nobody
+        # in this model pays late (a default is absorbing), so every honest weight is n - 1.
+        out.reserve_end = reserve
+        out.reserve_shares = [0] * n
+        heirs = [i for i in range(n) if not defaulted[i]]
+        weights = [hm.on_time_weight(n, 0, 0) for _ in heirs]
+        if heirs and sum(weights) > 0:
+            for i, w_i in zip(heirs, weights, strict=True):
+                out.reserve_shares[i] = hm.reserve_share(reserve, w_i, sum(weights))
+            out.reserve_shares[heirs[0]] += reserve - sum(
+                out.reserve_shares
+            )  # dust: smallest joinIndex
+            for i in heirs:
+                got[i] += out.reserve_shares[i]
+        balance -= reserve
         reserve = 0
     out.bond_returned = bond
     balance -= bond

@@ -73,6 +73,7 @@ export function draftFromStorage(): Record<string, unknown> | undefined {
       bondUsdc: f.bond.trim() || '0',
       commissionMode: f.commission,
       feeBps: Number(value.feeBps),
+      commissionShareBps: Number(value.shareBps),
       reserveBps: Number(value.reserveBps),
       revealBondBps: 100,
       capBps: f.mode === 'fixed' ? 0 : 2000,

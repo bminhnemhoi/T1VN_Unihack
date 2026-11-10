@@ -280,7 +280,13 @@ def _edges() -> dict[str, list[Case]]:
         {"statutoryMaxBid": 6_575_342, "shareBps": 0},
         {"statutoryMaxBid": C_MAX - 1, "shareBps": 5000},
     ]
-    for stat, payers in ((6_575_342, 4), (4_931_506, 3), (3_287_671, 2), (1_643_835, 1), (1_643_835, 0)):
+    for stat, payers in (
+        (6_575_342, 4),
+        (4_931_506, 3),
+        (3_287_671, 2),
+        (1_643_835, 1),
+        (1_643_835, 0),
+    ):
         edges["commissionRoom"].append({"statutoryMaxBid": stat, "payers": payers})
     edges["commission"] += [
         {"pot": 388 * hm.USDC, "feeBps": 300, "shareBps": 5000, "room": 26_301_368},
@@ -433,7 +439,13 @@ def _scenario_from_args(args: argparse.Namespace) -> tuple[Any, str]:
 
 def _cmd_run(args: argparse.Namespace) -> int:
     from .experiments import run_scenario
+    from .organizer import raw_kind, run_organizer
 
+    kind = raw_kind(args.scenario)
+    if kind is not None:  # organizer_economics / organizer_sybil (docs/08 section 2.7)
+        run_organizer(args.scenario, Path(args.out_dir), seed=args.seed, charts=not args.no_charts)
+        print(f"wrote {args.out_dir}/{Path(args.scenario).stem} (+ .meta.json), kind {kind}")
+        return 0
     sc, sha = _scenario_from_args(args)
     run_scenario(sc, sha, Path(args.out_dir), charts=not args.no_charts)
     print(

@@ -7,7 +7,7 @@ import { z } from 'zod';
 import { explainRule } from './rules';
 import { ubndNoticeMarkdown, UBND_PLACEHOLDERS } from './rules/ubnd';
 import { RULE_TOPICS, TOOL_NAMES, toolInputSchemas, type ToolInput, type ToolName } from './schemas';
-import { lookupSimulation } from './simResults';
+import { lookupOrganizer, lookupSimulation } from './simResults';
 import { amountToUnits, toDecimal } from './units';
 
 const BPS = huiMath.BPS;
@@ -72,11 +72,29 @@ function maxBidTable(i: ToolInput<'max_bid_table'>) {
   const n = BigInt(i.N);
   const c = units('C', i.C);
   const p = previewCircle({ n, c, periodDays: BigInt(i.periodDays), alphaBps: 0n, bond: 0n, capBps: BigInt(i.capBps), minCoverageBps: DEFAULT_MIN_COVERAGE_BPS });
-  return { rows: p.bidRows.map((r) => ({ k: r.k, payers: r.payers, maxBid: toDecimal(r.maxBid) })) };
+  if (i.commissionShareBps === 0) return { rows: p.bidRows.map((r) => ({ k: r.k, payers: r.payers, maxBid: toDecimal(r.maxBid) })) };
+  // phi > 0 (docs/03 section 2.7): the ceiling the contract enforces and the most the organizer can take in each round.
+  const share = BigInt(i.commissionShareBps);
+  const fee = BigInt(i.feeBps);
+  const biggestPot = (n - 1n) * c; // a bid of 0: the pot at its largest, so the 3% ceiling at its largest
+  let total = 0n;
+  const rows = p.bidRows.map((r) => {
+    const room = huiMath.commissionRoom(r.maxBid, BigInt(r.payers));
+    const commission = huiMath.commission(biggestPot, fee, share, room);
+    total += commission;
+    return {
+      k: r.k,
+      payers: r.payers,
+      maxBid: toDecimal(r.maxBid),
+      enforcedMaxBid: toDecimal(huiMath.bidCapAfterShare(r.maxBid, share)),
+      commission: toDecimal(commission),
+    };
+  });
+  return { commissionShareBps: i.commissionShareBps, feeBps: i.feeBps, commissionTotal: toDecimal(total), rows };
 }
 
 function simulateCircle(i: ToolInput<'simulate_circle'>) {
-  return lookupSimulation(i);
+  return i.organizer ? lookupOrganizer({ ...i, organizer: i.organizer }) : lookupSimulation(i);
 }
 
 function explain(i: ToolInput<'explain_rule'>) {
@@ -125,9 +143,10 @@ const DESCRIPTIONS: Record<ToolName, string> = {
   compute_exposure:
     'Tính tiền chưa đóng theo từng kỳ O(k) và đỉnh O_max cho dây N phần, mức góp C (giữ nguyên đơn vị tiền người dùng nêu, không quy đổi).',
   recommend_bond: 'Tính ký quỹ cần để đạt chỉ số bảo chứng mục tiêu với tỷ lệ giữ lại alphaBps (đơn vị basis point, 2000 = 20%).',
-  max_bid_table: 'Bảng trần tiền thăm theo từng kỳ, tính theo cách hiểu của HụiSafe về trần lãi (cần luật sư xác nhận). Muốn nói về điều luật thì gọi thêm explain_rule.',
+  max_bid_table:
+    'Bảng trần tiền thăm theo từng kỳ, tính theo cách hiểu của HụiSafe về trần lãi (cần luật sư xác nhận). Có commissionShareBps (phần hoa hồng của chủ hụi, 5000 = 50%) và feeBps (trần hoa hồng mỗi lần hốt) thì thêm cột trần thăm thực thi và hoa hồng tối đa của từng kỳ. Muốn nói về điều luật thì gọi thêm explain_rule.',
   simulate_circle:
-    'Tra kết quả mô phỏng đã chạy sẵn (tổn thất người hốt sau, xác suất vỡ dây) ở ba thiết kế; chỉ khớp đúng N, alphaBps, bondRatio đã chạy, nếu không có thì trả no_results.',
+    'Tra kết quả mô phỏng đã chạy sẵn (tổn thất người hốt sau, xác suất vỡ dây) ở ba thiết kế; chỉ khớp đúng N, alphaBps, bondRatio đã chạy, nếu không có thì trả no_results. Thêm organizer = "economics" để tra lời của chủ hụi theo chu kỳ và phần hoa hồng, hoặc organizer = "sybil" để tra chủ hụi dùng một hay hai ví ảo (cọc 100% hay 50%).',
   explain_rule: 'Trả nội dung đã duyệt về một quy định (NĐ 19 các điều 5, 6, 12, 13, 14, 18, 20, 21, 22, 25; tiền mã hóa; luật cuộc thi) để trích dẫn.',
   draft_ubnd_notice: 'Soạn bản nháp thông báo tổ chức dây họ gửi UBND cấp xã khi chạm ngưỡng NĐ 19 Điều 14. Chỉ trả ô trống nhân thân.',
 };

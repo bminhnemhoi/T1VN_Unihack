@@ -1,0 +1,12 @@
+{
+  "scenario": "organizer_sybil",
+  "kind": "organizer_sybil",
+  "seed": 42,
+  "randomness": "none: scripted bids and fixed default schedule; the seed is recorded only",
+  "scenarioSha256": "2ec359a14287dbc09a690fcefbe21eee7d5253e71ea587a72db8277e08d48922",
+  "gitCommit": "204bf3b",
+  "python": "3.14.7",
+  "numpy": "2.5.4",
+  "elapsedSeconds": 0.42,
+  "assumptions": "The organizer's wallets win the first rounds bidding the ceiling and stop paying right after; the other members are honest and do not bid. Fixed 1% fee (phi = 0) as in docs/03 section 7.3. Assumptions, not measurements."
+}

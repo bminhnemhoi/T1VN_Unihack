@@ -29,6 +29,7 @@ class Design:
     fee_bps: int
     forfeit_fee: bool  # fee sits in escrow and is lost in a round with a new default
     abscond_prob: float  # per-round probability that the organizer runs off with the pot
+    share_bps: int = 0  # phi (docs/03 section 2.7): 0 keeps the fixed fee ``fee_bps`` x pot
 
 
 def build_design(name: str, sc: Scenario) -> Design:
@@ -43,6 +44,7 @@ def build_design(name: str, sc: Scenario) -> Design:
             fee_bps=h.fee_bps,
             forfeit_fee=True,
             abscond_prob=0.0,
+            share_bps=h.share_bps,
         )
     if name == "naive_onchain":
         return Design(name, 0, 0, 0, 0, False, 0.0)
@@ -58,6 +60,25 @@ class UniformFractionOfCap:
 
     def bid(self, cap: int, u: float) -> int:
         return int(u * cap)
+
+    def bid_for(self, member: int, round_: int, cap: int, u: float) -> int:
+        return self.bid(cap, u)
+
+
+class ScriptedBids:
+    """Deterministic bids for the organizer scenarios (no randomness, docs/08 section 2.7).
+
+    ``order[k]`` is the member who takes round k: only that member bids ``fraction_bps`` of the
+    ceiling; everybody else bids 0, so the smallest joinIndex among the live members wins a
+    tie. Rounds absent from ``order`` have nobody bidding (the smallest live joinIndex takes
+    the pot).
+    """
+
+    def __init__(self, order: dict[int, int], fraction_bps: int) -> None:
+        self.order, self.fraction_bps = dict(order), fraction_bps
+
+    def bid_for(self, member: int, round_: int, cap: int, u: float) -> int:
+        return cap * self.fraction_bps // hm.BPS if self.order.get(round_) == member else 0
 
 
 PLAN_KINDS = ("fixed", "peak_all_at_once", "peak_sequential", "sequential_all")
