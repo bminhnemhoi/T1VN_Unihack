@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
-import { noHorizontalOverflow, toast, watchErrors } from './helpers';
+import { noHorizontalOverflow, tableOrCards, toast, watchErrors } from './helpers';
 
 const step = (page: Page, n: number) => page.getByText(new RegExp(`^Bước ${n} trên 3`));
 const next = (page: Page) => page.getByRole('button', { name: 'Tiếp tục' });
@@ -167,8 +167,10 @@ test.describe('S03 /circles/new', () => {
     await fair.getByRole('radio', { name: 'Ai cũng đặt trần' }).click();
     await expect(fair).toContainText('Chênh lệch giữa');
     await fair.getByRole('radio', { name: 'Không ai bỏ thăm' }).click();
-    const risk = page.getByRole('table', { name: /Số tiền tối đa mỗi chỗ/ });
-    await expect(risk.getByRole('row')).toHaveCount(6);
+    const risk = tableOrCards(page, /Số tiền tối đa mỗi chỗ/);
+    // five seats: a header row and 5 rows in the table, 5 cards on a phone
+    if ((page.viewportSize()?.width ?? 1440) >= 768) await expect(risk.getByRole('row')).toHaveCount(6);
+    else await expect(risk.getByRole('listitem')).toHaveCount(5);
     await expect(risk).toContainText('304 USDC'); // docs/03 section 7.3: the last seat if receivers stop one after another
     await expect(page.getByText('chịu được 4 người đã hốt cùng bỏ đóng')).toBeVisible();
   });

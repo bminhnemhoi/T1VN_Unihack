@@ -30,6 +30,8 @@ export default defineConfig({
   projects: [
     { name: 'mobile-390', use: { viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true, deviceScaleFactor: 2 } },
     { name: 'desktop-1440', use: { viewport: { width: 1440, height: 900 } } },
+    // Tablet portrait: only the layout regression spec runs here (no page may scroll sideways, controls stay reachable).
+    { name: 'tablet-768', testMatch: /layout\.spec\.ts/, use: { viewport: { width: 768, height: 1024 }, hasTouch: true } },
   ],
   webServer: {
     command: process.env.E2E_SKIP_BUILD ? START : `pnpm exec next build && ${START}`,

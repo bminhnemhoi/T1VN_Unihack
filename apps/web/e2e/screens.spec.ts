@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
-import { noClippedContent, noHorizontalOverflow, toast, watchErrors } from './helpers';
+import { noClippedContent, noHorizontalOverflow, tableOrCards, toast, watchErrors } from './helpers';
 
 /** Every page added in B8. Each one must load clean, fit the screen, and answer every control. */
 const PAGES = [
@@ -54,7 +54,7 @@ test.describe('S05 /moi/dang-gom', () => {
     await expect(page.getByText('Còn 2 chỗ').first()).toBeVisible();
     await expect(page.getByText('Chủ hụi 0x7e…2b')).toBeVisible();
     await expect(page.getByText('Huy hiệu là lịch sử, không phải bảo đảm. Bảo đảm của bạn là cọc của chủ hụi.').first()).toBeVisible();
-    await expect(page.getByRole('table', { name: /Số tiền tối đa mỗi chỗ/ })).toBeVisible();
+    await expect(tableOrCards(page, /Số tiền tối đa mỗi chỗ/)).toBeVisible();
     await expect(page.getByTestId('agreement-hash')).toHaveText(/^0x[0-9a-f]{64}$/);
     await page.getByText('Đọc toàn văn thỏa thuận').click();
     await expect(page.getByText('Chủ hụi không giữ tiền, nhưng ký quỹ bảo lãnh.')).toBeVisible();
@@ -181,7 +181,7 @@ test.describe('circle sections', () => {
     expect(cells).toEqual(['480 USDC', '460 USDC', '360 USDC', '260 USDC', '160 USDC']);
     await expect(page.getByText('Tiền công kỳ 2 (3,91 USDC) chuyển vào quỹ dự phòng')).toBeVisible();
     await expect(page.getByText('Không có. Mọi khoản thiếu đã được bù đủ.')).toBeVisible();
-    await expect(page.getByRole('table', { name: /Số tiền tối đa mỗi chỗ/ })).toContainText('304 USDC');
+    await expect(tableOrCards(page, /Số tiền tối đa mỗi chỗ/)).toContainText('304 USDC');
   });
 
   test('S10 holdback: schedule for a seat the viewer has not taken yet, and for one already taken', async ({ page }) => {
@@ -225,7 +225,9 @@ test.describe('circle sections', () => {
     await expect(page.getByText('Tiền công đã trả ngay lúc chi kỳ')).toBeVisible();
     await expect(page.getByText('Tiền công trả khi kết thúc dây')).toBeVisible();
     await expect(page.getByText('Thưởng đúng hạn từ quỹ dự phòng')).toBeVisible();
-    await expect(page.getByRole('table', { name: /Tất toán của từng thành viên/ }).getByRole('row')).toHaveCount(9);
+    // 8 members: a header row and 8 rows in the table (wide screens), 8 cards below 1024px
+    if ((page.viewportSize()?.width ?? 1440) >= 1024) await expect(page.getByRole('table', { name: /Tất toán của từng thành viên/ }).getByRole('row')).toHaveCount(9);
+    else await expect(page.getByRole('list', { name: /Tất toán của từng thành viên/ }).getByRole('listitem')).toHaveCount(8);
     await page.getByRole('button', { name: /^Nhận tiền/ }).click();
     await expect(page.getByText(/^Đã nhận .* USDC \(mẫu\)\.$/)).toBeVisible();
   });
@@ -427,7 +429,7 @@ test.describe('S16 /lab', () => {
     const before = await page.getByRole('figure').first().textContent();
     await page.getByRole('radio', { name: 'Kịch bản đã hiệu chỉnh' }).click();
     await expect(page.getByRole('figure').first()).not.toHaveText(before ?? '');
-    await expect(page.getByRole('table', { name: /Tỷ lệ dây còn khoản chưa bù được/ })).toBeVisible();
+    await expect(tableOrCards(page, /Tỷ lệ dây còn khoản chưa bù được/)).toBeVisible();
   });
 });
 
