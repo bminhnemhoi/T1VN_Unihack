@@ -6,13 +6,14 @@ import {Test} from "forge-std/Test.sol";
 import {Deploy} from "../../script/Deploy.s.sol";
 import {CreateDemoCircles} from "../../script/CreateDemoCircles.s.sol";
 import {JoinDemoCircles} from "../../script/JoinDemoCircles.s.sol";
+import {ActivateDemoCircle} from "../../script/ActivateDemoCircle.s.sol";
 import {HuiFactory} from "../../src/HuiFactory.sol";
 import {HuiCircle} from "../../src/HuiCircle.sol";
 import {IHuiCircle} from "../../src/interfaces/IHuiCircle.sol";
 import {MockUSDC} from "../../src/mocks/MockUSDC.sol";
 import {CircleMode, CircleParams, CircleState, RoundInfo} from "../../src/libraries/HuiTypes.sol";
 
-/// @notice Runs `CreateDemoCircles` and `JoinDemoCircles` inside the test VM against a system made by `Deploy`.
+/// @notice Runs `CreateDemoCircles`, `JoinDemoCircles` and `ActivateDemoCircle` inside the test VM against a system made by `Deploy`.
 contract DemoCirclesScriptsTest is Test {
     uint256 internal constant DEPLOYER_KEY = 0xA11CE; // throwaway test keys, hold nothing anywhere
     uint256 internal constant ORGANIZER_KEY = 0xB0B;
@@ -23,6 +24,7 @@ contract DemoCirclesScriptsTest is Test {
     Deploy.Deployment internal d;
     CreateDemoCircles internal create;
     JoinDemoCircles internal join;
+    ActivateDemoCircle internal activator;
     uint256[5] internal memberKeys;
 
     function _deploy(string memory name) internal {
@@ -36,6 +38,7 @@ contract DemoCirclesScriptsTest is Test {
         d = new Deploy().execute(p);
         create = new CreateDemoCircles();
         join = new JoinDemoCircles();
+        activator = new ActivateDemoCircle();
         for (uint256 i; i < 5; ++i) {
             memberKeys[i] = 0xC0DE00 + i;
             MockUSDC(d.usdc).mint(vm.addr(memberKeys[i]), 122e6);
@@ -209,6 +212,164 @@ contract DemoCirclesScriptsTest is Test {
         p.relayerKey = ORGANIZER_KEY;
         vm.expectRevert(abi.encodeWithSelector(JoinDemoCircles.DuplicateKey.selector, vm.addr(ORGANIZER_KEY)));
         join.execute(p);
+        _cleanup();
+    }
+
+    // ---------------------------------------------------------------- DEMO_MEMBERS: leave seats free (A20)
+
+    function _withMembers(JoinDemoCircles.Params memory p, uint8 members)
+        internal
+        pure
+        returns (JoinDemoCircles.Params memory)
+    {
+        p.members = members;
+        return p;
+    }
+
+    function test_Join_FourMembersLeavesTheLastSeatOfTheBiddingCircles() public {
+        _deploy("members4");
+        CreateDemoCircles.Result memory r = create.execute(ORGANIZER_KEY, file, 7 days, false);
+        JoinDemoCircles.Result memory j =
+            join.execute(_withMembers(_joinParams(JoinDemoCircles.Selection.All, true), 4));
+
+        assertEq(j.biddingMembers, 4);
+        assertEq(j.phiMembers, 4);
+        assertEq(j.fixedMembers, 3, "the Fixed circle takes at most its 3 seats");
+        // The two bidding circles keep a free seat and stay Forming; the full Fixed circle is activated.
+        assertEq(uint8(HuiCircle(payable(r.bidding)).state()), uint8(CircleState.Forming));
+        assertEq(uint8(HuiCircle(payable(r.phi)).state()), uint8(CircleState.Forming));
+        assertEq(uint8(HuiCircle(payable(r.fixedCircle)).state()), uint8(CircleState.Active));
+        assertFalse(IHuiCircle(r.bidding).memberInfo(vm.addr(memberKeys[4])).joined, "M5 is not in");
+        _cleanup();
+    }
+
+    function test_Join_MembersAboveFiveReverts() public {
+        _deploy("members6");
+        create.execute(ORGANIZER_KEY, file, 7 days, false);
+        vm.expectRevert(abi.encodeWithSelector(JoinDemoCircles.InvalidMembers.selector, 6));
+        join.execute(_withMembers(_joinParams(JoinDemoCircles.Selection.All, true), 6));
+        _cleanup();
+    }
+
+    /// @dev A stranger (a person using Privy on the live night) takes a seat; re-running the script neither reverts
+    /// (it used to demand members.length == the chosen count) nor activates the circle that is still not full.
+    function test_Join_RerunAfterAStrangerJoinedKeepsEveryoneAndDoesNotRevert() public {
+        _deploy("stranger");
+        CreateDemoCircles.Result memory r = create.execute(ORGANIZER_KEY, file, 7 days, false);
+        join.execute(_withMembers(_joinParams(JoinDemoCircles.Selection.All, false), 2)); // M1, M2
+
+        // the stranger: the same script joins a different key, as `joinParams.memberKeys[0]`
+        uint256 strangerKey = 0xC0DE99;
+        MockUSDC(d.usdc).mint(vm.addr(strangerKey), 122e6);
+        JoinDemoCircles.Params memory sp = _withMembers(_joinParams(JoinDemoCircles.Selection.All, false), 1);
+        sp.memberKeys[0] = strangerKey;
+        join.execute(sp);
+        assertEq(IHuiCircle(r.bidding).members().length, 3, "M1, M2 and the stranger");
+
+        // re-run for M1, M2: both are already in (skipped); the circle holds 3 members, not 2, and that is accepted
+        JoinDemoCircles.Result memory j =
+            join.execute(_withMembers(_joinParams(JoinDemoCircles.Selection.All, true), 2));
+        assertEq(j.biddingMembers, 3, "the stranger counts");
+        assertEq(IHuiCircle(r.bidding).members().length, 3);
+        assertTrue(IHuiCircle(r.bidding).memberInfo(vm.addr(strangerKey)).joined, "the stranger is still in");
+        assertEq(uint8(HuiCircle(payable(r.bidding)).state()), uint8(CircleState.Forming), "not full: not activated");
+        // the Fixed circle is full (M1, M2, stranger) and the run activates it
+        assertEq(uint8(HuiCircle(payable(r.fixedCircle)).state()), uint8(CircleState.Active));
+        _cleanup();
+    }
+
+    function test_Join_RerunAfterActivationIsANoOp() public {
+        _deploy("rerunactive");
+        CreateDemoCircles.Result memory r = create.execute(ORGANIZER_KEY, file, 7 days, false);
+        join.execute(_joinParams(JoinDemoCircles.Selection.All, true));
+        JoinDemoCircles.Result memory j = join.execute(_joinParams(JoinDemoCircles.Selection.All, true));
+        assertEq(j.biddingMembers, 5);
+        assertEq(uint8(HuiCircle(payable(r.bidding)).state()), uint8(CircleState.Active));
+        _cleanup();
+    }
+
+    // ---------------------------------------------------------------- ActivateDemoCircle (A20)
+
+    function _filledBidding(string memory name, uint8 members) internal returns (address circle) {
+        _deploy(name);
+        CreateDemoCircles.Result memory r = create.execute(ORGANIZER_KEY, file, 7 days, false);
+        join.execute(_withMembers(_joinParams(JoinDemoCircles.Selection.All, false), members));
+        return r.bidding;
+    }
+
+    function test_Activate_StartsAFullCircle() public {
+        address circle = _filledBidding("act1", 5);
+        assertEq(uint8(HuiCircle(payable(circle)).state()), uint8(CircleState.Forming));
+        CircleState after_ = activator.execute(ORGANIZER_KEY, file, circle);
+        assertEq(uint8(after_), uint8(CircleState.Active));
+        assertEq(uint8(HuiCircle(payable(circle)).state()), uint8(CircleState.Active));
+        assertGt(HuiCircle(payable(circle)).startTime(), 0);
+        _cleanup();
+    }
+
+    function test_Activate_AfterTheLastSeatIsTaken() public {
+        address circle = _filledBidding("act2", 4);
+        vm.expectRevert(abi.encodeWithSelector(ActivateDemoCircle.NotFull.selector, 4, 5));
+        activator.execute(ORGANIZER_KEY, file, circle);
+        // the fifth person (here M5, through the same script) arrives; now it starts
+        join.execute(_joinParams(JoinDemoCircles.Selection.All, false));
+        activator.execute(ORGANIZER_KEY, file, circle);
+        assertEq(uint8(HuiCircle(payable(circle)).state()), uint8(CircleState.Active));
+        _cleanup();
+    }
+
+    function test_Activate_RevertsForAnotherSigner() public {
+        address circle = _filledBidding("act3", 5);
+        uint256 other = 0xBAD;
+        vm.expectRevert(
+            abi.encodeWithSelector(ActivateDemoCircle.NotOrganizer.selector, vm.addr(other), vm.addr(ORGANIZER_KEY))
+        );
+        activator.execute(other, file, circle);
+        _cleanup();
+    }
+
+    function test_Activate_RevertsForAnAddressThatIsNotACircle() public {
+        _filledBidding("act4", 5);
+        address notCircle = address(0xDEAD);
+        vm.expectRevert(abi.encodeWithSelector(ActivateDemoCircle.NotACircle.selector, notCircle));
+        activator.execute(ORGANIZER_KEY, file, notCircle);
+        _cleanup();
+    }
+
+    function test_Activate_RevertsWhenAlreadyActive() public {
+        address circle = _filledBidding("act5", 5);
+        activator.execute(ORGANIZER_KEY, file, circle);
+        vm.expectRevert(abi.encodeWithSelector(ActivateDemoCircle.NotForming.selector, CircleState.Active));
+        activator.execute(ORGANIZER_KEY, file, circle);
+        _cleanup();
+    }
+
+    function test_Activate_RevertsAfterTheJoinDeadline() public {
+        address circle = _filledBidding("act6", 5);
+        uint64 deadline = IHuiCircle(circle).params().joinDeadline;
+        vm.warp(uint256(deadline) + 1);
+        vm.expectRevert(abi.encodeWithSelector(ActivateDemoCircle.JoinDeadlinePassed.selector, deadline));
+        activator.execute(ORGANIZER_KEY, file, circle);
+        _cleanup();
+    }
+
+    function test_Activate_RevertsWhenCoverageIsBelowTheMinimum() public {
+        address circle = _filledBidding("act7", 5);
+        // Every demo circle is made at 100%, so a lower reading is simulated at the view the script reads.
+        vm.mockCall(circle, abi.encodeWithSelector(IHuiCircle.coverageIndexBps.selector), abi.encode(uint256(4_000)));
+        uint256 minimum = HuiCircle(payable(circle)).minCoverageBps();
+        vm.expectRevert(abi.encodeWithSelector(ActivateDemoCircle.CoverageBelowMinimum.selector, 4_000, minimum));
+        activator.execute(ORGANIZER_KEY, file, circle);
+        vm.clearMockedCalls();
+        assertEq(uint8(HuiCircle(payable(circle)).state()), uint8(CircleState.Forming), "nothing was broadcast");
+        _cleanup();
+    }
+
+    function test_Activate_RevertsOnUnsupportedChain() public {
+        address circle = _filledBidding("act8", 5);
+        vm.chainId(43_114);
+        vm.expectRevert(abi.encodeWithSelector(ActivateDemoCircle.UnsupportedChain.selector, 43_114));
+        activator.execute(ORGANIZER_KEY, file, circle);
         _cleanup();
     }
 
