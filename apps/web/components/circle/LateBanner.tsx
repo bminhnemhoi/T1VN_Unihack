@@ -7,6 +7,7 @@ import { formatUsdc, huiMath, quoteRepay } from 'sdk';
 import { ActionButton } from '@/components/chain/ActionButton';
 import { Countdown } from '@/components/brand/Countdown';
 import { Button } from '@/components/ui/button';
+import { lateImpact } from '@/lib/live/lateImpact';
 import { formatVnTime, nowMsOf, type SampleCircleData, type SampleShortfall } from '@/lib/sample-circles';
 
 const LATE_RATE_BPS = 10_00n; // 10%/year, ND 19 Article 22 clause 1
@@ -32,6 +33,7 @@ export function LateBanner({ circle, shortfall, onPay, payHref }: { circle: Samp
   const quote = live && me ? quoteRepay(live.view, me, Math.floor(live.nowMs / 1000) + extra, { round: shortfall.round }) : undefined;
   const fee = quote ? quote.lateFee : lateFeeOf(circle, shortfall, shortfall.sinceSeconds + extra);
   const owed = quote ? quote.principal : shortfall.amount;
+  const impact = lateImpact(circle);
   const left = shortfall.graceSecondsLeft ?? 0;
   const deadline = nowMsOf(circle) + (shortfall.graceSecondsLeft ?? 0) * 1000;
   return (
@@ -45,6 +47,9 @@ export function LateBanner({ circle, shortfall, onPay, payHref }: { circle: Samp
       </p>
       <p className="so-ke text-lead text-foreground">
         Lãi chậm góp đang cộng (10%/năm): <strong>{formatUsdc(fee)}</strong>. Trả sớm thì lãi ít.
+      </p>
+      <p className="so-ke mt-2 text-foreground">
+        Trễ một kỳ, dù trả trong ân hạn, vẫn bị ghi một lần trễ: cuối dây phần chia quỹ dự phòng của bạn (thưởng đúng hạn) bớt khoảng <strong>{formatUsdc(impact.thisLoss)}</strong>, tính trên quỹ dự kiến {formatUsdc(impact.reserveEnd)}. Không mở thăm đã nộp cũng bị tính như trễ. Đóng đúng hạn mọi kỳ thì nhận đủ phần.
       </p>
       {live && !payHref && (
         <ActionButton

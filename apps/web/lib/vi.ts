@@ -14,6 +14,7 @@ export const vi = {
     fee: 'Hoa hồng theo NĐ 19, chỉ trả cho kỳ không bị mất.',
     share: 'Chủ hụi lấy tối đa phần này của khoản lãi luật cho phép ở mỗi kỳ. Phần còn lại dành cho người bỏ thăm. Từ 0% đến 50%.',
     feeCeiling: 'Hoa hồng mỗi kỳ không vượt mức này trên tiền hốt (tối đa 3%). Kỳ chủ hụi tự hốt không thu.',
+    unrevealed: 'Quên mở thăm đã nộp: mất cọc mở thăm vào quỹ dự phòng, bị tính một lần trễ và bớt phần chia quỹ dự phòng cuối dây.',
     maxBid: 'Thăm cao nhất được phép theo trần lãi 20%/năm.',
   },
 } as const;

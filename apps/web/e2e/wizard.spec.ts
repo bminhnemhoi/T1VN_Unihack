@@ -234,4 +234,37 @@ test.describe('S03 coverage panel on phones', () => {
     });
     expect(dup).toEqual([]);
   });
+
+  test('v1.2: the commission share turns into money per round, the agreement hash follows it', async ({ page }) => {
+    await page.goto('/circles/new');
+    await next(page).click();
+    await expect(page.getByLabel('Phần hoa hồng của chủ hụi')).toHaveValue('50');
+    await expect(page.getByLabel('Trần hoa hồng mỗi lần hốt')).toHaveValue('3');
+    await expect(page.getByText(/Kỳ 1: chủ hụi nhận tối đa 12 USDC, thăm tối đa 3,287671 USDC \(trần luật 6,575342 USDC\)/)).toBeVisible();
+    await page.getByLabel('Ký quỹ của chủ hụi').fill('480');
+    await closeMobileSheet(page);
+    await next(page).click();
+    const table = page.getByRole('table', { name: /Trần thăm theo luật, trần thăm thực thi và hoa hồng/ });
+    await expect(table.getByRole('row')).toHaveCount(6);
+    await expect(table).toContainText('3,287671 USDC'); // enforced ceiling of round 1 = half the legal one
+    await expect(table).toContainText('7,397259 USDC'); // phi x room of round 2 (docs/03 section 8.1)
+    const first = await page.getByTestId('agreement-hash').innerText();
+    await page.getByRole('button', { name: 'Quay lại' }).click();
+    await page.getByLabel('Phần hoa hồng của chủ hụi').fill('30');
+    await next(page).click();
+    await expect(page.getByTestId('agreement-hash')).not.toHaveText(first);
+    await noHorizontalOverflow(page);
+  });
+
+  test('v1.2: a share above 50% is refused, and Fixed circles have no share field', async ({ page }) => {
+    await page.goto('/circles/new');
+    await next(page).click();
+    await page.getByLabel('Phần hoa hồng của chủ hụi').fill('60');
+    await next(page).click();
+    await expect(page.getByText('Phần hoa hồng phải từ 0% đến 50%.')).toBeVisible();
+    await page.getByRole('button', { name: 'Quay lại' }).click();
+    await page.getByRole('radio', { name: 'Cố định (hốt lần lượt)' }).click();
+    await next(page).click();
+    await expect(page.getByLabel('Phần hoa hồng của chủ hụi')).toHaveCount(0);
+  });
 });

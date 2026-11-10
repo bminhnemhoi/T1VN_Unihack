@@ -49,6 +49,15 @@ export function ResultView({ c }: { c: SampleCircleData }) {
   const winner = c.seats[r.winner]!;
   const mine = r.winner === c.viewer;
   const shortOf = (m: number) => c.shortfalls.find((s) => s.round === k && s.member === m);
+  // v1.2: a clean round pays the commission at once (`FeePaid`); a round with a shortfall holds it back; the organizer's own seat pays none (docs/03 section 6.5 step 6).
+  const winnerAddr = winner.address ?? (winner.organizer ? c.organizerAddr : undefined);
+  const organizerWon = Boolean(winner.organizer || (c.live && winnerAddr && winnerAddr.toLowerCase() === c.live.view.organizer.toLowerCase()));
+  const hasShortfall = c.shortfalls.some((s) => s.round === k);
+  const commissionOn = c.live ? c.live.view.params.commissionMode : c.terms.feeBps > 0n;
+  const feeItem =
+    r.fee === 0n && organizerWon && commissionOn
+      ? { label: 'Hoa hồng chủ hụi', value: 'Không thu (chân của chủ hụi)' }
+      : { label: hasShortfall ? 'Tiền công chủ hụi (giữ chờ đến khi kết thúc dây)' : 'Tiền công chủ hụi (đã trả ngay)', value: formatUsdc(r.fee) };
 
   return (
     <main id="noi-dung" className="mx-auto max-w-6xl px-4 py-10">
@@ -119,7 +128,7 @@ export function ResultView({ c }: { c: SampleCircleData }) {
             className="mt-2"
             items={[
               { label: 'Tổng tiền góp (tiền hốt)', value: formatUsdc(r.pot) },
-              { label: 'Tiền công chủ hụi (giữ chờ)', value: formatUsdc(r.fee) },
+              feeItem,
               { label: 'Quỹ dự phòng', value: formatUsdc(r.premium) },
               { label: 'Tiền giữ lại của người hốt', value: formatUsdc(r.holdback) },
               { label: 'Thực nhận', value: formatUsdc(r.payout) },

@@ -15,6 +15,7 @@ import { Input } from '@/components/ui/input';
 import { commitBlocker, eligibilityBlocker } from '@/lib/live/bidEligibility';
 import { useMyCommit } from '@/lib/live/useMyCommit';
 import type { SampleCircleData } from '@/lib/sample-circles';
+import { vi } from '@/lib/vi';
 
 interface Props {
   phase: Phase;
@@ -51,7 +52,7 @@ function BidForm({ maxBid, revealBond, onSeal, busy, disabledReason, text, setTe
           <Input id="bid" inputMode="decimal" autoComplete="off" className="so-ke max-w-40 text-right text-lg" value={text} aria-invalid={error ? true : undefined} aria-describedby={`bid-hint ${error ? 'bid-err' : ''}`} onChange={(e) => setText(e.target.value)} />
           <span className="text-lg">USDC</span>
         </div>
-        <FieldDescription id="bid-hint">Thăm cao nhất được hốt. Tối đa {formatUsdc(maxBid)} (trần lãi 20%/năm). Cọc mở thăm {formatUsdc(revealBond)}, trả lại khi mở thăm.</FieldDescription>
+        <FieldDescription id="bid-hint">Thăm cao nhất được hốt. Tối đa {formatUsdc(maxBid)} (trần lãi 20%/năm). Cọc mở thăm {formatUsdc(revealBond)}, trả lại khi mở thăm. {vi.help.unrevealed}</FieldDescription>
         {error && <FieldError id="bid-err">{error}</FieldError>}
       </Field>
       <Button type="submit" size="lg" disabled={!!error || busy || !!disabledReason}>
@@ -106,7 +107,7 @@ function SampleCard({ phase, round, maxBid, revealBond, commitSeconds }: Require
           ) : (
             <Button type="button" size="lg" className="mt-3" onClick={() => setOpened(true)}>Mở thăm của tôi</Button>
           )}
-          <p className="mt-2 text-muted-foreground">Quên mở thì mất cọc vào quỹ dự phòng.</p>
+          <p className="mt-2 text-muted-foreground">{vi.help.unrevealed}</p>
         </div>
       )}
 
@@ -187,7 +188,7 @@ function LiveCard({ c, phase, round, maxBid, revealBond }: { c: SampleCircleData
             </Button>
           )}
           {ineligible && !mine?.committed && <p className="mt-2 text-muted-foreground">{ineligible}</p>}
-          <p className="mt-2 text-muted-foreground">Quên mở thì mất cọc vào quỹ dự phòng.</p>
+          <p className="mt-2 text-muted-foreground">{vi.help.unrevealed}</p>
         </div>
       )}
 

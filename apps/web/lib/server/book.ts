@@ -94,7 +94,7 @@ const STATE_VI: Record<string, string> = {
 /** Pure: builds the book from an already-read view and its events. */
 export function assembleBook(view: CircleView, events: CircleEvent[], chainId: number): BookJson {
   const explorer = `${SNOWTRACE}/address/${view.address}`;
-  const lines: BookLine[] = eventsToLines(events, (a) => a);
+  const lines: BookLine[] = eventsToLines(events, (a) => a, { organizer: view.organizer, commission: view.params.commissionMode });
   const claims = view.rounds.reduce((sum, r) => sum + r.shortfalls.filter((s) => !s.resolved).reduce((a, s) => a + s.uncovered, 0n), 0n);
   const totals = bookTotals(lines, claims);
   const activated = events.find((e) => e.eventName === 'CircleActivated');
