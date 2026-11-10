@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { ALPHA_LIMIT_MESSAGE, MAX_ALPHA_BPS } from '../circleForm';
 import { LIMITS, TESTNET_MAX_C_USDC } from './config';
 
 /** The 10 `explain_rule` topics (docs/05 section 12). */
@@ -84,7 +85,8 @@ export const circleDraftSchema = z
     C: decimalString,
     periodDays: z.number().int().min(1).max(31),
     demoMode: z.boolean(),
-    alphaBps: z.number().int().min(0).max(10_000),
+    /** The UI limit of 50% (audit A16 L-02), the same rule as the create form. The contract accepts up to 10_000. */
+    alphaBps: z.number().int().min(0).max(Number(MAX_ALPHA_BPS), ALPHA_LIMIT_MESSAGE),
     bondUsdc: decimalString,
     commissionMode: z.boolean(),
     feeBps: z.number().int().min(0).max(300),
