@@ -25,8 +25,8 @@ type Hex = `0x${string}`;
 export const RELAY_PER_HOUR = 30;
 export const GAS_CAP = 3_000_000n;
 export const GAS_CAP_HEAVY = 5_000_000n;
-export const LOW_BALANCE_WEI = 10n ** 18n; // 1 AVAX: warn
-export const HARD_STOP_WEI = 5n * 10n ** 16n; // 0.05 AVAX: refuse to send, the relayer cannot pay for gas anyway
+export const LOW_BALANCE_WEI = 2n * 10n ** 16n; // 0.02 AVAX: warn
+export const HARD_STOP_WEI = 5n * 10n ** 15n; // 0.005 AVAX: refuse to send, the relayer cannot pay for gas anyway
 export const IP_PER_HOUR = 300;
 export const GLOBAL_PER_HOUR = 1500;
 export const CREATE_CIRCLE_PER_HOUR = 5;
@@ -301,7 +301,7 @@ export function createRelayHandler(deps: RelayDeps): (req: Request) => Promise<R
       return done(errorResponse(422, decoded.code, decoded.message), 'simulation-reverted');
     }
 
-    // Hard stop when the relayer cannot pay for gas; warn (log only) below 1 AVAX after a send.
+    // Hard stop when the relayer cannot pay for gas; warn (log only) below 0.02 AVAX after a send.
     try {
       const balance = await deps.publicClient.getBalance({ address: deps.sender.address });
       if (balance < HARD_STOP_WEI) {
@@ -317,7 +317,7 @@ export function createRelayHandler(deps: RelayDeps): (req: Request) => Promise<R
       void deps.publicClient
         .getBalance({ address: deps.sender.address })
         .then((b) => {
-          if (b < LOW_BALANCE_WEI) deps.log('warn', 'relayer balance below 1 AVAX', { requestId, balanceWei: b.toString() });
+          if (b < LOW_BALANCE_WEI) deps.log('warn', 'relayer balance below 0.02 AVAX', { requestId, balanceWei: b.toString() });
         })
         .catch(() => undefined);
       return done(jsonResponse(200, { txHash: hash }), 'sent');

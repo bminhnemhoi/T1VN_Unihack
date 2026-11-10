@@ -19,7 +19,7 @@ Các bước:
 1. **Mạng:** `cast chain-id --rpc-url fuji` ra `43113`; `cast block-number --rpc-url fuji` tăng giữa hai lần gọi.
 2. **Contract:** đọc `contracts/deployments/fuji.json`; với forwarder, reputation, circleImplementation, factory: `cast code <địa chỉ> --rpc-url fuji` khác `0x`; `cast call <reputation> "factory()(address)" --rpc-url fuji` khớp factory. In link `https://testnet.snowtrace.io/address/<địa chỉ>` để người xác nhận đã verify (rủi ro R16: Etherscan ngừng API Fuji từ 15/11/2026).
 3. **USDC:** `cast call 0x5425890298aed601595a70AB815c96711a31Bc65 "version()(string)" --rpc-url fuji` ra `"2"`; số dư USDC của ví chủ hụi và M1..M5 (người cho địa chỉ) bằng `cast call <USDC> "balanceOf(address)(uint256)" <ví> --rpc-url fuji`; dây demo C = 10 USDC cần ký quỹ 48 USDC và mỗi thành viên đủ allowance (N − 1)·(C + revealBond) = 40,4 USDC.
-4. **AVAX:** `cast balance <ví> --rpc-url fuji --ether` cho relayer (cần ≥ 1 AVAX), keeper, deployer.
+4. **AVAX:** `cast balance <ví> --rpc-url fuji --ether` cho relayer (cần ≥ 0,02 AVAX), keeper, deployer.
 5. **Dây demo:** với địa chỉ dây demo, đọc `state()`, `currentRound()`, `coverageIndexBps()`, `params()`; trạng thái phải là Forming còn hạn `joinDeadline`, hoặc Active đúng kỳ dự kiến cho buổi demo.
 6. **Keeper:** có event `RoundSettled` gần đây trên dây demo (`cast logs` theo địa chỉ dây, khoảng block nhỏ) hoặc người xác nhận keeper đang chạy (quét 15 giây ở chế độ demo).
 7. **Web** (nếu có URL): mở bằng MCP Playwright nếu phiên có; nếu không, `curl -sS -o /dev/null -w "%{http_code}" <url>` (sẽ hỏi người duyệt) phải ra 200, và `<url>/api/sim/results?scenario=baseline` ra 200. Với Playwright: bề rộng 360 px, có nhãn "Chế độ demo", chữ tiếng Việt, nút đăng nhập Google/email, không lỗi console.

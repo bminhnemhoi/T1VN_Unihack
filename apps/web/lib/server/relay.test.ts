@@ -218,13 +218,13 @@ describe('POST /api/relay', () => {
     expect(t.state.maxActive).toBe(1);
   });
 
-  it('warns in the log when the relayer holds less than 1 AVAX, without leaking signatures', async () => {
+  it('warns in the log when the relayer holds less than 0.02 AVAX, without leaking signatures', async () => {
     const t = harness();
-    t.state.balance = 10n ** 17n;
+    t.state.balance = 10n ** 16n; // 0.01 AVAX: above the hard stop, below the warning
     await post(createRelayHandler(t.deps), body());
     await new Promise((r) => setTimeout(r, 10));
     const all = t.logs.join('\n');
-    expect(all).toContain('relayer balance below 1 AVAX');
+    expect(all).toContain('relayer balance below 0.02 AVAX');
     expect(all).not.toContain('abababab');
     expect(all).toContain('"fn":"commitBid"');
   });
@@ -293,7 +293,7 @@ describe('POST /api/relay', () => {
 
   it('refuses to send when the relayer is nearly out of AVAX', async () => {
     const t = harness();
-    t.state.balance = 10n ** 16n; // 0.01 AVAX
+    t.state.balance = 10n ** 15n; // 0.001 AVAX
     const res = await post(createRelayHandler(t.deps), body());
     expect(res.status).toBe(503);
     expect(await code(res)).toBe('RelayUnavailable');

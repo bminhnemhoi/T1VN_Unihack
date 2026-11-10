@@ -129,7 +129,7 @@ Vì sao xác minh qua Routescan:
 
 ### 6.2. Các bước
 
-1. Tạo bốn ví testnet tách vai: deployer (kiêm admin trên testnet), relayer, attester, keeper (ADR-21). Nạp AVAX: deployer khoảng 0,03 AVAX, relayer ít nhất 1 AVAX (ngưỡng cảnh báo ở 05, mục 8.2), keeper khoảng 0,1 AVAX (đề xuất). Attester không cần AVAX vì chỉ ký ngoài chuỗi.
+1. Tạo bốn ví testnet tách vai: deployer (kiêm admin trên testnet), relayer, attester, keeper (ADR-21). Nạp AVAX: deployer khoảng 0,02 AVAX, relayer ít nhất 0,02 AVAX (ngưỡng cảnh báo ở 05, mục 8.2), keeper khoảng 0,005 AVAX (gas Fuji hiện khoảng 160 wei; xem DEPLOY-FUJI mục 3). Attester không cần AVAX vì chỉ ký ngoài chuỗi.
 2. Người tự export biến môi trường trước khi mở Claude Code. Claude không đọc `.env*`.
 3. Kiểm trước:
 
@@ -198,7 +198,7 @@ Chạy từng phần bằng tay: `anvil`, rồi `forge script script/Deploy.s.so
 - [ ] `FactoryConfig`: `maxCapBps` 2000, `lateRateBps` 1000, `minCoverageBps` 5000, `maxFeeBps` 300, `maxReserveBps` 300, `minMembers` 3, `maxMembers` 30, `maxContribution` 10.000 USDC.
 - [ ] Mọi contract hiện "verified" trên testnet.snowtrace.io.
 - [ ] `fuji.json` có `deployedAt`, `gitCommit`; đã sinh lại ABI; web đã build lại.
-- [ ] Relayer ≥ 1 AVAX, keeper ≥ 0,1 AVAX; keeper đã chạy.
+- [ ] Relayer ≥ 0,02 AVAX, keeper ≥ 0,005 AVAX; keeper đã chạy.
 - [ ] Dây demo chạy hết một kỳ trên Fuji; có link Snowtrace trong README.
 
 ---

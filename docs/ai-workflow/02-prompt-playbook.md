@@ -293,7 +293,7 @@ Dùng: `/implement` → `frontend-engineer`, rồi `/audit apps/web/app/api/rela
 
 Ràng buộc:
 - Kiểm đúng thứ tự: to là factory hoặc factory.isCircle(to); selector trong allowlist (người dùng: createCircle, depositBond, withdrawBond, join, leave, activate, commitBid, revealBid, payLate, repayDebt, claim; ai cũng gọi: settleRound, markDefault, finalize, cancel); value == 0; gas ≤ 3.000.000; rate limit 30/giờ mỗi from; forwarder.verify bằng eth_call; mô phỏng execute bằng eth_call. Rồi mới gửi bằng ví relayer (RELAYER_PRIVATE_KEY).
-- Cảnh báo khi relayer < 1 AVAX; transport fallback FUJI_RPC_URL và FUJI_RPC_URL_FALLBACK; trả custom error đã giải mã.
+- Cảnh báo khi relayer < 0,02 AVAX; transport fallback FUJI_RPC_URL và FUJI_RPC_URL_FALLBACK; trả custom error đã giải mã.
 - lib/server/relayer.ts, rateLimit.ts, log.ts theo docs/04 mục 4.
 Tiêu chí chấp nhận: test chặn đích lạ, selector lạ, value > 0, gas quá trần, chữ ký sai, quá rate limit; thử thật trên anvil với commitBid qua relay, _msgSender đúng người ký.
 ```

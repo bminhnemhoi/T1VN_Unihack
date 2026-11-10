@@ -669,7 +669,7 @@ Tất cả nhận và trả JSON; số tiền gửi dưới dạng chuỗi (bigi
   5. Rate limit 30 yêu cầu/giờ mỗi `from`, chỉ tính cho yêu cầu đã qua bước 4 (chữ ký sai không làm hao hạn mức của người khác).
   6. Riêng `createCircle` (ai ký cũng gửi được, mỗi dây tốn gas): cần header `Authorization: Bearer <Privy access token>` của chính tài khoản có ví nhúng trùng `from`, tối đa 5 dây/giờ mỗi tài khoản.
   7. Mô phỏng `execute` bằng `eth_call`. Forwarder chỉ báo `FailedCall` khi lệnh con lỗi, nên khi mô phỏng thất bại relay chạy lại lệnh con (nối thêm địa chỉ người ký theo ERC-2771) để giải mã custom error thật.
-- Gửi bằng ví relayer (nạp AVAX testnet, cảnh báo khi số dư < 1 AVAX; dưới 0,05 AVAX thì dừng gửi và trả 503 `RelayUnavailable`). Các lệnh gửi đi qua một khóa tuần tự để không trùng nonce, và bộ giới hạn nằm trong bộ nhớ nên relay phải chạy như MỘT tiến trình Node liên tục (không serverless nhiều bản); cần nhiều bản thì chuyển bộ giới hạn và nonce sang kho dùng chung.
+- Gửi bằng ví relayer (nạp AVAX testnet, cảnh báo khi số dư < 0,02 AVAX; dưới 0,005 AVAX thì dừng gửi và trả 503 `RelayUnavailable`). Các lệnh gửi đi qua một khóa tuần tự để không trùng nonce, và bộ giới hạn nằm trong bộ nhớ nên relay phải chạy như MỘT tiến trình Node liên tục (không serverless nhiều bản); cần nhiều bản thì chuyển bộ giới hạn và nonce sang kho dùng chung.
 - Trả: `{ "txHash": "0x..." }` hoặc `{ "error": { "code", "message" } }` (mã lỗi custom error đã giải mã).
 
 ### 8.3. `GET /api/circles/[address]/so-ho?format=json|pdf`

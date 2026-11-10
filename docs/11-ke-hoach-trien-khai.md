@@ -109,7 +109,7 @@ gantt
 | W1 | Next.js 15, Tailwind, shadcn/ui, wagmi, viem, `packages/config` | 3 | |
 | W2 | Privy (starter code BTC): Google, email, Fuji, `createOnLogin` | 3 | W1 |
 | W3 | `/api/attest` | 4 | W2 |
-| W4 | `/api/relay` + ví relayer + cảnh báo số dư < 1 AVAX | 5 | C10 (làm trước trên anvil) |
+| W4 | `/api/relay` + ví relayer + cảnh báo số dư < 0,02 AVAX | 5 | C10 (làm trước trên anvil) |
 | W5 | SDK: `readCircle`, events, `signPermit`, `relay`, salt IndexedDB, `commitHash` | 6 | C10 |
 | W6 | S03 Tạo dây + đồng hồ chỉ số + khung NĐ 19 | 6 | T1 |
 | W7 | S04, S05: gom người, mời, vào dây | 6 | W3, W4, W5 |
@@ -149,7 +149,7 @@ gantt
 |---|---|---|---|---|---|
 | R1 | Cám dỗ làm passkey, tự build ERC-4337, EIP-7702 | TB | Cao | ADR-03: BTC dặn không tự build 4337, C-Chain chưa nhận 7702. Passkey chỉ là bonus, chỉ mở khi M4 đạt; sau M5 cấm | P2 (P3 chặn) |
 | R2 | Cấu hình Privy sai: phương thức đăng nhập, chain, domain, tạo ví | TB | Cao | Checklist M0: bật Google, email ở dashboard và `loginMethods`; `supportedChains`, `defaultChain` = Fuji; `embeddedWallets.ethereum.createOnLogin: 'users-without-wallets'` (chỉ chạy khi đăng nhập qua modal Privy); thêm mọi domain (localhost, preview, production) vào danh sách được phép (cần kiểm tra tên mục trong dashboard); `landingHeader` ≤ 35 ký tự, `loginMessage` ≤ 100 ký tự; thử trên Android và iOS | P2 |
-| R3 | Relayer hết AVAX | TB | Cao | Faucet BTC 0,05 AVAX/lần, mỗi ví 24 giờ một lần và chỉ khi ví < 0,05 AVAX: xin bằng nhiều ví rồi gom; faucet Core với coupon `avalanche-academy`; nhắn Telegram BTC. Cảnh báo < 1 AVAX (05); rate limit 30 request/giờ mỗi ví; `/demo-check` đọc số dư | P2 |
+| R3 | Relayer hết AVAX | TB | Cao | Faucet BTC 0,05 AVAX/lần, mỗi ví 24 giờ một lần và chỉ khi ví < 0,05 AVAX: xin bằng nhiều ví rồi gom; faucet Core với coupon `avalanche-academy`; nhắn Telegram BTC. Cảnh báo < 0,02 AVAX (05); rate limit 30 request/giờ mỗi ví; `/demo-check` đọc số dư | P2 |
 | R4 | RPC Fuji công khai bị giới hạn | TB | TB | Avalanche xác nhận API công khai có rate limit, "quite high" ([support.avax.network, 15/10/2025](https://support.avax.network/en/articles/6159007-what-apis-are-available-on-avalanche)). Keeper quét 15 giây (demo), 5 phút (thật); `getLogs` theo khoảng block nhỏ, có cache; transport `fallback` với `FUJI_RPC_URL_FALLBACK` của nhà cung cấp khác (04 mục 8; nhà cung cấp cần kiểm tra) | P2 |
 | R5 | Faucet USDC chỉ 20 USDC mỗi 2 giờ cho mỗi ví, mỗi mạng ([faucet.circle.com](https://faucet.circle.com/)) | Cao | Cao | Một dây demo cần tới 5 × 404 + 480 = 2.500 USDC (cận trên), Demo Day cần ≥ 2 dây. Gom từ M0: mỗi người xin cho mọi ví mỗi 2 giờ khi thức; dây thử nghiệm dùng C = 5 USDC; sau mỗi lần tập chuyển USDC về đúng ví; hỏi BTC; cuối cùng mới dùng `MockUSDC` (ADR-02) và nói rõ khi pitch | P3, P1 |
 | R6 | Phình phạm vi | Cao | Cao | Phạm vi ở 02 mục 9; thẻ mới vào Backlog, P3 duyệt; sau 17/11 chỉ nhận lỗi; danh sách cắt (mục 7) | P3 |
@@ -258,6 +258,6 @@ Gộp checklist mục 17 của bản tóm tắt cho trưởng nhóm với yêu c
 - [ ] Project name ≤ 100 ký tự; What it does ≤ 800 ký tự; Anything else ≤ 800 ký tự (dán đúng bản ở 12, dạng NFC).
 - [ ] Điền đủ Live app, Contract address (link Snowtrace của HuiFactory), Anything else.
 - [ ] Mở thử mọi link bằng tab ẩn danh và trên điện thoại dùng 4G.
-- [ ] Ví demo đủ USDC, relayer ≥ 1 AVAX, keeper đang chạy.
+- [ ] Ví demo đủ USDC, relayer ≥ 0,02 AVAX, keeper đang chạy.
 - [ ] Builder Pass: 3/3 người đủ 5 nhiệm vụ.
 - [ ] **Bấm Submit**, không chỉ lưu nháp; chụp màn hình xác nhận.
