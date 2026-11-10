@@ -36,9 +36,55 @@ export interface CircleEvent {
 export interface EventOptions {
   fromBlock?: bigint;
   toBlock?: bigint;
-  /** Blocks per `getLogs` call; public RPCs cap the range (docs/04 section 7). */
+  /**
+   * Blocks per `getLogs` call, both ends included. Fuji's public RPC refuses more than 100 blocks per request
+   * ("block range too large", measured 11/11/2026), so the default is 100.
+   */
   chunk?: bigint;
+  /** `getLogs` calls in flight at once (default 6). */
+  concurrency?: number;
+  /**
+   * Start at the block where the circle was created instead of `fromBlock` (default true): the scan then costs a
+   * few binary-search calls plus one `getLogs` per 100 blocks of the circle's own life, not of the chain's.
+   * Falls back to `fromBlock` when the node does not serve historical `eth_getCode`.
+   */
+  fromCreation?: boolean;
+  /** Reuse and extend the events already read for this client and circle (default true; only for the live head). */
+  cache?: boolean;
   withTimestamps?: boolean;
+}
+
+/** Public Fuji RPC limit on the `eth_getLogs` block range (inclusive). */
+export const FUJI_GETLOGS_MAX_BLOCKS = 100n;
+
+const creationCache = new WeakMap<object, Map<string, bigint>>();
+
+/**
+ * First block at which `circle` has code, found by binary search over `[low, high]` with historical `eth_getCode`
+ * (a circle is a clone made by the factory, so its code appears in its creation block). Returns `low` when the
+ * contract already existed there and throws when the node cannot answer; callers fall back to `low`.
+ */
+export async function circleCreationBlock(client: PublicClient, circle: Address, low: bigint, high: bigint): Promise<bigint> {
+  const cache = creationCache.get(client) ?? new Map<string, bigint>();
+  creationCache.set(client, cache);
+  const key = circle.toLowerCase();
+  const hit = cache.get(key);
+  if (hit !== undefined && hit >= low) return hit;
+  const hasCode = async (b: bigint): Promise<boolean> => {
+    const code = await client.getCode({ address: circle, blockNumber: b });
+    return code !== undefined && code !== '0x';
+  };
+  if (await hasCode(low)) return low;
+  if (!(await hasCode(high))) return low; // not (yet) deployed: nothing better to say
+  let lo = low; // no code at lo
+  let hi = high; // code at hi
+  while (hi - lo > 1n) {
+    const mid = lo + (hi - lo) / 2n;
+    if (await hasCode(mid)) hi = mid;
+    else lo = mid;
+  }
+  cache.set(key, hi);
+  return hi;
 }
 
 /** Value of Decree 19 Article 14: N x C converted to VND (conservative reading, docs/05 section 12.2). Internal only. */
@@ -46,38 +92,95 @@ export function vndPerRound(n: number, c: bigint, vndPerUsdc: number = DEFAULT_V
   return Number((BigInt(n) * c * BigInt(Math.round(vndPerUsdc))) / 1_000_000n);
 }
 
-/** `getLogs` for all circle events in chunks, oldest first. */
+interface EventCacheEntry {
+  /** The `fromBlock` the caller asked for (not the narrowed creation block). */
+  requestedFrom: bigint;
+  /** First block actually scanned. */
+  start: bigint;
+  /** Highest block whose logs are already in `events`. */
+  scannedTo: bigint;
+  events: CircleEvent[];
+  timestamps: Map<bigint, number>;
+}
+const eventCache = new WeakMap<object, Map<string, EventCacheEntry>>();
+/** Blocks re-read behind the previous head on every refresh, so a small reorg cannot leave a stale event behind. */
+const REORG_MARGIN = 3n;
+
+/**
+ * `getLogs` for all circle events in chunks, oldest first. The result for the live head (no `toBlock`) is remembered per
+ * client and circle, so the next call only reads the blocks added since (plus a small reorg margin): a page that polls
+ * every few seconds costs one `getLogs`, not a rescan (Fuji's public RPC rate-limits bursts, A18). Pass `cache: false` to
+ * force a full rescan.
+ */
 export async function getCircleEvents(
   client: PublicClient,
   circle: Address,
   opts: EventOptions = {},
 ): Promise<CircleEvent[]> {
-  const chunk = opts.chunk ?? 2_000n;
+  const chunk = opts.chunk && opts.chunk > 0n ? opts.chunk : FUJI_GETLOGS_MAX_BLOCKS;
+  const concurrency = Math.max(1, opts.concurrency ?? 6);
   const latest = opts.toBlock ?? (await client.getBlockNumber({ cacheTime: 0 }));
-  const out: CircleEvent[] = [];
-  for (let from = opts.fromBlock ?? 0n; from <= latest; from += chunk) {
-    const to = from + chunk - 1n > latest ? latest : from + chunk - 1n;
-    const logs = await client.getContractEvents({ address: circle, abi: huiCircleAbi, fromBlock: from, toBlock: to });
-    for (const l of logs) {
-      out.push({
-        eventName: String((l as { eventName?: string }).eventName),
-        args: ((l as { args?: unknown }).args ?? {}) as Record<string, unknown>,
-        blockNumber: l.blockNumber,
-        logIndex: l.logIndex,
-        txHash: l.transactionHash,
-      });
+  const useCache = opts.toBlock === undefined && opts.cache !== false;
+  const perClient = eventCache.get(client) ?? new Map<string, EventCacheEntry>();
+  eventCache.set(client, perClient);
+  const key = circle.toLowerCase();
+  let entry = useCache ? perClient.get(key) : undefined;
+  const requestedFrom = opts.fromBlock ?? 0n;
+  // The chain went backwards (a local node was reset) or the caller asks for an earlier start: forget what we know.
+  if (entry && (latest < entry.scannedTo || requestedFrom < entry.requestedFrom)) {
+    perClient.delete(key);
+    entry = undefined;
+  }
+
+  let start = requestedFrom;
+  if (entry) {
+    start = entry.scannedTo + 1n > REORG_MARGIN ? entry.scannedTo + 1n - REORG_MARGIN : 0n;
+    if (start < entry.start) start = entry.start;
+  } else if (opts.fromCreation !== false && start < latest && typeof client.getCode === 'function') {
+    try {
+      start = await circleCreationBlock(client, circle, start, latest);
+    } catch {
+      // no historical state on this node: scan from the given block
     }
   }
-  if (opts.withTimestamps) {
-    const cache = new Map<bigint, number>();
-    for (const e of out) {
-      if (!cache.has(e.blockNumber)) {
-        cache.set(e.blockNumber, Number((await client.getBlock({ blockNumber: e.blockNumber })).timestamp));
+
+  const ranges: Array<[bigint, bigint]> = [];
+  for (let from = start; from <= latest; from += chunk) {
+    ranges.push([from, from + chunk - 1n > latest ? latest : from + chunk - 1n]);
+  }
+  const fresh: CircleEvent[] = [];
+  for (let i = 0; i < ranges.length; i += concurrency) {
+    const batch = await Promise.all(
+      ranges.slice(i, i + concurrency).map(([from, to]) =>
+        client.getContractEvents({ address: circle, abi: huiCircleAbi, fromBlock: from, toBlock: to }),
+      ),
+    );
+    for (const logs of batch) {
+      for (const l of logs) {
+        fresh.push({
+          eventName: String((l as { eventName?: string }).eventName),
+          args: ((l as { args?: unknown }).args ?? {}) as Record<string, unknown>,
+          blockNumber: l.blockNumber,
+          logIndex: l.logIndex,
+          txHash: l.transactionHash,
+        });
       }
-      e.timestamp = cache.get(e.blockNumber);
     }
   }
-  return out;
+
+  const kept = entry ? entry.events.filter((e) => e.blockNumber < start) : [];
+  const timestamps = entry?.timestamps ?? new Map<bigint, number>();
+  const out = [...kept, ...fresh];
+  if (opts.withTimestamps) {
+    for (const e of out) {
+      if (!timestamps.has(e.blockNumber)) {
+        timestamps.set(e.blockNumber, Number((await client.getBlock({ blockNumber: e.blockNumber })).timestamp));
+      }
+      e.timestamp = timestamps.get(e.blockNumber);
+    }
+  }
+  if (useCache) perClient.set(key, { requestedFrom: entry?.requestedFrom ?? requestedFrom, start: entry?.start ?? start, scannedTo: latest, events: out, timestamps });
+  return out.map((e) => ({ ...e }));
 }
 
 /** Factory directory: every circle, or the ones of one organizer. */
