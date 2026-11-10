@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { NetworkError, resolveNetwork } from '../src/network';
+import { NetworkError, resolveBrowserRpc, resolveNetwork } from '../src/network';
 import { parseDeployment } from '../src/addresses';
 
 describe('resolveNetwork', () => {
@@ -25,6 +25,39 @@ describe('resolveNetwork', () => {
       NetworkError,
     );
     expect(() => resolveNetwork({ HUISAFE_NETWORK: 'mainnet' })).toThrow(NetworkError);
+  });
+});
+
+describe('resolveBrowserRpc (NEXT_PUBLIC_FUJI_RPC_URL)', () => {
+  it('is undefined (library default, Fuji public RPC) when unset or blank, and on anvil', () => {
+    expect(resolveBrowserRpc({})).toBeUndefined();
+    expect(resolveBrowserRpc({ NEXT_PUBLIC_FUJI_RPC_URL: '   ' })).toBeUndefined();
+    expect(
+      resolveBrowserRpc({ HUISAFE_NETWORK: 'anvil', NEXT_PUBLIC_FUJI_RPC_URL: 'https://rpc.example/fuji' }),
+    ).toBeUndefined();
+  });
+
+  it('returns a https URL as given, and the server list is unaffected by it', () => {
+    const vars = {
+      NEXT_PUBLIC_FUJI_RPC_URL: 'https://rpc.example/fuji',
+      FUJI_RPC_URL: 'https://server.example',
+      FUJI_RPC_URL_FALLBACK: 'https://fb.example',
+    };
+    expect(resolveBrowserRpc(vars)).toBe('https://rpc.example/fuji');
+    expect(resolveNetwork(vars).rpcUrls).toEqual(['https://server.example', 'https://fb.example']);
+    expect(resolveBrowserRpc({ NEXT_PUBLIC_FUJI_RPC_URL: 'http://127.0.0.1:9650/ext/bc/C/rpc' })).toBe(
+      'http://127.0.0.1:9650/ext/bc/C/rpc',
+    );
+  });
+
+  it('rejects a non-URL, plain http to a remote host, credentials in the URL and a mainnet endpoint', () => {
+    expect(() => resolveBrowserRpc({ NEXT_PUBLIC_FUJI_RPC_URL: 'not a url' })).toThrow(NetworkError);
+    expect(() => resolveBrowserRpc({ NEXT_PUBLIC_FUJI_RPC_URL: 'http://rpc.example/fuji' })).toThrow(NetworkError);
+    expect(() => resolveBrowserRpc({ NEXT_PUBLIC_FUJI_RPC_URL: 'https://user:secret@rpc.example/fuji' })).toThrow(
+      NetworkError,
+    );
+    const mainnet = ['https://api.avax', '.network/ext/bc/C/rpc'].join('');
+    expect(() => resolveBrowserRpc({ NEXT_PUBLIC_FUJI_RPC_URL: mainnet })).toThrow(NetworkError);
   });
 });
 

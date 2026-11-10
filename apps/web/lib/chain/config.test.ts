@@ -21,6 +21,17 @@ describe('createChainConfig', () => {
     expect(c.fromBlock).toBe(60_843_937n);
   });
 
+  it('reads from the configured browser RPC when one is set, else from the chain default (A19)', () => {
+    expect(createChainConfig(json).client.transport.url).toBe('https://api.avax-test.network/ext/bc/C/rpc');
+    const own = createChainConfig({ ...json, rpcUrl: 'https://rpc.example/fuji' });
+    expect(own.client.transport.url).toBe('https://rpc.example/fuji');
+    expect(own.client.batch?.multicall).toBeTruthy(); // still batched
+    // anvil never takes the Fuji URL
+    expect(createChainConfig({ ...json, network: 'anvil', chainId: 31337, rpcUrl: 'https://rpc.example/fuji' }).client.transport.url).toBe(
+      'http://127.0.0.1:8545',
+    );
+  });
+
   it('keeps the local anvil usable (no Multicall3 there: viem falls back to plain calls)', () => {
     const c = createChainConfig({ ...json, network: 'anvil', chainId: 31337 });
     expect(c.client.chain?.id).toBe(31337);

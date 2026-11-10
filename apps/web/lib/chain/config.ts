@@ -22,6 +22,11 @@ export interface ChainConfigJson {
   vndPerUsdc: number;
   /** Polling interval in ms; 5000 in demo mode (skill web3-frontend section 6). */
   pollMs: number;
+  /**
+   * RPC the browser reads from (`NEXT_PUBLIC_FUJI_RPC_URL`, public by definition). Absent = Fuji's public RPC.
+   * Never a server RPC URL: those (`FUJI_RPC_URL`, `FUJI_RPC_URL_FALLBACK`) may carry an API key.
+   */
+  rpcUrl?: string;
 }
 
 export interface ChainConfig extends Omit<ChainConfigJson, 'fromBlock'> {
@@ -43,7 +48,11 @@ export function createChainConfig(json: ChainConfigJson): ChainConfig {
   // Fuji's public RPC answers a page that fires ~80 separate requests per refresh with throttling that reaches the
   // browser as a CORS error (A18, measured 11/11/2026), and the page then never loads. Anvil has no Multicall3: viem
   // skips it for chains without one.
-  const client = createPublicClient({ chain, transport: http(undefined, { batch: true }), batch: { multicall: true } }) as PublicClient;
+  const client = createPublicClient({
+    chain,
+    transport: http(json.network === 'fuji' ? json.rpcUrl : undefined, { batch: true }),
+    batch: { multicall: true },
+  }) as PublicClient;
   // Events come from the explorer in one request; the chunked RPC scan is only the fallback (see `registerExplorerApi`).
   if (json.network === 'fuji') registerExplorerApi(client, FUJI_EXPLORER_API);
   return { ...json, fromBlock: BigInt(json.fromBlock), client };

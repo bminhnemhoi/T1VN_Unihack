@@ -3,7 +3,7 @@
  * Never import from a client component: it reads `fs` through `config`.
  */
 import { loadAddresses } from 'config/addresses';
-import { resolveNetwork } from 'config/network';
+import { resolveBrowserRpc, resolveNetwork } from 'config/network';
 import { DEFAULT_VND_PER_USDC } from 'config';
 import type { ChainConfigJson } from './config';
 
@@ -12,6 +12,7 @@ export function loadChainConfig(vars: Record<string, string | undefined> = proce
   const network = resolveNetwork(vars);
   const a = loadAddresses(network.deploymentFile, [network.chainId]);
   if (!a.deployed || !a.factory || !a.reputation || !a.usdc || !a.forwarder) return null;
+  const rpcUrl = resolveBrowserRpc(vars); // public variable; throws on a mainnet, http or credentialed URL
   return {
     network: network.name,
     chainId: network.chainId,
@@ -22,5 +23,6 @@ export function loadChainConfig(vars: Record<string, string | undefined> = proce
     fromBlock: String(a.deployBlock ?? 0),
     vndPerUsdc: DEFAULT_VND_PER_USDC,
     pollMs: vars.HUISAFE_DEMO === 'true' ? 10_000 : 30_000, // Fuji's public RPC throttles hard: ~2 requests per refresh at 10 s
+    ...(rpcUrl ? { rpcUrl } : {}),
   };
 }
