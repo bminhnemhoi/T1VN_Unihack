@@ -22,7 +22,7 @@ export const shortAddress = (a: string): string => `${a.slice(0, 6)}…${a.slice
 export const ADDRESS_RE = /^0x[0-9a-fA-F]{40}$/;
 export const isAddress = (s: string): s is Address => ADDRESS_RE.test(s);
 
-export function termsOf(v: CircleView): Terms {
+export function termsOf(v: CircleView, shareBps = 0): Terms {
   const p = v.params;
   return {
     mode: v.mode,
@@ -33,6 +33,7 @@ export function termsOf(v: CircleView): Terms {
     feeBps: BigInt(p.commissionMode ? p.feeBps : 0),
     reserveBps: BigInt(p.reserveBps),
     capBps: BigInt(p.capBps),
+    shareBps: BigInt(p.commissionMode ? shareBps : 0),
   };
 }
 
@@ -43,7 +44,7 @@ function statusOf(v: CircleView, s: ShortfallView, member: MemberView | undefine
 }
 
 /** `viewer` = connected wallet, if any. `nowMs` is passed in so the result is a pure function of its inputs. */
-export function viewToCircleData(v: CircleView, viewer: Address | undefined, nowMs: number): SampleCircleData {
+export function viewToCircleData(v: CircleView, viewer: Address | undefined, nowMs: number, extras?: { commissionShareBps: number; termsHash: Address }): SampleCircleData {
   const nowSec = Math.floor(nowMs / 1000);
   const sorted = [...v.members].sort((a, b) => a.joinIndex - b.joinIndex);
   const viewerIdx = viewer ? sorted.findIndex((m) => same(m.address, viewer)) : -1;
@@ -85,9 +86,9 @@ export function viewToCircleData(v: CircleView, viewer: Address | undefined, now
 
   return {
     id: v.address,
-    live: { view: v, address: v.address, viewerAddress: viewer, nowMs },
+    live: { view: v, address: v.address, viewerAddress: viewer, nowMs, ...(extras ? { termsHash: extras.termsHash } : {}) },
     label: v.label || 'Dây hụi',
-    terms: termsOf(v),
+    terms: termsOf(v, extras?.commissionShareBps ?? 0),
     state: v.state === 'forming' ? 'forming' : v.state === 'active' || v.state === 'paused' ? 'active' : 'completed',
     ...(v.state === 'paused' ? { paused: true } : {}),
     seats,

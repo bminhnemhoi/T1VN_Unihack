@@ -12,6 +12,8 @@ export const vi = {
     holdback: 'Phần tiền hốt được giữ lại để bù nếu người hốt ngừng đóng. Đóng đủ thì nhận lại hết.',
     reserve: 'Trích mỗi kỳ. Cuối dây chia đều cho người không vỡ nợ.',
     fee: 'Hoa hồng theo NĐ 19, chỉ trả cho kỳ không bị mất.',
+    share: 'Chủ hụi lấy tối đa phần này của khoản lãi luật cho phép ở mỗi kỳ. Phần còn lại dành cho người bỏ thăm. Từ 0% đến 50%.',
+    feeCeiling: 'Hoa hồng mỗi kỳ không vượt mức này trên tiền hốt (tối đa 3%). Kỳ chủ hụi tự hốt không thu.',
     maxBid: 'Thăm cao nhất được phép theo trần lãi 20%/năm.',
   },
 } as const;

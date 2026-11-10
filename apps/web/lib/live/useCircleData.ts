@@ -11,6 +11,7 @@ import { toLedger, toSampleCircle } from '@/lib/chain/adapter';
 import { SAMPLE_CIRCLES, SAMPLE_WALLET, type SampleCircle } from '@/lib/sample';
 import { getSampleCircle, isCircleId, type SampleCircleData, type SampleShortfall } from '@/lib/sample-circles';
 import { isAddress, viewToCircleData } from './circleData';
+import { useCircleExtras } from './useCircleExtras';
 
 export type CircleDataState =
   | { status: 'loading' }
@@ -24,16 +25,18 @@ export function useCircleData(id: string): CircleDataState {
   const chain = useChain();
   const { wallet } = useHuiWallet();
   const q = useCircle(chain && isAddress(id) ? id : undefined);
+  const x = useCircleExtras(chain && isAddress(id) ? id : undefined);
   const viewer = wallet?.address;
   const dataUpdatedAt = q.dataUpdatedAt;
   const data = useMemo(
-    () => (q.data ? viewToCircleData(q.data, viewer, Date.now()) : undefined),
+    // phi changes every number on the screen, so wait for it instead of showing the fixed-fee figures first
+    () => (q.data && x.data ? viewToCircleData(q.data, viewer, Date.now(), x.data) : undefined),
     // `dataUpdatedAt` re-stamps the clock on every poll
-    [q.data, viewer, dataUpdatedAt],
+    [q.data, x.data, viewer, dataUpdatedAt],
   );
   if (!chain) return isCircleId(id) ? { status: 'ready', data: getSampleCircle(id), source: 'sample' } : { status: 'missing' };
   if (!isAddress(id)) return { status: 'missing' };
-  if (q.isError && !data) return { status: 'error', message: ERROR };
+  if ((q.isError || x.isError) && !data) return { status: 'error', message: ERROR };
   if (!data) return { status: 'loading' };
   return { status: 'ready', data, source: 'chain', refetch: () => void q.refetch() };
 }
