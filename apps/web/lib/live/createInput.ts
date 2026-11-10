@@ -25,21 +25,27 @@ export function buildCreateInput(f: FormState, v: Valid, o: { nowSec: number; de
   const bidding = f.mode === 'bidding';
   const periodSeconds = o.demo ? DEMO.periodSeconds : Number(v.periodDays) * DAY;
   const roundDuration = o.demo ? DEMO.roundDuration : periodSeconds;
+  const commitWindow = bidding ? (o.demo ? DEMO.commitWindow : Math.floor(roundDuration * 0.5)) : 0;
+  const revealWindow = bidding ? (o.demo ? DEMO.revealWindow : Math.floor(roundDuration * 0.25)) : 0;
+  const graceSeconds = o.demo ? DEMO.graceSeconds : REAL_GRACE;
+  const feeBps = f.commission ? Number(v.feeBps) : 0;
+  const revealBondBps = bidding ? 100 : 0;
+  const capBps = bidding ? 2000 : 0;
   return {
     mode: bidding ? 1 : 0,
     memberCount: Number(v.n),
     contribution: v.c,
     periodSeconds,
     roundDuration,
-    commitWindow: bidding ? (o.demo ? DEMO.commitWindow : Math.floor(roundDuration * 0.5)) : 0,
-    revealWindow: bidding ? (o.demo ? DEMO.revealWindow : Math.floor(roundDuration * 0.25)) : 0,
-    graceSeconds: o.demo ? DEMO.graceSeconds : REAL_GRACE,
+    commitWindow,
+    revealWindow,
+    graceSeconds,
     alphaBps: Number(v.alphaBps),
     commissionMode: f.commission,
-    feeBps: f.commission ? Number(v.feeBps) : 0,
+    feeBps,
     reserveBps: Number(v.reserveBps),
-    revealBondBps: bidding ? 100 : 0,
-    capBps: bidding ? 2000 : 0,
+    revealBondBps,
+    capBps,
     joinDeadline: BigInt(o.nowSec + (o.demo ? JOIN_WINDOW_DEMO : JOIN_WINDOW_REAL)),
     organizerIsMember: false,
     label: stringToHex(circleLabel(v.n, v.c), { size: 32 }),
@@ -50,13 +56,17 @@ export function buildCreateInput(f: FormState, v: Valid, o: { nowSec: number; de
         memberCount: Number(v.n),
         contribution: v.c,
         periodSeconds,
+        roundDuration,
+        commitWindow,
+        revealWindow,
+        graceSeconds,
         alphaBps: Number(v.alphaBps),
         commissionMode: f.commission,
-        feeBps: f.commission ? Number(v.feeBps) : 0,
+        feeBps,
         commissionShareBps: 0,
         reserveBps: Number(v.reserveBps),
-        capBps: bidding ? 2000 : 0,
-        graceSeconds: o.demo ? DEMO.graceSeconds : REAL_GRACE,
+        revealBondBps,
+        capBps,
       }),
     ),
   };

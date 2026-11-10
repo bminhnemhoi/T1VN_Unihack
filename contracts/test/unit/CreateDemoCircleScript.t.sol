@@ -35,6 +35,22 @@ contract CreateDemoCircleScriptTest is Test {
         if (vm.exists(file)) vm.removeFile(file);
     }
 
+    /// @dev The demo circle hashes the standard text built by the SDK (`buildTermsText(DEMO_TERMS_INPUT)`), not a free
+    /// string: the vector holds that text and its hash; the TypeScript test checks the same file against the SDK.
+    function test_Execute_TermsHashIsTheStandardSdkText() public {
+        _deploy("terms");
+        string memory vectors = vm.readFile("test/vectors/terms.json");
+        string memory text = vm.parseJsonString(vectors, ".demo.text");
+        bytes32 pinned = vm.parseJsonBytes32(vectors, ".demo.hash");
+
+        assertEq(keccak256(bytes(text)), pinned, "vector hash is the hash of the vector text");
+        assertEq(script.DEMO_TERMS_HASH(), pinned, "script constant is the hash of the SDK text");
+
+        CreateDemoCircle.Result memory r = script.execute(ORGANIZER_KEY, file, 7 days, "huisafe-demo");
+        assertEq(IHuiCircle(r.circle).params().termsHash, pinned);
+        _cleanup();
+    }
+
     function test_Execute_CreatesScaledWorkedExampleCircle() public {
         _deploy("creates");
         CreateDemoCircle.Result memory r = script.execute(ORGANIZER_KEY, file, 7 days, "huisafe-demo");
