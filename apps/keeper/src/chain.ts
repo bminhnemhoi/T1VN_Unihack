@@ -62,19 +62,15 @@ export function createViemPort(cfg: KeeperConfig): { port: KeeperPort; keeper: A
       return all.filter((c) => !terminal.has(c));
     },
     async snapshot(circle): Promise<CircleSnapshot> {
-      const [state, params, settledRounds, members, bondRemaining] = await Promise.all([
+      const [state, params, settledRounds, members, bondRemaining, bondDeposited] = await Promise.all([
         read<number>(circle, 'state'),
         read<{ memberCount: number; joinDeadline: bigint }>(circle, 'params'),
         read<number>(circle, 'settledRounds'),
         read<readonly Address[]>(circle, 'members'),
         read<bigint>(circle, 'bondRemaining'),
+        read<bigint>(circle, 'bondDeposited'),
       ]);
       if (state >= 3) terminal.add(circle);
-      // A Forming circle past its join deadline with no bond has nothing to return: ignore it from now on, so spam
-      // circles cost the keeper neither reads nor a cancel() transaction (audit H-02).
-      if (state === 0 && bondRemaining === 0n && BigInt(params.joinDeadline) < BigInt(await port.nowSec())) {
-        terminal.add(circle);
-      }
       return {
         state: Number(state),
         memberCount: Number(params.memberCount),
@@ -82,7 +78,11 @@ export function createViemPort(cfg: KeeperConfig): { port: KeeperPort; keeper: A
         settledRounds: Number(settledRounds),
         members,
         bondRemaining: BigInt(bondRemaining),
+        bondDeposited: BigInt(bondDeposited),
       };
+    },
+    retire(circle) {
+      terminal.add(circle);
     },
     deadline: (circle, round) => read<bigint>(circle, 'deadline', [round]),
     async owes(circle, member) {
