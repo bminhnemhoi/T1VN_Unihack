@@ -674,6 +674,8 @@ Ngân sách dưới đây là gas THỰC THI (`gasleft()` trước và sau lời
 | `revealBid` | ≤ 100.000 gas | ~92.000 | như trên |
 | `createCircle` | ≤ 500.000 gas | ~405.000 (N = 30) | như trên |
 
+Kiểm lại 11/11/2026 (`forge test --match-path test/gas/GasBudget.t.sol --gas-report`, mã bằng bản deploy 494e923): `settleRound` tối đa 4.138.254, trung vị 1.307.805 (nhỏ nhất 466.101); `finalize` tối đa 5.403.739 (ca 29 người chưa đánh dấu), tối thiểu 1.163.939; `join` 155.120 đến 172.220; `markDefault` 183.849 đến 201.479; `createCircle` 429.374 đến 449.539 (gồm chi phí gọi ngoài); `activate` 117.407. Các số khớp bảng trên trong 1%, không đổi ngân sách.
+
 Trường hợp xấu nhất của `settleRound` ở N = 30 là kỳ cuối: 29 lần `transferFrom`, 28 lần nhả holdback, 29 lần ghi ReputationRegistry, cộng vài khoản thiếu (mỗi khoản thiếu ghi struct `Shortfall` mới). Ước tính thô mỗi thành viên 60.000 đến 90.000 gas, cộng khoảng 200.000 gas cố định, ra khoảng 1,9 đến 2,8 triệu gas. Đây là ước tính, phải thay bằng số đo. Cách giảm nếu vượt: dùng `ReentrancyGuardTransient` (C-Chain có EIP-1153 qua ACP-131, cần kiểm tra), gộp ghi ReputationRegistry, đóng gói struct chặt hơn.
 
 Giới hạn khối: theo ACP-176, sức chứa gas tối đa C = 10·T. Mục tiêu T của C-Chain được nâng lên 2,1 triệu gas/giây (08/2025), nên C khoảng 21 triệu gas (suy ra). Một giao dịch 3 triệu gas nằm trong giới hạn. Kiểm lại bằng `cast block latest gasLimit --rpc-url fuji`. Keeper gửi `settleRound` trực tiếp với gas limit = ước tính × 1,2, trần cứng 5.000.000.
