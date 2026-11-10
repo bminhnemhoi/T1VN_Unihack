@@ -70,7 +70,7 @@ flowchart LR
 - Lời nói: dẫn câu BTC viết cho đề Hụi: "Low transaction fees mean a group of 10-20 people paying weekly does not lose the pot to fees. Native USDC on the C-Chain."
 
 **Slide 10. Câu 3: Tiền và lãi đến từ đâu?** (0:20)
-- Trên slide: tiền hốt là tiền góp của chính thành viên, không in token. Tiền thăm: người hốt sớm trả người hốt sau, trần 20%/năm. Tiền công 1% mỗi kỳ, chỉ trả kỳ không bị mất. Quỹ dự phòng chia đều cuối dây. Lãi trên tiền khóa: MVP không có; mainnet dùng Aave v3. HụiSafe kiếm tiền sau này: một phần tiền công chủ hụi, gói cho hội nhóm.
+- Trên slide: tiền hốt là tiền góp của chính thành viên, không in token. Tiền thăm: người hốt sớm trả người hốt sau, trần theo Điều 21 (cách hiểu của HụiSafe, cần luật sư xác nhận). Tiền công chủ hụi tối đa 3% mỗi pot và nằm trong trần lãi (docs/03 mục 2.7), trả ngay ở kỳ không có khoản thiếu. Quỹ dự phòng chia theo số kỳ đóng đúng hạn (ADR-24) cuối dây. Lãi trên tiền khóa: MVP không có; mainnet dùng Aave v3. HụiSafe kiếm tiền sau này: một phần tiền công chủ hụi, gói cho hội nhóm.
 - Lời nói: "Không có đồng nào từ trên trời rơi xuống."
 
 **Slide 11. Pháp luật Việt Nam** (0:25)
@@ -108,7 +108,7 @@ Cửa sổ của kỳ 1: nộp thăm [0:00, 1:30), mở thăm [1:30, 2:30), ch�
 | Thời điểm | Màn hình, người làm | Lời nói | Trên chuỗi |
 |---|---|---|---|
 | 0:00–0:10 | Laptop A, S04 "Demo Sống"; P3 bấm "Bắt đầu dây" | "Dây 5 người, mỗi kỳ 100 USDC. Cô Tư ký quỹ 480. Chỉ số bảo chứng 100% nghĩa là ký quỹ chịu được cú sốc lớn nhất: mọi người đã hốt cùng bỏ đóng một lúc." | `activate` |
-| 0:10–0:40 | Điện thoại B, S06; P2 nhập 6, nộp thăm kín, bấm "Sao lưu thăm" | "Trần thăm kỳ này 6,575342 USDC, đúng trần lãi 20%/năm. Thắng với thăm 6 thì nhận 288,48, giữ lại 80." | `commitBid` của M4, cọc 1 USDC. P1 nộp thăm 4 cho M2 trên Laptop C trước 1:00 |
+| 0:10–0:40 | Điện thoại B, S06; P2 nhập 6, nộp thăm kín, bấm "Sao lưu thăm" | "Trần thăm kỳ này 6,575342 USDC, đúng trần theo Điều 21 (cách hiểu của HụiSafe, cần luật sư xác nhận). Thắng với thăm 6 thì nhận 288,48, giữ lại 80." | `commitBid` của M4, cọc 1 USDC. P1 nộp thăm 4 cho M2 trên Laptop C trước 1:00 |
 | 0:40–1:05 | Laptop A, S03; P3 | "Tạo dây mới: gõ ký quỹ 480 là đồng hồ lên 100%. Đây là dây thứ hai đang chạy của cô, nên app nhắc thông báo UBND cấp xã theo Điều 14. Trợ lý trả lời 480 và dẫn Điều 18 khoản 4." | Không gửi giao dịch |
 | 1:05–1:30 | Laptop A, cửa sổ ẩn danh, S05 "Demo Mời"; P3 | "Thành viên mới: đăng nhập Google, tick đủ 18 tuổi, ký một lần. Không AVAX, không seed phrase." | `join` qua relayer |
 | 1:30–1:50 | Điện thoại B, S06; P2 bấm "Mở thăm" (P1 mở thăm M2) | "Hết giờ nộp. Mọi người mở thăm. Không bốc thăm: thăm cao nhất thắng." | `revealBid`: M4 = 6, M2 = 4 |
@@ -224,7 +224,7 @@ Chức danh giám khảo lấy từ team1vn.xyz; điều họ có thể quan tâ
 2. **Sao relayer ERC-2771 mà không ERC-4337, EIP-7702? Relayer có bị lạm dụng?** BTC dặn không tự build 4337; C-Chain chưa nhận giao dịch 7702. Relayer chỉ chuyển request có chữ ký người dùng, kiểm đích, selector, `value = 0`, gas ≤ 3.000.000, 30 request/giờ mỗi ví, mô phỏng trước khi gửi. Relayer từ chối thì người dùng gọi trực tiếp. Không `Multicall` cùng `ERC2771Context`.
 3. **Người đã hốt rút hết tiền hoặc thu hồi quyền trích thì sao?** Kéo thất bại trong `try`, thành khoản thiếu, bù ngay: tiền giữ lại của chính họ → ký quỹ → quỹ dự phòng. Ví dụ kỳ 2: 80 + 20, người hốt vẫn nhận đủ 323,18.
 4. **Commit-reveal: không mở thăm, hay chạy trước giao dịch?** Không mở thì mất cọc 1% và bị ghi trễ. Lúc nộp không ai thấy thăm của ai, nên chạy trước không cho thông tin gì. Chia hòa theo số lần trễ rồi thứ tự nộp, không theo thứ tự mở.
-5. **Gas một kỳ 30 người?** Ngân sách ≤ 3.000.000 gas (04 mục 7.1), số đo thật: [điền]. Ở 2,5 nAVAX là khoảng 0,0075 AVAX, chưa tới 0,07 USD theo giá 05/11/2026 (suy ra).
+5. **Gas một kỳ 30 người?** Ngân sách ≤ 3.000.000 gas (04 mục 7.1), số đo thật (04 mục 7.1, `test/gas/GasBudget.t.sol`): kỳ cuối N = 30 ai cũng đóng khoảng 1.486.000 gas, kỳ cuối 10 khoản thiếu khoảng 2.256.000. Ở 2,5 nAVAX là khoảng 0,0075 AVAX, chưa tới 0,07 USD theo giá 05/11/2026 (suy ra).
 6. **Vì sao Avalanche?** Finality dưới 1 giây theo Avalanche, phí đủ thấp để relayer trả thay cả dây, USDC native của Circle có permit. Hướng sau: L1 riêng cho từng hội, passkey P-256.
 7. **Sau hackathon có làm tiếp không?** Có: thử testnet với 3–5 nhóm, xin ý kiến luật sư, làm chế độ VND, nộp Team1 Mini Grant (mục 8).
 8. **Chỉ số 100% bảo đảm gì? Có phải "không bao giờ mất tiền" không?** Không, và đừng nói vậy. Chỉ số bảo chứng 100% nghĩa là ký quỹ chịu được cú sốc lớn nhất: mọi người đã hốt cùng bỏ đóng một lúc. Chứng minh ở 03 mục 7.3: nếu mọi người đã hốt cùng bỏ ngay sau kỳ rủi ro đỉnh, phần thiếu là O(m) ≤ O_max; tiền giữ lại che α·O(m), phần còn lại (1 − α)·O(m) ≤ B. Test INV-08 fuzz đúng điều này. Giới hạn nói thẳng: nếu họ bỏ đóng lần lượt qua các kỳ (N = 5: tổng thiếu 1000 so với O_max 600) thì ký quỹ 480 không đủ, kỳ cuối thiếu 304; bù đủ cần B_seq = (1 − α)·N(N − 1)/2·C = 800, tùy chọn ở roadmap. Người chưa hốt bị đóng băng chỉ dùng tạm thanh khoản ký quỹ.
