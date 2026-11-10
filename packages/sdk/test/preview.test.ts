@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import { formatBps, formatUsdc, formatVnd, parseUsdc, usdcToVnd } from '../src/format';
-import { previewCircle } from '../src/preview';
+import { DEFAULT_MIN_COVERAGE_BPS, previewCircle } from '../src/preview';
 
 const USDC = (n: number) => BigInt(n) * 1_000_000n;
-const base = { n: 5n, c: USDC(100), periodDays: 30n, alphaBps: 2000n, bond: 0n, capBps: 2000n };
+const base = { n: 5n, c: USDC(100), periodDays: 30n, alphaBps: 2000n, bond: 0n, capBps: 2000n, minCoverageBps: 5000n };
 
 describe('previewCircle (docs/02 AC-01.x)', () => {
   it('AC-01.1: bond 480 gives 100% with peak exposure 600', () => {
@@ -33,6 +33,40 @@ describe('previewCircle (docs/02 AC-01.x)', () => {
     expect(p.bondForMin).toBe(0n);
     expect(p.bondMissing).toBe(0n);
     expect(p.canActivate).toBe(true);
+  });
+});
+
+describe('previewCircle activation floor (ADR-22)', () => {
+  const fuji = { ...base, minCoverageBps: DEFAULT_MIN_COVERAGE_BPS };
+
+  it('the default floor is the Fuji one, 100%', () => {
+    expect(DEFAULT_MIN_COVERAGE_BPS).toBe(10_000n);
+  });
+
+  it('floor 100%: 60% coverage does not activate, and the preview says how much bond is missing', () => {
+    // alpha 20% + 240/600 = 60%
+    const p = previewCircle({ ...fuji, bond: USDC(240) });
+    expect(p.coverageBps).toBe(6000n);
+    expect(p.minCoverageBps).toBe(10_000n);
+    expect(p.canActivate).toBe(false);
+    expect(p.bondForMin).toBe(USDC(480));
+    expect(p.bondMissing).toBe(USDC(240));
+  });
+
+  it('floor 100%: bond 480 activates, bond 479.999999 does not', () => {
+    expect(previewCircle({ ...fuji, bond: USDC(480) }).canActivate).toBe(true);
+    expect(previewCircle({ ...fuji, bond: USDC(480) - 1n }).canActivate).toBe(false);
+  });
+
+  it('floor 100%: bondForMin equals bondFor100', () => {
+    const p = previewCircle(fuji);
+    expect(p.bondForMin).toBe(p.bondFor100);
+  });
+
+  it('the same bond passes at 50% and fails at 100%', () => {
+    const bond = USDC(180);
+    expect(previewCircle({ ...base, bond, minCoverageBps: 5000n }).canActivate).toBe(true);
+    expect(previewCircle({ ...base, bond, minCoverageBps: 10_000n }).canActivate).toBe(false);
   });
 });
 

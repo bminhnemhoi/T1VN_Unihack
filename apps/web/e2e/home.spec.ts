@@ -24,7 +24,7 @@ test.describe('S01 /', () => {
     await expect(page).toHaveURL(/\/circles\/demo$/);
   });
 
-  test('coverage meter: slider moves the number, the words and the 50% rule together', async ({ page }) => {
+  test('coverage meter: slider moves the number, the words and the 100% floor (ADR-22) together', async ({ page }) => {
     const errs = watchErrors(page);
     await page.goto('/');
     const slider = page.getByRole('slider', { name: /Ký quỹ của chủ hụi/ });
@@ -37,12 +37,16 @@ test.describe('S01 /', () => {
     await expect(meter).toHaveAttribute('aria-valuenow', '20');
     await expect(page.getByText(/Chưa đủ để bắt đầu dây\. Cần thêm/)).toBeVisible();
     await expect(page.getByText('0 USDC', { exact: true }).first()).toBeVisible();
-    // 480 * ... keyboard steps of 10: 20% + bond/600 -> 50% at 180
+    await expect(page.getByText('100% tối thiểu')).toBeVisible();
+    // keyboard steps of 10: 20% + bond/600 -> 50% at 180. Fuji floor is 100%, so 50% is still not enough.
     for (let i = 0; i < 18; i++) await slider.press('ArrowRight');
     await expect(meter).toHaveAttribute('aria-valuenow', '50');
-    await expect(page.getByText('Đủ để bắt đầu dây.')).toBeVisible();
+    await expect(page.getByText(/Chưa đủ để bắt đầu dây\. Cần thêm/)).toBeVisible();
+    for (let i = 0; i < 29; i++) await slider.press('ArrowRight'); // 470: 98,3%, still short
+    await expect(page.getByText(/Chưa đủ để bắt đầu dây\. Cần thêm/)).toBeVisible();
     await slider.press('End');
     await expect(meter).toHaveAttribute('aria-valuenow', '100');
+    await expect(page.getByText('Đủ để bắt đầu dây.')).toBeVisible();
     errs.expectClean();
   });
 

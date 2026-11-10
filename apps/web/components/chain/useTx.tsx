@@ -6,6 +6,7 @@
  */
 import { useCallback, useRef, useState, type ReactNode } from 'react';
 import { formatUsdc } from 'sdk';
+import { PAUSED_REASON, usePaused } from '@/components/chain/PauseLock';
 import { useChain } from '@/lib/chain/provider';
 import { useHuiActions } from '@/lib/chain/actions';
 import { useHuiWallet } from '@/lib/chain/walletProvider';
@@ -28,7 +29,9 @@ export interface TxState {
 /** Why nothing was sent, as a failure result the notice can print. */
 const notReady = (code: string, message: string): RunResult => ({ ok: false, code, message });
 
-export function useTx() {
+/** `allowWhenPaused`: the one transaction that still works on a paused circle (`claim`). */
+export function useTx({ allowWhenPaused = false }: { allowWhenPaused?: boolean } = {}) {
+  const paused = usePaused() && !allowWhenPaused;
   const chain = useChain();
   const actions = useHuiActions();
   const { status, login } = useHuiWallet();
@@ -39,6 +42,11 @@ export function useTx() {
   const run = useCallback(
     async (job: TxRun, soon: string = SOON_DEFAULT): Promise<RunResult | undefined> => {
       if (busy.current) return undefined;
+      if (paused) {
+        const r = notReady('CircleIsPaused', PAUSED_REASON);
+        setState({ pending: false, result: r });
+        return r;
+      }
       if (!chain) {
         const r = notReady('NotDeployed', soon);
         setState({ pending: false, result: r });
@@ -70,11 +78,11 @@ export function useTx() {
         busy.current = false;
       }
     },
-    [chain, actions, status, login],
+    [chain, actions, status, login, paused],
   );
 
   const clear = useCallback(() => setState({ pending: false }), []);
-  return { run, clear, ...state, deployed: chain !== null, chainId: chain?.chainId };
+  return { run, clear, ...state, paused, deployed: chain !== null, chainId: chain?.chainId };
 }
 
 const short = (h: string): string => `${h.slice(0, 10)}…${h.slice(-6)}`;

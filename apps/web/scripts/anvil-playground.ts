@@ -62,6 +62,8 @@ async function main(): Promise<void> {
     ATTESTER_ADDRESS: attester.address,
     RELAYER_ADDRESS: relayer.address,
     GIT_COMMIT: 'playground',
+    // Same floor as Fuji (ADR-22) unless overridden, so the activation checks in the UI match what ships.
+    MIN_COVERAGE_BPS: process.env.PLAYGROUND_MIN_COVERAGE_BPS ?? '10000',
   });
   run('forge', ['script', 'script/CreateDemoCircle.s.sol', '--rpc-url', RPC, '--broadcast'], { DEMO_ORGANIZER_PRIVATE_KEY: keyOf(organizer) });
 

@@ -1,5 +1,5 @@
 import { memo } from 'react';
-import { formatBps, formatUsdc, MIN_COVERAGE_BPS, type Preview } from 'sdk';
+import { formatBps, formatUsdc, type Preview } from 'sdk';
 import { Seal } from '@/components/brand/Seal';
 import { LedgerList } from '@/components/LedgerList';
 import { Button } from '@/components/ui/button';
@@ -16,12 +16,13 @@ interface Props {
 }
 
 /**
- * Live "Chỉ số bảo chứng" for the wizard: a big numeral that ticks, a ruler with the 50% line, and a red seal that
+ * Live "Chỉ số bảo chứng" for the wizard: a big numeral that ticks, a ruler with the activation-floor line (read from the chain), and a red seal that
  * drops once the circle may start. State is always in words too, never colour alone.
  */
 export const CoverageMeter = memo(function CoverageMeter({ idPrefix = 'cov', preview, bond, alphaBps, onFillBond }: Props) {
   const pct = Math.min(100, Number(preview.coverageBps) / 100);
-  const minPct = Number(MIN_COVERAGE_BPS) / 100;
+  const minPct = Number(preview.minCoverageBps) / 100;
+  const floorAtEnd = minPct >= 100; // Fuji floor is 100%: the floor label takes the place of the plain "100%" one
   const ok = preview.canActivate;
   return (
     <div>
@@ -54,17 +55,23 @@ export const CoverageMeter = memo(function CoverageMeter({ idPrefix = 'cov', pre
       </div>
       <div aria-hidden className="so-ke relative mt-1 h-6 text-base text-muted-foreground">
         <span className="absolute left-0">0%</span>
-        <span className="absolute -translate-x-1/2" style={{ left: `${minPct}%` }}>
-          50% tối thiểu
-        </span>
-        <span className="absolute right-0">100%</span>
+        {floorAtEnd ? (
+          <span className="absolute right-0">{formatBps(preview.minCoverageBps)} tối thiểu</span>
+        ) : (
+          <>
+            <span className="absolute -translate-x-1/2" style={{ left: `${minPct}%` }}>
+              {formatBps(preview.minCoverageBps)} tối thiểu
+            </span>
+            <span className="absolute right-0">100%</span>
+          </>
+        )}
       </div>
 
       {ok ? (
         <p className="mt-2 font-semibold text-ngoc">Đủ bảo chứng để bắt đầu dây.</p>
       ) : (
         <p className="mt-2 font-semibold text-nghe-fg">
-          Chưa đủ để bắt đầu dây (tối thiểu 50%). Cần thêm {formatUsdc(preview.bondMissing)} ký quỹ.
+          Chưa đủ để bắt đầu dây (tối thiểu {formatBps(preview.minCoverageBps)}). Cần thêm {formatUsdc(preview.bondMissing)} ký quỹ.
         </p>
       )}
 

@@ -22,6 +22,7 @@ import { Stepper } from '@/components/wizard/Stepper';
 import { DEFAULTS, termsOf, validateForm, type FieldName, type FormState } from '@/lib/circleForm';
 import { useChain } from '@/lib/chain/provider';
 import { buildCreateInput } from '@/lib/live/createInput';
+import { useMinCoverageBps } from '@/lib/live/useMinCoverage';
 import { TOGGLE_ON } from '@/lib/utils';
 import { vi } from '@/lib/vi';
 
@@ -176,12 +177,13 @@ export function CreateWizard() {
   }, [show]);
   // Typing stays instant; the heavy side (tables, ruler) may trail one frame behind.
   const slowValue = useDeferredValue(value);
+  const floor = useMinCoverageBps(); // factory.config().minCoverageBps: what a circle created now will enforce
   const preview = useMemo(
     () =>
       slowValue
-        ? previewCircle({ n: slowValue.n, c: slowValue.c, periodDays: slowValue.periodDays, alphaBps: slowValue.alphaBps, bond: slowValue.bond, capBps: 2000n })
+        ? previewCircle({ n: slowValue.n, c: slowValue.c, periodDays: slowValue.periodDays, alphaBps: slowValue.alphaBps, bond: slowValue.bond, capBps: 2000n, minCoverageBps: floor })
         : undefined,
-    [slowValue],
+    [slowValue, floor],
   );
   const terms = useMemo(() => (value ? termsOf(f, value) : undefined), [f, value]);
   const bad = STEP_FIELDS[step]!.filter((k) => errors[k]);

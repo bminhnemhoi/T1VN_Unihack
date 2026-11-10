@@ -37,6 +37,7 @@ export function ContractPreview({ form, value, preview }: { form: FormState; val
           { label: 'Quỹ dự phòng', value: formatBps(value.reserveBps) },
           { label: 'Tiền công chủ hụi', value: form.commission ? formatBps(value.feeBps) : 'Không có' },
           { label: 'Chỉ số bảo chứng', value: formatBps(preview.coverageBps) },
+          { label: 'Mức tối thiểu để bắt đầu dây', value: formatBps(preview.minCoverageBps) },
         ]}
       />
       <p className="mt-4 font-hand text-2xl text-primary">Sau khi tạo, không số nào đổi được.</p>

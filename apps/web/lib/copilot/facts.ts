@@ -2,7 +2,7 @@
  * Pre-computed facts block (`DU_KIEN`) built from the draft with `huiMath` (docs/07 3.2 item 2).
  * Trusted input for the model: derived only from validated numbers, never from free text or on-chain labels.
  */
-import { formatBps, huiMath, parseUsdc, previewCircle, usdcToVnd } from 'sdk';
+import { DEFAULT_MIN_COVERAGE_BPS, formatBps, huiMath, parseUsdc, previewCircle, usdcToVnd } from 'sdk';
 import { NOTIFY_THRESHOLD_VND, VND_PER_USDC } from './config';
 import type { CircleDraft } from './schemas';
 import { toDecimal } from './units';
@@ -21,6 +21,8 @@ export function buildFacts(draft: CircleDraft, circle?: string): Record<string, 
     alphaBps: alpha,
     bond,
     capBps: BigInt(draft.capBps),
+    // The server has no chain read here; the Fuji floor (ADR-22) is the number a new circle will have to meet.
+    minCoverageBps: DEFAULT_MIN_COVERAGE_BPS,
   });
   const revealBond = huiMath.bpsOf(c, BigInt(draft.revealBondBps));
   const roundValueUsdc = n * c;

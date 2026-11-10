@@ -3,7 +3,7 @@
 import { BookOpen } from 'lucide-react';
 import Link from 'next/link';
 import { useState } from 'react';
-import { formatUsdc, previewCircle } from 'sdk';
+import { DEFAULT_MIN_COVERAGE_BPS, formatUsdc, previewCircle } from 'sdk';
 import { Countdown } from '@/components/brand/Countdown';
 import { Seal } from '@/components/brand/Seal';
 import { CircleCard } from '@/components/circle/CircleCard';
@@ -22,7 +22,7 @@ const FIXED = getSampleCircle('co-dinh');
 const MY_SHORTFALL = FIXED.shortfalls.find((s) => s.member === FIXED.viewer)!;
 
 // Round-3 ceiling of the demo circle (docs/03 section 8: 3,287671 USDC), shown rounded DOWN to cents so it never overstates the cap.
-const CAP_K3 = previewCircle({ n: 5n, c: usdc(100), periodDays: 30n, alphaBps: 2000n, bond: usdc(480), capBps: 2000n }).bidRows[2]!.maxBid;
+const CAP_K3 = previewCircle({ n: 5n, c: usdc(100), periodDays: 30n, alphaBps: 2000n, bond: usdc(480), capBps: 2000n, minCoverageBps: DEFAULT_MIN_COVERAGE_BPS }).bidRows[2]!.maxBid;
 const CAP_K3_CENTS = CAP_K3 - (CAP_K3 % 10_000n);
 
 const URGENCY: Record<string, number> = { active: 0, forming: 1, completed: 2 };

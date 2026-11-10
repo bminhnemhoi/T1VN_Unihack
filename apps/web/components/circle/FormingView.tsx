@@ -16,11 +16,12 @@ import { useToast } from '@/components/shell/Toast';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
+import { useMinCoverageBps } from '@/lib/live/useMinCoverage';
 import { type SampleCircleData } from '@/lib/sample-circles';
 
 /**
  * S04: a circle still gathering people. Invite link + QR, who joined (with reputation), the bond state, and "Bắt đầu dây",
- * which stays closed until the circle is full AND coverage reaches the 50% floor, and says which one is missing.
+ * which stays closed until the circle is full AND coverage reaches the on-chain floor (`minCoverageBps`), and says which one is missing.
  */
 export function FormingView({ c }: { c: SampleCircleData }) {
   const id = c.id;
@@ -37,14 +38,15 @@ export function FormingView({ c }: { c: SampleCircleData }) {
   const joined = c.seats.filter((s) => s.joined).length;
   const have = !live && pretendFull ? n : joined;
   const full = have >= n;
-  const preview = previewCircle({ n: t.n, c: t.c, periodDays: t.periodDays, alphaBps: t.alphaBps, bond: c.bond, capBps: t.capBps });
+  const floor = useMinCoverageBps(live?.address);
+  const preview = previewCircle({ n: t.n, c: t.c, periodDays: t.periodDays, alphaBps: t.alphaBps, bond: c.bond, capBps: t.capBps, minCoverageBps: floor });
   const ready = full && preview.canActivate;
   const pastDeadline = live ? nowSec > live.view.params.joinDeadline : false;
   const topUpAmount = topUp.trim() === '' ? preview.bondMissing : parseUsdc(topUp);
   const reason = !full
     ? `Chưa bắt đầu được: dây mới có ${have} trên ${n} người. Cần đủ ${n} người, rồi mới bấm bắt đầu.`
     : !preview.canActivate
-      ? `Chưa bắt đầu được: chỉ số bảo chứng ${formatBps(preview.coverageBps)}, thấp hơn mức tối thiểu 50%. Cần nạp thêm ${formatUsdc(preview.bondMissing)} ký quỹ.`
+      ? `Chưa bắt đầu được: chỉ số bảo chứng ${formatBps(preview.coverageBps)}, thấp hơn mức tối thiểu ${formatBps(preview.minCoverageBps)}. Cần nạp thêm ${formatUsdc(preview.bondMissing)} ký quỹ.`
       : 'Đủ người và đủ bảo chứng. Bấm bắt đầu để dây chạy kỳ 1.';
   const invitePath = `/moi/${id}`;
   const inviteUrl = `${origin || 'https://huisafe.example'}${invitePath}`;
@@ -162,7 +164,7 @@ export function FormingView({ c }: { c: SampleCircleData }) {
               items={[
                 { label: 'Mỗi kỳ góp', value: formatUsdc(t.c) },
                 { label: 'Ký quỹ đã khóa', value: formatUsdc(c.bond) },
-                { label: 'Cần tối thiểu để bắt đầu (50%)', value: formatUsdc(preview.bondForMin) },
+                { label: `Cần tối thiểu để bắt đầu (${formatBps(preview.minCoverageBps)})`, value: formatUsdc(preview.bondForMin) },
                 { label: 'Cần để đạt chỉ số 100%', value: formatUsdc(preview.bondFor100) },
                 { label: 'Chỉ số bảo chứng', value: formatBps(preview.coverageBps) },
               ]}

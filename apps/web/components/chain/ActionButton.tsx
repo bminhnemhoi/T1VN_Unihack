@@ -15,20 +15,22 @@ type Props = Omit<ComponentProps<typeof Button>, 'onClick'> & {
   onDone?: (r: RunResult) => void;
   /** Hint under the button is placed here (defaults to directly under). */
   noticeClassName?: string;
+  /** `claim` only: stays enabled while the circle is paused. */
+  allowWhenPaused?: boolean;
 };
 
 /**
  * A button that sends one transaction through `useHuiActions`. Sample mode answers right away (never a dead button),
  * logged-out mode opens the login, otherwise it shows pending, success and the Vietnamese error under the button.
  */
-export function ActionButton({ run, soon, success, pendingLabel = 'Đang gửi…', needed, onDone, noticeClassName, children, disabled, ...props }: Props) {
-  const tx = useTx();
+export function ActionButton({ run, soon, success, pendingLabel = 'Đang gửi…', needed, onDone, noticeClassName, allowWhenPaused, children, disabled, ...props }: Props) {
+  const tx = useTx({ allowWhenPaused });
   return (
     <>
       <Button
         type="button"
         {...props}
-        disabled={disabled || tx.pending}
+        disabled={disabled || tx.pending || tx.paused}
         onClick={async () => {
           const r = await tx.run(run, soon);
           if (r) onDone?.(r);

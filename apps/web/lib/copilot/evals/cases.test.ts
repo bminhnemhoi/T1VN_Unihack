@@ -60,14 +60,14 @@ describe('expected numbers are right (recomputed with huiMath, not copied from t
     expect(byId('A6').expectNumbers).toEqual([String(huiMath.maxExposure(10n, 2_000_000n * 1_000_000n) / 1_000_000n)]);
   });
   it('A2, A3, A7 bonds', () => {
-    const p = previewCircle({ n: 10n, c: u(100), periodDays: 30n, alphaBps: 2000n, bond: 0n, capBps: 2000n });
+    const p = previewCircle({ n: 10n, c: u(100), periodDays: 30n, alphaBps: 2000n, bond: 0n, capBps: 2000n, minCoverageBps: 5000n });
     expect(byId('A2').expectNumbers).toEqual([dec(p.bondFor100), dec(p.maxExposure)]);
     expect(byId('A3').expectNumbers).toEqual([String((8000n - 2000n) * (p.maxExposure / 1_000_000n) / 10_000n)]);
-    const q = previewCircle({ n: 5n, c: u(100), periodDays: 30n, alphaBps: 0n, bond: 0n, capBps: 2000n });
+    const q = previewCircle({ n: 5n, c: u(100), periodDays: 30n, alphaBps: 0n, bond: 0n, capBps: 2000n, minCoverageBps: 5000n });
     expect(byId('A7').expectNumbers).toEqual([dec(q.bondFor100)]);
   });
   it('A4, A5, B4 bid ceilings', () => {
-    const rows = (days: bigint) => previewCircle({ n: 5n, c: u(100), periodDays: days, alphaBps: 2000n, bond: 0n, capBps: 2000n }).bidRows;
+    const rows = (days: bigint) => previewCircle({ n: 5n, c: u(100), periodDays: days, alphaBps: 2000n, bond: 0n, capBps: 2000n, minCoverageBps: 5000n }).bidRows;
     expect(byId('A4').expectNumbers).toEqual(rows(30n).slice(0, 4).map((r) => (Number(r.maxBid) / 1e6).toString()));
     expect(byId('A5').expectNumbers).toEqual([(Number(rows(7n)[0]!.maxBid) / 1e6).toString()]);
     expect(byId('B4').expectNumbers).toEqual([(Number(rows(30n)[1]!.maxBid) / 1e6).toString()]);

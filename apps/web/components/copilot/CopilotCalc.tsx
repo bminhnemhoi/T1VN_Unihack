@@ -2,12 +2,14 @@
 
 import { useId, useState } from 'react';
 import { formatBps, formatUsdc, parseUsdc, previewCircle } from 'sdk';
+import { useMinCoverageBps } from '@/lib/live/useMinCoverage';
 import { LedgerList } from '@/components/LedgerList';
 import { Input } from '@/components/ui/input';
 
 /** Deterministic calculators that work without the AI (docs/07 section 8, AC-11.4): bond for coverage, and the bid ceiling table. */
 export function CopilotCalc() {
   const id = useId();
+  const floor = useMinCoverageBps();
   const [n, setN] = useState('5');
   const [c, setC] = useState('100');
   const [alpha, setAlpha] = useState('20');
@@ -15,7 +17,7 @@ export function CopilotCalc() {
   const cc = parseUsdc(c);
   const aa = /^\d{1,3}$/.test(alpha.trim()) ? Number(alpha) : NaN;
   const ok = nn >= 3 && nn <= 30 && cc !== undefined && cc >= 1_000_000n && cc <= 10_000_000_000n && aa >= 0 && aa <= 100;
-  const p = ok ? previewCircle({ n: BigInt(nn), c: cc, periodDays: 30n, alphaBps: BigInt(aa * 100), bond: 0n, capBps: 2000n }) : undefined;
+  const p = ok ? previewCircle({ n: BigInt(nn), c: cc, periodDays: 30n, alphaBps: BigInt(aa * 100), bond: 0n, capBps: 2000n, minCoverageBps: floor }) : undefined;
 
   return (
     <div className="space-y-4">
@@ -42,7 +44,7 @@ export function CopilotCalc() {
             items={[
               { label: 'Rủi ro đỉnh', value: formatUsdc(p.maxExposure) },
               { label: 'Ký quỹ để bảo chứng 100%', value: formatUsdc(p.bondFor100) },
-              { label: 'Ký quỹ tối thiểu để bắt đầu (50%)', value: formatUsdc(p.bondForMin) },
+              { label: `Ký quỹ tối thiểu để bắt đầu (${formatBps(floor)})`, value: formatUsdc(p.bondForMin) },
               { label: 'Chỉ số khi chưa ký quỹ', value: formatBps(p.coverageBps) },
             ]}
           />
