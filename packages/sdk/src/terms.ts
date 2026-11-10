@@ -175,3 +175,22 @@ export const DEMO_TERMS_INPUT: TermsInput = {
   revealBondBps: 100,
   capBps: 2000,
 };
+
+/**
+ * Demo Day circle 2: same as `DEMO_TERMS_INPUT` but the commission sits inside the interest cap (phi = 50%, fee ceiling
+ * 3% of the pot, docs/03 section 8.1 divided by 10). Hashed by `script/CreateDemoCircles.s.sol`.
+ */
+export const DEMO_PHI_TERMS_INPUT: TermsInput = { ...DEMO_TERMS_INPUT, feeBps: 300, commissionShareBps: 5000 };
+
+/**
+ * Demo Day circle 3: a `fixed` circle of three (docs/14 ADR-28), same timing as the others, no bids and no reveal
+ * bond. Its bond is 0.8 x O_max = 0.8 x 20 = 16 USDC. Hashed by `script/CreateDemoCircles.s.sol`.
+ */
+export const DEMO_FIXED_TERMS_INPUT: TermsInput = {
+  ...DEMO_TERMS_INPUT,
+  mode: 'fixed',
+  memberCount: 3,
+  commitWindow: 0,
+  revealWindow: 0,
+  revealBondBps: 0,
+};

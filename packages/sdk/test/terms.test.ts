@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { keccak256, toBytes } from 'viem';
 import { describe, expect, it } from 'vitest';
-import { DEMO_TERMS_INPUT, buildTermsText, termsHashOf, termsInputOfView, verifyTerms, type TermsInput } from '../src/terms';
+import { DEMO_FIXED_TERMS_INPUT, DEMO_PHI_TERMS_INPUT, DEMO_TERMS_INPUT, buildTermsText, termsHashOf, termsInputOfView, verifyTerms, type TermsInput } from '../src/terms';
 
 const base: TermsInput = {
   mode: 'bidding',
@@ -144,5 +144,33 @@ describe('demo circle terms (shared with script/CreateDemoCircle.s.sol)', () => 
     expect(m?.[1]?.toLowerCase()).toBe(vector.demo.hash.toLowerCase());
     expect(script).toContain('termsHash: DEMO_TERMS_HASH');
     expect(script).not.toMatch(/termsHash:\s*keccak256\(/);
+  });
+});
+
+describe('Demo Day circles (shared with script/CreateDemoCircles.s.sol)', () => {
+  const vector = JSON.parse(readFileSync(new URL('../../../contracts/test/vectors/terms.json', import.meta.url), 'utf8')) as Record<
+    'demo' | 'demoPhi' | 'demoFixed',
+    { text: string; hash: `0x${string}` }
+  >;
+  const script = readFileSync(new URL('../../../contracts/script/CreateDemoCircles.s.sol', import.meta.url), 'utf8');
+  const cases = [
+    ['TERMS_HASH_BIDDING', 'demo', DEMO_TERMS_INPUT],
+    ['TERMS_HASH_PHI', 'demoPhi', DEMO_PHI_TERMS_INPUT],
+    ['TERMS_HASH_FIXED', 'demoFixed', DEMO_FIXED_TERMS_INPUT],
+  ] as const;
+
+  for (const [constant, key, input] of cases) {
+    it(`${constant} is the hash of the SDK text for ${key}`, () => {
+      expect(buildTermsText(input)).toBe(vector[key].text);
+      expect(termsHashOf(vector[key].text)).toBe(vector[key].hash);
+      const m = new RegExp(`${constant}\\s*=\\s*(0x[0-9a-fA-F]{64})`).exec(script);
+      expect(m?.[1]?.toLowerCase()).toBe(vector[key].hash.toLowerCase());
+    });
+  }
+
+  it('the three texts differ and the phi and fixed ones say what they are', () => {
+    expect(new Set([vector.demo.hash, vector.demoPhi.hash, vector.demoFixed.hash]).size).toBe(3);
+    expect(vector.demoPhi.text).toContain('Hoa hồng chủ hụi nằm trong trần lãi: 50%');
+    expect(vector.demoFixed.text).toContain('không lãi');
   });
 });
