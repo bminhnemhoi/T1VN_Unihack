@@ -171,7 +171,11 @@
     touch-action: manipulation;
     -webkit-tap-highlight-color: transparent;
   }
-  /* Pressed state: the transition lives only on :active, so hover never animates under a scrolling finger. */
+  /* Pressed state: 80 ms down on :active; the release eases back in 140 ms instead of snapping (13/11).
+     Only transform is transitioned, so colours and hover never animate under a scrolling finger. */
+  a, button, summary, [role="radio"], [role="checkbox"] {
+    transition: transform 140ms cubic-bezier(0.16, 1, 0.3, 1);
+  }
   a:active, button:not(:disabled):active, summary:active, [role="radio"]:active, [role="checkbox"]:active {
     transform: scale(0.97);
     transition: transform 80ms ease-out;
@@ -277,7 +281,8 @@
     transition-duration: 180ms;
     transition-timing-function: ease-out;
   }
-  .the-nang:hover { transform: translateY(-2px); }
+  /* Lift only where a pointer can hover: on touch screens a tap would leave the card stuck up. */
+  @media (hover: hover) { .the-nang:hover { transform: translateY(-2px); } }
 
   /* Dark ink band with film grain (inline SVG noise) and faint ruling. */
   .nen-muc {

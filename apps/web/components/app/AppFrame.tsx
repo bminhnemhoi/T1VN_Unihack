@@ -3,7 +3,7 @@
 import { LogIn, LogOut, Settings } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { useEffect, useState, type ReactNode } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { CopilotDrawer } from '@/components/copilot/CopilotDrawer';
 import { useCopyAddress } from '@/components/shell/CopyAddress';
@@ -21,15 +21,51 @@ import { vi } from '@/lib/vi';
  */
 export function AppFrame({ sample, children }: { sample: boolean; children: ReactNode }) {
   const pathname = usePathname();
+  const entering = useEnterFromLanding(pathname);
   if (pathname === '/') return <>{children}</>;
   return (
-    <div id="hs-root" className="hs">
+    <div id="hs-root" className={entering ? 'hs entering' : 'hs'}>
+      {entering && <EnterCover />}
       <DemoStrip sample={sample} />
       <TopBar pathname={pathname} />
       <div className="view" id="hs-view">
         {children}
       </div>
       <TabBar pathname={pathname} />
+    </div>
+  );
+}
+
+/**
+ * Entering the app from the landing (13/11, "màn mực kéo lên"): only a client navigation from `/` into the app plays
+ * it, so a reload or a shared link opens the app at once. The ink cover with the wordmark lifts away (350 ms, after a
+ * 260 ms hold) while the page's blocks rise under it, 60 ms apart (`.hs.entering` in hs.css). Off with reduced motion. The
+ * landing itself is untouched: the frame notices the route change.
+ */
+function useEnterFromLanding(pathname: string): boolean {
+  const prev = useRef(pathname);
+  const [entering, setEntering] = useState(false);
+  useLayoutEffect(() => {
+    const fromLanding = prev.current === '/' && pathname !== '/';
+    prev.current = pathname;
+    if (!fromLanding || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    setEntering(true);
+    const t = window.setTimeout(() => setEntering(false), 1000); // cover ends at 610 ms, last block at 600 + 240 ms
+    return () => window.clearTimeout(t);
+  }, [pathname]);
+  return entering;
+}
+
+function EnterCover() {
+  return (
+    <div className="enterCover" aria-hidden="true">
+      <span className="logo">
+        H
+        <span>
+          U<i />
+        </span>
+        I
+      </span>
     </div>
   );
 }
