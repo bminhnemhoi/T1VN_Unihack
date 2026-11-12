@@ -1,115 +1,194 @@
-# HụiSafe web: design rules ("Sổ hụi" v3)
+# HụiSafe: hệ thiết kế (landing đã chốt, áp vào web app)
 
-Identity approved by the owner (B5, kept on 08/11/2026): **"Sổ hụi, bản in sang"**. A Vietnamese hụi ledger made trustworthy:
-paper, blue-black ink, a red seal that stamps when a circle is covered, a night-ink band for the landing hero.
-This file turns that identity into rules. Code must follow it; change it here first, then in `app/globals.css`.
+**Phiên bản v4 (12/11/2026).** Thay bản v3 "Sổ hụi, bản in sang" (giấy xanh, mực xanh đen, ấn đỏ, Newsreader) theo quyết định
+của Towfienes ngày 12/11 khi chốt landing mới. Bản v3 đầy đủ: `git show 3654b49:apps/web/DESIGN.md`. Những quy tắc của v3 vẫn
+còn đúng được giữ ở mục 7.5 đến 9. Đổi quy tắc: sửa file này trước, rồi `app/globals.css`, rồi code.
 
-## 1. Research behind the rules (08/11/2026)
+Nguồn sự thật: mã của landing đã chốt ngày 12/11/2026 (commit `3654b49`), cụ thể `components/landing/landing.module.css`,
+`components/landing/fonts.ts`, `components/landing/Landing.tsx`. Mọi giá trị ở mục 1 đến 6 đọc thẳng từ mã đó (ghi **[mã]**).
+Mục 7 là **đề xuất** cho web app (ghi **[đề xuất]**), chưa có trong mã. Chuyển động nằm ở [MOTION.md](MOTION.md).
 
-Measured with `dembrandt` on the live sites (computed CSS, not guesses):
+Vì sao không dùng skill `awwwards-design-md`: skill chỉ nhận trang công khai và từ chối `localhost` (`BLOCKED_DESTINATION`),
+mà trang chưa deploy. Đọc từ mã nguồn chính xác hơn đo từ ảnh, nên tài liệu này lấy mã làm bằng chứng.
 
-| Site | Text colour | Accent use | Display type | Radii |
-|---|---|---|---|---|
-| Mercury | `#171721` ground, `#ededf3` text | indigo `#5266EB` on 3 elements only | custom display, weight 480, line-height 1.10 | 4px data, 12px cards, pill buttons |
-| Stripe | ink `#061b31`, slate `#50617a` | violet `#533afd`, sparse | Söhne 300, tracking -0.025em | 4-6px |
-| Wise | dark green `#163300` as text | lime `#9fe870` for the CTA | weight 600, tracking -0.03em | pills everywhere |
-| Linear | greys | almost none | weight 510, tracking -0.022em | 8px + pills |
-| MoMo | `#1c171a` | magenta `#d42a87` | custom; body 18px | 4-8px |
-| Cake (VPBank) | navy `#071a38` | pink `#ff38a5` | **Be Vietnam Pro** 600 | pills |
+Tham khảo hướng (Awwwards, 12/11): Osmo (bảng màu trên nền ngà), Monolog (chữ đậm cỡ lớn), Pomegranate (chữ thân gọn),
+YumLog (mỗi dải một kiểu), Neutomni (màn mở đầu, hiện dần khi cuộn), Butter (easing). Học cấu trúc và nhịp, không chép.
 
-Articles and studies:
-- Fintech landing patterns: one primary CTA, a real product view in the hero, a trust signal in the first screen, restraint;
-  red never as the primary colour (DesignRevision 2026, saasframe, Mercury breakdown by 925studios).
-- Finance dashboards: "calm reads as credibility"; a verdict row first; money in motion next to the balance; exceptions surfaced;
-  work queues before chart walls; colour only for state; tabular, right-aligned numerals (AdminLTE analysis of Mercury, Stripe,
-  Ramp, Brex, Wise; Copilot Money; Linear's 2024 and 2026 UI refreshes).
-- AI-generated look to avoid: purple gradients, Inter everywhere, centred hero plus identical cards, one radius and one shadow on
-  everything, fade-up on every element, round-number stats, emoji, glow and glass, eyebrow labels above headings
-  (925studios AI-slop guide, Anti-AI-slop ban list, impeccable craft floor).
-- Older users (NN/g, 123 participants aged 65+): larger text, no light-grey text, larger targets, accept several input formats,
-  plain-language errors, no startling motion or sound.
-- Fonts: 522 of 1,959 Google families carry the `vietnamese` subset (official metadata). We keep Newsreader + Be Vietnam Pro.
+---
 
-## 2. Colour roles
+## 1. Màu **[mã]**
 
-Values live in `app/globals.css` (`:root`). Use the role, not the hex.
-
-| Role | Token / utility | Value | Use |
+| Vai trò | Biến | Giá trị | Dùng cho |
 |---|---|---|---|
-| Paper | `bg-background` | `#f5f7fa` | page |
-| Sheet | `bg-card` | `#ffffff` | panels |
-| Ink | `text-foreground` | `#11203f` | text, numbers (15:1). Never pure black |
-| Secondary ink | `text-muted-foreground` | `#46526b` | secondary text (6.9:1). No lighter grey for text |
-| Night ink | `nen-muc` | `#0c1730` | landing hero, footer, the dashboard verdict block |
-| Action on paper | `bg-action` / `bg-primary` | `#1c4bb5` | primary buttons and links on paper |
-| Action on night ink | `bg-action-ink` | `#e8b04a`, text `#0c1730` | primary buttons on the dark band |
-| OK | `text-state-ok` | `#0a6246` | covered, paid on time |
-| Warning | `text-state-warn` on `bg-state-warn-bg` | `#5a3a00` / `#fff0bf` | not enough yet, deadline near |
-| Bad / seal | `text-state-bad`, `text-le-do` | `#a91d1d` | shortfall, error; also the brand seal and "your round" mark |
+| Nền trang | `--ivory` | `#F4F0E8` | nền chính, chữ trên nền tối |
+| Giấy | `--paper` | `#FBF9F4` | thẻ, khung, chip trên nền ngà |
+| Mực | `--ink` | `#201D1D` | chữ chính, nền dải tối, nút phụ |
+| Mực sâu | `--ink-deep` | `#151313` | nền dải tình huống |
+| Mực 2 | `--ink-2` | `#5A5555` | chữ phụ trên nền sáng |
+| Đường kẻ | `--line` | `#DCD6CB` | viền 1px trên nền sáng |
+| Mờ | `--mute` | `#A39D94` | chữ phụ trên nền tối |
+| Mờ 2 | `--dim` | `#8F8A82` | chữ chưa đến lượt (câu chuyện lá thăm) |
+| Xanh chanh | `--lime` | `#A1FF62` | **màu tiền và hành động**: nút chính, số tiền trên nền tối, nhãn |
+| Đỏ | `--red` | `#F84131` | vỡ nợ, vượt trần, gạch "giựt" (làm nền hoặc vạch, không làm chữ nhỏ trên nền sáng) |
+| Đỏ đậm | `--red-ink` | `#C4271A` | chữ đỏ trên nền sáng |
+| Đỏ sáng | `--red-soft` | `#FF6A5C` | chữ đỏ trên nền tối |
+| Tím | `--violet` | `#6840FF` | viền focus, một thẻ tình huống |
+| Đất | `--clay` | `#A0491F` | thẻ tình huống |
+| Rừng | `--forest` | `#17402E` | thẻ tình huống, vòng bảo chứng đủ |
 
-Rules:
-1. One primary button per screen. Its colour depends on the surface (owner decision 08/11): ochre on night ink, ink-blue on paper.
-2. Blue means "you can act". State badges and decoration never use it.
-3. Green/ochre/red mean state only, and always come with a word or icon.
+Luật dùng màu **[mã]**:
+- Xanh chanh **không bao giờ làm màu chữ trên nền sáng** (tương phản thấp). Dùng làm nền với chữ mực, hoặc làm chữ trên nền mực.
+- Đỏ chỉ cho cảnh báo thật: vỡ nợ, vượt trần, câu "Cô Tư giựt hụi rồi!". Một màn chỉ một điểm đỏ.
+- Dải màu đậm (tím, đất, rừng, chanh) chỉ có ở lưới tình huống của landing; phần còn lại là ngà, giấy, mực.
+- Trang chỉ có giao diện sáng (cố ý). Dải tối là một khối trong trang, không phải chế độ tối.
 
-## 3. Type
+## 2. Chữ **[mã]**
 
-- Families: **Newsreader** (display, roman only) and **Be Vietnam Pro** 400/600 (UI, body). Hand accent: 12 KB subset of Dancing
-  Script, at most a few words per page (`app/fonts/README.md`).
-- Role scale (`@theme` in `globals.css`, 1rem = 18px): `text-display`, `text-h1`, `text-h2`, `text-h3`, `text-lead`,
-  `text-numeral`. New code uses these instead of one-off sizes; older screens move over when they are touched.
-- Body 18px minimum; secondary text 16px minimum; display type is never below 24px.
-- Every amount uses tabular figures (`so-ke`) and vi-VN format ("288,48 USDC"). A ceiling shown in short form is rounded **down**.
+| Vai trò | Font | Trọng lượng | Biến |
+|---|---|---|---|
+| Tiêu đề | Inter Tight (Google, có `vietnamese`) | 700, 800, 900 | `--font-lp-display` |
+| Thân | Be Vietnam Pro (từ layout gốc) | 400, 600 | `--font-sans` |
+| Số, nhãn | IBM Plex Mono (Google, có `vietnamese`) | 400, 500 | `--font-lp-mono` |
 
-## 4. Shape, depth, space
+Tất cả miễn phí, tự host qua `next/font` (không gọi Google Fonts lúc chạy).
 
-- Radii by role: sheets 12px, data cells 6-8px, buttons and chips are pills, seals are circles.
-- Elevation is declared once: `.to-giay` = sheet with shadow, no border; `.o-phang` = flat panel with a hairline, no shadow.
-- Group by proximity first; use a sheet only to group related content. Lists of items sit in one sheet separated by hairlines,
-  not as a stack of identical cards.
+| Mẫu | Cỡ | Line-height | Letter-spacing | Ghi chú |
+|---|---|---|---|---|
+| H1 | `clamp(54px, 9.6vw, 140px)`, 800 | 0.95 | -0.045em | `text-wrap: balance` |
+| H2 | `clamp(40px, 6.4vw, 92px)`, 800 | 0.95 | -0.045em | |
+| Tiêu đề thẻ | `clamp(30px, 3.4vw, 46px)` | 0.95 | -0.04em | |
+| Logo | 900 24px | 1 | -0.05em | chữ U có dấu nặng là đồng xu |
+| Thân | 400 16px | 1.6 | 0 | đoạn tối đa 56ch |
+| Thân lớn | 18px | 1.6 | 0 | đoạn mở đầu dải |
+| Nhãn | 500 12px mono | 1.3 | 0.08em | IN HOA |
+| Số tiền lớn | 500 42px mono | 1.1 | 0 | `tabular-nums` |
+| Nút | 600 15px thân | 1 | 0 | |
 
-## 5. Motion
+Mọi con số dùng mono và `font-variant-numeric: tabular-nums` để không nhảy khi đổi.
 
-One authored moment per page (landing: hero entrance and the coverage meter; app screens: the seal stamp and state changes).
-Transform/opacity only, 80-200ms for controls, decorative loops pause off-screen, everything stops under `prefers-reduced-motion`.
+## 3. Bố cục **[mã]**
 
-## 6. Signature element: the ledger
+- Khung `.wrap`: rộng tối đa 1240px, lề hai bên `max(20px, safe-area)`.
+- Landing dựng cho khoảng 1280px; màn rộng hơn phóng cả trang bằng `zoom` theo bậc: 1400px → 1.1, 1560 → 1.22,
+  1720 → 1.35, 1900 → 1.5, 2200 → 1.72, 2560 → 2.
+- Mốc đổi bố cục: 520, 640, 760 (ẩn link menu), 900 (lưới 2 cột, bento 6 cột), 1100 (bong bóng tin nhắn).
+- Nhịp dải: `padding-block: clamp(70px, 9vw, 130px)`; hero 48px / 72px.
+- Thứ tự dải: dải demo → menu dính → hero (tiêu đề, con dấu, chip câu hỏi, khung app) → câu chuyện lá thăm (dải tối,
+  lá thăm dính bên phải) → lưới tình huống (6 cột: 3+3, 2+2+2) → sổ cái Fuji (2 cột) và chữ chạy → kết.
+- Mỗi dải một kiểu (học YumLog), nhưng cùng một bảng màu và một bộ chữ.
 
-A paper sổ hụi is a grid: one row per round, one column per member. HụiSafe shows that structure as real, accessible UI:
-- `components/circle/RoundStrip.tsx`: one cell per round on every circle row (done / now / later, your round in seal red,
-  each cell spoken in words).
-- `components/circle/LedgerGrid.tsx`: the full "Bảng sổ hụi" in the bid room, rounds x members, a real `<table>` with row and
-  column headers (1024px+), and one expandable line per round below that width. Never ruled-paper decoration.
-- Every settled row comes from `DEMO_LEDGER` in `lib/sample.ts` (docs/03 section 8 branch B); the viewer is Thành viên 2,
-  a member who has not received yet, because only such members may bid (docs/03 section 6.1).
+## 4. Chiều sâu **[mã]**
 
-## 7. Banned (ship-stoppers)
+- Gần như phẳng. Viền 1px `--line` trên nền sáng, `#3A3636` trên nền tối.
+- Bóng chỉ hai loại: bong bóng tin nhắn `0 14px 28px -18px rgba(32,29,29,.45)` và khung app
+  `0 40px 80px -40px rgba(32,29,29,.55)`.
+- Menu dính: nền ngà 96%, **không** làm mờ nền phía sau (đã bỏ vì tốn GPU khi cuộn).
+- Lớp: màn mở đầu 60, menu 30.
 
-Eyebrow labels above headings; gradient text; purple-blue gradients; glass or glow as decoration; identical card grids as page
-structure; a 1px border under a wide shadow; colour as the only signal; text lighter than `--muted-foreground`; emoji as icons;
-round made-up statistics; two primary buttons of equal weight; animating width/height.
+## 5. Hình khối **[mã]**
 
-## 8. Layout references (09/11/2026): what we learn, what we do not take
+| Thành phần | Bo góc |
+|---|---|
+| Nút, nhãn, pill | 3–4px (vuông vức, như con dấu) |
+| Lá thăm, ô nhỏ | 6–8px |
+| Khung app, ô thông tin | 10–14px |
+| Thẻ tình huống | 22px |
+| Khung xem trước | 20px |
+| Chip, bong bóng, công tắc | 999px |
 
-Full notes with observed vs inferred labels: `docs/design-research/layout-references-09-11.md`. Raw captures stay in `.handover/refs/` (git-excluded).
+## 6. Thành phần **[mã]**
 
-| Reference (link) | Captured at | Measured |
+- **Nút** `.btn`: cao tối thiểu 48px, đệm ngang 20px, bo 4px, chữ 600 15px, ô mũi tên 24px bên phải xoay 45° khi rê
+  chuột. Biến thể: `lime` (nền chanh, chữ mực: hành động chính), mặc định (nền mực, chữ ngà), `ghost` (viền mực 1.5px).
+- **Nhãn** `.label`: mono 12px in hoa, giãn 0.08em. Bản có nền: chanh, chữ mực, bo 3px (TESTNET, CHẾ ĐỘ DEMO).
+- **Chip câu hỏi**: bo tròn, nền giấy, viền `--line`, 600 14px; biến thể `hot` (nền mực, chữ chanh), `warn` (nền đỏ, chữ mực).
+- **Thẻ thông tin** (`.kv`): hàng nhãn–giá trị, giá trị mono; hàng `big` là số tiền chanh 26px.
+- **Phân đoạn** (`.seg`): nút bo tròn cao 48px trong rãnh tối; nút đang chọn nền ngà.
+- **Sổ** (`.entry`): lưới 54px / 1fr / auto, kẻ chấm, cột kỳ mono xám, cột tiền mono căn phải.
+- **Dải demo**: một dòng nền mực cao 36px, nhãn chanh "CHẾ ĐỘ DEMO", câu ngắn, góc phải "ĐANG XEM DỮ LIỆU MẪU" (khi chưa
+  deploy). Không đóng được (docs/02 US-10), `role="status"`.
+
+---
+
+## 7. Áp vào web app **[đề xuất]**
+
+Web app là chỗ làm việc, không phải chỗ trình diễn. Giữ **bảng màu, bộ chữ, hình khối**; giảm **cỡ, độ tương phản dải,
+chuyển động**.
+
+### 7.1. Ánh xạ vào biến shadcn hiện có (`app/globals.css`, `:root`)
+
+| Biến app | Hiện tại | Đề xuất |
 |---|---|---|
-| https://www.roscash.org/ | 1440, 768, 390 | dembrandt |
-| https://thesusu.app/ | 1440, 768, 390 | dembrandt |
-| https://cosayv.com/ | 1440, 768, 390 | dembrandt |
-| https://huio.vn/ | 1440, 768, 390 | dembrandt |
-| https://www.moneyfellows.com/en-us/ | 1440, 768, 390 | looked at 1440 only |
-| https://mercury.com/ , https://wise.com/ | 1440, 768, 390 | looked at 1440; numbers from section 1. Mercury capture partly broken (scripted scroll), only the top is usable |
-| https://monzo.com/ | 1440, 768, 390 | captured, not analysed |
+| `--background` | `#F5F7FA` | `#F4F0E8` (ngà) |
+| `--foreground`, `--card-foreground` | `#11203F` | `#201D1D` (mực) |
+| `--card`, `--popover` | `#FFFFFF` | `#FBF9F4` (giấy) |
+| `--primary` / `--primary-foreground` | `#1C4BB5` / trắng | `#201D1D` / `#F4F0E8` (nút phụ, liên kết đậm) |
+| `--action` | `#1C4BB5` | `#A1FF62` với chữ `#201D1D` (một nút chính mỗi màn) |
+| `--secondary`, `--muted`, `--accent` | `#E8EDF5` | `#ECE7DD` (ngà đậm hơn một bậc, cần đo tương phản) |
+| `--muted-foreground` | `#46526B` | `#5A5555` |
+| `--border` | `#C9D2E0` | `#DCD6CB` |
+| `--input` | `#7B879E` | `#8F8A82` (cần đo lại: viền ô nhập ≥ 3:1 trên ngà) |
+| `--ring` | `#1C4BB5` | `#6840FF` (tím, như landing) |
+| `--destructive`, `--state-bad` | `#A91D1D` | `#C4271A` |
+| `--state-ok`, `--ngoc` | `#0A6246` | `#17402E` (rừng) |
+| `--state-warn-bg` / `--state-warn` | `#FFF0BF` / `#5A3A00` | giữ, hoặc nền `#FFE8D6` chữ `#7A2E12` (cần đo) |
+| `--radius` | `0.5rem` | `0.25rem` cho nút và ô nhập; thẻ dùng `--radius-2xl` |
 
-Dashboards sit behind login, so dashboard patterns are inferred from the product screenshots on the public pages.
+Mọi cặp màu đổi phải qua axe (WCAG 2.2 AA) trên đủ 16 màn trước khi gộp.
 
-**Learned (layout, order, rhythm, buttons):** hero opens with a worked number example, not a slogan; one primary button plus a text link;
-alternate light and night-ink bands to pace the page; "title left, content right" two-column blocks for FAQ and trust; a receipt-style card
-for fees and the shortfall waterfall; the hero object is the real product (our coverage card, the Sổ hụi table), not an illustration;
-spacing on a 4/8px scale with roughly 100 to 140px between sections at 1440 (inferred from screenshots, not measured);
-dashboard: one headline number, one clear next action, circles as status rows, payout order shown as progress.
+### 7.2. Chữ trong app
+- Tiêu đề màn: Inter Tight 800, `clamp(28px, 4vw, 44px)`, line-height 1, -0.03em. Không dùng cỡ 140px của landing.
+- Tiêu đề khối: Inter Tight 700, 20–24px.
+- Thân: Be Vietnam Pro 16px (giữ cỡ chữ người dùng chọn trong Cài đặt).
+- Số tiền, đếm ngược, địa chỉ ví: IBM Plex Mono, `tabular-nums`, luôn kèm đơn vị USDC.
+- Nhãn trạng thái (Sống, Đã hốt, Trễ, Vỡ nợ): mono 11–12px in hoa trên nền nhãn bo 3px.
+- Font `Newsreader` và font viết tay của bộ cũ: bỏ khỏi app (giảm tải), trừ khi sổ hụi in vẫn cần.
 
-**Not taken:** logos, photos, illustrations, mascots, copy, brand colours (blue, yellow, lime, orange, green) and brand fonts of any reference.
-HụiSafe keeps its own paper, blue-black ink, red seal and the roles in section 2.
+### 7.3. Bố cục app
+- Không zoom cả trang như landing; app dùng cỡ cố định để bảng và ô nhập đúng kích thước.
+- Máy tính: thanh menu trên cùng (logo HỤI, Dây của tôi, Tạo dây, Phòng mô phỏng, nút Đăng nhập); nội dung rộng tối đa 1240px.
+- Điện thoại: thanh dưới 3–4 mục như hiện tại, vùng bấm 48px.
+- Mỗi màn một việc chính, **một** nút chanh. Trên đầu là "việc cần làm ngay", rồi số tiền của bạn, rồi chi tiết.
+- Dải tối chỉ dùng cho **một** khối nổi bật mỗi màn (ví dụ khối đếm ngược và ô bỏ thăm), giống khung app trong hero.
+
+### 7.4. Giữ nguyên từ app hiện tại
+- Luật: vùng bấm 48px, không cuộn ngang ở 390/768/1440, bảng rộng thành thẻ dưới 768/1024px (B17), chữ tiếng Việt,
+  số tiền kèm USDC, dải demo trên mọi màn.
+- Logic, đọc chuỗi, relay, SDK: không đổi. Chỉ thay lớp giao diện.
+
+### 7.5. Nguyên tắc dashboard (giữ từ v3)
+Nguồn: phân tích Mercury, Stripe, Ramp, Brex, Wise, Linear (v3, 08/11).
+- **Kết luận trước:** đầu màn là một dòng trả lời "tôi có ổn không, tôi phải làm gì" (khối "việc cần làm ngay"), rồi mới tới số.
+- Tiền đang đi lại đặt cạnh số dư; ngoại lệ (trễ, thiếu, vỡ nợ) được đẩy lên, không chìm trong bảng.
+- Việc cần làm đứng trước biểu đồ. "Bình tĩnh là đáng tin": không trang trí thừa.
+- Màu chỉ để báo trạng thái, luôn kèm chữ hoặc biểu tượng (không dùng màu làm tín hiệu duy nhất).
+- Số căn phải, `tabular-nums`, định dạng vi-VN ("288,48 USDC"); trần thăm hiển thị rút gọn thì làm tròn **xuống**.
+- Danh sách nhiều mục nằm trong một khối, ngăn bằng đường kẻ mảnh; không xếp chồng các thẻ giống hệt nhau.
+
+### 7.6. Thành phần đặc trưng: sổ hụi (giữ từ v3, đổi màu)
+Sổ hụi giấy là một lưới: mỗi kỳ một hàng, mỗi thành viên một cột. HụiSafe hiện cấu trúc đó bằng UI thật, đọc được bằng trình đọc màn hình:
+- `components/circle/RoundStrip.tsx`: mỗi kỳ một ô trên từng dòng dây (xong / đang / sau). Kỳ của bạn: v3 tô đỏ ấn, v4 tô
+  **chanh trên mực** (giống ô "Đang thăm" trong khung app của landing); đỏ dành cho vỡ nợ.
+- `components/circle/LedgerGrid.tsx`: "Bảng sổ hụi" trong phòng bỏ thăm, kỳ × thành viên, `<table>` thật có tiêu đề hàng và cột
+  (từ 1024px), dưới đó mỗi kỳ một dòng mở rộng được. Không phải giấy kẻ trang trí.
+- Dữ liệu mẫu từ `DEMO_LEDGER` trong `lib/sample.ts` (docs/03 mục 8 nhánh B).
+
+## 8. Không làm
+Giữ danh sách cấm của v3, chỉnh theo landing đã chốt:
+- Không gradient (kể cả chữ gradient), kính mờ, ánh sáng phát quang, icon emoji.
+- Không lưới thẻ giống hệt nhau làm khung trang; không một bo góc và một bóng cho mọi thứ.
+- Không viền 1px nằm dưới bóng đổ rộng; không chữ nhạt hơn `--ink-2` trên nền sáng (hay `--mute` trên nền tối).
+- Không hai nút chính cùng trọng lượng; không màu làm tín hiệu duy nhất; không số liệu tròn bịa ra.
+- Không animate width, height, top, left (xem MOTION.md).
+- Không thêm màu ngoài bảng ở mục 1; không dùng xanh chanh làm chữ trên nền sáng.
+- Không có yếu tố ngẫu nhiên nào, kể cả trang trí (luật cứng số 3).
+- Không chép logo, ảnh, chữ của các site tham khảo.
+- Đã nới so với v3 (quyết định 12/11): nhãn nhỏ trên tiêu đề được dùng (landing có "TESTNET · HỤI BỎ THĂM ON-CHAIN"), nhưng tối đa
+  một nhãn mỗi khối; chữ thân tối thiểu 16px thay vì 18px vì người dùng mục tiêu là người trẻ (giữ cỡ chữ chỉnh được ở Cài đặt).
+
+## 9. Tham khảo đã dùng
+- v3 (08–09/11, đo bằng dembrandt): roscash, thesusu, cosayv, huio, moneyfellows, Mercury, Wise, Monzo. Ghi chú đầy đủ:
+  `docs/design-research/layout-references-09-11.md`. Học được: ví dụ số thật trong hero, một nút chính kèm một liên kết, xen dải
+  sáng và dải tối, khối kiểu hóa đơn cho phí và thác bù, vật trung tâm của hero là chính sản phẩm.
+- v4 (12/11, Awwwards MCP): Osmo, Monolog, Pomegranate, YumLog, Neutomni, Butter (xem đầu file). Xanh chanh `#A1FF62` lấy từ bảng
+  màu đo được của Osmo, theo lựa chọn của Towfienes; v3 từng loại màu chanh (Wise) vì muốn giữ bảng màu riêng.
