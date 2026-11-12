@@ -2,6 +2,12 @@ import { expect, test } from '@playwright/test';
 import { toast, watchErrors } from './helpers';
 
 const phase = (page: import('@playwright/test').Page, name: string) => page.getByRole('radio', { name, exact: true });
+/** Selects kỳ `k` on the round rail: the button on wide screens, the ‹ › arrows on a phone (starting from kỳ 3). */
+async function goRound(page: import('@playwright/test').Page, k: number) {
+  const wide = page.getByRole('button', { name: new RegExp(`^Kỳ ${k},`) });
+  if (await wide.isVisible()) return wide.click();
+  for (let i = 3; i !== k; i += k > 3 ? 1 : -1) await page.getByRole('button', { name: k > 3 ? 'Kỳ sau' : 'Kỳ trước' }).click();
+}
 const timelineNow = (page: import('@playwright/test').Page) => page.locator('li[aria-current="step"]');
 
 test.describe('S04/S06 /circles/demo', () => {
@@ -69,9 +75,9 @@ test.describe('S04/S06 /circles/demo', () => {
     await expect(rules).toContainText('Thành viên 2 (bạn), Thành viên 3, Thành viên 5');
   });
 
-  test('Bảng sổ hụi on desktop: rounds x members with the docs/03 section 8 numbers', async ({ page, isMobile }) => {
+  test('Bảng sổ hụi on desktop (Sổ hụi page): rounds x members with the docs/03 section 8 numbers', async ({ page, isMobile }) => {
     test.skip(isMobile, 'desktop table');
-    await page.goto('/circles/demo');
+    await page.goto('/circles/demo/so-ho');
     const table = page.getByRole('table', { name: /Bảng sổ hụi/ });
     await expect(table.getByRole('columnheader')).toHaveCount(7);
     await expect(table.getByRole('rowheader', { name: /Kỳ 1/ })).toBeVisible();
@@ -82,14 +88,12 @@ test.describe('S04/S06 /circles/demo', () => {
     await expect(k2).toContainText('bù 80 USDC tiền giữ lại, 20 USDC ký quỹ');
     await expect(k2).toContainText('323,18 USDC');
     await expect(table.getByRole('row', { name: /Kỳ 3/ })).toContainText('Đang nộp thăm kín');
-    await page.getByRole('radio', { name: 'Mở thăm', exact: true }).click();
-    await expect(table.getByRole('row', { name: /Kỳ 3/ })).toContainText('Đang mở thăm');
     await expect(table.getByRole('row', { name: /Đang giữ lại/ })).toContainText('60 USDC');
   });
 
-  test('Bảng sổ hụi on phones: one line per round, open it to see each member', async ({ page, isMobile }) => {
+  test('Bảng sổ hụi on phones (Sổ hụi page): one line per round, open it to see each member', async ({ page, isMobile }) => {
     test.skip(!isMobile, 'phone list');
-    await page.goto('/circles/demo');
+    await page.goto('/circles/demo/so-ho');
     const k2 = page.locator('details').filter({ hasText: 'Kỳ 2: Thành viên 1 hốt, nhận 323,18 USDC.' });
     await expect(k2).toContainText('1 người thiếu và đã được bù');
     await k2.locator('summary').click();
@@ -98,9 +102,23 @@ test.describe('S04/S06 /circles/demo', () => {
     await expect(k2.getByText('Thành viên 2 (bạn)')).toBeVisible();
   });
 
-  test('kỳ 2 waterfall shows who covered the missing 100 USDC', async ({ page }) => {
+  test('the round rail opens kỳ 2 as a receipt with the waterfall of who covered the missing 100 USDC', async ({ page }) => {
     await page.goto('/circles/demo');
+    await goRound(page, 2);
+    await expect(page.getByRole('heading', { name: 'Thành viên 1 hốt kỳ 2' })).toBeVisible();
     await expect(page.getByText('Tiền hốt của kỳ 2 là 391 USDC, chia ra')).toBeVisible();
     await expect(page.getByRole('heading', { name: 'Kỳ 2: có người không đóng' })).toBeVisible();
+  });
+
+  test('round rail: kỳ 1 is a receipt that adds up, kỳ 4 shows its bid ceiling, kỳ 3 is the bid room', async ({ page }) => {
+    await page.goto('/circles/demo');
+    await expect(page.getByRole('button', { name: 'Niêm phong thăm' })).toBeVisible();
+    await goRound(page, 1);
+    await expect(page.getByRole('heading', { name: 'Thành viên 4 hốt kỳ 1' })).toBeVisible();
+    await expect(page.locator('article').getByText('288,48 USDC')).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Niêm phong thăm' })).toHaveCount(0);
+    await page.goto('/circles/demo');
+    await goRound(page, 4);
+    await expect(page.getByRole('heading', { name: /Trần thăm kỳ 4: 1,643835 USDC/ })).toBeVisible();
   });
 });

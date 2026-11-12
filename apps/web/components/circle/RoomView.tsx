@@ -1,30 +1,33 @@
 'use client';
 
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { DEFAULT_MIN_COVERAGE_BPS, formatUsdc, previewCircle } from 'sdk';
 import { BidCalculator } from '@/components/circle/BidCalculator';
-import { LedgerGrid } from '@/components/circle/LedgerGrid';
 import { RepBadge, RepDisclaimer } from '@/components/circle/RepBadge';
-import { RoundStrip } from '@/components/circle/RoundStrip';
+import { RoundRail, type RailRound } from '@/components/circle/RoundRail';
+import { RoundPlan, RoundReceipt } from '@/components/circle/RoundStage';
 import { RoundTimeline, type Phase } from '@/components/circle/RoundTimeline';
 import { SealedBidCard } from '@/components/circle/SealedBidCard';
-import { Waterfall } from '@/components/circle/Waterfall';
 import { LedgerList } from '@/components/LedgerList';
 import { Badge } from '@/components/ui/badge';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
-import { toLedger, toSampleMembers } from '@/lib/chain/adapter';
-import { DEMO_LEDGER, DEMO_MEMBERS, VIEWER, usdc } from '@/lib/sample';
+import { toSampleMembers } from '@/lib/chain/adapter';
+import { capOf } from '@/lib/hui-calc';
+import { DEMO_MEMBERS, VIEWER, usdc } from '@/lib/sample';
 import { lateImpact } from '@/lib/live/lateImpact';
-import type { SampleCircleData } from '@/lib/sample-circles';
+import { settledRound, type SampleCircleData } from '@/lib/sample-circles';
 import { TOGGLE_ON } from '@/lib/utils';
 
 const sampleCap = previewCircle({ n: 5n, c: usdc(100), periodDays: 30n, alphaBps: 2000n, bond: usdc(480), capBps: 2000n, minCoverageBps: DEFAULT_MIN_COVERAGE_BPS }).bidRows[2]!.maxBid; // 3,287671 USDC (docs/03 section 8)
 
 const PHASE_OF = { commit: 'commit', reveal: 'reveal', 'awaiting-settle': 'settle', 'not-started': 'commit', done: 'settle' } as const;
 
+const PHASE_LINE: Record<Phase, string> = { commit: 'Đang nộp thăm kín', reveal: 'Đang mở thăm', settle: 'Chờ chốt kỳ' };
+
 /**
- * S04 + S06: one circle's room. Order follows the job: where the circle is (round strip), what to do in this round
- * (timeline + sealed bid + the round's rules), then the shared ledger and what happened when someone did not pay.
+ * S04 + S06: one circle's room, laid out as a timeline (DESIGN.md v4, approved prototype 13/11). The round rail is the
+ * navigation; the stage below shows the one job of the selected kỳ: a receipt for a settled kỳ, the bid room for the
+ * running one, the bid ceiling for a later one. The full kỳ x member ledger lives on the Sổ hụi page.
  * Sample data keeps the phase switcher; chain data follows the real phase of the round.
  */
 export function RoomView({ c }: { c: SampleCircleData }) {
@@ -36,17 +39,29 @@ export function RoomView({ c }: { c: SampleCircleData }) {
   const maxBid = live ? (rv?.maxBid ?? 0n) : sampleCap;
   const revealBond = live ? (c.terms.c * BigInt(live.view.params.revealBondBps)) / 10_000n : usdc(1);
   const { members, viewer } = live ? toSampleMembers(live.view, live.viewerAddress) : { members: DEMO_MEMBERS, viewer: VIEWER };
-  const ledger = live ? toLedger(live.view) : DEMO_LEDGER;
   const past = c.winnerByRound.map((w, i) => ({ k: i + 1, winner: c.seats[w]!.name, bid: c.bids[i]! }));
-  const winners = c.winnerByRound.map((w) => c.seats[w]!.name);
   // Eligible to bid: live and with no open shortfall (docs/03 section 6.1), same rule as the button in the bid card.
   const owing = new Set(c.shortfalls.filter((s) => s.status !== 'paid').map((s) => s.member));
   const bidders = members.flatMap((m, i) => (m.status === 'live' && !owing.has(i) ? [i === viewer ? `${m.name} (bạn)` : m.name] : []));
   const n = Number(c.terms.n);
   const impact = lateImpact(c);
+  const [selected, setSelected] = useState(k);
+  const touch = useRef<number | null>(null);
+  const select = (r: number) => setSelected(Math.min(Math.max(r, 1), n));
+  const rail: RailRound[] = Array.from({ length: n }, (_, i) => {
+    const r = i + 1;
+    const short = c.shortfalls.some((s) => s.round === r);
+    if (r <= c.settled) {
+      const s = settledRound(c, r);
+      return { k: r, state: 'done', line: `${c.seats[s.winner]?.name ?? 'Thành viên'} hốt`, sub: formatUsdc(s.payout), short };
+    }
+    if (r === k) return { k: r, state: 'now', line: PHASE_LINE[phase], sub: `trần ${formatUsdc(maxBid)}`, short };
+    const cap = live?.view.rounds.find((x) => x.k === r)?.maxBid ?? capOf(c.terms, r);
+    return { k: r, state: 'later', line: 'Chưa tới', sub: r === n ? 'không bỏ thăm' : `trần ${formatUsdc(cap)}`, short };
+  });
 
   return (
-    <main id="noi-dung" className="mx-auto max-w-6xl px-4 py-10">
+    <main id="noi-dung" className="mx-auto max-w-6xl px-4 py-6 lg:py-8">
       <div className="flex flex-wrap items-end justify-between gap-x-8 gap-y-4">
         <div className="min-w-0">
           <h1 className="font-display text-h1 font-bold">{c.label}</h1>
@@ -59,10 +74,27 @@ export function RoomView({ c }: { c: SampleCircleData }) {
             {n} người, mỗi kỳ góp {formatUsdc(c.terms.c)}. Đã chi {c.settled} trên {n} kỳ.
           </p>
         </div>
-        <RoundStrip n={n} done={c.settled} running myRound={viewer >= 0 ? c.winnerByRound.indexOf(viewer) + 1 || undefined : undefined} winners={winners} />
       </div>
 
-      <section aria-labelledby={`ky${k}`} className="mt-10">
+      <div className="mt-6">
+        <RoundRail rounds={rail} selected={selected} onSelect={select} />
+      </div>
+
+      <div
+        key={selected}
+        className="stage-in mt-6"
+        onTouchStart={(e) => (touch.current = e.touches[0]?.clientX ?? null)}
+        onTouchEnd={(e) => {
+          const x = e.changedTouches[0]?.clientX;
+          if (touch.current !== null && x !== undefined && Math.abs(x - touch.current) > 60) select(selected + (x < touch.current ? 1 : -1));
+          touch.current = null;
+        }}
+      >
+      {selected < k && <RoundReceipt c={c} round={selected} />}
+      {selected > k && <RoundPlan c={c} round={selected} />}
+      {selected === k && (
+      <>
+      <section aria-labelledby={`ky${k}`}>
         <div className="flex flex-wrap items-end justify-between gap-3">
           <h2 id={`ky${k}`} className="font-display text-h2 font-bold">
             Kỳ {k} đang diễn ra
@@ -127,12 +159,8 @@ export function RoomView({ c }: { c: SampleCircleData }) {
         </section>
       </div>
 
-      <div className="mt-12">
-        <LedgerGrid members={members} rounds={ledger} viewer={viewer} phase={phase} />
-      </div>
-
-      <div className="mt-12">
-        <Waterfall c={c} />
+      </>
+      )}
       </div>
     </main>
   );
