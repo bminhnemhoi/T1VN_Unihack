@@ -40,7 +40,7 @@ Giờ ghi theo "T = lúc bắt đầu trình bày". Mỗi việc có người ch
 
 1. `bash scripts/demo-check.sh` (đặt thêm `KEEPER_ADDRESS`, `ORGANIZER_ADDRESS`, `M1_ADDRESS`..`M5_ADDRESS`, `SAFE_OWNER_1..3` để các dòng CHECK thành PASS). Không được có FAIL. Dòng "dây còn hạn vào dây" của dây Bidding dùng cho demo phải PASS.
 2. Keeper: `KEEPER_INTERVAL_SECONDS=15 pnpm --filter keeper start` (cần `KEEPER_PRIVATE_KEY`, `FUJI_RPC_URL` trong môi trường, người điền sẵn trước khi mở phiên). Log phải có `keeper started`, rồi `scan done circles=... failed=0`. Ví keeper cần ít nhất 0,004 AVAX.
-3. Web bản demo, một tiến trình Node liên tục (hạn mức và nonce của relay nằm trong bộ nhớ, `docs/05` mục 8.2): `NEXT_PUBLIC_HUISAFE_DEMO=true HUISAFE_DEMO=true pnpm --filter web build && pnpm --filter web start -- -H 127.0.0.1`. Bản demo có nhãn "Chế độ demo" ở đầu mọi màn và thăm dò chuỗi 5 giây. Không đặt `TRUST_PROXY` khi không có proxy phía trước (`docs/DEPLOY-FUJI.md` mục 10).
+3. Web bản demo, một tiến trình Node liên tục (hạn mức và nonce của relay nằm trong bộ nhớ, `docs/05` mục 8.2): `NEXT_PUBLIC_HUISAFE_DEMO=true HUISAFE_DEMO=true pnpm --filter web build && pnpm --filter web start -H 127.0.0.1`. Bản demo có nhãn "Chế độ demo" ở đầu mọi màn và thăm dò chuỗi 5 giây. Không đặt `TRUST_PROXY` khi không có proxy phía trước (`docs/DEPLOY-FUJI.md` mục 10).
 4. Biến server cho relay, attest: đã đặt trước khi mở phiên; khi khởi động attest tự đối chiếu khóa với attester của factory và dừng nếu lệch.
 5. `/demo-check http://localhost:3000`: web trả 200, `/api/sim/results?scenario=baseline` trả 200, có nhãn demo, chữ tiếng Việt.
 6. Mạng hội trường: đăng nhập Privy thử bằng một tài khoản; mở Snowtrace; nếu chặn thì chuyển sang hotspot 4G (mục 6).
