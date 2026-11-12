@@ -49,7 +49,7 @@ export function OrganizerEconomics({ data }: { data: LabEconomics }) {
 
       <div className="nen-muc mt-4 rounded-xl p-6">
         <h3 className="font-display text-h3 font-bold text-white">Giả định của phần này</h3>
-        <ul className="so-ke mt-2 space-y-1 text-[#dfe5f0]">
+        <ul className="so-ke mt-2 space-y-1 text-[#e9e4da]">
           <li>
             Mức góp {usdc(data.c, 0)} mỗi kỳ, giữ lại {fmt(data.alphaBps / 100, 2)}%, ký quỹ vừa đủ chỉ số bảo chứng 100%{bond !== undefined ? ` (${usdc(bond, 0)} với dây đang chọn)` : ''}.
           </li>

@@ -46,9 +46,10 @@ Luật dùng màu **[mã]**:
 
 | Vai trò | Font | Trọng lượng | Biến |
 |---|---|---|---|
-| Tiêu đề | Inter Tight (Google, có `vietnamese`) | 700, 800, 900 | `--font-lp-display` |
-| Thân | Be Vietnam Pro (từ layout gốc) | 400, 600 | `--font-sans` |
-| Số, nhãn | IBM Plex Mono (Google, có `vietnamese`) | 400, 500 | `--font-lp-mono` |
+| Tiêu đề và thân | Inter Tight (Google, có `vietnamese`, font biến thiên 400–900) | 400–900 | `--font-sans` |
+| Số, nhãn | IBM Plex Mono (Google, có `vietnamese`) | 400, 500, 600 | `--font-mono` |
+
+Đúng 2 họ font (lamng-design-rule §3). Landing và app dùng chung một cặp, nạp một lần ở `app/fonts.ts` (13/11: bỏ Be Vietnam Pro, Newsreader và font viết tay).
 
 Tất cả miễn phí, tự host qua `next/font` (không gọi Google Fonts lúc chạy).
 
@@ -139,10 +140,10 @@ Mọi cặp màu đổi phải qua axe (WCAG 2.2 AA) trên đủ 16 màn trướ
 ### 7.2. Chữ trong app
 - Tiêu đề màn: Inter Tight 800, `clamp(28px, 4vw, 44px)`, line-height 1, -0.03em. Không dùng cỡ 140px của landing.
 - Tiêu đề khối: Inter Tight 700, 20–24px.
-- Thân: Be Vietnam Pro 16px (giữ cỡ chữ người dùng chọn trong Cài đặt).
+- Thân: Inter Tight 16px (cỡ gốc `html` 16px; giữ cỡ chữ người dùng chọn trong Cài đặt).
 - Số tiền, đếm ngược, địa chỉ ví: IBM Plex Mono, `tabular-nums`, luôn kèm đơn vị USDC.
 - Nhãn trạng thái (Sống, Đã hốt, Trễ, Vỡ nợ): mono 11–12px in hoa trên nền nhãn bo 3px.
-- Font `Newsreader` và font viết tay của bộ cũ: bỏ khỏi app (giảm tải), trừ khi sổ hụi in vẫn cần.
+- Font `Newsreader` và font viết tay của bộ cũ: đã bỏ khỏi app.
 
 ### 7.3. Bố cục app
 - Không zoom cả trang như landing; app dùng cỡ cố định để bảng và ô nhập đúng kích thước.

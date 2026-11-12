@@ -12,8 +12,9 @@ export function DemoBanner({ sample = true }: { sample?: boolean }) {
   if (!DEMO_BUILD && !sample) return null;
   const text = sample ? vi.demoBanner : vi.demoBanner.replace(' Màn hình này dùng số liệu mẫu.', '');
   return (
-    <p role="status" data-testid="demo-banner" className="bg-nghe-bg px-4 py-1.5 text-center text-[0.9rem] leading-snug font-semibold md:py-2 md:text-base text-nghe-fg">
-      {text}
+    <p role="status" data-testid="demo-banner" className="flex items-start gap-3 bg-muc-dem px-4 py-2 text-[0.8rem] leading-snug text-[#e9e4da] sm:items-center sm:px-6">
+      <b className="font-mono shrink-0 rounded-[3px] bg-background px-2 py-1 text-[0.65rem] leading-none font-semibold tracking-[0.08em] text-foreground uppercase">Demo</b>
+      <span className="min-w-0">{text}</span>
     </p>
   );
 }

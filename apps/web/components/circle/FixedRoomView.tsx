@@ -59,10 +59,10 @@ export function FixedRoomView({ c }: { c: SampleCircleData }) {
           <h2 id="ky-nay" className="font-display text-h1 font-bold">
             Kỳ {k}: {takesNext ? 'bạn hốt' : `${c.seats[k - 1]!.name} hốt`}
           </h2>
-          <p className="mt-3 text-lead text-[#dfe5f0]">
+          <p className="mt-3 text-lead text-[#e9e4da]">
             Còn <Countdown seconds={c.roundSecondsLeft ?? 0} className="font-semibold text-white" /> đến giờ chốt. Dây cố định hốt lần lượt theo thứ tự vào dây, không bỏ thăm, không may rủi.
           </p>
-          <p className="so-ke mt-1 text-[#c9d2e0]">
+          <p className="so-ke mt-1 text-[#c9c2b6]">
             Nếu mọi người góp đủ, người hốt nhận khoảng {formatUsdc(next.payout)}, bị giữ lại {formatUsdc(next.holdback)} (nhả dần mỗi kỳ).
           </p>
           <SettleButton c={c} round={k} size="lg" className="mt-5 bg-action-ink text-muc-dem hover:bg-action-ink/90" />

@@ -11,7 +11,7 @@ export function QrCode({ text, label, size = 168 }: { text: string; label: strin
   const box = n + 8;
   return (
     <svg role="img" aria-label={label} viewBox={`0 0 ${box} ${box}`} width={size} height={size} shapeRendering="crispEdges" className="rounded-lg border border-border bg-white">
-      <path d={d} fill="#11203f" />
+      <path d={d} fill="#201d1d" />
     </svg>
   );
 }

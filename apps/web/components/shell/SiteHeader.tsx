@@ -3,7 +3,7 @@
 import { LogIn, LogOut } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Seal } from '@/components/brand/Seal';
+import { Wordmark } from '@/components/brand/Wordmark';
 import { CopilotDrawer } from '@/components/copilot/CopilotDrawer';
 import { isActive, navFor } from '@/components/shell/nav';
 import { useChain } from '@/lib/chain/provider';
@@ -13,7 +13,7 @@ import { shortAddress } from '@/lib/live/circleData';
 import { vi } from '@/lib/vi';
 import { cn } from '@/lib/utils';
 
-/** Sticky top bar: wordmark with the red seal, desktop links with a visible active state, the assistant and the login link. */
+/** Sticky top bar: the HỤI wordmark, desktop links with a visible active state, the assistant and the login link. */
 export function SiteHeader() {
   const pathname = usePathname();
   const chain = useChain();
@@ -22,13 +22,13 @@ export function SiteHeader() {
   const signedIn = chain !== null && status === 'ready' && wallet !== undefined;
   const canLogin = chain !== null && (status === 'logged-out' || status === 'loading');
   const loginClass =
-    'inline-flex min-h-12 items-center gap-1.5 rounded-full px-3 font-semibold text-foreground transition-colors duration-150 hover:bg-muted';
+    'inline-flex min-h-12 items-center gap-2 rounded-[4px] px-3 text-[0.95rem] font-semibold text-foreground transition-colors duration-150 hover:bg-muted';
   return (
-    <header className="sticky top-0 z-30 border-b border-border bg-card">
-      <div className="mx-auto flex max-w-6xl items-center justify-between gap-2 px-4">
-        <Link href="/" aria-label="HụiSafe, về trang chủ" className="flex min-h-14 items-center gap-2.5 text-foreground">
-          <Seal size={40} center="Hụi" ring="HỤISAFE · KHÔNG AI CẦM TIỀN · " className="-rotate-6 text-le-do" />
-          <span className="font-display text-2xl font-bold tracking-tight">{vi.appName}</span>
+    <header className="sticky top-0 z-30 border-b border-border bg-background">
+      <div className="mx-auto flex max-w-6xl items-center justify-between gap-3 px-4 sm:px-6">
+        <Link href="/" aria-label="HụiSafe, về trang chủ" className="flex min-h-14 items-center gap-2 text-foreground">
+          <Wordmark />
+          <span className="font-mono text-[0.7rem] font-medium tracking-[0.06em] text-muted-foreground uppercase">{vi.appName.replace(/^Hụi/, '')}</span>
         </Link>
         <nav aria-label="Điều hướng chính" className="hidden items-center gap-1 lg:flex">
           {navFor(chain !== null).map((l) => {
@@ -39,8 +39,8 @@ export function SiteHeader() {
                 href={l.href}
                 aria-current={on ? 'page' : undefined}
                 className={cn(
-                  'inline-flex min-h-12 items-center rounded-full px-4 font-semibold transition-colors duration-150',
-                  on ? 'bg-foreground text-background' : 'text-foreground hover:bg-muted',
+                  'inline-flex min-h-12 items-center rounded-[4px] px-3 text-[0.95rem] font-semibold transition-colors duration-150',
+                  on ? 'bg-muted text-foreground' : 'text-muted-foreground hover:bg-muted hover:text-foreground',
                 )}
               >
                 {l.label}

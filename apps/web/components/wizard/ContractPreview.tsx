@@ -45,7 +45,7 @@ export function ContractPreview({ form, value, preview }: { form: FormState; val
           { label: 'Mức tối thiểu để bắt đầu dây', value: formatBps(preview.minCoverageBps) },
         ]}
       />
-      <p className="mt-4 font-hand text-2xl text-primary">Sau khi tạo, không số nào đổi được.</p>
+      <p className="mt-4 text-xl font-semibold text-primary">Sau khi tạo, không số nào đổi được.</p>
     </article>
   );
 }

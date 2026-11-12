@@ -4,7 +4,6 @@ import { FUJI_EVIDENCE, fujiAddressUrl } from 'config';
 import { BidCalc, CascadeDemo, CoverageDemo, DemoClock } from './DemoCards';
 import { DEMO_BUILD } from '@/components/shell/DemoBanner';
 import { vi } from '@/lib/vi';
-import { landingDisplay, landingMono } from './fonts';
 import { LandingMotion } from './LandingMotion';
 import s from './landing.module.css';
 
@@ -138,7 +137,7 @@ function DemoStrip({ sample }: { sample: boolean }) {
  */
 function Intro() {
   return (
-    <div className={`${s.intro} ${landingDisplay.variable} ${landingMono.variable}`} data-lp-intro aria-hidden="true">
+    <div className={s.intro} data-lp-intro aria-hidden="true">
       <div className={s.introBg} data-lp-intro-bg />
       <div className={s.introWord} data-lp-intro-word>
         <span>H</span>
@@ -168,7 +167,7 @@ export function Landing({ sample }: { sample: boolean }) {
   return (
     <>
       <Intro />
-      <div data-lp-root className={`${s.root} ${landingDisplay.variable} ${landingMono.variable}`}>
+      <div data-lp-root className={s.root}>
         <DemoStrip sample={sample} />
         <nav className={s.nav} aria-label="Trang giới thiệu">
           <div className={`${s.wrap} ${s.navIn}`}>

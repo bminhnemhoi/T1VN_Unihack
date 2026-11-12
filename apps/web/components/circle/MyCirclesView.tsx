@@ -88,20 +88,20 @@ export function MyCirclesView() {
               <h2 id="viec-ngay" className="font-display text-h1 font-bold">
                 {first.todo}
               </h2>
-              <p className="mt-3 text-lead text-[#dfe5f0]">
+              <p className="mt-3 text-lead text-[#e9e4da]">
                 Việc gấp nhất của bạn, ở dây {first.label}. Còn <Countdown seconds={first.secondsLeft} className="font-semibold text-white" /> để làm.
               </p>
               {sample && first.id === 'a' && (
-                <p className="so-ke mt-1 text-[#c9d2e0]">Trần thăm kỳ này khoảng {formatUsdc(CAP_K3_CENTS)}. Thăm cao nhất được hốt.</p>
+                <p className="so-ke mt-1 text-[#c9c2b6]">Trần thăm kỳ này khoảng {formatUsdc(CAP_K3_CENTS)}. Thăm cao nhất được hốt.</p>
               )}
               {!sample && my.capNow[first.id] !== undefined && (
-                <p className="so-ke mt-1 text-[#c9d2e0]">Trần thăm kỳ này {formatUsdc(my.capNow[first.id]! - (my.capNow[first.id]! % 10_000n))}. Thăm cao nhất được hốt.</p>
+                <p className="so-ke mt-1 text-[#c9c2b6]">Trần thăm kỳ này {formatUsdc(my.capNow[first.id]! - (my.capNow[first.id]! % 10_000n))}. Thăm cao nhất được hốt.</p>
               )}
               <Button asChild size="lg" className="mt-6 bg-action-ink text-muc-dem hover:bg-action-ink/90">
                 <Link href={first.href}>{first.action}</Link>
               </Button>
               {others.length > 0 && (
-                <ul className="mt-6 border-t border-[#c9d2e0]/30 pt-4">
+                <ul className="mt-6 border-t border-[#c9c2b6]/30 pt-4">
                   {others.map((c) => (
                     <li key={c.id} className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1">
                       <span>

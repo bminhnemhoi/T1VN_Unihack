@@ -91,7 +91,7 @@ export function FormingView({ c }: { c: SampleCircleData }) {
             <h2 id="gom" className="font-display text-h1 font-bold">
               Đang chờ đủ người: {have} trên {n}
             </h2>
-            <p className="mt-3 text-lead text-[#dfe5f0]">
+            <p className="mt-3 text-lead text-[#e9e4da]">
               Còn <Countdown seconds={c.joinSecondsLeft ?? 0} className="font-semibold text-white" /> để mời đủ người. Quá hạn mà chưa đủ thì dây tự hủy và bạn rút lại ký quỹ.
             </p>
             <div className="mt-6 flex flex-wrap gap-3">
@@ -101,7 +101,7 @@ export function FormingView({ c }: { c: SampleCircleData }) {
                     size="lg"
                     disabled={!ready}
                     aria-describedby="ly-do-bat-dau"
-                    className={ready ? 'bg-action-ink text-muc-dem hover:bg-action-ink/90' : 'border border-[#c9d2e0] bg-transparent text-[#dfe5f0] hover:bg-white/10'}
+                    className={ready ? 'bg-action-ink text-muc-dem hover:bg-action-ink/90' : 'border border-[#c9c2b6] bg-transparent text-[#e9e4da] hover:bg-white/10'}
                     run={(a) => a.activate(live.address)}
                     success="Dây đã bắt đầu chạy kỳ 1."
                     noticeClassName="text-white"
@@ -114,16 +114,16 @@ export function FormingView({ c }: { c: SampleCircleData }) {
                   </Button>
                 )
               ) : (
-                <Button type="button" size="lg" onClick={start} aria-disabled={!ready} aria-describedby="ly-do-bat-dau" className={ready ? 'bg-action-ink text-muc-dem hover:bg-action-ink/90' : 'border border-[#c9d2e0] bg-transparent text-[#dfe5f0] hover:bg-white/10'}>
+                <Button type="button" size="lg" onClick={start} aria-disabled={!ready} aria-describedby="ly-do-bat-dau" className={ready ? 'bg-action-ink text-muc-dem hover:bg-action-ink/90' : 'border border-[#c9c2b6] bg-transparent text-[#e9e4da] hover:bg-white/10'}>
                   Bắt đầu dây
                 </Button>
               )}
             </div>
-            <p id="ly-do-bat-dau" className="mt-3 text-[#dfe5f0]">
+            <p id="ly-do-bat-dau" className="mt-3 text-[#e9e4da]">
               {reason}
             </p>
             {!live && (
-              <label htmlFor="xem-du" className="mt-3 flex min-h-12 cursor-pointer items-center gap-3 text-[#c9d2e0]">
+              <label htmlFor="xem-du" className="mt-3 flex min-h-12 cursor-pointer items-center gap-3 text-[#c9c2b6]">
                 <Switch id="xem-du" checked={pretendFull} onCheckedChange={setPretendFull} />
                 Xem thử khi đã đủ {n} người (chỉ có ở bản mẫu)
               </label>

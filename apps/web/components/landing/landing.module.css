@@ -19,9 +19,9 @@
   --violet: #6840ff;
   --clay: #a0491f;
   --forest: #17402e;
-  --display: var(--font-lp-display), 'Helvetica Neue', Arial, sans-serif;
+  --display: var(--font-sans), 'Helvetica Neue', Arial, sans-serif;
   --body: var(--font-sans), 'Helvetica Neue', Arial, sans-serif;
-  --mono: var(--font-lp-mono), ui-monospace, Menlo, monospace;
+  --mono: var(--font-mono), ui-monospace, Menlo, monospace;
   background: var(--ivory);
   color: var(--ink);
   font: 400 16px/1.6 var(--body);
@@ -63,14 +63,14 @@
   animation: lpGone 0.01s linear 3.7s forwards; }
 .intro[data-done] { display: none; }
 .introBg { position: absolute; inset: 0; background: var(--ink); will-change: opacity; animation: lpFadeOut 0.7s ease-out 3s forwards; }
-.introWord { position: relative; display: flex; align-items: flex-end; font: 900 clamp(110px, 30vw, 360px)/0.8 var(--font-lp-display), 'Helvetica Neue', Arial, sans-serif; letter-spacing: -0.06em; transform-origin: 0 0; will-change: transform; animation: lpFadeOut 0.5s ease-out 3s forwards; }
+.introWord { position: relative; display: flex; align-items: flex-end; font: 900 clamp(110px, 30vw, 360px)/0.8 var(--font-sans), 'Helvetica Neue', Arial, sans-serif; letter-spacing: -0.06em; transform-origin: 0 0; will-change: transform; animation: lpFadeOut 0.5s ease-out 3s forwards; }
 .introInk { position: absolute; inset: 0; display: flex; align-items: flex-end; color: var(--ink); opacity: 0; will-change: opacity; }
 .introWord span { display: inline-block; position: relative; animation: lpRise 0.85s cubic-bezier(0.16, 1, 0.3, 1) both; }
 .introWord span:nth-child(2) { animation-delay: 0.08s; }
 .introWord span:nth-child(3) { animation-delay: 0.16s; }
 .introCoin { position: absolute; left: 50%; bottom: -0.22em; width: 0.2em; height: 0.2em; margin-left: -0.1em; border-radius: 50%; background: var(--lime);
   animation: lpDrop 0.8s cubic-bezier(0.33, 0, 0.67, 1) 0.5s both, lpPulse 0.32s ease-in-out 1.3s; }
-.introSub { position: absolute; bottom: max(28px, env(safe-area-inset-bottom, 0px)); left: 0; right: 0; display: flex; justify-content: space-between; align-items: center; padding: 0 max(20px, env(safe-area-inset-left, 0px)); font: 500 12px var(--font-lp-mono), ui-monospace, monospace; letter-spacing: 0.08em; text-transform: uppercase; color: var(--mute);
+.introSub { position: absolute; bottom: max(28px, env(safe-area-inset-bottom, 0px)); left: 0; right: 0; display: flex; justify-content: space-between; align-items: center; padding: 0 max(20px, env(safe-area-inset-left, 0px)); font: 500 12px var(--font-mono), ui-monospace, monospace; letter-spacing: 0.08em; text-transform: uppercase; color: var(--mute);
   animation: lpFade 0.5s ease-out 0.3s both, lpFadeOut 0.3s ease-out 3s forwards; }
 .introSkip { background: none; border: 0; color: var(--ivory); font: inherit; letter-spacing: inherit; text-transform: inherit; cursor: pointer; min-height: 48px; padding: 0 8px; }
 /* Script exit takes over: the CSS fallback stops, the finished phase-1 poses stay (they equal the rest state). */
