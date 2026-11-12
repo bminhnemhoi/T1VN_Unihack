@@ -200,7 +200,7 @@ pnpm --filter web build && pnpm --filter web start      # relay và attest là r
 
 - Phải chạy như MỘT tiến trình Node liên tục (hạn mức và nonce relay nằm trong bộ nhớ, docs/05 mục 8.2).
 - Khi khởi động attest đối chiếu `ATTESTER_PRIVATE_KEY` với attester trong factory và dừng nếu lệch; mọi dịch vụ từ chối RPC khác chain id 43113 và URL mainnet.
-- Hạn mức IP (audit A14 H-01, A15 H-01): chỉ tin `x-forwarded-for` khi đặt `TRUST_PROXY=true`, và chỉ khi web chạy sau đúng MỘT proxy tin cậy GHI ĐÈ header (không phải proxy chỉ đặt `X-Real-IP` hay chỉ nối thêm sau header của client; không bật cờ này khi không có proxy). Không đặt thì không có cổng hạn mức IP nào (cố ý: một nhóm chung sẽ để người lạ làm cạn nhóm và khóa mọi thành viên); hạn mức theo ví/người dùng Privy và ngân sách chung của relayer vẫn chạy. Chạy `next start` trực tiếp trên máy demo: để trống và bind cục bộ `pnpm --filter web start -- -H 127.0.0.1`. Mở ra ngoài Internet: đặt Caddy phía trước rồi mới bật `TRUST_PROXY=true`:
+- Hạn mức IP (audit A14 H-01, A15 H-01): chỉ tin `x-forwarded-for` khi đặt `TRUST_PROXY=true`, và chỉ khi web chạy sau đúng MỘT proxy tin cậy GHI ĐÈ header (không phải proxy chỉ đặt `X-Real-IP` hay chỉ nối thêm sau header của client; không bật cờ này khi không có proxy). Không đặt thì không có cổng hạn mức IP nào (cố ý: một nhóm chung sẽ để người lạ làm cạn nhóm và khóa mọi thành viên); hạn mức theo ví/người dùng Privy và ngân sách chung của relayer vẫn chạy. Chạy `next start` trực tiếp trên máy demo: để trống và bind cục bộ `pnpm --filter web start -H 127.0.0.1`. Mở ra ngoài Internet: đặt Caddy phía trước rồi mới bật `TRUST_PROXY=true`:
 
   ```caddyfile
   demo.example.com {
