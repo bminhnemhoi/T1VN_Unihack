@@ -32,7 +32,7 @@ export function ResultView({ c }: { c: SampleCircleData }) {
 
   if (c.settled === 0) {
     return (
-      <main id="noi-dung" className="mx-auto max-w-6xl px-4 py-10">
+      <main id="noi-dung" className="pg">
         <CirclePageHead circle={c} title="Kết quả kỳ" />
         <EmptyNote title="Chưa có kỳ nào được chi">
           Dây này còn đang gom người. Kỳ 1 chỉ bắt đầu sau khi đủ {String(c.terms.n)} người và chủ hụi bấm bắt đầu dây.{' '}
@@ -60,7 +60,7 @@ export function ResultView({ c }: { c: SampleCircleData }) {
       : { label: hasShortfall ? 'Tiền công chủ hụi (giữ chờ đến khi kết thúc dây)' : 'Tiền công chủ hụi (đã trả ngay)', value: formatUsdc(r.fee) };
 
   return (
-    <main id="noi-dung" className="mx-auto max-w-6xl px-4 py-10">
+    <main id="noi-dung" className="pg">
       <CirclePageHead circle={c} title={`Kết quả kỳ ${k}`}>
         Đã chi lúc {formatVnTime(settledAtMs(c, k))}. Mọi con số tính từ luật của dây, ai cũng kiểm lại được.
       </CirclePageHead>

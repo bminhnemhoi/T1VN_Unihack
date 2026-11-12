@@ -33,7 +33,7 @@ export function SettleView({ c }: { c: SampleCircleData }) {
 
   if (live && (live.view.state === 'active' || live.view.state === 'paused') && c.settled === Number(c.terms.n)) {
     return (
-      <main id="noi-dung" className="mx-auto max-w-6xl px-4 py-10">
+      <main id="noi-dung" className="pg">
         <CirclePageHead circle={c} title="Tất toán" />
         <EmptyNote title="Kỳ cuối đã chi, chờ kết thúc dây">
           {canFinalize ? 'Đã hết thời gian trả trễ. Ai cũng bấm kết thúc được: tiền giữ lại, ký quỹ và quỹ dự phòng được trả về đúng chủ trong một giao dịch.' : 'Còn trong thời gian trả trễ của kỳ cuối. Hết thời gian đó thì kết thúc dây được.'}
@@ -51,7 +51,7 @@ export function SettleView({ c }: { c: SampleCircleData }) {
 
   if (!done || !s) {
     return (
-      <main id="noi-dung" className="mx-auto max-w-6xl px-4 py-10">
+      <main id="noi-dung" className="pg">
         <CirclePageHead circle={c} title="Tất toán" />
         <EmptyNote title="Dây này chưa kết thúc">
           Tất toán chỉ có sau khi kỳ cuối đã chi và hết thời gian trả trễ.
@@ -78,7 +78,7 @@ export function SettleView({ c }: { c: SampleCircleData }) {
   const finalPayout = me.reward + (dust > 0n ? dust : 0n);
 
   return (
-    <main id="noi-dung" className="mx-auto max-w-6xl px-4 py-10">
+    <main id="noi-dung" className="pg">
       <CirclePageHead circle={c} title="Tất toán">
         Dây đã chi đủ {n} kỳ và đóng sổ. Mọi người đóng đúng hạn nên không ai bị vỡ nợ.
       </CirclePageHead>

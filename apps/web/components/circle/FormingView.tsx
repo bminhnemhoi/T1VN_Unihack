@@ -68,7 +68,7 @@ export function FormingView({ c }: { c: SampleCircleData }) {
   };
 
   return (
-    <main id="noi-dung" className="mx-auto max-w-6xl px-4 py-10">
+    <main id="noi-dung" className="pg">
       <Link href="/circles" className="inline-flex min-h-12 items-center font-semibold text-primary underline-offset-4 hover:underline">
         ← Dây của tôi
       </Link>

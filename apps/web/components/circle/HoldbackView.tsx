@@ -36,7 +36,7 @@ export function HoldbackView({ c }: { c: SampleCircleData }) {
   const totalNow = c.seats.reduce((a, _, i) => a + nowHeld(i), 0n);
 
   return (
-    <main id="noi-dung" className="mx-auto max-w-6xl px-4 py-10">
+    <main id="noi-dung" className="pg">
       <CirclePageHead circle={c} title="Tiền giữ lại">
         Người hốt bị giữ lại một phần tiền hốt để bù nếu họ ngừng đóng. Đóng đủ, đúng hạn thì nhận lại hết, mỗi kỳ một ít.
       </CirclePageHead>
