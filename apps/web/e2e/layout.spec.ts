@@ -1,3 +1,4 @@
+import { afterIntro } from './helpers';
 import { expect, test, type Locator, type Page } from '@playwright/test';
 
 /** B17 regression: objective layout faults found in UI-REVIEW-B16 must not come back. Runs at 390, 768 and 1440. */
@@ -18,6 +19,7 @@ const PAGES = [
 async function open(page: Page, path: string) {
   await page.goto(path);
   await page.waitForLoadState('networkidle');
+  await afterIntro(page);
   // Some faults only appear after the data has rendered (S08 grew from 390 to 406px 1.5 s after the load event); measuring at once misses them.
   await page.waitForTimeout(1200);
 }

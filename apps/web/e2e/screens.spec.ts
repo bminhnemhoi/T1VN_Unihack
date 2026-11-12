@@ -435,7 +435,7 @@ test.describe('S16 /lab', () => {
 
 test.describe('header and footer reach the new pages', () => {
   test('login link and assistant button are in the header; footer lists the tools', async ({ page }) => {
-    await page.goto('/');
+    await page.goto('/circles');
     await page.getByRole('banner').getByRole('link', { name: 'Đăng nhập' }).click();
     await expect(page).toHaveURL(/\/dang-nhap$/);
     const tools = page.getByRole('list', { name: 'Công cụ khác' });

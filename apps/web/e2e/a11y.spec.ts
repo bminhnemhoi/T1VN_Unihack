@@ -1,4 +1,5 @@
 import AxeBuilder from '@axe-core/playwright';
+import { afterIntro } from './helpers';
 import { expect, test, type Page } from '@playwright/test';
 
 /**
@@ -30,6 +31,7 @@ test.describe('axe: no serious or critical WCAG 2.2 AA violation', () => {
   for (const path of ROUTES) {
     test(path, async ({ page }) => {
       await page.goto(path);
+      await afterIntro(page);
       await expect(page.getByRole('heading', { level: 1 })).toHaveCount(1);
       expect(await scan(page)).toEqual([]);
     });

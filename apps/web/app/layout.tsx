@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from 'next';
 import { Be_Vietnam_Pro, Newsreader } from 'next/font/google';
 import localFont from 'next/font/local';
 import type { ReactNode } from 'react';
+import { AppChrome } from '@/components/shell/AppChrome';
 import { BottomNav } from '@/components/shell/BottomNav';
 import { DemoBanner } from '@/components/shell/DemoBanner';
 import { SampleModeLabel } from '@/components/shell/SampleModeLabel';
@@ -55,7 +56,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
   const chain = loadChainConfig();
   return (
     <html lang="vi" className={cn('font-sans', sans.variable, display.variable, hand.variable)}>
-      <body className="min-h-screen bg-background pb-16 text-foreground antialiased lg:pb-0">
+      <body className="min-h-screen bg-background text-foreground antialiased">
         <a
           href="#noi-dung"
           className="sr-only focus-visible:not-sr-only focus-visible:fixed focus-visible:top-2 focus-visible:left-2 focus-visible:z-50 focus-visible:rounded-full focus-visible:bg-foreground focus-visible:px-5 focus-visible:py-3 focus-visible:font-semibold focus-visible:text-background"
@@ -66,12 +67,16 @@ export default function RootLayout({ children }: { children: ReactNode }) {
           <HuiWalletProvider>
             <ToastProvider>
               <FontSizeInit />
-              <DemoBanner sample={chain === null} />
-              {chain === null && <SampleModeLabel />}
-              <SiteHeader />
+              <AppChrome>
+                <DemoBanner sample={chain === null} />
+                {chain === null && <SampleModeLabel />}
+                <SiteHeader />
+              </AppChrome>
               {children}
-              <SiteFooter inChain={chain !== null} />
-              <BottomNav />
+              <AppChrome>
+                <SiteFooter inChain={chain !== null} />
+                <BottomNav />
+              </AppChrome>
             </ToastProvider>
           </HuiWalletProvider>
         </ChainProvider>

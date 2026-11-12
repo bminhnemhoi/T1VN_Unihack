@@ -9,7 +9,8 @@ const ROUTES = [
 ];
 
 test.describe('shell: navigation on every route', () => {
-  for (const r of ROUTES) {
+  // The landing page (/) has its own navigation and no app chrome: covered in home.spec.ts.
+  for (const r of ROUTES.filter((x) => x.path !== '/')) {
     test(`${r.path}: only "${r.label}" is the current page, nothing overflows, no errors`, async ({ page }) => {
       const errs = watchErrors(page);
       await page.goto(r.path);
@@ -23,7 +24,7 @@ test.describe('shell: navigation on every route', () => {
   }
 
   test('every nav link goes where its label says, and Back / Forward work', async ({ page }) => {
-    await page.goto('/');
+    await page.goto('/circles/demo');
     const nav = mainNav(page);
     for (const r of ROUTES.slice(1)) {
       await nav.getByRole('link', { name: r.label, exact: true }).click();
@@ -59,9 +60,9 @@ test.describe('shell: navigation on every route', () => {
   });
 
   test('footer links work', async ({ page }) => {
-    await page.goto('/');
     const footer = page.getByRole('navigation', { name: 'Liên kết chân trang' });
     for (const r of ROUTES) {
+      await page.goto('/circles'); // the landing page has no app footer, so start every click from the app
       await footer.getByRole('link', { name: r.label, exact: true }).click();
       await expect(page).toHaveURL(new RegExp(`${r.path === '/' ? '/$' : r.path + '$'}`));
     }

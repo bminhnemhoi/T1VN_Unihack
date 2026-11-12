@@ -312,19 +312,9 @@
   details.hoi[open] .dau-cong { transform: rotate(45deg); }
 }
 
-/* Border beam: a conic wedge that rotates (transform only) behind a masked 2 px ring. */
-.beam-ring {
-  position: absolute; inset: 0; border-radius: inherit; pointer-events: none; overflow: hidden;
-  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
-  -webkit-mask-composite: xor; mask-composite: exclude;
-}
-.beam-ring::before {
-  content: ""; position: absolute; left: 50%; top: 50%; width: 250%; height: 250%; translate: -50% -50%;
-  background: conic-gradient(from 0deg, transparent 0 90%, var(--beam-1) 96%, var(--beam-2) 100%);
-  animation: beam-spin var(--beam-d, 9s) linear infinite; animation-play-state: var(--beam-state, running);
-  will-change: rotate;
-}
-@keyframes beam-spin { to { rotate: 360deg; } }
+/* Lenis smooth scroll, landing page only: the class is set on <html> while the landing is mounted and removed on leave. */
+html.lenis, html.lenis body { height: auto; }
+.lenis.lenis-smooth { scroll-behavior: auto !important; }
 
 @keyframes vao { to { transform: none; } }
 @keyframes dau-xuong {
@@ -336,7 +326,6 @@
 
 @media (prefers-reduced-motion: reduce) {
   .vao { transform: none !important; }
-  .beam-ring { display: none; }
 }
 
 /* Printed pages (the sổ hụi): A4, black on white, no chrome. The demo banner stays so a rehearsal book says so. */
