@@ -128,7 +128,24 @@ export function LandingMotion() {
     );
     root.querySelectorAll('[data-step]').forEach((el) => io.observe(el));
 
-    void Promise.all([import('gsap'), import('gsap/ScrollTrigger'), import('lenis')]).then(([{ gsap }, { ScrollTrigger }, { default: Lenis }]) => {
+    // Endless loops (badge ring, bubbles, floating chips, ballot playhead, marquee) pause while off screen (B22g):
+    // nothing to see, so no compositor work and no battery spent on them. Their look is unchanged on screen.
+    const loopSel = [s.badge && `.${s.badge} svg`, s.bubble && `.${s.bubble}`, s.chip && `.${s.chip}`, s.playhead && `.${s.playhead}`, s.marqueeTrack && `.${s.marqueeTrack}`]
+      .filter(Boolean)
+      .join(', ');
+    const loops = new IntersectionObserver((entries) =>
+      entries.forEach((e) => ((e.target as HTMLElement).style.animationPlayState = e.isIntersecting ? '' : 'paused')),
+    );
+    if (loopSel) root.querySelectorAll(loopSel).forEach((el) => loops.observe(el));
+
+    // GSAP + Lenis load when the browser is idle (B22g): their parse used to land as one long frame during the intro.
+    // The 600 ms cap keeps them in well before the intro hands over (~1.65 s), so the hero entrance still plays.
+    const idle = (cb: () => void): void => {
+      if (typeof window.requestIdleCallback === 'function') window.requestIdleCallback(cb, { timeout: 600 });
+      else setTimeout(cb, 200); // Safari has no requestIdleCallback
+    };
+    const load = () => Promise.all([import('gsap'), import('gsap/ScrollTrigger'), import('lenis')]);
+    void new Promise<Awaited<ReturnType<typeof load>>>((res) => idle(() => void load().then(res))).then(([{ gsap }, { ScrollTrigger }, { default: Lenis }]) => {
       if (disposed) return;
       io.disconnect();
       gsap.registerPlugin(ScrollTrigger);
@@ -225,6 +242,8 @@ export function LandingMotion() {
           gsap.from(sh.querySelectorAll('[data-lp-entry]'), { scrollTrigger: { trigger: sh, start: 'top 80%' }, x: -30, duration: 0.6, stagger: 0.1, ease: 'power2.out' });
         });
         // Words ink in as you scroll; the start colour still passes 3:1 for large text, so nothing is unreadable at rest.
+        // Kept on `color` (B22g): an ink copy with a scrubbed opacity was measured slower here (67-83 ms frames at 6x CPU
+        // against 50 ms), since a dozen 140 px text layers cost more than repainting the words.
         gsap.fromTo(q('[data-lp-word]'), { color: '#858079' }, { color: '#201d1d', stagger: 0.12, ease: 'none', scrollTrigger: { trigger: q('[data-lp-close]')[0], start: 'top 85%', end: 'bottom 45%', scrub: true } });
       }, root);
 
@@ -240,6 +259,7 @@ export function LandingMotion() {
     return () => {
       disposed = true;
       io.disconnect();
+      loops.disconnect();
       window.clearTimeout(introTimer);
       cleanup();
     };

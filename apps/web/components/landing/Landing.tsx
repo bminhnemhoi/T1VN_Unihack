@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { Fragment } from 'react';
+import { Fragment, type CSSProperties } from 'react';
 import { FUJI_EVIDENCE, fujiAddressUrl } from 'config';
 import { BidCalc, CascadeDemo, CoverageDemo, DemoClock } from './DemoCards';
 import { DEMO_BUILD } from '@/components/shell/DemoBanner';
@@ -421,7 +421,7 @@ export function Landing({ sample }: { sample: boolean }) {
                       <div key={r.m} className={'late' in r ? s.late : undefined}>
                         <dt>{r.m}</dt>
                         <span className={s.bar} aria-hidden>
-                          <i style={{ flexBasis: `${r.w}%` }} />
+                          <i style={{ '--w': r.w / 100 } as CSSProperties} />
                         </span>
                         <dd>{r.v}</dd>
                       </div>

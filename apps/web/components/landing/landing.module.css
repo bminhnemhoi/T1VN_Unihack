@@ -279,8 +279,10 @@
 .seg button { min-height: 48px; padding: 0 16px; border: 0; border-radius: 999px; background: transparent; color: inherit; font: 600 13px var(--body); cursor: pointer; }
 .seg button[aria-pressed='true'] { background: var(--ivory); color: var(--ink); }
 .mem { display: grid; grid-template-columns: 40px 1fr 40px; align-items: center; gap: 10px; padding: 6px 0; font-size: 13px; margin: 0; }
-.bar { height: 10px; border-radius: 99px; background: rgba(0, 0, 0, 0.3); display: flex; overflow: hidden; }
-.bar i { display: block; height: 100%; flex: 0 0 0; transition: flex-basis 0.9s cubic-bezier(0.7, 0, 0.2, 1); }
+.bar { position: relative; height: 10px; border-radius: 99px; background: rgba(0, 0, 0, 0.3); overflow: hidden; }
+/* Each segment spans the bar and is placed and sized with transform only (B22g: was flex-basis, a layout per frame). */
+.bar i { position: absolute; inset: 0; transform-origin: 0 50%; transform: translateX(var(--x, 0%)) scaleX(var(--w, 0));
+  transition: transform 0.9s cubic-bezier(0.7, 0, 0.2, 1); }
 .pPaid { background: var(--lime); }
 .pHold { background: #f2c6ff; }
 .pBond { background: var(--ivory); }

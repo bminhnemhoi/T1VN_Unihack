@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type CSSProperties } from 'react';
 import { formatUsdcNumber } from 'sdk';
 import { cascadeRound2, coverage, quoteRound1, ROUND1_BID_CAP } from '@/lib/landing-demo';
 import s from './landing.module.css';
@@ -43,7 +43,11 @@ export function BidCalc() {
 export function CascadeDemo() {
   const [bad, setBad] = useState(false);
   const r = cascadeRound2(bad);
-  const pct = (part: bigint) => `${Number((part * 100n) / r.m4Due)}%`;
+  const pct = (part: bigint) => Number((part * 100n) / r.m4Due);
+  // Bar segments move with transform only (B22g): each spans the bar, `--x` places it, `--w` scales it (0..1).
+  const seg = (x: number, w: number) => ({ '--x': `${x}%`, '--w': w / 100 }) as CSSProperties;
+  const paid = bad ? 0 : 100;
+  const hold = pct(r.fromHoldback);
   const live = Number(r.livePays / 1_000_000n);
   return (
     <div className={s.mini}>
@@ -58,12 +62,12 @@ export function CascadeDemo() {
             <span className={s.bar} aria-hidden>
               {m === 'M4' ? (
                 <>
-                  <i className={s.pPaid} style={{ flexBasis: bad ? '0%' : '100%' }} />
-                  <i className={s.pHold} style={{ flexBasis: pct(r.fromHoldback) }} />
-                  <i className={s.pBond} style={{ flexBasis: pct(r.fromBond) }} />
+                  <i className={s.pPaid} style={seg(0, paid)} />
+                  <i className={s.pHold} style={seg(paid, hold)} />
+                  <i className={s.pBond} style={seg(paid + hold, pct(r.fromBond))} />
                 </>
               ) : (
-                <i className={s.pPaid} style={{ flexBasis: `${live}%` }} />
+                <i className={s.pPaid} style={seg(0, live)} />
               )}
             </span>
             <span className={s.mono}>{m === 'M4' ? formatUsdcNumber(r.m4Due) : live}</span>
