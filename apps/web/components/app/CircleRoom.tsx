@@ -497,7 +497,8 @@ function BidNow({ c, k, phase, maxBid, bidText, setBidText, run, setRun, stamp, 
 
   const seal = async (retry: boolean) => {
     if (err || bid === undefined) return;
-    const ok = await t.run((a) => a.commitBid(live!.address, k, bid), { forceOk: retry });
+    // A retry reads the chain first: a commit already there is not sent again (audit I-01, keeps the commitIndex).
+    const ok = await t.run((a) => a.commitBid(live!.address, k, bid, { resume: retry }), { forceOk: retry });
     if (ok) {
       setEditing(false);
       if (!live) setRun((r) => ({ ...r, sealed: true }));

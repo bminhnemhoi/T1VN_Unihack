@@ -9,7 +9,7 @@ import { formatUsdc } from 'sdk';
 import { PAUSED_REASON, usePaused } from '@/components/chain/PauseLock';
 import { useChain } from '@/lib/chain/provider';
 import { useHuiActions } from '@/lib/chain/actions';
-import { txSteps, type TxStep } from '@/lib/chain/write';
+import type { TxStep } from '@/lib/chain/write';
 import { useHuiWallet } from '@/lib/chain/walletProvider';
 import { cn } from '@/lib/utils';
 
@@ -38,9 +38,11 @@ const notReady = (code: string, message: string): RunResult => ({ ok: false, cod
 export function useTx({ allowWhenPaused = false }: { allowWhenPaused?: boolean } = {}) {
   const paused = usePaused() && !allowWhenPaused;
   const chain = useChain();
-  const actions = useHuiActions();
-  const { status, login } = useHuiWallet();
   const [state, setState] = useState<TxState>({ pending: false });
+  // Steps of this hook's own run only (audit B22 L-02): the actions report to this callback, set while `run` is going.
+  const stepTo = useRef<((s: TxStep) => void) | undefined>(undefined);
+  const actions = useHuiActions({ onStep: (s) => stepTo.current?.(s) });
+  const { status, login } = useHuiWallet();
   const busy = useRef(false);
 
   /** `soon` is what a sample-mode click says. Returns the result, or undefined when nothing was sent. */
@@ -75,14 +77,13 @@ export function useTx({ allowWhenPaused = false }: { allowWhenPaused?: boolean }
       }
       busy.current = true;
       setState({ pending: true, step: 0 });
-      const onStep = (e: Event) => setState((s) => (s.pending ? { ...s, step: STEP_INDEX[(e as CustomEvent<TxStep>).detail] } : s));
-      txSteps?.addEventListener('step', onStep);
+      stepTo.current = (st) => setState((s) => (s.pending ? { ...s, step: STEP_INDEX[st] } : s));
       try {
         const r = await job(actions);
         setState((s) => ({ pending: false, result: r, step: s.step }));
         return r;
       } finally {
-        txSteps?.removeEventListener('step', onStep);
+        stepTo.current = undefined;
         busy.current = false;
       }
     },

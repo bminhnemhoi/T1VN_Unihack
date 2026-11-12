@@ -175,3 +175,48 @@ describe('depositBond (audit M-01)', () => {
     expect(sent[0]!.body.request.data).toContain((36_200_000n).toString(16).padStart(64, '0'));
   });
 });
+
+describe('transaction steps (audit B22 L-02)', () => {
+  it('steps_go_to_the_run_that_sent_them: two buttons sending at once never see each other\'s steps', async () => {
+    const store = memorySaltStore();
+    const a = setup({ store });
+    const b = setup({ store });
+    const seenA: string[] = [];
+    const seenB: string[] = [];
+    a.ctx.onStep = (s) => seenA.push(s);
+    b.ctx.onStep = (s) => seenB.push(s);
+    const [ra, rb] = await Promise.all([depositBond(a.ctx, CIRCLE, 10n * U), commitBid(b.ctx, CIRCLE, 1, 100_000n)]);
+    expect(ra.ok && rb.ok).toBe(true);
+    expect(seenA).toEqual(['sign', 'send', 'confirm']);
+    expect(seenB).toEqual(['sign', 'send', 'confirm']);
+  });
+});
+
+describe('retrying a sealed bid (audit B22 I-01)', () => {
+  it('reads the chain first and does not resend a commit this device already landed', async () => {
+    const store = memorySaltStore();
+    const first = setup({ store });
+    await commitBid(first.ctx, CIRCLE, 1, 100_000n);
+    const saved = (await store.get(saltKey(CIRCLE, 1, first.wallet.address)))!;
+    const landed = commitHash(CIRCLE, 1, first.wallet.address, 100_000n, saved.salt);
+    const retry = setup({ store, onchainHash: { hash: landed } });
+    expect(await commitBid(retry.ctx, CIRCLE, 1, 100_000n, { resume: true })).toMatchObject({ ok: false, code: 'AlreadyCommitted' });
+    expect(retry.sent).toHaveLength(0);
+  });
+
+  it('sends when nothing of this device is on chain yet', async () => {
+    const { ctx, sent } = setup();
+    expect((await commitBid(ctx, CIRCLE, 1, 100_000n, { resume: true })).ok).toBe(true);
+    expect(sent).toHaveLength(1);
+  });
+
+  it('a receipt that never comes is reported as ReceiptTimeout, so the button offers a reload, not a resend', async () => {
+    const { ctx } = setup();
+    (ctx.chain.client as unknown as { waitForTransactionReceipt: () => Promise<never> }).waitForTransactionReceipt = async () => {
+      throw new Error('timeout');
+    };
+    const r = await commitBid(ctx, CIRCLE, 1, 100_000n);
+    expect(r).toMatchObject({ ok: false, code: 'ReceiptTimeout' });
+    expect((r as { message: string }).message).toContain('Đừng gửi lại');
+  });
+});
