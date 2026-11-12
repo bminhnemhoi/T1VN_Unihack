@@ -1,106 +1,156 @@
-import { expect, test } from '@playwright/test';
-import { toast, watchErrors } from './helpers';
+import { expect, test, type Page } from '@playwright/test';
+import { watchErrors } from './helpers';
 
-const phase = (page: import('@playwright/test').Page, name: string) => page.getByRole('radio', { name, exact: true });
-const timelineNow = (page: import('@playwright/test').Page) => page.locator('li[aria-current="step"]');
+// The circle room as a timeline (approved prototype, B22): round rail (phone: story bars), receipt / bid room / plan.
+// Numbers: docs/03 section 8 (5 x 100 USDC, M4 takes kỳ 1 at 6, M1 takes kỳ 2 at 3, M4 misses kỳ 2: 80 holdback + 20 bond).
 
-test.describe('S04/S06 /circles/demo', () => {
-  test('phase switch drives the timeline and the card', async ({ page }) => {
+const round = (page: Page, k: number, isMobile: boolean | undefined) =>
+  isMobile ? page.locator('.storyNav .bars').getByRole('button', { name: `Kỳ ${k}`, exact: true }) : page.locator('.rail button').nth(k - 1);
+
+test.describe('/circles/demo (Dây)', () => {
+  test('opens on the running kỳ 3: three phases, the clock, the slip with the ceiling 3,287671', async ({ page }) => {
     const errs = watchErrors(page);
     await page.goto('/circles/demo');
     await expect(page.getByRole('heading', { level: 1 })).toHaveText('Hụi tổ dân phố 7');
-    await expect(phase(page, 'Nộp thăm')).toBeChecked();
-    await expect(timelineNow(page)).toContainText('Nộp thăm kín');
-    await phase(page, 'Mở thăm').click();
-    await expect(timelineNow(page)).toContainText('Mở thăm');
-    await expect(page.getByRole('button', { name: 'Mở thăm của tôi' })).toBeVisible();
-    await phase(page, 'Chốt kỳ').click();
-    await expect(timelineNow(page)).toContainText('Chốt kỳ');
-    await expect(page.getByRole('button', { name: 'Chốt kỳ 3' })).toBeVisible();
-    await phase(page, 'Nộp thăm').click();
-    await expect(page.getByRole('button', { name: 'Niêm phong thăm' })).toBeVisible();
+    const phases = page.getByRole('list', { name: 'Các bước của kỳ 3' });
+    await expect(phases.getByRole('listitem')).toHaveCount(3);
+    await expect(phases.locator('li.on')).toContainText('Nộp thăm kín');
+    await expect(page.getByRole('timer')).toBeVisible();
+    await expect(page.locator('#bidHint')).toContainText('Trần kỳ này 3,287671 USDC');
     errs.expectClean();
   });
 
-  test('bid is checked against the ceiling for round 3 (3,287671 USDC) as you type', async ({ page }) => {
+  test('the bid is checked as you type: over the ceiling or at 100 is refused, the button locks', async ({ page }) => {
     await page.goto('/circles/demo');
-    const bid = page.getByLabel('Tiền thăm mỗi phần hụi trả bớt');
+    const bid = page.getByLabel('Thăm của bạn (số tiền bớt cho mọi người)');
     const seal = page.getByRole('button', { name: 'Niêm phong thăm' });
-    await expect(bid).toHaveValue('2');
-    await expect(seal).toBeEnabled();
     await bid.fill('3,3');
-    await expect(page.getByText('Thăm tối đa kỳ này là 3,287671 USDC.')).toBeVisible();
+    await expect(bid).toHaveAttribute('aria-invalid', 'true');
+    await expect(page.locator('#bidHint')).toContainText('Vượt trần kỳ này (3,287671 USDC)');
     await expect(seal).toBeDisabled();
-    await bid.fill('hai');
-    await expect(page.getByText('Nhập thăm bằng số, ví dụ 2 hoặc 1,5.')).toBeVisible();
-    await bid.fill('3,287671');
-    await expect(page.locator('#bid-err')).toHaveCount(0);
+    await bid.fill('100');
+    await expect(page.locator('#bidHint')).toContainText('nhỏ hơn 100,00 USDC');
+    await bid.fill('abc');
+    await expect(page.locator('#bidHint')).toContainText('Nhập số tiền');
+    await bid.fill('3');
+    await expect(bid).toHaveAttribute('aria-invalid', 'false');
     await expect(seal).toBeEnabled();
   });
 
-  test('seal the bid, edit it, then open it in the reveal phase and get the deposit back', async ({ page }) => {
+  test('if you win with 3,00 you get 346,12 (pot 2 x 97 + 2 x 100 = 394)', async ({ page, isMobile }) => {
     await page.goto('/circles/demo');
-    await page.getByLabel('Tiền thăm mỗi phần hụi trả bớt').fill('3');
+    await page.getByLabel('Thăm của bạn (số tiền bớt cho mọi người)').fill('3');
+    if (isMobile) {
+      await expect(page.locator('.peek b')).toHaveText('346,12');
+      await page.locator('.peek').click();
+      const sheet = page.getByRole('dialog', { name: /Nếu bạn thắng kỳ 3 với thăm 3,00/ });
+      await expect(sheet).toContainText('394,00');
+      await expect(sheet).toContainText('346,12');
+      await page.keyboard.press('Escape');
+      await expect(page.locator('.sheet')).not.toHaveClass(/open/);
+      await expect(page.locator('.peek')).toBeFocused();
+    } else {
+      const side = page.locator('.panel.side');
+      await expect(side).toContainText('Nếu bạn thắng kỳ 3 với thăm 3,00');
+      await expect(side).toContainText('394,00');
+      await expect(side.locator('.big dd')).toHaveText('346,12');
+    }
+  });
+
+  test('sealing goes Ký -> Gửi -> Xác nhận and only then stamps; "Tua nhanh" opens the reveal, then settles', async ({ page }) => {
+    await page.goto('/circles/demo');
+    await page.getByLabel('Thăm của bạn (số tiền bớt cho mọi người)').fill('3');
     await page.getByRole('button', { name: 'Niêm phong thăm' }).click();
-    await expect(page.getByText('Đã niêm phong thăm của bạn.')).toBeVisible();
-    await page.getByRole('button', { name: 'Sửa thăm' }).click();
-    await expect(page.getByLabel('Tiền thăm mỗi phần hụi trả bớt')).toHaveValue('3');
+    const busy = page.locator('button[aria-busy="true"]');
+    await expect(busy).toBeDisabled();
+    await expect(page.getByRole('list', { name: 'Tiến độ giao dịch' })).toBeVisible();
+    await expect(page.locator('.slip .stamp')).not.toHaveClass(/\bon\b/);
+    await expect(page.locator('.slip .stamp.on')).toContainText('ĐÃ NIÊM PHONG');
+    await expect(page.getByLabel('Thăm của bạn (số tiền bớt cho mọi người)')).toBeDisabled();
+
+    await page.getByRole('button', { name: 'Tua nhanh ›' }).click();
+    await expect(page.getByRole('list', { name: 'Các bước của kỳ 3' }).locator('li.on')).toContainText('Mở thăm');
+    await page.getByRole('button', { name: 'Mở thăm', exact: true }).click();
+    await expect(page.locator('.slip .stamp.on')).toContainText('ĐÃ MỞ');
+
+    await page.getByRole('button', { name: 'Tua nhanh ›' }).click();
+    // 3,00 beats the sample rival's 2,50: you take the pot.
+    await expect(page.locator('.slip .stamp.on')).toContainText('ĐÃ HỐT');
+    await expect(page.locator('.slip .stamp.on')).toContainText('346,12');
+    await expect(page.getByRole('link', { name: 'Xem sổ hụi ↗' })).toBeVisible();
+  });
+
+  test('"Thử: lỗi mạng": the send step fails, nothing is stamped, "Gửi lại thăm" recovers', async ({ page }) => {
+    await page.goto('/circles/demo');
+    const net = page.getByRole('button', { name: /^Thử:/ });
+    await net.click(); // mạng chậm
+    await net.click(); // lỗi mạng
+    await expect(net).toHaveText('Thử: lỗi mạng');
+    // The data on screen stays (stale) and a retry chip appears.
+    await expect(page.getByRole('button', { name: 'Chưa cập nhật được · Thử lại' })).toBeVisible();
+    await page.getByLabel('Thăm của bạn (số tiền bớt cho mọi người)').fill('3');
     await page.getByRole('button', { name: 'Niêm phong thăm' }).click();
-    await phase(page, 'Mở thăm').click();
-    await page.getByRole('button', { name: 'Mở thăm của tôi' }).click();
-    await expect(page.getByText('Đã mở thăm của bạn: 3 USDC mỗi phần. Cọc 1 USDC đã được trả lại (mẫu).')).toBeVisible();
+    await expect(page.getByRole('alert').filter({ hasText: 'Lệnh chưa lên chuỗi, bạn chưa mất gì' })).toBeVisible();
+    await expect(page.locator('.slip .stamp.on')).toHaveCount(0);
+    await page.getByRole('button', { name: 'Gửi lại thăm' }).click();
+    await expect(page.locator('.slip .stamp.on')).toContainText('ĐÃ NIÊM PHONG');
   });
 
-  test('reveal without a sealed bid explains what happened; settle answers with the "needs the network" message', async ({ page }) => {
+  test('kỳ 2 is a receipt: M4 missed 100, covered 80 from holdback + 20 from bond (480 -> 460), M1 still gets 323,18', async ({ page, isMobile }) => {
     await page.goto('/circles/demo');
-    await phase(page, 'Mở thăm').click();
-    await page.getByRole('button', { name: 'Mở thăm của tôi' }).click();
-    await expect(page.getByText(/chưa niêm phong thăm ở giai đoạn nộp/)).toBeVisible();
-    await phase(page, 'Chốt kỳ').click();
-    await page.getByRole('button', { name: 'Chốt kỳ 3' }).click();
-    await expect(toast(page, 'Chốt kỳ 3 cần nối mạng')).toBeVisible();
+    await round(page, 2, isMobile).click();
+    const receipt = page.locator('.receipt');
+    await expect(receipt).toContainText('Biên lai · Kỳ 2');
+    await expect(receipt).toContainText('M4 không đóng 100,00 USDC. M1 vẫn nhận đủ.');
+    await expect(receipt.getByRole('img', { name: /80,00 từ tiền giữ lại.*20,00 từ ký quỹ/ })).toBeVisible();
+    await expect(receipt).toContainText('480,00 → 460,00');
+    await expect(receipt).toContainText('391,00');
+    await expect(receipt.locator('.big dd')).toHaveText('323,18');
+    await expect(receipt.locator('.stamp.on')).toContainText('M1 HỐT');
   });
 
-  test('viewer is a member who has not received yet, so bidding is allowed (docs/03 section 6.1)', async ({ page }) => {
+  test('kỳ 1 adds up (376 - 3,76 - 3,76 - 80 = 288,48); kỳ 4 shows its ceiling 1,643835; kỳ 5 has no bid', async ({ page, isMobile }) => {
     await page.goto('/circles/demo');
-    await expect(page.getByText('Bạn là thành viên 2')).toBeVisible();
-    const rules = page.getByRole('region', { name: 'Luật của kỳ này' });
-    await expect(rules).toContainText('3,287671 USDC');
-    await expect(rules).toContainText('Thành viên 2 (bạn), Thành viên 3, Thành viên 5');
+    await round(page, 1, isMobile).click();
+    await expect(page.locator('.receipt')).toContainText('M4 thắng với thăm 6,00 USDC');
+    await expect(page.locator('.receipt')).toContainText('376,00');
+    await expect(page.locator('.receipt .big dd')).toHaveText('288,48');
+    await round(page, 4, isMobile).click();
+    await expect(page.getByText('1,643835 USDC')).toBeVisible();
+    await round(page, 5, isMobile).click();
+    await expect(page.getByRole('heading', { name: 'Người còn lại hốt, không bỏ thăm' })).toBeVisible();
   });
 
-  test('Bảng sổ hụi on desktop: rounds x members with the docs/03 section 8 numbers', async ({ page, isMobile }) => {
-    test.skip(isMobile, 'desktop table');
+  test('phone: ‹ › step through the rounds and the story line follows', async ({ page, isMobile }) => {
+    test.skip(!isMobile, 'story navigation is the phone layout');
     await page.goto('/circles/demo');
-    const table = page.getByRole('table', { name: /Bảng sổ hụi/ });
-    await expect(table.getByRole('columnheader')).toHaveCount(7);
-    await expect(table.getByRole('rowheader', { name: /Kỳ 1/ })).toBeVisible();
-    const k1 = table.getByRole('row', { name: /Kỳ 1/ });
-    await expect(k1.getByRole('cell')).toHaveText([/góp 94 USDC/, /góp 94 USDC/, /góp 94 USDC/, /Hốt kỳ này/, /góp 94 USDC/, /288,48 USDC/]);
-    const k2 = table.getByRole('row', { name: /Kỳ 2/ });
-    await expect(k2).toContainText('thiếu 100 USDC');
-    await expect(k2).toContainText('bù 80 USDC tiền giữ lại, 20 USDC ký quỹ');
-    await expect(k2).toContainText('323,18 USDC');
-    await expect(table.getByRole('row', { name: /Kỳ 3/ })).toContainText('Đang nộp thăm kín');
-    await page.getByRole('radio', { name: 'Mở thăm', exact: true }).click();
-    await expect(table.getByRole('row', { name: /Kỳ 3/ })).toContainText('Đang mở thăm');
-    await expect(table.getByRole('row', { name: /Đang giữ lại/ })).toContainText('60 USDC');
+    await expect(page.locator('.snMid strong')).toHaveText('Kỳ 3/5');
+    await page.getByRole('button', { name: 'Kỳ trước' }).click();
+    await expect(page.locator('.snMid strong')).toHaveText('Kỳ 2/5');
+    await expect(page.locator('.snMid small')).toContainText('M1 hốt');
+    await page.getByRole('button', { name: 'Kỳ sau' }).click();
+    await page.getByRole('button', { name: 'Kỳ sau' }).click();
+    await expect(page.locator('.snMid strong')).toHaveText('Kỳ 4/5');
   });
 
-  test('Bảng sổ hụi on phones: one line per round, open it to see each member', async ({ page, isMobile }) => {
-    test.skip(!isMobile, 'phone list');
+  test('top bar chips: coverage 100%, bond 460/480, reserve 7,67; they open the coverage page', async ({ page, isMobile }) => {
     await page.goto('/circles/demo');
-    const k2 = page.locator('details').filter({ hasText: 'Kỳ 2: Thành viên 1 hốt, nhận 323,18 USDC.' });
-    await expect(k2).toContainText('1 người thiếu và đã được bù');
-    await k2.locator('summary').click();
-    await expect(k2).toHaveAttribute('open', '');
-    await expect(k2.getByText('thiếu 100 USDC')).toBeVisible();
-    await expect(k2.getByText('Thành viên 2 (bạn)')).toBeVisible();
+    const health = page.locator('#hs-health');
+    await expect(health).toContainText('100%');
+    if (!isMobile) {
+      await expect(health).toContainText('460/480');
+      await expect(health).toContainText('7,67');
+    }
+    await health.locator('a.chip').first().click();
+    await expect(page).toHaveURL(/\/circles\/demo\/bao-chung$/);
   });
+});
 
-  test('kỳ 2 waterfall shows who covered the missing 100 USDC', async ({ page }) => {
-    await page.goto('/circles/demo');
-    await expect(page.getByText('Tiền hốt của kỳ 2 là 391 USDC, chia ra')).toBeVisible();
-    await expect(page.getByRole('heading', { name: 'Kỳ 2: có người không đóng' })).toBeVisible();
+test.describe('/circles/co-dinh (Fixed)', () => {
+  test('no bid: the round goes to M3 by joining order, and the viewer\'s shortfall comes first', async ({ page }) => {
+    await page.goto('/circles/co-dinh');
+    await expect(page.getByRole('heading', { name: 'Kỳ này bạn hốt.' })).toBeVisible();
+    await page.getByRole('link', { name: 'Trả khoản thiếu 20,00 USDC' }).click();
+    await expect(page).toHaveURL(/\/circles\/co-dinh\/thieu$/);
   });
 });

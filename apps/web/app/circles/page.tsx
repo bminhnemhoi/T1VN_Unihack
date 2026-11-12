@@ -1,6 +1,8 @@
-import { MyCirclesView } from '@/components/circle/MyCirclesView';
+import { Overview } from '@/components/app/Overview';
 
-/** S02: my circles. Three fake circles (member, organizer, finished), labelled as sample data. */
+export const metadata = { title: 'Tổng quan' };
+
+/** "Tổng quan": what to do now, the viewer's numbers, every circle, what just happened. */
 export default function MyCircles() {
-  return <MyCirclesView />;
+  return <Overview />;
 }

@@ -64,3 +64,17 @@ export function RepBadge({ rep, who = 'member', showNext = false, className }: {
 export function RepDisclaimer({ className }: { className?: string }) {
   return <p className={cn('text-base text-muted-foreground', className)}>{REP_DISCLAIMER}</p>;
 }
+
+/** The tier as one short phrase for a member line of the web app ("Bậc Tin cậy", "có nợ chưa trả"); same rules as `RepBadge`. */
+export function TierText({ rep, who = 'member' }: { rep: Reputation; who?: 'member' | 'organizer' }) {
+  const chain = useChain();
+  const live = useReputation(chain ? rep.address : undefined);
+  const info: TierResult | undefined = chain && rep.address ? (live.data ? live.data[who] : undefined) : sampleTier(rep, who, Math.floor(SAMPLE_NOW_MS / 1000));
+  if (!info) return null;
+  return (
+    <>
+      Bậc {TIER_LABEL_VI[info.tier]}
+      {info.redFlag ? ', có nợ chưa trả' : ''}
+    </>
+  );
+}

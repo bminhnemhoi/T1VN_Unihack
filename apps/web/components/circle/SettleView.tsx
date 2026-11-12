@@ -87,12 +87,12 @@ export function SettleView({ c }: { c: SampleCircleData }) {
         <h2 id="rong" className="font-display text-h1 font-bold">
           {me.net >= 0n ? `Bạn lời ròng ${formatCents(me.net)}` : `Bạn trả ròng ${formatCents(-me.net)}`}
         </h2>
-        <p className="so-ke mt-3 text-lead text-[#dfe5f0]">
+        <p className="so-ke mt-3 text-lead text-[#e9e4da]">
           Đã góp {formatCents(me.paid)}, đã nhận {formatCents(me.received + me.holdbackBack + me.reward)} (hốt kỳ {me.round}, tiền giữ lại, thưởng đúng hạn).
         </p>
-        <p className="mt-1 text-[#c9d2e0]">Phần ròng gồm lãi thăm và tiền công chủ hụi; hụi không sinh lời thêm từ đâu khác.</p>
+        <p className="mt-1 text-[#c9c2b6]">Phần ròng gồm lãi thăm và tiền công chủ hụi; hụi không sinh lời thêm từ đâu khác.</p>
         {live ? (
-          <p className="so-ke mt-5 text-[#dfe5f0]">Khi dây kết thúc, tiền được chuyển thẳng vào ví của bạn. Nếu có phần không chuyển được, nút Nhận tiền hiện ở cuối trang.</p>
+          <p className="so-ke mt-5 text-[#e9e4da]">Khi dây kết thúc, tiền được chuyển thẳng vào ví của bạn. Nếu có phần không chuyển được, nút Nhận tiền hiện ở cuối trang.</p>
         ) : claimed ? (
           <p role="status" className="so-ke mt-5 rounded-xl border-2 border-state-ok bg-white/10 p-4 text-lead font-semibold text-white">
             Đã nhận {formatCents(finalPayout)} (mẫu).

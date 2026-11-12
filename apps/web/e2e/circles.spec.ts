@@ -1,80 +1,91 @@
 import { expect, test } from '@playwright/test';
 import { toast, watchErrors } from './helpers';
 
-test.describe('S02 /circles', () => {
-  test('four sample circles, each "Mở dây" opens its own circle', async ({ page }) => {
+// "Tổng quan" (approved prototype, B22): verdict, four numbers, circles with their round strip, "Vừa xảy ra".
+test.describe('/circles (Tổng quan)', () => {
+  test('every sample circle is a row that opens its own circle', async ({ page }) => {
     const errs = watchErrors(page);
     await page.goto('/circles');
-    await expect(page.getByRole('heading', { level: 3 })).toHaveText(['Hụi tổ dân phố 7', 'Hụi cố định gia đình', 'Hụi bạn đại học', 'Hụi chị em văn phòng']);
-
-    await page.getByRole('link', { name: 'Mở Hụi tổ dân phố 7' }).click();
-    await expect(page).toHaveURL(/\/circles\/demo$/);
-    await expect(page.getByRole('heading', { level: 1 })).toHaveText('Hụi tổ dân phố 7');
-
-    await page.goto('/circles');
-    await page.getByRole('link', { name: 'Mở Hụi cố định gia đình' }).click();
-    await expect(page).toHaveURL(/\/circles\/co-dinh$/);
-    await expect(page.getByRole('heading', { level: 1 })).toHaveText('Hụi cố định gia đình');
-
-    await page.goto('/circles');
-    await page.getByRole('link', { name: 'Mở Hụi bạn đại học' }).click();
-    await expect(page).toHaveURL(/\/circles\/dang-gom$/);
-    await expect(page.getByRole('heading', { level: 1 })).toHaveText('Hụi bạn đại học');
-
-    await page.goto('/circles');
-    await page.getByRole('link', { name: 'Mở Hụi chị em văn phòng' }).click();
-    await expect(page).toHaveURL(/\/circles\/da-xong$/);
-    await expect(page.getByRole('heading', { level: 1 })).toHaveText('Hụi chị em văn phòng');
+    const list = page.getByRole('list', { name: 'Các dây của bạn' });
+    await expect(list.getByRole('heading', { level: 3 })).toHaveText(['Hụi tổ dân phố 7', 'Hụi cố định gia đình', 'Hụi bạn đại học', 'Hụi chị em văn phòng']);
+    for (const [label, path] of [
+      ['Hụi tổ dân phố 7', 'demo'],
+      ['Hụi cố định gia đình', 'co-dinh'],
+      ['Hụi bạn đại học', 'dang-gom'],
+      ['Hụi chị em văn phòng', 'da-xong'],
+    ] as const) {
+      await page.goto('/circles');
+      await list.getByRole('link', { name: new RegExp(label) }).click();
+      await expect(page).toHaveURL(new RegExp(`/circles/${path}$`));
+      await expect(page.getByRole('heading', { level: 1 })).toHaveText(label);
+    }
     errs.expectClean();
   });
 
-  test('empty-state switch (whole row is clickable), then create from the empty state', async ({ page }) => {
+  test('verdict first: the most urgent task with its deadline and one action', async ({ page }) => {
     await page.goto('/circles');
-    const sw = page.getByRole('switch', { name: 'Xem thử trạng thái chưa có dây' });
-    await expect(sw).not.toBeChecked();
-    await page.getByText('Xem thử trạng thái chưa có dây').click(); // the label, not the tiny switch
-    await expect(sw).toBeChecked();
-    await expect(page.getByText('Bạn chưa tham gia dây nào.')).toBeVisible();
-    await expect(page.getByRole('heading', { name: 'Sổ hụi của bạn còn trống' })).toBeVisible();
-    await sw.click();
-    await expect(page.getByRole('heading', { level: 3 })).toHaveCount(4);
+    const verdict = page.locator('.verdict');
+    await expect(verdict).toContainText('Bạn có 3 việc');
+    await expect(verdict.locator('p')).toHaveText('Nộp thăm kín cho kỳ 3 · Hụi tổ dân phố 7');
+    await expect(verdict).toContainText(/Còn \d/);
+    await verdict.getByRole('link', { name: 'Vào phòng thăm ↗' }).click();
+    await expect(page).toHaveURL(/\/circles\/demo$/);
+  });
+
+  test('numbers: 191,00 paid so far (94 + 97, docs/03 section 8), 100,00 per round', async ({ page }) => {
+    await page.goto('/circles');
+    const stats = page.locator('.stats');
+    await expect(stats).toContainText('191,00');
+    await expect(stats).toContainText('100,00');
+  });
+
+  test('the open shortfall sits on top and links to where it is paid', async ({ page }) => {
+    await page.goto('/circles');
+    const alert = page.getByRole('alert').filter({ hasText: 'Bạn còn thiếu 20,00 USDC kỳ 2 ở Hụi cố định gia đình' });
+    await expect(alert).toBeVisible();
+    await alert.getByRole('link', { name: 'Trả ngay ›' }).click();
+    await expect(page).toHaveURL(/\/circles\/co-dinh\/thieu$/);
+  });
+
+  test('"Vừa xảy ra" tells kỳ 2 then kỳ 1 with the receipt numbers (desktop)', async ({ page, isMobile }) => {
+    test.skip(!!isMobile, 'the feed column is a desktop panel');
+    await page.goto('/circles');
+    const feed = page.getByRole('region', { name: 'Vừa xảy ra ở Hụi tổ dân phố 7' });
+    await expect(feed).toContainText('Quá ân hạn, ghi vỡ nợ');
+    await expect(feed).toContainText('Ký quỹ bù 20,00 cho M4');
+    await expect(feed).toContainText('323,18');
+    await expect(feed).toContainText('288,48');
+  });
+
+  test('"Thử: tài khoản mới" shows the empty state; the paste box checks the link', async ({ page }) => {
+    await page.goto('/circles');
+    const net = page.getByRole('button', { name: /^Thử:/ });
+    for (let i = 0; i < 3; i++) await net.click();
+    await expect(net).toHaveText('Thử: tài khoản mới');
+    await expect(page.getByRole('heading', { name: 'Bạn chưa ở dây hụi nào.' })).toBeVisible();
+    await page.getByRole('button', { name: 'Dán đường dẫn mời' }).click();
+    const dialog = page.getByRole('dialog', { name: 'Mở lời mời' });
+    await dialog.getByLabel('Đường dẫn mời').fill('xin chào');
+    await dialog.getByRole('button', { name: 'Mở lời mời' }).click();
+    await expect(dialog.getByLabel('Đường dẫn mời')).toHaveAttribute('aria-invalid', 'true');
+    await expect(dialog).toContainText('Chưa đúng đường dẫn mời');
+    await page.keyboard.press('Escape');
     await page.getByRole('link', { name: 'Tạo dây mới' }).click();
     await expect(page).toHaveURL(/\/circles\/new$/);
   });
 
-  test('verdict first: the most urgent task, its deadline and one action; then the wallet ledger', async ({ page }) => {
+  test('"Thử: mạng chậm" shows a skeleton first, then the data; "lỗi mạng" on a fresh page shows the error and Thử lại', async ({ page }) => {
     await page.goto('/circles');
-    const now = page.getByRole('region', { name: 'Nộp thăm kín cho kỳ 3' });
-    await expect(now).toContainText('Việc gấp nhất của bạn, ở dây Hụi tổ dân phố 7');
-    await expect(now).toContainText('Trần thăm kỳ này khoảng 3,28 USDC'); // 3,287671 rounded DOWN
-    await now.getByRole('link', { name: 'Vào phòng thăm' }).click();
-    await expect(page).toHaveURL(/\/circles\/demo$/);
-    await page.goBack();
-    await page.getByRole('region', { name: 'Nộp thăm kín cho kỳ 3' }).getByRole('link', { name: 'Mời thêm người' }).click();
-    await expect(page).toHaveURL(/\/circles\/dang-gom$/);
-    await page.goBack();
-    const wallet = page.getByRole('region', { name: 'Sổ của bạn' });
-    await expect(wallet).toContainText('100 USDC');
-    await expect(wallet).toContainText('191 USDC'); // 94 + 97 (docs/03 section 8)
-    await expect(wallet).toContainText('Chưa');
-  });
-
-  test('round strip says each round in words (not colour only)', async ({ page }) => {
-    await page.goto('/circles');
-    const strip = page.getByRole('list', { name: 'Các kỳ của dây: đã chi 2 trên 5' }).first();
-    await expect(strip.getByRole('listitem')).toHaveCount(5);
-    await expect(strip).toContainText('Kỳ 1: đã chi, Thành viên 4 hốt');
-    await expect(strip).toContainText('Kỳ 2: đã chi, Thành viên 1 hốt');
-    await expect(strip).toContainText('Kỳ 3: đang diễn ra');
-    await expect(strip).toContainText('Kỳ 5: chưa tới');
-  });
-
-  test('countdowns tick', async ({ page }) => {
-    await page.goto('/circles/demo');
-    await page.getByRole('radio', { name: 'Mở thăm', exact: true }).click(); // the reveal countdown shows seconds
-    const t = page.locator('time').last();
-    const before = await t.textContent();
-    await expect.poll(async () => t.textContent(), { timeout: 5000 }).not.toBe(before);
+    const net = page.getByRole('button', { name: /^Thử:/ });
+    await net.click();
+    await expect(page.locator('.sk').first()).toBeVisible();
+    await expect(page.locator('.verdict')).toBeVisible({ timeout: 5000 });
+    await net.click(); // lỗi mạng: what is on screen stays, marked stale
+    await expect(page.getByRole('button', { name: 'Chưa cập nhật được · Thử lại' })).toBeVisible();
+    await page.getByRole('link', { name: 'Sổ hụi' }).click();
+    await expect(page.getByRole('heading', { name: 'Chưa đọc được dữ liệu từ chuỗi.' })).toBeVisible({ timeout: 5000 });
+    await page.getByRole('button', { name: 'Thử lại' }).click();
+    await expect(page.getByRole('heading', { name: 'Kỳ × thành viên' })).toBeVisible();
   });
 });
 
@@ -89,8 +100,6 @@ test.describe('other sample circles answer for themselves', () => {
     await expect(start).toHaveAttribute('aria-disabled', 'true'); // closed, but it still answers when pressed
     await start.click({ force: true });
     await expect(toast(page, 'mới có 3 trên 5 người')).toBeVisible();
-    await page.getByRole('link', { name: '← Dây của tôi' }).click();
-    await expect(page).toHaveURL(/\/circles$/);
   });
 
   test('finished circle: both actions are real links', async ({ page }) => {

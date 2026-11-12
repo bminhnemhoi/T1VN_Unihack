@@ -115,6 +115,14 @@ async function safely<T extends object>(job: () => Promise<TxResult<T>>): Promis
   }
 }
 
+/**
+ * Progress of the transaction being sent (sign, send through the relay, wait for the receipt), so the button can show
+ * "Ký -> Gửi -> Xác nhận" (lamng-design-rule section 1). Calls are serialised per wallet, so one channel is enough.
+ */
+export type TxStep = 'sign' | 'send' | 'confirm';
+export const txSteps: EventTarget | undefined = typeof EventTarget === 'undefined' ? undefined : new EventTarget();
+const step = (s: TxStep): void => void txSteps?.dispatchEvent(new CustomEvent<TxStep>('step', { detail: s }));
+
 /** Sign a forward request for `data`, relay it, wait for the receipt. */
 function relayCall(
   ctx: TxContext,
@@ -138,6 +146,7 @@ async function relayOnce(
   const token = opts.needToken ? await ctx.getAccessToken?.() : undefined;
   if (opts.needToken && !token) return fail('NotLoggedIn', 'Bạn cần đăng nhập trước.');
   let signed;
+  step('sign');
   try {
     signed = await signForwardRequest(signCtx(ctx), ctx.chain.forwarder, to, data, {
       gas,
@@ -146,8 +155,10 @@ async function relayOnce(
   } catch {
     return fail('SignRejected', 'Ví không ký được hoặc bạn đã huỷ. Chưa có giao dịch nào được gửi.');
   }
+  step('send');
   const sent = await postRelay(ctx.fetchFn ?? defaultFetch, ctx.relayUrl ?? '/api/relay', signed, token);
   if (!sent.ok) return sent;
+  step('confirm');
   let receipt;
   try {
     receipt = await ctx.chain.client.waitForTransactionReceipt({ hash: sent.txHash });

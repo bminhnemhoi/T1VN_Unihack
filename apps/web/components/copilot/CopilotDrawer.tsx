@@ -2,7 +2,6 @@
 
 import { Bot, Send, X } from 'lucide-react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
 import { Dialog } from 'radix-ui';
 import { useRef, useState, type ChangeEvent } from 'react';
 import { CopilotCalc } from '@/components/copilot/CopilotCalc';
@@ -44,7 +43,7 @@ function ToolResult({ name, result }: { name: string; result: unknown }) {
           {result.rows.filter(isObj).map((r, i) => (
             <tr key={i} className="dong-ke last:border-b-0">
               <th scope="row" className="py-1 text-left font-normal">Kỳ {String(r.k)}</th>
-              <td className="py-1 text-right font-semibold">{usd(r.maxBid)}</td>
+              <td className="nhan-so py-1 text-right font-semibold">{usd(r.maxBid)}</td>
             </tr>
           ))}
         </tbody>
@@ -61,7 +60,7 @@ function ToolResult({ name, result }: { name: string; result: unknown }) {
         ].map(([k, v]) => (
           <div key={k} className="dong-ke flex justify-between py-1 last:border-b-0">
             <dt>{k}</dt>
-            <dd className="font-semibold">{v}</dd>
+            <dd className="nhan-so font-semibold">{v}</dd>
           </div>
         ))}
       </dl>
@@ -87,7 +86,6 @@ function ToolResult({ name, result }: { name: string; result: unknown }) {
 
 /** S13: the organizer assistant. A side drawer on desktop, a bottom sheet on phones. It only reads and computes; it never signs or moves money. */
 export function CopilotDrawer() {
-  const pathname = usePathname();
   const [open, setOpen] = useState(false);
   const [tab, setTab] = useState<'ask' | 'calc'>('ask');
   const [turns, setTurns] = useState<Turn[]>([]);
@@ -95,7 +93,6 @@ export function CopilotDrawer() {
   const [busy, setBusy] = useState(false);
   const [status, setStatus] = useState('');
   const end = useRef<HTMLDivElement>(null);
-  const onForm = pathname.startsWith('/circles/new');
 
   const send = async (question: string) => {
     const q = question.trim();
@@ -147,69 +144,63 @@ export function CopilotDrawer() {
     }
   };
 
-  const fill = (t: Turn) => {
-    const bond = t.tools?.flatMap((x) => (x.name === 'recommend_bond' && isObj(x.result) && typeof x.result.bond === 'string' ? [x.result.bond] : []))[0];
-    const detail = { ...(bond ? { bondUsdc: bond } : {}), ...(t.suggestion ?? {}) };
-    window.dispatchEvent(new CustomEvent('huisafe:fill-form', { detail }));
-  };
-
   return (
     <Dialog.Root open={open} onOpenChange={setOpen}>
       <Dialog.Trigger asChild>
-        <Button type="button" variant="outline" className="min-h-12">
-          <Bot aria-hidden className="size-5" /> Trợ lý
-        </Button>
+        <button type="button" aria-label="Trợ lý">
+          <Bot aria-hidden /> <span className="lbl">Trợ lý</span>
+        </button>
       </Dialog.Trigger>
       <Dialog.Portal>
-        <Dialog.Overlay className="fixed inset-0 z-50 bg-muc-dem/50 data-[state=open]:animate-in data-[state=open]:fade-in" />
+        <Dialog.Overlay className="fixed inset-0 z-50 bg-muc-dem/45 data-[state=open]:animate-in data-[state=open]:fade-in data-[state=open]:duration-240 data-[state=closed]:animate-out data-[state=closed]:fade-out data-[state=closed]:duration-180" />
         <Dialog.Content
           aria-describedby="tro-ly-mo-ta"
-          className="fixed inset-x-0 bottom-0 z-50 flex h-[88vh] flex-col rounded-t-2xl bg-card shadow-2xl outline-none md:inset-y-0 md:right-0 md:left-auto md:h-auto md:w-[30rem] md:rounded-none"
+          className="tro-ly fixed inset-x-0 bottom-0 z-50 flex h-[88vh] flex-col rounded-t-2xl shadow-2xl outline-none duration-240 ease-[cubic-bezier(0.16,1,0.3,1)] data-[state=open]:animate-in data-[state=open]:slide-in-from-bottom data-[state=closed]:animate-out data-[state=closed]:slide-out-to-bottom data-[state=closed]:duration-180 data-[state=closed]:ease-[cubic-bezier(0.4,0,1,1)] md:inset-y-0 md:right-0 md:left-auto md:h-auto md:w-[28rem] md:rounded-none md:data-[state=open]:slide-in-from-right md:data-[state=closed]:slide-out-to-right"
         >
-          <header className="flex items-start justify-between gap-3 border-b border-border p-4">
+          <header className="flex items-start justify-between gap-3 border-b border-border px-6 pt-6 pb-4">
             <div>
-              <Dialog.Title className="font-display text-h3 font-bold">Trợ lý AI cho chủ hụi</Dialog.Title>
-              <Dialog.Description id="tro-ly-mo-ta" className="text-base text-muted-foreground">
+              <Dialog.Title className="font-display text-xl leading-tight font-bold">Trợ lý AI cho chủ hụi</Dialog.Title>
+              <Dialog.Description id="tro-ly-mo-ta" className="mt-1 text-sm leading-normal text-muted-foreground">
                 Chỉ đọc và tính, không ký, không chuyển tiền. Số liệu do hàm tính của HụiSafe tạo; lời giải thích do AI viết.
               </Dialog.Description>
             </div>
             <Dialog.Close asChild>
-              <Button type="button" variant="ghost" size="icon" aria-label="Đóng trợ lý">
+              <Button type="button" variant="ghost" size="icon" aria-label="Đóng trợ lý" className="size-11 shrink-0 rounded-full border border-input hover:bg-card">
                 <X aria-hidden className="size-5" />
               </Button>
             </Dialog.Close>
           </header>
 
-          <div className="border-b border-border px-4 py-2">
-            <ToggleGroup type="single" variant="outline" value={tab} onValueChange={(v) => v && setTab(v as 'ask' | 'calc')} aria-label="Chế độ trợ lý">
-              <ToggleGroupItem value="ask" className={TOGGLE_ON}>Hỏi trợ lý</ToggleGroupItem>
-              <ToggleGroupItem value="calc" className={TOGGLE_ON}>Máy tính</ToggleGroupItem>
+          <div className="px-6 py-4">
+            <ToggleGroup type="single" spacing={1} value={tab} onValueChange={(v) => v && setTab(v as 'ask' | 'calc')} aria-label="Chế độ trợ lý" className="rounded-full bg-card p-1">
+              <ToggleGroupItem value="ask" className={`${TOGGLE_ON} min-h-10 rounded-full px-4 font-semibold text-muted-foreground`}>Hỏi trợ lý</ToggleGroupItem>
+              <ToggleGroupItem value="calc" className={`${TOGGLE_ON} min-h-10 rounded-full px-4 font-semibold text-muted-foreground`}>Máy tính</ToggleGroupItem>
             </ToggleGroup>
           </div>
 
-          <div className="min-h-0 flex-1 overflow-y-auto p-4">
+          <div className="min-h-0 flex-1 overflow-y-auto px-6 pb-4">
             {tab === 'calc' ? (
               <CopilotCalc />
             ) : (
               <>
                 {turns.length === 0 && (
                   <div>
-                    <p className="text-lead">Hỏi về ký quỹ, trần thăm, rủi ro hay luật Nghị định 19. Chọn một câu hoặc tự gõ.</p>
-                    <ul className="mt-3 flex flex-col gap-2">
+                    <p className="text-muted-foreground">Hỏi về ký quỹ, trần thăm, rủi ro hay luật Nghị định 19. Chọn một câu hoặc tự gõ.</p>
+                    <ul className="mt-4 flex flex-wrap gap-2">
                       {SUGGESTIONS.map((s) => (
                         <li key={s}>
-                          <Button type="button" variant="outline" className="h-auto min-h-12 w-full justify-start px-4 py-2 text-left" onClick={() => send(s)}>
+                          <button type="button" className="chip-hoi" disabled={busy} onClick={() => send(s)}>
                             {s}
-                          </Button>
+                          </button>
                         </li>
                       ))}
                     </ul>
                   </div>
                 )}
-                <ol className="space-y-4" aria-label="Cuộc trò chuyện">
+                <ol className="mt-4 space-y-3 first:mt-0" aria-label="Cuộc trò chuyện">
                   {turns.map((t, i) => (
-                    <li key={i} className={t.role === 'user' ? 'ml-8 rounded-xl bg-secondary p-3' : 'rounded-xl border border-border p-3'}>
-                      <p className="text-sm font-semibold text-muted-foreground">{t.role === 'user' ? 'Bạn' : 'Trợ lý AI'}</p>
+                    <li key={i} className={t.role === 'user' ? 'ml-10 rounded-2xl rounded-br-sm bg-foreground px-4 py-3 text-background' : 'rounded-2xl rounded-bl-sm border border-border bg-card px-4 py-3'}>
+                      <p className={`font-mono text-[11px] tracking-[0.08em] uppercase ${t.role === 'user' ? 'text-background/70' : 'text-muted-foreground'}`}>{t.role === 'user' ? 'Bạn' : 'Trợ lý AI'}</p>
                       {t.text === '' && busy && i === turns.length - 1 ? (
                         <p role="status" className="text-muted-foreground">{status || 'Đang trả lời...'}</p>
                       ) : (
@@ -218,17 +209,6 @@ export function CopilotDrawer() {
                       {t.tools?.map((x, j) => <ToolResult key={j} name={x.name} result={x.result} />)}
                       {t.label && <p className="mt-2 text-sm text-muted-foreground">{t.label}</p>}
                       {t.role === 'assistant' && t.text && !t.failed && !t.text.includes(DISCLAIMER) && <p className="mt-1 text-sm text-muted-foreground">{DISCLAIMER}</p>}
-                      {t.tools?.some((x) => x.name === 'recommend_bond') || t.suggestion ? (
-                        onForm ? (
-                          <Button type="button" size="sm" className="mt-2" onClick={() => fill(t)}>
-                            Điền vào form
-                          </Button>
-                        ) : (
-                          <Button asChild size="sm" variant="outline" className="mt-2">
-                            <Link href="/circles/new?buoc=2" onClick={() => setOpen(false)}>Mở form tạo dây để điền</Link>
-                          </Button>
-                        )
-                      ) : null}
                     </li>
                   ))}
                 </ol>
@@ -239,7 +219,7 @@ export function CopilotDrawer() {
 
           {tab === 'ask' && (
             <form
-              className="border-t border-border p-4"
+              className="border-t border-border px-6 pt-4 pb-6"
               onSubmit={(e) => {
                 e.preventDefault();
                 void send(text);
@@ -249,12 +229,12 @@ export function CopilotDrawer() {
                 Câu hỏi cho trợ lý
               </label>
               <div className="flex items-end gap-2">
-                <Textarea id="cau-hoi" value={text} onChange={(e: ChangeEvent<HTMLTextAreaElement>) => setText(e.target.value)} rows={2} maxLength={2000} placeholder="Gõ câu hỏi của bạn" className="min-h-14 flex-1 text-lg" />
-                <Button type="submit" size="icon-lg" disabled={busy || text.trim() === ''} aria-label="Gửi câu hỏi">
+                <Textarea id="cau-hoi" value={text} onChange={(e: ChangeEvent<HTMLTextAreaElement>) => setText(e.target.value)} rows={1} maxLength={2000} placeholder="Gõ câu hỏi của bạn" className="min-h-12 flex-1 rounded-xl bg-card px-4 py-3 text-base" />
+                <button type="submit" className="gui" disabled={busy || text.trim() === ''} aria-label="Gửi câu hỏi">
                   <Send aria-hidden className="size-5" />
-                </Button>
+                </button>
               </div>
-              <p className="mt-2 text-sm text-muted-foreground">Đừng gõ họ tên, số điện thoại hay địa chỉ ví. {DISCLAIMER}</p>
+              <p className="mt-2 text-xs leading-normal text-muted-foreground">Đừng gõ họ tên, số điện thoại hay địa chỉ ví. {DISCLAIMER}</p>
             </form>
           )}
         </Dialog.Content>

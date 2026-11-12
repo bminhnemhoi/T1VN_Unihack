@@ -1,3 +1,4 @@
+import { afterIntro } from './helpers';
 import { expect, test, type Locator, type Page } from '@playwright/test';
 
 /** B17 regression: objective layout faults found in UI-REVIEW-B16 must not come back. Runs at 390, 768 and 1440. */
@@ -18,6 +19,7 @@ const PAGES = [
 async function open(page: Page, path: string) {
   await page.goto(path);
   await page.waitForLoadState('networkidle');
+  await afterIntro(page);
   // Some faults only appear after the data has rendered (S08 grew from 390 to 406px 1.5 s after the load event); measuring at once misses them.
   await page.waitForTimeout(1200);
 }
@@ -64,13 +66,23 @@ test.describe('touch targets of at least 48px (docs/02 design brief)', () => {
     }
   });
 
-  test('the age checkbox, the sample switch and links inside text have a 48px touch area', async ({ page }) => {
+  test('web-app controls (prototype B22) are 44px or more: tabs, buttons, chips, rounds, ledger dots', async ({ page }) => {
+    for (const path of ['/circles', '/circles/demo', '/circles/demo/so-ho', '/circles/new']) {
+      await open(page, path);
+      const small = await page.evaluate(() =>
+        [...document.querySelectorAll<HTMLElement>('.hs .btn, .hs .tabs a, .hs .tabbar a, .hs .acct a, .hs .acct > button, .hs .chips button, .hs .seg button, .hs .storyNav > button, .hs .rail button, .hs .dots button, .hs .opt, .hs .peek')]
+          .map((e) => ({ e, r: e.getBoundingClientRect() }))
+          .filter(({ r }) => r.width > 0 && r.height > 0 && (r.height < 44 || r.width < 32))
+          .map(({ e, r }) => `${(e.getAttribute('aria-label') ?? e.textContent ?? '').trim().slice(0, 30)} ${Math.round(r.width)}x${Math.round(r.height)}`),
+      );
+      expect(small, `${path}: controls under 44px`).toEqual([]);
+    }
+  });
+
+  test('the age checkbox and links inside text have a 48px touch area', async ({ page }) => {
     await open(page, '/moi/dang-gom');
     const box = await hitSize(page.getByRole('checkbox'));
     expect(box.h, 'checkbox height').toBeGreaterThanOrEqual(48);
-    await open(page, '/circles');
-    const sw = await hitSize(page.getByRole('switch').first());
-    expect(sw.h, 'switch height').toBeGreaterThanOrEqual(48);
     for (const [path, name] of [['/circles/co-dinh/ket-qua', 'Xem khoản thiếu'], ['/circles/demo/thieu', 'Xem thác bù'], ['/circles/da-xong/tat-toan', 'Xem sổ hụi']] as const) {
       await open(page, path);
       const link = await hitSize(page.getByRole('link', { name }).first());
@@ -122,10 +134,8 @@ test.describe('B17 specific faults', () => {
     }
   });
 
-  test('circle tabs: the current section is inside the screen', async ({ page }) => {
+  test('a section page of a circle keeps the "Dây" tab current', async ({ page }) => {
     await open(page, '/circles/demo/giu-lai');
-    const box = await page.locator('nav[aria-label="Các mục của dây"] [aria-current="page"]').boundingBox();
-    const vw = page.viewportSize()?.width ?? 1440;
-    expect(box && box.x >= 0 && box.x + box.width <= vw, JSON.stringify(box)).toBe(true);
+    await expect(page.getByRole('navigation', { name: /^Điều hướng chính/ }).locator('[aria-current="page"]')).toHaveText(/Dây$/);
   });
 });

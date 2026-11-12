@@ -5,6 +5,10 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { formatBps, formatUsdc, huiMath } from 'sdk';
 import { keccak256, toHex } from 'viem';
 import { CirclePageHead } from '@/components/circle/CirclePageHead';
+import { LedgerGrid } from '@/components/circle/LedgerGrid';
+import type { Phase } from '@/components/circle/RoundTimeline';
+import { toLedger, toSampleMembers } from '@/lib/chain/adapter';
+import { DEMO_LEDGER, DEMO_MEMBERS, VIEWER } from '@/lib/sample';
 import { EXPLORER_TX } from '@/components/chain/useTx';
 import { LedgerList } from '@/components/LedgerList';
 import { useChain } from '@/lib/chain/provider';
@@ -81,6 +85,18 @@ function buildLines(c: SampleCircleData): Line[] {
 }
 
 /** S11: the "sổ họ" table with a round filter. JSON export downloads what is on screen; PDF waits for the server. */
+const PHASE_OF = { commit: 'commit', reveal: 'reveal', 'awaiting-settle': 'settle', 'not-started': 'commit', done: 'settle' } as const;
+
+/** Kỳ x member grid for the top of the book: chain data, or the bidding sample (docs/03 section 8); null for the other samples. */
+function gridOf(c: SampleCircleData) {
+  if (c.live) {
+    const { members, viewer } = toSampleMembers(c.live.view, c.live.viewerAddress);
+    const now = c.live.view.rounds.find((r) => r.k === c.settled + 1);
+    return { members, viewer, rounds: toLedger(c.live.view), phase: PHASE_OF[now?.phase ?? 'commit'] as Phase };
+  }
+  return c.id === 'demo' ? { members: DEMO_MEMBERS, viewer: VIEWER, rounds: DEMO_LEDGER, phase: 'commit' as Phase } : null;
+}
+
 export function BookView({ c }: { c: SampleCircleData }) {
   const { show } = useToast();
   const [round, setRound] = useState('all');
@@ -167,6 +183,15 @@ export function BookView({ c }: { c: SampleCircleData }) {
           <Download aria-hidden className="size-5" /> Tải JSON
         </Button>
       </div>
+
+      {(() => {
+        const g = gridOf(c);
+        return g && (
+          <div className="mt-8 print:hidden">
+            <LedgerGrid members={g.members} rounds={g.rounds} viewer={g.viewer} phase={g.phase} />
+          </div>
+        );
+      })()}
 
       <section aria-labelledby="dau-so" className="to-giay mt-8 p-6 print:break-inside-avoid">
         <h2 id="dau-so" className="font-display text-h2 font-bold">

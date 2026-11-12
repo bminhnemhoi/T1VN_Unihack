@@ -1,4 +1,5 @@
 export { FUJI } from './chains';
+export { FUJI_EVIDENCE, fujiAddressUrl } from './evidence';
 export {
   BPS,
   USDC_DECIMALS,

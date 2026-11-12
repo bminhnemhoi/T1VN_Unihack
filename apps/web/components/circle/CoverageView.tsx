@@ -38,10 +38,10 @@ export function CoverageView({ c }: { c: SampleCircleData }) {
           <h2 id="tom-tat-bc" className="font-display text-h2 font-bold">
             Ký quỹ còn {formatUsdc(c.bondRemaining)} trên {formatUsdc(c.bond)}
           </h2>
-          <p className="so-ke mt-3 text-lead text-[#dfe5f0]">
+          <p className="so-ke mt-3 text-lead text-[#e9e4da]">
             Chỉ số bảo chứng hiện tại <strong className="text-white">{formatBps(index)}</strong>, tính cả quỹ dự phòng {formatUsdc(c.reserve)}.
           </p>
-          <p className="mt-2 text-[#c9d2e0]">
+          <p className="mt-2 text-[#c9c2b6]">
             Chỉ số 100% nghĩa là ký quỹ chịu được cú sốc lớn nhất: mọi người đã hốt cùng bỏ đóng một lúc. Bỏ đóng lần lượt qua nhiều kỳ có thể vượt ký quỹ.
           </p>
         </section>

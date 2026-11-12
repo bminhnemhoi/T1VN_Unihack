@@ -1,9 +1,9 @@
-import { CircleScreen } from '@/components/circle/CircleScreen';
+import { CircleRoom } from '@/components/app/CircleRoom';
 import { circleParam, type CirclePageProps } from '@/lib/circle-page';
 
-export const metadata = { title: 'Chi tiết dây' };
+export const metadata = { title: 'Dây' };
 
-/** Overview of one circle: forming, bid room, fixed room or finished, from the sample or from the chain. Section pages live next to this file. */
+/** "Dây": the circle as a timeline of rounds (forming and finished circles keep their own screens). */
 export default async function Circle({ params }: CirclePageProps) {
-  return <CircleScreen id={await circleParam(params)} screen="overview" />;
+  return <CircleRoom id={await circleParam(params)} />;
 }

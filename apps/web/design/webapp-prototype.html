@@ -1,0 +1,1236 @@
+<title>HụiSafe Web App</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Inter+Tight:wght@400;500;600;700;800;900&display=swap">
+<style>
+/* Layout: "dòng thời gian" — the round rail is the navigation, the stage below is the one job of the selected round.
+   Tokens from apps/web/DESIGN.md v4 (landing approved 12/11). Single light look by choice, like the landing. */
+:root {
+  --ivory: #f4f0e8; --paper: #fbf9f4; --ink: #201d1d; --ink-deep: #151313; --ink-2: #5a5555;
+  --line: #dcd6cb; --mute: #a39d94; --dim: #8f8a82; --lime: #a1ff62; --red: #f84131; --red-ink: #c4271a;
+  --red-soft: #ff6a5c; --forest: #17402e; --forest-soft: #d8ecd9; --soft: #ece7dd; --gx: 24px; --r: 16px; --r-in: 4px;
+  --display: 'Inter Tight', 'Helvetica Neue', Arial, sans-serif;
+  --body: 'Inter Tight', 'Helvetica Neue', Arial, sans-serif;
+  --mono: 'IBM Plex Mono', ui-monospace, Menlo, monospace;
+  --dur-tap: 120ms; --dur-ui: 180ms; --dur-state: 400ms;
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1); --ease-stamp: cubic-bezier(0.2, 1.6, 0.4, 1);
+  color-scheme: light;
+}
+html, body { height: 100%; }
+body { background: #d9d3c7; color: var(--ink); font: 400 15px/1.5 var(--body); letter-spacing: 0.005em; overflow: hidden; }
+*, *::before, *::after { box-sizing: border-box; }
+button, input { font: inherit; color: inherit; }
+button { cursor: pointer; }
+:focus-visible { outline: 3px solid var(--ink); outline-offset: 2px; }
+.demo :focus-visible, .panel.dark .btn:focus-visible, .peek:focus-visible, .verdict :focus-visible, .bondBar :focus-visible { outline-color: var(--ivory); }
+.mono { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+.label { font: 500 11px/1.3 var(--mono); letter-spacing: 0.08em; text-transform: uppercase; }
+h1, h2, h3 { font-family: var(--display); font-weight: 800; letter-spacing: -0.035em; line-height: 1; margin: 0; text-wrap: balance; }
+
+/* Review frame: desktop fills the window, phone mode shows the same app in a 390x844 frame. */
+.shell { height: 100%; display: grid; place-items: stretch; }
+.shell.phone { place-items: center; padding: 16px max(16px, env(safe-area-inset-right, 0px)) 16px max(16px, env(safe-area-inset-left, 0px)); }
+.app { position: relative; container: app / inline-size; background: var(--ivory); display: grid; grid-template-columns: minmax(0, 1fr); grid-template-rows: auto auto auto minmax(0, 1fr) auto; height: 100%; min-height: 0; overflow: hidden; overflow: clip; }
+.shell.phone .demo { padding-inline: 24px; flex-wrap: wrap; row-gap: 8px; }
+.shell.phone .demo .ctl { display: contents; }
+.shell.phone .app { width: min(390px, 100%); height: min(844px, 100%); border-radius: 34px; box-shadow: 0 0 0 10px var(--ink), 0 40px 80px -30px rgba(32, 29, 29, 0.6); }
+
+/* demo strip */
+.demo { background: var(--ink); color: #e9e4da; display: flex; align-items: center; gap: 12px; padding: 8px max(16px, env(safe-area-inset-right, 0px)) 8px max(16px, env(safe-area-inset-left, 0px)); font-size: 12.5px; min-height: 34px; }
+.demo b { flex: none; font: 600 10.5px/1 var(--mono); letter-spacing: 0.08em; text-transform: uppercase; background: var(--ivory); color: var(--ink); padding: 4px 8px; border-radius: 3px; }
+.demo span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.demo .ctl { flex: none; display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; min-width: 0; }
+.demo button { min-height: 26px; padding: 0 12px; border-radius: 3px; border: 1px solid #4a4545; background: transparent; color: #e9e4da; font: 500 11px var(--mono); letter-spacing: 0.04em; }
+.demo button[aria-pressed='true'] { background: #e9e4da; color: var(--ink); border-color: #e9e4da; }
+
+/* top bar */
+.top { display: flex; align-items: center; gap: 16px; padding: 12px max(var(--gx), env(safe-area-inset-right, 0px)) 12px max(var(--gx), env(safe-area-inset-left, 0px)); border-bottom: 1px solid var(--line); background: var(--ivory); }
+.logo { font: 900 22px/1 var(--display); letter-spacing: -0.05em; display: inline-flex; align-items: center; text-decoration: none; color: var(--ink); min-height: 44px; }
+.logo span { position: relative; }
+.logo span i { position: absolute; left: 50%; bottom: -5px; width: 6px; height: 6px; margin-left: -4px; border-radius: 50%; background: var(--ink); box-shadow: 0 0 0 1.5px var(--lime); }
+.tabs { display: flex; gap: 4px; }
+.tabs a { display: inline-flex; align-items: center; min-height: 44px; padding: 0 12px; border-radius: 4px; text-decoration: none; color: var(--ink-2); font-weight: 600; font-size: 14px; }
+.tabs a[aria-current='page'] { color: var(--ink); background: var(--soft); }
+.health { margin-left: auto; display: flex; gap: 8px; align-items: center; }
+.chip { display: inline-flex; align-items: center; gap: 8px; padding: 8px 12px; border-radius: 999px; background: var(--paper); border: 1px solid var(--line); font-size: 12.5px; white-space: nowrap; }
+.chip b { font: 500 12.5px var(--mono); }
+.dot { width: 7px; height: 7px; border-radius: 50%; background: var(--forest); flex: none; }
+.dot.warn { background: var(--red); }
+
+/* circle header + round rail */
+.ctx { padding: 16px max(var(--gx), env(safe-area-inset-right, 0px)) 0 max(var(--gx), env(safe-area-inset-left, 0px)); }
+.ctxHead { display: flex; align-items: baseline; gap: 16px; flex-wrap: wrap; }
+.ctxHead h1 { font-size: 26px; }
+.ctxHead small { color: var(--ink-2); font-size: 13px; }
+.rail { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 8px; margin: 12px 0 0; padding: 0 0 16px; list-style: none; position: relative; }
+.rail button { width: 100%; text-align: left; border: 1px solid var(--line); background: var(--paper); border-radius: 10px; padding: 12px 12px; min-height: 74px; display: grid; gap: 4px; align-content: space-between; transition: transform var(--dur-tap), border-color var(--dur-ui); position: relative; }
+.rail button:active { transform: scale(0.97); }
+.rail .k { display: flex; justify-content: space-between; align-items: center; }
+.rail .k em { font-style: normal; }
+.rail strong { font: 700 15px var(--display); letter-spacing: -0.02em; }
+.rail small { font: 400 11.5px var(--mono); color: var(--ink-2); }
+.rail .done { background: var(--paper); }
+.rail .now { background: var(--lime); border-color: var(--lime); }
+.rail .later { background: transparent; border-style: dashed; }
+.rail .later strong, .rail .later small { color: var(--ink-2); }
+.rail button[aria-current='true'] { box-shadow: 0 0 0 2px var(--ink); }
+.rail .flag { width: 8px; height: 8px; border-radius: 50%; background: var(--red); }
+.rail .live { font: 500 12px var(--mono); }
+
+/* stage */
+.view { min-height: 0; overflow: auto; overscroll-behavior: contain; touch-action: pan-y; }
+.view > .in { animation: viewIn var(--dur-ui) var(--ease-out); }
+@keyframes viewIn { from { opacity: 0; transform: translateY(8px); } }
+.view > .inL { animation: inL var(--dur-ui) var(--ease-out); }
+.view > .inR { animation: inR var(--dur-ui) var(--ease-out); }
+@keyframes inL { from { opacity: 0; transform: translateX(18px); } }
+@keyframes inR { from { opacity: 0; transform: translateX(-18px); } }
+.stage { display: grid; grid-template-columns: 1.15fr 1fr; align-items: start; gap: 16px; padding: 0 max(var(--gx), env(safe-area-inset-right, 0px)) 16px max(var(--gx), env(safe-area-inset-left, 0px)); height: 100%; min-height: 0; }
+.panel { border-radius: var(--r); padding: 24px; min-width: 0; min-height: 0; display: grid; align-content: start; gap: 16px; }
+.panel.dark { background: var(--ink); color: var(--ivory); overflow: clip; }
+.panel.light { background: var(--paper); border: 1px solid var(--line); }
+.panel h2 { font-size: 22px; }
+.phases { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin: 0; padding: 0; list-style: none; font-size: 12px; }
+.phases li { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding: 8px 8px; border-radius: 4px; background: #2d2a2a; color: var(--mute); transition: background var(--dur-state), color var(--dur-state); }
+.phases li.on { background: var(--lime); color: var(--ink); font-weight: 600; }
+.phases li.past { background: #3a3636; color: #d6cfc3; }
+.clockRow { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; }
+.clock { font: 500 34px/1 var(--mono); font-variant-numeric: tabular-nums; color: var(--ivory); }
+.clock.low { color: var(--red-soft); }
+
+.slip { position: relative; background: var(--paper); color: var(--ink); border-radius: var(--r-in); padding: 16px 24px 16px; display: grid; gap: 8px; background-image: repeating-linear-gradient(to bottom, transparent 0 31px, #e6e0d4 31px 32px); }
+.slip label { color: var(--ink-2); }
+.bidIn { display: flex; align-items: baseline; gap: 12px; padding: 0 16px; border: 1.5px solid var(--ink); border-radius: var(--r-in); background: var(--ivory); }
+.bidIn input { width: 100%; min-width: 0; min-height: 56px; background: transparent; border: 0; font: 500 46px/1.1 var(--mono); outline: none; padding: 0; font-variant-numeric: tabular-nums; }
+.bidIn input:focus-visible { outline: none; }
+.bidIn:focus-within { box-shadow: 0 0 0 3px var(--ink); }
+.bidIn:has(input:disabled) { background: transparent; border-style: dashed; }
+.bidIn input:disabled { color: var(--ink); -webkit-text-fill-color: var(--ink); opacity: 1; }
+.bidIn span { font: 400 13px var(--mono); color: var(--ink-2); }
+.hint { font-size: 13px; color: var(--ink-2); min-height: 1.4em; }
+.hint.err { color: var(--red-ink); font-weight: 600; }
+.stamp { position: absolute; right: 16px; top: 42px; transform: rotate(-10deg) scale(1.8); opacity: 0; border: 3px solid var(--red); color: var(--red-ink); border-radius: 6px; padding: 8px 12px; font: 800 17px/1 var(--display); letter-spacing: -0.02em; text-align: center; background: color-mix(in srgb, var(--paper) 85%, transparent); pointer-events: none; transition: transform var(--dur-state) var(--ease-stamp), opacity 120ms; }
+.stamp small { display: block; font: 500 10.5px var(--mono); margin-top: 4px; }
+.stamp.on { opacity: 1; transform: rotate(-10deg) scale(1); }
+.stamp.win { border-color: var(--forest); color: var(--forest); }
+.btn { display: inline-flex; align-items: center; justify-content: center; gap: 12px; min-height: 48px; padding: 0 32px; border: 0; border-radius: 4px; font: 600 15px/1 var(--body); transition: transform var(--dur-tap); text-decoration: none; }
+.btn:active { transform: scale(0.97); }
+.btn.lime { background: var(--lime); color: var(--ink); }
+.btn.ink { background: var(--ink); color: var(--ivory); }
+.btn.ghost { background: transparent; color: inherit; box-shadow: inset 0 0 0 1.5px currentColor; }
+.btn[disabled] { opacity: 0.45; cursor: not-allowed; transform: none; }
+.actions { display: flex; gap: 12px; flex-wrap: wrap; align-items: center; }
+
+/* receipt rows */
+.rc { margin: 0; display: grid; }
+.rc div { display: flex; justify-content: space-between; gap: 12px; padding: 8px 0; border-bottom: 1px dashed var(--line); font-size: 14px; }
+.panel.dark .rc div { border-color: #3a3636; }
+.rc dt, .rc dd { margin: 0; }
+.rc dd { font-family: var(--mono); font-variant-numeric: tabular-nums; text-align: right; white-space: nowrap; }
+.rc .big { border-bottom: 0; padding-top: 12px; align-items: baseline; }
+.rc .big dt { font-weight: 600; }
+.rc .big dd { font-size: 28px; font-weight: 500; }
+.panel.dark .rc .big dd { color: var(--ivory); }
+.rc .neg dd { color: var(--ink-2); }
+.panel.dark .rc .neg dd { color: var(--mute); }
+
+.who { margin: 0; padding: 0; list-style: none; display: grid; }
+.who li { display: grid; grid-template-columns: 34px 1fr auto; gap: 12px; align-items: center; padding: 8px 0; border-bottom: 1px solid var(--line); font-size: 14px; }
+.panel.dark .who li { border-color: #3a3636; }
+.who li:last-child { border: 0; }
+.av { width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center; font: 500 11px var(--mono); background: var(--ink); color: var(--ivory); }
+.panel.dark .av { background: #3a3636; }
+.av.me { background: var(--ivory); color: var(--ink); box-shadow: inset 0 0 0 2px var(--ink); }
+.tag { font: 500 10.5px/1 var(--mono); letter-spacing: 0.06em; text-transform: uppercase; padding: 4px 8px; border-radius: 3px; background: var(--soft); color: var(--ink); white-space: nowrap; }
+.tag.ok { background: var(--forest-soft); color: var(--forest); }
+.tag.bad { background: var(--red); color: var(--ink); }
+.tag.lime { background: var(--lime); }
+.tag.dark { background: var(--ink); color: var(--ivory); }
+
+.cascade { display: grid; gap: 8px; padding: 16px; border-radius: var(--r-in); background: #fff3ee; border: 1px solid #f3c9bd; }
+.bar { display: flex; height: 14px; border-radius: 99px; overflow: hidden; background: var(--soft); }
+.bar i { display: block; height: 100%; transform-origin: left; animation: grow var(--dur-state) var(--ease-out) both; }
+@keyframes grow { from { transform: scaleX(0); } }
+.legend { display: flex; flex-wrap: wrap; gap: 8px 16px; font-size: 12.5px; }
+.legend i { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 8px; vertical-align: -1px; }
+
+/* overview */
+.ov { display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr); grid-template-rows: auto auto minmax(0, 1fr); align-items: start; gap: 16px; padding: 16px max(var(--gx), env(safe-area-inset-right, 0px)) 16px max(var(--gx), env(safe-area-inset-left, 0px)); height: 100%; min-height: 0; }
+.verdict, .stats { grid-column: 1 / -1; }
+.verdict { background: var(--ink); color: var(--ivory); border-radius: var(--r); padding: 24px 24px; display: grid; grid-template-columns: 1fr auto; gap: 16px; align-items: end; }
+.verdict p { margin: 0; font: 700 clamp(22px, 2.6vw, 34px)/1.15 var(--display); letter-spacing: -0.03em; max-width: 30ch; }
+.verdict p em { font-style: normal; text-decoration: underline 3px var(--lime); text-underline-offset: 6px; }
+.stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); border: 1px solid var(--line); border-radius: var(--r); background: var(--paper); }
+.stats > div { padding: 16px 16px; display: grid; gap: 4px; border-left: 1px solid var(--line); min-width: 0; }
+.stats > div:first-child { border-left: 0; }
+.stats b { font: 500 26px/1.1 var(--mono); font-variant-numeric: tabular-nums; }
+.stats small { color: var(--ink-2); font-size: 12.5px; }
+.circles, .feed { border: 1px solid var(--line); border-radius: var(--r); background: var(--paper); min-height: 0; max-height: 100%; overflow: auto; }
+.feed { padding: 16px 16px; display: grid; gap: 12px; align-content: start; }
+.feed ol { margin: 0; padding: 0; list-style: none; display: grid; }
+.feed li { display: grid; grid-template-columns: 28px minmax(0, 1fr); gap: 8px; padding: 4px 0; align-items: end; }
+.feed .av { width: 28px; height: 28px; font-size: 9.5px; }
+.bub { display: flex; justify-content: space-between; align-items: flex-end; gap: 12px; background: var(--ivory); border: 1px solid var(--line); border-radius: 14px 14px 14px 4px; padding: 8px 12px; font-size: 13px; min-width: 0; }
+.bub small { display: block; font: 500 10.5px var(--mono); color: var(--ink-2); }
+.bub b { font: 500 12.5px var(--mono); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.circles a.add { grid-template-columns: 1fr auto; color: var(--ink-2); }
+.circles a.add strong { font: 700 15px var(--display); color: var(--ink); }
+.circles a { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1.6fr) auto; gap: 16px; align-items: center; padding: 16px 16px; border-bottom: 1px solid var(--line); text-decoration: none; color: inherit; transition: background var(--dur-ui); }
+.circles a:last-child { border-bottom: 0; }
+.circles a:hover { background: var(--ivory); }
+.circles h3 { font-size: 18px; letter-spacing: -0.02em; }
+.circles small { color: var(--ink-2); font-size: 12.5px; }
+.strip { display: grid; grid-template-columns: repeat(var(--n), minmax(0, 1fr)); gap: 4px; }
+.strip i { height: 8px; border-radius: 3px; background: var(--soft); }
+.strip i.d { background: var(--ink); }
+.strip i.n { background: var(--lime); box-shadow: inset 0 0 0 1.5px var(--ink); }
+.strip i.x { background: var(--red); }
+
+/* ledger */
+.lg { display: grid; grid-template-rows: auto minmax(0, 1fr) auto; gap: 12px; padding: 16px max(var(--gx), env(safe-area-inset-right, 0px)) 16px max(var(--gx), env(safe-area-inset-left, 0px)); height: 100%; min-height: 0; }
+.lgHead { display: flex; justify-content: space-between; align-items: end; gap: 12px; flex-wrap: wrap; }
+.lgHead h1 { font-size: 26px; }
+.tableWrap { border: 1px solid var(--line); border-radius: var(--r); background: var(--paper); overflow: auto; min-height: 0; }
+table { border-collapse: separate; border-spacing: 0; width: 100%; min-width: 640px; font-size: 13.5px; }
+th, td { padding: 12px 12px; border-bottom: 1px solid var(--line); text-align: left; vertical-align: top; }
+thead th { position: sticky; top: 0; background: var(--paper); z-index: 1; font: 500 11px var(--mono); letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink-2); }
+tbody th { position: sticky; left: 0; background: var(--paper); z-index: 1; font-weight: 600; white-space: nowrap; }
+tbody tr:last-child th, tbody tr:last-child td { border-bottom: 0; }
+td .v { font-family: var(--mono); font-variant-numeric: tabular-nums; display: block; }
+td small { color: var(--ink-2); font-size: 11.5px; display: block; margin-top: 4px; }
+td.win { background: #f0fbe6; }
+td.miss { background: #fff3ee; }
+td.cur { box-shadow: inset 2px 0 0 var(--ink); }
+tfoot td, tfoot th { border-top: 1px solid var(--ink); border-bottom: 0; font-weight: 600; }
+.lgFoot { display: flex; flex-wrap: wrap; gap: 8px 16px; font-size: 12.5px; color: var(--ink-2); }
+
+/* receipt (kỳ đã chốt): torn paper edges, dashed rules, the stamp lands on it */
+.panel.receipt { position: relative; background: var(--paper); border-radius: 3px; padding: 24px 24px; gap: 12px; box-shadow: 0 22px 34px -26px rgba(32, 29, 29, 0.5); }
+.receipt::before, .receipt::after { content: ''; position: absolute; left: 0; right: 0; height: 8px; background: radial-gradient(circle at 6px 8px, var(--paper) 6px, transparent 6.5px) 0 0 / 12px 8px repeat-x; }
+.receipt::before { top: -8px; }
+.receipt::after { bottom: -8px; transform: scaleY(-1); }
+.receipt h2 { max-width: 16ch; }
+.rh, .rf { display: flex; justify-content: space-between; gap: 8px 12px; flex-wrap: wrap; }
+.rh { border-bottom: 1px dashed var(--ink); padding-bottom: 12px; }
+.rf { border-top: 1px dashed var(--ink); padding-top: 12px; font: 400 11.5px var(--mono); color: var(--ink-2); }
+.receipt .stamp { top: 52px; }
+
+/* story nav: phone only (bars + prev/next, swipe on the stage) */
+.storyNav { display: none; }
+.storyNav > button { min-width: 44px; min-height: 44px; padding: 0; border: 1px solid var(--line); border-radius: 999px; background: var(--paper); font: 500 18px/1 var(--mono); transition: transform var(--dur-tap); }
+.storyNav > button:active { transform: scale(0.94); }
+.storyNav > button:disabled { opacity: 0.35; }
+.snMid { display: grid; gap: 4px; text-align: center; min-width: 0; }
+.bars { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 4px; }
+.bars button { border: 0; background: none; padding: 8px 0; min-height: 22px; }
+.bars i { display: block; height: 4px; border-radius: 4px; background: var(--line); transition: height var(--dur-ui); }
+.bars .done i { background: var(--ink); }
+.bars .flagged i { background: var(--red); }
+.bars .now i { background: var(--lime); box-shadow: inset 0 0 0 1px var(--ink); }
+.bars button[aria-current='true'] i { height: 7px; }
+.snMid strong { font: 700 15px/1 var(--display); }
+.snMid small { font: 400 11.5px var(--mono); color: var(--ink-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+/* bottom sheet (phone): pulled up from the bid panel */
+.scrim { position: absolute; inset: 0; z-index: 20; background: rgba(21, 19, 19, 0.45); opacity: 0; pointer-events: none; transition: opacity var(--dur-ui); }
+.sheet { position: absolute; left: 0; right: 0; bottom: 0; z-index: 21; max-height: 84%; overflow: auto; overscroll-behavior: contain; background: var(--paper); border-radius: 22px 22px 0 0; padding: 8px 24px calc(16px + env(safe-area-inset-bottom, 0px)); box-shadow: 0 -24px 40px -24px rgba(21, 19, 19, 0.5); transform: translateY(102%); visibility: hidden; transition: transform 320ms var(--ease-out), visibility 0s 320ms; display: grid; gap: 12px; }
+.app.sheetOpen .scrim { opacity: 1; pointer-events: auto; }
+.app.sheetOpen .sheet { transform: none; visibility: visible; transition: transform 320ms var(--ease-out), visibility 0s; }
+.grab { display: block; width: 100%; min-height: 28px; padding: 0; border: 0; background: none; touch-action: none; cursor: grab; }
+.grab::before { content: ''; display: block; width: 44px; height: 5px; border-radius: 5px; background: var(--line); margin: 0 auto; }
+.sheetHead { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+.sheetHead button { min-height: 44px; padding: 0 24px; border-radius: 999px; border: 1px solid var(--line); background: var(--ivory); font-weight: 600; font-size: 13px; }
+
+/* create circle: focus mode, one question per screen */
+.cr { height: 100%; min-height: 0; width: 100%; max-width: 780px; margin: 0 auto; display: grid; grid-template-columns: minmax(0, 1fr); grid-template-rows: auto minmax(0, 1fr) auto; gap: 16px; padding: 24px max(var(--gx), env(safe-area-inset-right, 0px)) 24px max(var(--gx), env(safe-area-inset-left, 0px)); }
+.crTop { display: grid; gap: 12px; }
+.crTop .strip i { height: 6px; }
+.crQ { display: grid; grid-template-columns: minmax(0, 1fr); align-content: safe center; gap: 16px; min-height: 0; min-width: 0; overflow-y: auto; overscroll-behavior: contain; padding-block: 4px; }
+.crQ.in { animation: inL var(--dur-ui) var(--ease-out); }
+.crQ h1 { font-size: clamp(30px, 4.4vw, 56px); }
+.crQ .sub { margin: 0; color: var(--ink-2); font-size: 15px; max-width: 48ch; }
+.opts { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 12px; }
+.opt { text-align: left; border: 1.5px solid var(--line); background: var(--paper); border-radius: var(--r); padding: 16px 16px; min-height: 84px; display: grid; gap: 4px; align-content: start; transition: border-color var(--dur-ui), background var(--dur-ui), transform var(--dur-tap); }
+.opt:active { transform: scale(0.98); }
+.opt strong { font: 800 20px/1.1 var(--display); letter-spacing: -0.02em; }
+.opt small { color: var(--ink-2); font-size: 13px; line-height: 1.45; }
+.opt[aria-checked='true'] { border-color: var(--ink); background: var(--lime); }
+.opt[aria-checked='true'] small { color: var(--ink); }
+.crQ .sub.err { color: var(--red-ink); font-weight: 600; }
+.sticky { display: grid; gap: 12px; }
+.skStory { display: none; }
+@media (max-width: 700px) { #frameToggle { display: none; } }
+.stepper { display: flex; align-items: center; gap: 24px; }
+.stepper button { width: 64px; height: 64px; border-radius: 50%; border: 1.5px solid var(--ink); background: var(--paper); font: 500 28px/1 var(--mono); transition: transform var(--dur-tap); }
+.stepper button:active { transform: scale(0.92); }
+.stepper button:disabled { opacity: 0.35; }
+.stepper output { font: 500 clamp(64px, 9vw, 104px)/1 var(--mono); min-width: 2ch; text-align: center; font-variant-numeric: tabular-nums; }
+.bigIn { display: flex; align-items: baseline; gap: 12px; padding: 0 16px; border: 1.5px solid var(--ink); border-radius: 12px; background: var(--paper); max-width: 440px; }
+.bigIn input { flex: 1; width: 100%; min-width: 0; border: 0; background: transparent; font: 500 clamp(48px, 7vw, 76px)/1.1 var(--mono); padding: 0; min-height: 72px; outline: none; font-variant-numeric: tabular-nums; }
+.bigIn input:focus-visible { outline: none; }
+.bigIn:focus-within { box-shadow: 0 0 0 3px var(--ink); }
+.bigIn span { font: 500 16px var(--mono); color: var(--ink-2); }
+.chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.chips button { min-height: 44px; padding: 0 24px; border-radius: 999px; border: 1px solid var(--line); background: var(--paper); font: 500 14px var(--mono); }
+.chips button[aria-pressed='true'] { background: var(--ink); color: var(--ivory); border-color: var(--ink); }
+.bondBig { font: 500 clamp(52px, 8vw, 88px)/1 var(--mono); font-variant-numeric: tabular-nums; }
+.bondBig span { font-size: 18px; color: var(--ink-2); margin-left: 8px; }
+.meter { display: grid; gap: 8px; max-width: 520px; }
+.meter > div { height: 12px; border-radius: 99px; background: var(--soft); overflow: hidden; }
+.meter i { display: block; height: 100%; background: var(--forest); transform-origin: left; animation: grow 600ms var(--ease-out) both; }
+.crNav { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+.cr .rc div { padding: 8px 0; }
+.crDone { display: grid; gap: 16px; align-content: safe center; }
+.crDone .stamp { position: static; justify-self: start; font-size: 30px; padding: 12px 16px; }
+
+/* ledger on phone: dot grid (whole circle at a glance) + per-round list */
+.lgP { display: none; }
+.lgBody { display: grid; gap: 12px; align-content: start; min-height: 0; }
+.lgBody.in { animation: viewIn var(--dur-ui) var(--ease-out); }
+.lgBody.inL { animation: inL var(--dur-ui) var(--ease-out); }
+.lgBody.inR { animation: inR var(--dur-ui) var(--ease-out); }
+.seg { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; padding: 4px; background: var(--soft); border-radius: 999px; }
+.seg button { min-height: 40px; padding: 0; border: 0; border-radius: 999px; background: transparent; font-weight: 600; font-size: 14px; color: var(--ink-2); transition: background var(--dur-ui), color var(--dur-ui); }
+.seg button[aria-pressed='true'] { background: var(--paper); color: var(--ink); box-shadow: 0 1px 3px rgba(32, 29, 29, 0.18); }
+.dots { display: grid; grid-template-columns: 74px repeat(5, minmax(0, 1fr)); align-items: center; background: var(--paper); border: 1px solid var(--line); border-radius: var(--r); padding: 8px 8px; }
+.dots .h { font: 500 10.5px var(--mono); letter-spacing: 0.06em; color: var(--ink-2); text-align: center; padding: 4px 0 4px; }
+.dots .h.cur { color: var(--ink); font-weight: 600; }
+.dots .m { font-weight: 600; font-size: 13.5px; line-height: 1.15; }
+.dots .m small { display: block; font-weight: 400; font-size: 10.5px; color: var(--ink-2); }
+.dots button { min-height: 48px; border: 0; background: transparent; display: grid; place-items: center; padding: 0; border-radius: 8px; } /* .dots radius 16 − padding 8 */
+.dots button.col { background: var(--ivory); }
+.dots i, .legend2 i { width: 26px; height: 26px; border-radius: 7px; display: grid; place-items: center; font: 600 12px/1 var(--mono); font-style: normal; color: var(--ink); transition: transform var(--dur-tap); }
+.dots button:active i { transform: scale(0.88); }
+.k-pay i { background: var(--ink); }
+.k-win i { background: var(--forest); color: var(--ivory); border-radius: 50%; }
+.k-miss i { background: var(--red); }
+.k-now i { box-shadow: inset 0 0 0 2px var(--ink); }
+.k-later i { outline: 1.5px dashed var(--mute); outline-offset: -2px; }
+.legend2 { display: flex; flex-wrap: wrap; gap: 8px 16px; font-size: 12px; color: var(--ink-2); }
+.legend2 span { display: inline-flex; align-items: center; gap: 8px; }
+.legend2 i { width: 14px; height: 14px; border-radius: 4px; font-size: 8px; }
+.legend2 .k-win i { border-radius: 50%; }
+.lgList { list-style: none; margin: 0; padding: 0; background: var(--paper); border: 1px solid var(--line); border-radius: var(--r); overflow: hidden; }
+.lgList li { display: grid; grid-template-columns: 30px minmax(0, 1fr) auto; gap: 12px; align-items: center; padding: 8px 16px; border-bottom: 1px solid var(--line); }
+.lgList li:last-child { border-bottom: 0; }
+.lgList li.win { background: #f0fbe6; }
+.lgList li.miss { background: #fff3ee; }
+.lgList strong { font-size: 14px; }
+.lgList small { display: block; color: var(--ink-2); font-size: 12px; line-height: 1.35; }
+.lgList b { font: 500 15px var(--mono); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.lgList .av { width: 28px; height: 28px; font-size: 10px; }
+.bondBar { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 12px 16px; border-radius: 12px; background: var(--ink); color: var(--ivory); font-size: 13.5px; }
+.bondBar b { font: 500 16px var(--mono); color: var(--ivory); white-space: nowrap; }
+.cellDetail { display: grid; gap: 12px; }
+.cellDetail .val { font: 500 44px/1 var(--mono); font-variant-numeric: tabular-nums; }
+.cellDetail .val span { font-size: 16px; color: var(--ink-2); margin-left: 8px; }
+
+/* loading (lamng-design-rule §1) */
+.sk { background: var(--soft); border-radius: var(--r); position: relative; overflow: hidden; }
+.sk::after { content: ''; position: absolute; inset: 0; transform: translateX(-100%); background: linear-gradient(90deg, transparent, rgba(251, 249, 244, 0.7), transparent); animation: shimmer 1.2s ease-in-out infinite; }
+@keyframes shimmer { to { transform: translateX(100%); } }
+.skRail { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 8px; margin: 12px 0 0; padding-bottom: 16px; }
+.skRail .sk { height: 74px; border-radius: 12px; }
+.skVerdict, .skStats { grid-column: 1 / -1; }
+.skVerdict { height: 126px; } .skStats { height: 104px; } .skCircles { height: 277px; } .skFeed { height: 417px; }
+.skDark { height: 387px; } .skSideP { height: 544px; }
+.skTable { height: 100%; min-height: 0; } .skLgP { display: none; }
+.skStory { height: 60px; margin: 8px 0 12px; border-radius: 999px; }
+.txSteps li.fail { border-color: var(--red); color: var(--red-soft); font-weight: 600; }
+.light .txSteps li.fail, .cr .txSteps li.fail { border-color: var(--red); color: var(--red-ink); }
+.sync { display: inline-flex; align-items: center; gap: 8px; font: 500 12px var(--mono); color: var(--ink-2); }
+.sync i { width: 8px; height: 8px; border-radius: 50%; background: var(--ink-2); animation: pulse 1s ease-in-out infinite alternate; }
+@keyframes pulse { to { opacity: 0.3; } }
+.staleChip { display: inline-flex; align-items: center; gap: 8px; min-height: 44px; padding: 0 16px; border-radius: 999px; border: 1px solid var(--red); background: #fff3ee; color: var(--red-ink); font-weight: 600; font-size: 12.5px; }
+.state { display: grid; place-items: center; height: 100%; min-height: 0; padding: 24px var(--gx); }
+.stateBox { max-width: 520px; display: grid; gap: 12px; justify-items: start; }
+.stateBox h2 { font-size: clamp(24px, 3vw, 34px); }
+.stateBox p { margin: 0; color: var(--ink-2); }
+.stateBox .actions { margin-top: 12px; }
+.spin { width: 16px; height: 16px; border-radius: 50%; border: 2px solid currentColor; border-right-color: transparent; animation: spin 0.7s linear infinite; flex: none; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.btn[aria-busy='true'] { opacity: 1; cursor: progress; }
+.txSteps { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 4px; font-size: 12px; }
+.txSteps li { padding-top: 8px; border-top: 3px solid #3a3636; color: var(--mute); }
+.txSteps li.done { border-color: var(--ivory); color: var(--ivory); }
+.txSteps li.now { border-color: var(--lime); color: var(--ivory); font-weight: 600; }
+.light .txSteps li, .cr .txSteps li { border-color: var(--line); color: var(--ink-2); }
+.light .txSteps li.done, .cr .txSteps li.done { border-color: var(--ink); color: var(--ink); }
+.light .txSteps li.now, .cr .txSteps li.now { border-color: var(--ink); color: var(--ink); }
+.hint.err { color: var(--red-ink); font-weight: 600; }
+.panel.dark .hint.err { color: var(--red-soft); }
+.range { display: grid; gap: 4px; max-width: 440px; }
+.range input { width: 100%; height: 44px; accent-color: var(--ink); }
+.range span { display: flex; justify-content: space-between; font: 400 12px var(--mono); color: var(--ink-2); }
+.field { display: grid; gap: 8px; }
+.field input { min-height: 48px; padding: 0 16px; border: 1.5px solid var(--ink); border-radius: var(--r-in); background: var(--ivory); font: 400 15px var(--body); }
+.sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.tabbar svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+
+/* bottom tab bar: phone only */
+.tabbar { display: none; }
+
+/* ---------- tablet: keep the top bar on one line ---------- */
+@container app (max-width: 1080px) {
+  .health .chip ~ .chip { display: none; }
+  .tabs a { padding: 0 12px; }
+}
+/* ---------- phone layout (container query, so the review frame shows the real thing) ---------- */
+@container app (max-width: 760px) {
+  .demo span { display: none; }
+  .demo .ctl { margin-left: auto; }
+  .top { padding-block: 8px; gap: 12px; }
+  .tabs { display: none; }
+  .health .chip ~ .chip { display: none; }
+  .ctx { padding-top: 12px; }
+  .ctxHead h1 { font-size: 21px; }
+  .ctxHead small { display: none; }
+  .rail { display: flex; gap: 8px; overflow-x: auto; scroll-snap-type: x mandatory; padding-bottom: 12px; margin-inline: calc(-1 * max(var(--gx), env(safe-area-inset-left, 0px))); padding-inline: max(var(--gx), env(safe-area-inset-left, 0px)); scrollbar-width: none; }
+  .rail { display: none; }
+  .storyNav { display: grid; grid-template-columns: 44px minmax(0, 1fr) 44px; align-items: center; gap: 12px; padding: 8px 0 12px; }
+  .rail button { min-height: 62px; padding: 8px 12px; }
+  .rail small { font-size: 10.5px; }
+  .stage { grid-template-columns: 1fr; height: auto; gap: 12px; padding-bottom: 12px; }
+  .panel { padding: 16px; gap: 12px; }
+  .panel.side { display: none; }
+  .panel.side.keep { display: grid; }
+  .clock { font-size: 26px; }
+  .phases li b { display: none; }
+  .panel.dark .sticky { background: var(--ink); box-shadow: 0 -1px 0 #3a3636; }
+  .ov { grid-template-columns: 1fr; }
+  .feed { display: none; }
+  .bidIn input { font-size: 38px; min-height: 50px; }
+  .sticky { position: sticky; bottom: 0; z-index: 1; display: grid; gap: 8px; background: var(--ivory); box-shadow: 0 -1px 0 var(--line); padding: 12px 0 0; }
+  .sticky .btn { width: 100%; }
+  .peek { display: flex !important; }
+  .skSide { display: none; }
+  .skVerdict { height: 147px; } .skStats { height: 214px; } .skCircles { height: 271px; } .skDark { height: 480px; }
+  .skTable { display: none; } .skLgP { display: block; height: 593px; }
+  .skRail { display: none; }
+  .skStory { display: block; }
+  .demo b span { display: none; }
+  .app * { --gx: 16px; }
+  .cr { padding-block: 16px 16px; gap: 12px; }
+  .circles a.add { display: none; }
+  .crNav .btn { flex: 1; }
+  .stepper button { width: 56px; height: 56px; }
+  .opts { grid-template-columns: 1fr; }
+  .opt { min-height: 0; padding: 16px 16px; }
+  .ov { gap: 12px; padding-block: 12px; height: auto; grid-template-rows: none; }
+  .verdict { grid-template-columns: 1fr; padding: 16px; }
+  .verdict .btn { width: 100%; }
+  .stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .stats > div:nth-child(3) { border-left: 0; }
+  .stats > div:nth-child(n + 3) { border-top: 1px solid var(--line); }
+  .stats b { font-size: 21px; }
+  .circles { overflow: visible; }
+  .circles a { grid-template-columns: 1fr auto; gap: 8px 12px; }
+  .circles .strip { grid-column: 1 / -1; grid-row: 2; }
+  .lg { padding-block: 12px; gap: 12px; }
+  .lg .tableWrap, .lgFoot, .lgHead .chip { display: none; }
+  .lgP { display: grid; gap: 12px; align-content: start; min-height: 0; overflow-y: auto; overscroll-behavior: contain; }
+  .lgP .bondBar { position: sticky; bottom: 0; z-index: 1; box-shadow: 0 -8px 0 var(--ivory); }
+  .lgHead h1 { font-size: 21px; }
+  table { min-width: 560px; font-size: 12.5px; }
+  th, td { padding: 12px 8px; }
+  .tabbar { display: grid; grid-template-columns: repeat(4, 1fr); border-top: 1px solid var(--line); background: var(--paper); padding-bottom: env(safe-area-inset-bottom, 0px); }
+  .tabbar a { display: grid; place-items: center; gap: 4px; min-height: 56px; text-decoration: none; color: var(--ink-2); font-size: 11.5px; font-weight: 600; }
+  .tabbar a i { width: 18px; height: 3px; border-radius: 3px; background: transparent; }
+  .tabbar a[aria-current='page'] { color: var(--ink); }
+  .tabbar a[aria-current='page'] i { background: var(--ink); }
+  .tabbar a[aria-current='page'] svg { stroke-width: 2.4; }
+}
+.peek { display: none; width: 100%; justify-content: space-between; align-items: center; gap: 12px; padding: 12px 16px; border: 0; border-radius: var(--r-in); background: #2d2a2a; color: var(--ivory); font-size: 13.5px; text-align: left; transition: transform var(--dur-tap); }
+.peek:active { transform: scale(0.98); }
+.peek small { display: block; color: var(--mute); font-size: 11.5px; }
+.peek b { font: 500 20px var(--mono); color: var(--ivory); }
+
+@media (max-height: 780px) {
+  .ctx { padding-top: 12px; } .rail { margin-top: 8px; padding-bottom: 12px; } .rail button { min-height: 64px; padding: 8px 12px; }
+  .panel { padding: 16px; gap: 12px; } .clock { font-size: 28px; } .bidIn input { min-height: 48px; font-size: 40px; }
+  .rc div { padding: 4px 0; } .who li { padding: 4px 0; } .panel.side { gap: 8px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation: none !important; transition: none !important; }
+}
+</style>
+
+<div class="shell" id="shell">
+  <div class="app" id="app">
+    <div class="demo" role="status">
+      <b>Demo<span> · dữ liệu mẫu</span></b>
+      <span>Bản xem thử giao diện web app. Số liệu mẫu theo ví dụ docs/03 mục 8 (dây 5 người × 100 USDC, nhánh M4 vỡ nợ). Không gửi gì lên chuỗi.</span>
+      <div class="ctl">
+        <button type="button" id="netMode" title="Mô phỏng tình trạng mạng và dữ liệu">Thử: thường</button>
+        <button type="button" id="ffwd" title="Bỏ qua thời gian chờ của kỳ đang chạy">Tua nhanh ›</button>
+        <button type="button" id="frameToggle" title="Đổi khung xem: máy tính hoặc điện thoại">Xem: điện thoại</button>
+      </div>
+    </div>
+    <header class="top">
+      <a class="logo" href="#tong-quan" aria-label="HụiSafe, tổng quan">H<span>U<i></i></span>I</a>
+      <nav class="tabs" aria-label="Điều hướng chính">
+        <a href="#tong-quan" data-nav="tong-quan">Tổng quan</a>
+        <a href="#day" data-nav="day">Dây</a>
+        <a href="#so-hui" data-nav="so-hui">Sổ hụi</a>
+        <a href="#tao" data-nav="tao">Dây mới</a>
+      </nav>
+      <div class="health" id="health"></div>
+    </header>
+    <div id="ctx"></div>
+    <main class="view" id="view"></main>
+    <nav class="tabbar" aria-label="Điều hướng chính (điện thoại)">
+      <a href="#tong-quan" data-nav="tong-quan"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 10.5 12 4l8 6.5V20h-5v-5.5H9V20H4z"/></svg>Tổng quan</a>
+      <a href="#day" data-nav="day"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8"/><path d="M12 8v4l3 2"/></svg>Dây</a>
+      <a href="#so-hui" data-nav="so-hui"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 4h10a4 4 0 0 1 4 4v12H9a4 4 0 0 1-4-4z"/><path d="M9 9h6M9 13h6"/></svg>Sổ hụi</a>
+      <a href="#tao" data-nav="tao"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="4" width="16" height="16" rx="5"/><path d="M12 8.5v7M8.5 12h7"/></svg>Dây mới</a>
+    </nav>
+    <div class="sr" id="live" role="status" aria-live="polite"></div>
+    <div class="scrim" id="scrim"></div>
+    <section class="sheet" id="sheet" role="dialog" aria-modal="true" aria-labelledby="sheetTitle" inert>
+      <button type="button" class="grab" aria-label="Kéo xuống để đóng"></button>
+      <div class="sheetHead"><h2 id="sheetTitle" style="font-size:20px">Nếu bạn thắng kỳ 3</h2><button type="button" id="closeSheet">Đóng</button></div>
+      <div id="sheetBody"></div>
+    </section>
+  </div>
+</div>
+
+<script>
+(() => {
+  // ---------- numbers: micro-USDC integers, floor division like HuiMath ----------
+  const U = 1_000_000;
+  const C = 100 * U;
+  const CAP3 = 3_287_671;          // docs/03 s8: maxBid(3), L = 2
+  const fmt = (micro, min = 2) => {
+    const v = micro / U;
+    const s = v.toLocaleString('vi-VN', { minimumFractionDigits: min, maximumFractionDigits: 6 });
+    return s;
+  };
+  // Round 3 if YOU win with bid b: live payers M2, M5 pay C - b; M1 (already received) pays C; M4 (defaulted) is covered by the bond.
+  function round3Estimate(b) {
+    const pot = 2 * (C - b) + C + C;
+    const fee = Math.floor((pot * 100) / 10_000);       // feeBps 100, kept in escrow (round has a shortfall)
+    const premium = Math.floor((pot * 100) / 10_000);   // reserveBps 100
+    const hold = Math.floor((2000 * (5 - 3) * C) / 10_000); // alpha 20% x (N - k) x C
+    return { pot, fee, premium, hold, payout: pot - fee - premium - hold };
+  }
+  function parseBid(str) {
+    const s = String(str).trim().replace(/\./g, '').replace(',', '.');
+    if (!/^\d+(\.\d{0,6})?$/.test(s)) return null;
+    const [i, f = ''] = s.split('.');
+    return Number(i) * U + Number((f + '000000').slice(0, 6));
+  }
+  const M2_BID = 2_500_000; // sample: M2 sealed 2,5 USDC
+
+  // ---------- state ----------
+  const freshC = () => ({ step: 0, mode: 'bidding', N: 5, C: '100', P: 30, created: false });
+  const st = { view: 'tong-quan', round: 3, bid: '3,00', phase: 'commit', left: 78, sealed: false, revealed: false, settled: null, dir: 0, c: freshC(), lgMode: 'grid', lgRound: 3,
+    net: 'ok', loaded: new Set(), pending: null, showSkel: false, err: null, refreshing: false, staleErr: false, tx: null };
+  const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+  const say = (m) => { const l = document.getElementById('live'); if (!l) return; l.textContent = ''; setTimeout(() => { l.textContent = m; }, 30); };
+
+  // Create-circle numbers, same formulas as HuiMath (docs/03 s2.1, s2.3, s2.4, s2.6). BigInt: C up to 10 000 USDC overflows 2^53 otherwise.
+  function createMath(N, Cm, P) {
+    const n = BigInt(N), c = BigInt(Cm), p = BigInt(P);
+    const omax = (n / 2n) * (n - n / 2n) * c;                       // floor(N/2)·ceil(N/2)·C
+    const bond = (8000n * omax + 9999n) / 10000n;                   // ceil((10000 − α)·O_max / 10000), α = 20%
+    let cap = (2000n * c * (n - 1n) * p) / 3_650_000n;              // capBps·C·(N−1)·P / (10000·365 days), round 1
+    if (cap >= c) cap = c - 1n;
+    const allow = (n - 1n) * (c + (100n * c) / 10000n);             // (N − 1)·(C + revealBond), revealBond 1%
+    return { omax: Number(omax), bond: Number(bond), cap: Number(cap), allow: Number(allow) };
+  }
+  const PHASE = { commit: 0, reveal: 1, settle: 2, done: 3 };
+
+  // ---------- data ----------
+  const ROUNDS = [
+    { k: 1, state: 'done', who: 'M4', note: '288,48' },
+    { k: 2, state: 'done', who: 'M1', note: '323,18', flag: true },
+    { k: 3, state: 'now' },
+    { k: 4, state: 'later', note: 'trần 1,64' },
+    { k: 5, state: 'later', note: 'không thăm' },
+  ];
+
+  const $ = (s, r = document) => r.querySelector(s);
+  const app = $('#app');
+
+  function bond() { return st.settled ? 360 : 460; }
+  function health() {
+    const parts = [];
+    if (st.refreshing) parts.push('<span class="sync" role="img" aria-label="Đang cập nhật dữ liệu"><i></i>Đang cập nhật</span>');
+    if (st.staleErr) parts.push('<button type="button" class="staleChip" data-retry>Chưa cập nhật được · Thử lại</button>');
+    const hasData = st.loaded.size > 0 && st.net !== 'empty';
+    $('#health').innerHTML = parts.join('') + (!hasData ? '' : `
+      <span class="chip"><i class="dot"></i>Bảo chứng lúc mở <b>100%</b></span>
+      <span class="chip">Ký quỹ còn <b>${bond()}/480</b></span>
+      <span class="chip">Quỹ dự phòng <b>${st.settled ? fmt(11_580_000 + round3Estimate(parseBid(st.bid) ?? 0).premium) : '11,58'}</b></span>`);
+  }
+
+  // ---------- context (circle header + round rail), only on the circle view ----------
+  function rail() {
+    const items = ROUNDS.map((r) => {
+      let cls = r.state, top = `K${r.k}`, main = '', sub = '';
+      if (r.state === 'done') { main = `${r.who} hốt`; sub = `${r.note} USDC`; }
+      if (r.state === 'now') {
+        if (st.settled) { cls = 'done'; main = `${st.settled.who} hốt`; sub = `${fmt(st.settled.payout)} USDC`; }
+        else { main = ['Đang thăm', 'Mở thăm', 'Chốt kỳ'][PHASE[st.phase]] || 'Đang thăm'; sub = st.phase === 'commit' ? `còn ${clock(st.left)}` : 'đang chạy'; }
+      }
+      if (r.state === 'later') { main = r.k === 4 ? 'Kỳ sau' : 'Kỳ cuối'; sub = r.note; }
+      const flag = r.flag ? '<em class="flag" title="Có khoản thiếu"></em>' : '';
+      return `<li><button type="button" class="${cls}" data-round="${r.k}" aria-current="${st.round === r.k}">
+        <span class="k"><span class="label">${top}</span>${flag}</span><strong>${main}</strong><small>${sub}</small></button></li>`;
+    }).join('');
+    const bars = ROUNDS.map((r) => {
+      let cls = r.state === 'now' && st.settled ? 'done' : r.state;
+      if (r.flag) cls += ' flagged';
+      return `<button type="button" class="${cls}" data-round="${r.k}" aria-current="${st.round === r.k}" aria-label="Kỳ ${r.k}"><i></i></button>`;
+    }).join('');
+    return `<div class="ctx"><div class="ctxHead"><h1>Tổ dân phố 7</h1><small>5 người × 100 USDC · hụi tháng · bỏ thăm kín · bạn là M3</small></div>
+      <ol class="rail" aria-label="Các kỳ của dây">${items}</ol>
+      <div class="storyNav"><button type="button" data-step-round="-1" aria-label="Kỳ trước" ${st.round === 1 ? 'disabled' : ''}>‹</button>
+        <div class="snMid"><div class="bars" aria-label="Các kỳ của dây">${bars}</div><strong>Kỳ ${st.round}/5</strong><small id="snSub">${roundSub(st.round)}</small></div>
+        <button type="button" data-step-round="1" aria-label="Kỳ sau" ${st.round === 5 ? 'disabled' : ''}>›</button></div></div>`;
+  }
+  function roundSub(k) {
+    if (k === 1) return 'M4 hốt · 288,48 USDC';
+    if (k === 2) return 'M1 hốt · có khoản thiếu của M4';
+    if (k === 3) return st.settled ? `${st.settled.who} hốt · ${fmt(st.settled.payout)} USDC` : st.phase === 'commit' ? `Nộp thăm kín · còn ${clock(st.left)}` : 'Mở thăm';
+    return k === 4 ? 'Kỳ sau · trần 1,64' : 'Kỳ cuối · không thăm';
+  }
+  const clock = (s) => `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`;
+
+  // ---------- views ----------
+  function viewOverview() {
+    const est = round3Estimate(parseBid(st.bid) ?? 3 * U);
+    const todo = st.settled ? `Kỳ 3 đã chốt. <em>${st.settled.who === 'Bạn' ? 'Bạn hốt ' + fmt(st.settled.payout) + ' USDC.' : 'Bạn góp ' + fmt(C - st.settled.bid) + ' USDC.'}</em>`
+      : st.sealed ? `Thăm của bạn đã niêm phong. <em>Chờ mở thăm kỳ 3.</em>` : `Bạn có 1 việc: <em>bỏ thăm kỳ 3</em> của Tổ dân phố 7, còn ${clock(st.left)}.`;
+    return `<section class="ov in">
+      <div class="verdict"><p>${todo}</p><a class="btn lime" href="#day">${st.sealed || st.settled ? 'Xem dây' : 'Bỏ thăm ngay'} ↗</a></div>
+      <div class="stats">
+        <div><span class="label">Bạn đã góp</span><b>191,00</b><small>USDC, 2 kỳ đúng hạn</small></div>
+        <div><span class="label">Nếu thắng kỳ 3</span><b>${fmt(est.payout)}</b><small>USDC nhận ngay</small></div>
+        <div><span class="label">Dây đang chơi</span><b>2</b><small>1 đang chạy, 1 đang gom</small></div>
+        <div><span class="label">Lần trễ</span><b>0</b><small>đủ phần quỹ dự phòng cuối dây</small></div>
+      </div>
+      <div class="circles" role="list">
+        <a href="#day" role="listitem"><div><h3>Tổ dân phố 7</h3><small>Kỳ 3/5 · ${st.settled ? 'đã chốt' : 'đang bỏ thăm'} · 100 USDC/kỳ</small></div>
+          <div class="strip" style="--n:5"><i class="d"></i><i class="x"></i><i class="${st.settled ? 'd' : 'n'}"></i><i></i><i></i></div><span class="tag ${st.sealed ? 'ok' : 'lime'}">${st.settled ? 'Xong kỳ 3' : st.sealed ? 'Đã niêm phong' : 'Cần bỏ thăm'}</span></a>
+        <a href="#tong-quan" role="listitem"><div><h3>Bạn đại học</h3><small>Đang gom 4/5 người · bảo chứng 100%</small></div>
+          <div class="strip" style="--n:6"><i></i><i></i><i></i><i></i><i></i><i></i></div><span class="tag">Chờ bắt đầu</span></a>
+        <a href="#tong-quan" role="listitem"><div><h3>Hụi cố định 3 người</h3><small>Đã xong · sổ khớp</small></div>
+          <div class="strip" style="--n:3"><i class="d"></i><i class="d"></i><i class="d"></i></div><span class="tag ok">Đã xong</span></a>
+        <a href="#tao" role="listitem" class="add"><strong>+ Tạo dây mới</strong><span class="mono">5 câu hỏi ›</span></a>
+      </div>
+      <div class="feed"><span class="label">Vừa xảy ra · Tổ dân phố 7</span><ol>${feed()}</ol></div></section>`;
+  }
+
+  function feed() {
+    const items = [];
+    if (st.settled) items.push([st.settled.who === 'Bạn' ? 'M3' : 'M2', `${st.settled.who === 'Bạn' ? 'Bạn' : 'M2'} hốt, ký quỹ bù phần M4`, 'K3', fmt(st.settled.payout), st.settled.who === 'Bạn']);
+    if (st.sealed) items.push(['M3', 'Bạn niêm phong thăm', 'K3', 'kín', true]);
+    items.push(['M2', 'Niêm phong thăm', 'K3', 'kín'], ['M4', 'Quá ân hạn, ghi vỡ nợ', 'K2', '−100,00'], ['CH', 'Ký quỹ bù 20 cho M4', 'K2', '20,00'],
+      ['M1', 'Hốt với thăm 3,00', 'K2', '323,18'], ['M3', 'Bạn góp đúng hạn', 'K2', '−97,00', true], ['M4', 'Hốt với thăm 6,00', 'K1', '288,48']);
+    return items.map(([av, text, k, v, me]) => `<li><span class="av${me ? ' me' : ''}">${av}</span><span class="bub"><span><small>${k}</small>${text}</span><b>${v}</b></span></li>`).join('');
+  }
+
+  function members(rows, dark) {
+    return `<ul class="who">${rows.map(([av, name, right, me]) => `<li><span class="av${me ? ' me' : ''}">${av}</span><span>${name}</span>${right}</li>`).join('')}</ul>`;
+  }
+
+  function stageDone(k) {
+    if (k === 1) {
+      return `<section class="stage in">
+        <article class="panel receipt"><header class="rh"><span class="label">Biên lai · Kỳ 1</span><span class="label">Tổ dân phố 7</span></header>
+          <h2>M4 thắng với thăm 6,00 USDC</h2>
+          <dl class="rc"><div><dt>Tiền góp (4 người × 94)</dt><dd>376,00</dd></div>
+          <div class="neg"><dt>Hoa hồng chủ hụi (trả ngay)</dt><dd>−3,76</dd></div>
+          <div class="neg"><dt>Quỹ dự phòng</dt><dd>−3,76</dd></div>
+          <div class="neg"><dt>Giữ lại phòng M4 bỏ đóng</dt><dd>−80,00</dd></div>
+          <div class="big"><dt>M4 nhận</dt><dd>288,48</dd></div></dl>
+          <footer class="rf"><span>Kỳ sạch: hoa hồng trả ngay</span><span>Mã giao dịch: có ở bản thật</span></footer>
+          <div class="stamp on win">ĐÃ HỐT<small>M4 · 288,48</small></div></article>
+        <div class="panel light side"><h2>Ai góp kỳ 1</h2><p class="hint" style="margin:0">Cả 4 người góp đúng hạn, mỗi người 94,00 USDC.</p>${members([
+          ['M1', '', '<span class="mono">−94,00</span>'], ['M2', '', '<span class="mono">−94,00</span>'],
+          ['M3', 'Bạn', '<span class="mono">−94,00</span>', true], ['M4', 'Người hốt', '<span class="tag ok">Hốt</span>'],
+          ['M5', '', '<span class="mono">−94,00</span>']])}</div></section>`;
+    }
+    return `<section class="stage in">
+      <article class="panel receipt"><header class="rh"><span class="label">Biên lai · Kỳ 2</span><span class="label" style="color:var(--red-ink)">Có khoản thiếu</span></header>
+        <h2>M4 không đóng 100 USDC. M1 vẫn nhận đủ.</h2>
+        <div class="cascade"><div class="bar" role="img" aria-label="Khoản thiếu 100 USDC: 80 bù từ tiền giữ lại của M4, 20 bù từ ký quỹ">
+          <i style="width:80%;background:var(--ink-2)"></i><i style="width:20%;background:var(--ink);animation-delay:120ms"></i></div>
+          <div class="legend"><span><i style="background:var(--ink-2)"></i>80,00 từ tiền giữ lại của chính M4</span><span><i style="background:var(--ink)"></i>20,00 từ ký quỹ chủ hụi (480 → 460)</span></div></div>
+        <dl class="rc"><div><dt>Tiền góp (3 × 97 + 100 đã bù)</dt><dd>391,00</dd></div>
+          <div class="neg"><dt>Hoa hồng (giữ lại, sau đó mất vào quỹ)</dt><dd>−3,91</dd></div>
+          <div class="neg"><dt>Quỹ dự phòng</dt><dd>−3,91</dd></div>
+          <div class="neg"><dt>Giữ lại phòng M1 bỏ đóng</dt><dd>−60,00</dd></div>
+          <div class="big"><dt>M1 nhận (thăm 3,00)</dt><dd>323,18</dd></div></dl>
+        <footer class="rf"><span>Hoa hồng kỳ này giữ lại, mất vào quỹ khi M4 vỡ nợ</span><span>Mã giao dịch: có ở bản thật</span></footer>
+        <div class="stamp on win">M1 HỐT<small>nhận đủ 323,18</small></div></article>
+      <div class="panel light side"><h2>Ai góp kỳ 2</h2><p class="hint" style="margin:0">3 người góp đúng hạn, mỗi người 97,00 USDC. M4 không đóng.</p>${members([
+        ['M1', 'Người hốt', '<span class="tag ok">Hốt</span>'], ['M2', '', '<span class="mono">−97,00</span>'],
+        ['M3', 'Bạn', '<span class="mono">−97,00</span>', true], ['M4', 'Quá ân hạn', '<span class="tag bad">Vỡ nợ</span>'],
+        ['M5', '', '<span class="mono">−97,00</span>']])}
+        <p class="hint" style="margin:0">Khoản 100 USDC của M4 thành khoản đòi công khai. Các kỳ sau ký quỹ bù phần của M4.</p></div></section>`;
+  }
+
+  function stageLater(k) {
+    const cap = k === 4 ? '1,643835' : '0';
+    return `<section class="stage in">
+      <div class="panel light"><span class="label">Kỳ ${k} · chưa tới</span><h2>${k === 4 ? 'Bắt đầu sau khi chốt kỳ 3' : 'Người còn lại hốt, không bỏ thăm'}</h2>
+        <dl class="rc"><div><dt>Trần thăm theo NĐ 19 Điều 21</dt><dd>${cap} USDC</dd></div>
+        <div><dt>Mỗi người còn sống góp</dt><dd>100 − thăm thắng</dd></div>
+        <div><dt>Phần của M4 (vỡ nợ)</dt><dd>ký quỹ bù 100</dd></div>
+        <div><dt>Ký quỹ còn sau kỳ ${k - 1}</dt><dd>${k === 4 ? 360 : 260} USDC</dd></div></dl>
+        <p class="hint" style="margin:0">Trần thăm là cách hiểu của nhóm về NĐ 19/2019, chờ luật sư xác nhận.</p></div>
+      <div class="panel light side"><h2>Lịch</h2>${members([
+        ['K3', 'Đang chạy', `<span class="tag lime">${st.settled ? 'Xong' : 'Bây giờ'}</span>`], ['K4', 'Sau kỳ 3 khoảng 3 phút (chế độ demo)', '<span class="tag">Sắp tới</span>'],
+        ['K5', 'Kỳ cuối', '<span class="tag">Sắp tới</span>']])}</div></section>`;
+  }
+
+  function stageNow() {
+    const b = parseBid(st.bid);
+    const err = b === null ? 'Nhập số tiền, ví dụ 3,00' : b > CAP3 ? `Vượt trần kỳ này (3,287671 USDC). Thăm này sẽ không mở được.` : b >= C ? 'Thăm phải nhỏ hơn 100 USDC.' : '';
+    const est = round3Estimate(b === null || err ? 0 : b);
+    const ph = PHASE[st.phase];
+    const phases = ['Nộp thăm kín', 'Mở thăm', 'Chốt kỳ'].map((t, i) => `<li class="${i === ph ? 'on' : i < ph ? 'past' : ''}"><b>${i + 1} ·</b> ${t}</li>`).join('');
+    let stamp = '', primary = '', note = '';
+    if (st.settled) {
+      const youWon = st.settled.who === 'Bạn';
+      stamp = `<div class="stamp on ${youWon ? 'win' : ''}">${youWon ? 'ĐÃ HỐT' : 'M2 HỐT'}<small>${youWon ? fmt(st.settled.payout) + ' USDC' : 'thăm 2,50'}</small></div>`;
+      note = youWon ? `Bạn thắng với thăm ${fmt(st.settled.bid)}. Tiền đã về ví: ${fmt(st.settled.payout)} USDC.` : `M2 thắng với thăm 2,50. Bạn góp ${fmt(C - M2_BID)} USDC, phần còn lại của bạn vẫn sống cho kỳ 4.`;
+      primary = `<a class="btn ink" href="#so-hui">Xem sổ hụi ↗</a>`;
+    } else if (st.phase === 'commit') {
+      stamp = `<div class="stamp ${st.sealed ? 'on' : ''}">ĐÃ NIÊM PHONG<small>không ai đọc được</small></div>`;
+      primary = st.sealed ? `<button class="btn ghost" type="button" disabled>Đã niêm phong, chờ mở thăm</button>`
+        : `<button class="btn lime" type="button" id="seal" ${err ? 'disabled' : ''}>Niêm phong thăm</button>`;
+      note = st.sealed ? 'Hết giờ nộp thì mở thăm. Bấm "Tua nhanh" để đi tiếp.' : 'Thăm được gửi lên chuỗi dạng mã niêm phong. Kèm cọc mở thăm 1 USDC, trả lại khi bạn mở.';
+    } else if (st.phase === 'reveal') {
+      stamp = `<div class="stamp ${st.revealed ? 'on' : ''}">ĐÃ MỞ<small>${fmt(b)} USDC</small></div>`;
+      primary = st.sealed && !st.revealed ? `<button class="btn lime" type="button" id="reveal">Mở thăm</button>` : `<button class="btn ghost" type="button" disabled>${st.sealed ? 'Đã mở, chờ chốt kỳ' : 'Bạn không nộp thăm kỳ này'}</button>`;
+      note = st.sealed && !st.revealed ? 'Mở đúng số đã niêm phong. Không mở thì mất cọc và tính một lần trễ.' : 'Bấm "Tua nhanh" để chốt kỳ.';
+    }
+    const txv = txUI(st.phase === 'reveal' ? 'reveal' : 'seal', st.phase === 'reveal' ? 'Gửi lại lệnh mở thăm' : 'Gửi lại thăm');
+    if (txv) primary = txv.btn;
+    const locked = st.sealed || st.phase !== 'commit' || st.settled || !!(st.tx && !st.tx.err);
+    const others = [
+      ['M1', 'Đã hốt kỳ 2, góp 100', '<span class="tag">Không thăm</span>'],
+      ['M2', st.phase === 'commit' ? 'Đã niêm phong' : 'Đã mở', `<span class="tag ${st.phase === 'commit' ? 'ok' : 'lime'}">${st.phase === 'commit' ? 'Kín' : '2,50'}</span>`],
+      ['M3', 'Bạn', `<span class="tag ${st.sealed ? 'ok' : 'lime'}">${st.revealed ? fmt(b) : st.sealed ? 'Kín' : 'Chưa nộp'}</span>`, true],
+      ['M4', 'Vỡ nợ, ký quỹ bù 100', '<span class="tag bad">Vỡ nợ</span>'],
+      ['M5', 'Chưa nộp thăm', '<span class="tag">Chưa nộp</span>'],
+    ];
+    return `<section class="stage in">
+      <div class="panel dark">
+        <ol class="phases" aria-label="Các bước của kỳ 3">${phases}</ol>
+        <div class="clockRow"><span class="label" style="color:var(--mute)">${st.settled ? 'Kỳ 3 đã chốt' : st.phase === 'commit' ? 'Còn thời gian nộp thăm' : 'Đang mở thăm'}</span>
+          <span class="clock${st.left <= 30 && st.phase === 'commit' ? ' low' : ''}" id="clock">${st.settled ? '00:00' : st.phase === 'commit' ? clock(st.left) : '—'}</span></div>
+        <div class="slip">
+          <label class="label" for="bid">Thăm của bạn (số tiền bớt cho mọi người)</label>
+          <div class="bidIn"><input id="bid" inputmode="decimal" autocomplete="off" value="${st.bid}" ${locked ? 'disabled' : ''} aria-describedby="bidHint" aria-invalid="${!!err && !locked}"><span>USDC</span></div>
+          <div class="hint${err && !locked ? ' err' : ''}" id="bidHint">${err && !locked ? err : 'Trần kỳ này 3,287671 USDC · thăm cao nhất thắng, bằng nhau thì ít trễ hơn'}</div>
+          ${stamp}
+        </div>
+        <div class="sticky"><button type="button" class="peek" id="openSheet" aria-haspopup="dialog"><span>Nếu bạn thắng, nhận ngay<small>Xem cách tính ▴</small></span><b>${fmt(est.payout)}</b></button><div class="actions">${primary}</div>${txv ? txv.extra : ''}</div>
+        <p class="hint" style="margin:0;color:var(--mute)">${note}</p>
+      </div>
+      <div class="panel light side">${st.sideHTML = `
+        <span class="label">Nếu bạn thắng kỳ 3 với thăm ${err ? '—' : fmt(b)}</span>
+        <dl class="rc"><div><dt>Tiền góp (2 × ${err ? '…' : fmt(C - b)} + 100 + 100 ký quỹ bù M4)</dt><dd>${fmt(est.pot)}</dd></div>
+          <div class="neg"><dt>Hoa hồng chủ hụi</dt><dd>−${fmt(est.fee)}</dd></div>
+          <div class="neg"><dt>Quỹ dự phòng</dt><dd>−${fmt(est.premium)}</dd></div>
+          <div class="neg"><dt>Giữ lại (20% × 2 kỳ còn lại)</dt><dd>−${fmt(est.hold)}</dd></div>
+          <div class="big"><dt>Bạn nhận ngay</dt><dd>${fmt(est.payout)}</dd></div></dl>
+        ${members(others)}`}
+      </div></section>`;
+  }
+
+  const MEM = ['M1', 'M2', 'M3', 'M4', 'M5'];
+  const KIND = { pay: 'Góp', win: 'Hốt', miss: 'Thiếu', now: 'Đang thăm', later: 'Chưa tới' };
+  const GLYPH = { pay: '', win: 'H', miss: '✕', now: '•', later: '' };
+  function ledgerData() {
+    const r3 = st.settled;
+    const P = (v, note = 'góp đúng hạn') => ({ kind: 'pay', v, note });
+    const cells = {
+      M1: [P('−94,00'), { kind: 'win', v: '+323,18', note: 'hốt với thăm 3,00' }],
+      M2: [P('−94,00'), P('−97,00')],
+      M3: [P('−94,00'), P('−97,00')],
+      M4: [{ kind: 'win', v: '+288,48', note: 'hốt với thăm 6,00' }, { kind: 'miss', v: '−100,00', note: 'không đóng · bù 80 từ tiền giữ lại + 20 từ ký quỹ' }],
+      M5: [P('−94,00'), P('−97,00')],
+    };
+    for (const m of MEM) {
+      let c;
+      if (!r3) {
+        const note = m === 'M1' ? 'đã hốt · sẽ góp đủ 100' : m === 'M4' ? 'vỡ nợ · ký quỹ sẽ bù 100' : m === 'M2' ? 'đã niêm phong thăm' : m === 'M3' ? (st.sealed ? 'bạn đã niêm phong thăm' : 'bạn chưa nộp thăm') : 'chưa nộp thăm';
+        c = { kind: m === 'M4' ? 'miss' : 'now', v: '—', note };
+      } else if (m === 'M1') c = P('−100,00', 'đã hốt, góp đủ');
+      else if (m === 'M4') c = { kind: 'miss', v: '−100,00', note: 'vỡ nợ · ký quỹ bù 100 (460 → 360)' };
+      else if ((m === 'M3' && r3.who === 'Bạn') || (m === 'M2' && r3.who === 'M2')) c = { kind: 'win', v: '+' + fmt(r3.payout), note: 'hốt với thăm ' + fmt(r3.bid) };
+      else c = P('−' + fmt(C - r3.bid));
+      cells[m].push(c, { kind: 'later', v: '—', note: 'chưa tới kỳ này' }, { kind: 'later', v: '—', note: 'chưa tới kỳ này' });
+    }
+    return { cells, bond: [480, 460, r3 ? 360 : 460, null, null] };
+  }
+  const roundState = (k) => (k < 3 || (k === 3 && st.settled) ? 'done' : k === 3 ? 'now' : 'later');
+
+  function viewLedger() {
+    const { cells, bond } = ledgerData();
+    const td = (c, k) => {
+      const v = c.kind === 'win' ? 'HỐT ' + c.v.slice(1) : c.kind === 'miss' && c.v !== '—' ? 'thiếu ' + c.v.slice(1) : c.kind === 'now' || (c.kind === 'miss' && c.v === '—') ? 'đang thăm' : c.v;
+      const small = c.kind === 'pay' && c.note === 'góp đúng hạn' ? '' : c.kind === 'later' ? '' : c.note;
+      const cls = [c.kind === 'win' ? 'win' : c.kind === 'miss' && c.v !== '—' ? 'miss' : '', k === 3 ? 'cur' : ''].join(' ').trim();
+      return `<td class="${cls}"><span class="v">${v}</span>${small ? `<small>${small}</small>` : ''}</td>`;
+    };
+    const rows = MEM.map((m) => `<tr><th scope="row">${m === 'M3' ? 'M3 · Bạn' : m}</th>${cells[m].map((c, i) => td(c, i + 1)).join('')}</tr>`).join('');
+    return `<section class="lg in">
+      <div class="lgHead"><div><span class="label">Sổ hụi · Tổ dân phố 7</span><h1>Kỳ × thành viên</h1></div>
+        <span class="chip">Mỗi dòng có mã giao dịch trên Fuji (bản demo: dữ liệu mẫu)</span></div>
+      <div class="tableWrap" tabindex="0" aria-label="Bảng sổ hụi, cuộn ngang được">
+        <table><caption class="label" style="text-align:left;padding:8px 12px;caption-side:top;color:var(--ink-2)">Âm là tiền góp, HỐT là tiền nhận (USDC)</caption>
+          <thead><tr><th scope="col">Thành viên</th><th scope="col">Kỳ 1</th><th scope="col">Kỳ 2</th><th scope="col">Kỳ 3</th><th scope="col">Kỳ 4</th><th scope="col">Kỳ 5</th></tr></thead>
+          <tbody>${rows}</tbody>
+          <tfoot><tr><th scope="row">Ký quỹ còn</th>${bond.map((b) => `<td class="mono">${b ?? '—'}</td>`).join('')}</tr></tfoot>
+        </table></div>
+      <div class="lgP">${ledgerPhone(cells, bond)}</div>
+      <div class="lgFoot"><span>Bảo chứng lúc mở 100%: ký quỹ chịu được khi mọi người đã hốt cùng bỏ đóng một lúc.</span><span>Khoản đòi công khai với M4: 100,00 USDC.</span></div>
+    </section>`;
+  }
+
+  function ledgerPhone(cells, bond) {
+    const seg = `<div class="seg" role="group" aria-label="Cách xem sổ hụi">
+      <button type="button" data-lg-mode="grid" aria-pressed="${st.lgMode === 'grid'}">Lưới</button>
+      <button type="button" data-lg-mode="round" aria-pressed="${st.lgMode === 'round'}">Theo kỳ</button></div>`;
+    const latest = [...bond].reverse().find((b) => b !== null);
+    if (st.lgMode === 'grid') {
+      const head = `<span></span>${[1, 2, 3, 4, 5].map((k) => `<span class="h${roundState(k) === 'now' ? ' cur' : ''}">K${k}</span>`).join('')}`;
+      const body = MEM.map((m) => `<span class="m">${m}${m === 'M3' ? '<small>Bạn</small>' : ''}</span>` + cells[m].map((c, i) => {
+        const k = i + 1;
+        return `<button type="button" class="k-${c.kind}${roundState(k) === 'now' ? ' col' : ''}" data-lg-cell="${m}:${k}" aria-label="${m}${m === 'M3' ? ' (bạn)' : ''}, kỳ ${k}: ${KIND[c.kind]} ${c.v === '—' ? '' : c.v + ' USDC'}. ${c.note}"><i aria-hidden="true">${GLYPH[c.kind]}</i></button>`;
+      }).join('')).join('');
+      return `${seg}<div class="lgBody" id="lgBody"><div class="legend2"><span class="k-pay"><i></i>Góp</span><span class="k-win"><i>H</i>Hốt</span><span class="k-miss"><i>✕</i>Thiếu, đã bù</span><span class="k-now"><i>•</i>Đang thăm</span><span class="k-later"><i></i>Chưa tới</span></div>
+        <div class="dots" role="group" aria-label="Lưới sổ hụi: chạm một ô để xem số tiền">${head}${body}</div>
+        <p class="hint" style="margin:0">Chạm một ô để xem số tiền và nguồn bù.</p></div>
+        <div class="bondBar"><span>Ký quỹ chủ hụi còn</span><b>${latest}/480 USDC</b></div>`;
+    }
+    const k = st.lgRound;
+    const bars = [1, 2, 3, 4, 5].map((r) => `<button type="button" class="${roundState(r)}${r === 2 ? ' flagged' : ''}" data-lg-k="${r}" aria-current="${r === k}" aria-label="Kỳ ${r}"><i></i></button>`).join('');
+    const sub = { done: 'đã chốt', now: 'đang bỏ thăm', later: 'chưa tới' }[roundState(k)];
+    const list = MEM.map((m) => {
+      const c = cells[m][k - 1];
+      const cls = c.kind === 'win' ? 'win' : c.kind === 'miss' && c.v !== '—' ? 'miss' : '';
+      return `<li class="${cls}"><span class="av${m === 'M3' ? ' me' : ''}">${m}</span><span><strong>${m === 'M3' ? 'Bạn' : c.kind === 'pay' ? 'Góp đúng hạn' : KIND[c.kind]}</strong>${c.kind === 'pay' && c.note === 'góp đúng hạn' ? (m === 'M3' ? '<small>góp đúng hạn</small>' : '') : `<small>${m === 'M3' && c.kind !== 'pay' ? KIND[c.kind] + ' · ' : ''}${c.note}</small>`}</span><b>${c.v}</b></li>`;
+    }).join('');
+    const prev = k > 1 ? bond[k - 2] : 480;
+    const bondTxt = bond[k - 1] === null ? 'chưa tới' : prev === bond[k - 1] ? `${bond[k - 1]} USDC` : `${prev} → ${bond[k - 1]} USDC`;
+    return `${seg}<div class="storyNav"><button type="button" data-lg-step="-1" aria-label="Kỳ trước" ${k === 1 ? 'disabled' : ''}>‹</button>
+        <div class="snMid"><div class="bars" aria-label="Các kỳ">${bars}</div><strong>Kỳ ${k}/5</strong><small>${sub}</small></div>
+        <button type="button" data-lg-step="1" aria-label="Kỳ sau" ${k === 5 ? 'disabled' : ''}>›</button></div>
+      <div class="lgBody" id="lgBody"><ul class="lgList" aria-label="Kỳ ${k}: mỗi thành viên một dòng">${list}</ul></div>
+      <div class="bondBar"><span>Ký quỹ sau kỳ ${k}</span><b>${bondTxt}</b></div>`;
+  }
+
+  function cellSheet(m, k) {
+    const { cells, bond } = ledgerData();
+    const c = cells[m][k - 1];
+    const tag = { pay: '', win: 'lime', miss: 'bad', now: 'ok', later: '' }[c.kind];
+    return `<div class="cellDetail"><span class="tag ${tag}" style="justify-self:start">${KIND[c.kind]}</span>
+      <div class="val">${c.v}${c.v === '—' ? '' : '<span>USDC</span>'}</div>
+      <p class="hint" style="margin:0">${c.note}${m === 'M4' && c.kind === 'miss' ? '. Khoản đòi công khai với M4: 100,00 USDC.' : ''}</p>
+      <dl class="rc"><div><dt>Ký quỹ chủ hụi sau kỳ ${k}</dt><dd>${bond[k - 1] ?? '—'}</dd></div></dl>
+      <button type="button" class="btn ink" data-lg-goto="${k}">Xem cả kỳ ${k} ›</button></div>`;
+  }
+  function lgSet(fn, dir = 0) {
+    fn();
+    render(false);
+    const b = $('#lgBody');
+    if (b) { b.classList.remove('in', 'inL', 'inR'); void b.offsetWidth; b.classList.add(dir > 0 ? 'inL' : dir < 0 ? 'inR' : 'in'); }
+  }
+  function lgStep(d) {
+    const k = Math.min(5, Math.max(1, st.lgRound + d));
+    if (k !== st.lgRound) lgSet(() => { st.lgRound = k; }, d);
+  }
+
+  // ---------- create circle: focus mode ----------
+  function viewCreate() {
+    const c = st.c;
+    const Cm = parseBid(c.C);
+    const okC = Cm !== null && Cm >= U && Cm <= 10_000 * U;
+    const m = createMath(c.N, okC ? Cm : 100 * U, c.P);
+    const steps = 6;
+    const bars = Array.from({ length: steps }, (_, i) => `<i class="${c.created || i < c.step ? 'd' : i === c.step ? 'n' : ''}"></i>`).join('');
+    const top = `<div class="crTop"><span class="label">Tạo dây · ${c.created ? 'xong' : `bước ${c.step + 1}/${steps}`}</span><div class="strip" style="--n:${steps}">${bars}</div></div>`;
+    if (c.created) {
+      return `<section class="cr in">${top}<div class="crQ crDone in">
+        <div class="stamp on win">ĐÃ TẠO DÂY<small>${c.N} người × ${fmt(Cm ?? 100 * U)} USDC</small></div>
+        <h1>Gửi đường dẫn mời cho ${c.N - 1} người còn lại.</h1>
+        <p class="sub">Đủ người thì bạn bấm "Bắt đầu dây". Ký quỹ ${fmt(m.bond)} USDC khóa trong hợp đồng, bạn không rút được cho tới khi dây kết thúc. Bản xem thử: chưa gửi gì lên chuỗi.</p></div>
+        <div class="crNav"><button class="btn ghost" type="button" data-c="again">Tạo dây khác</button><a class="btn lime" href="#tong-quan">Về tổng quan ↗</a></div></section>`;
+    }
+    const opt = (k, val, title, sub) => `<button type="button" class="opt" role="radio" data-c="${k}:${val}" aria-checked="${String(c[k]) === String(val)}"><strong>${title}</strong><small>${sub}</small></button>`;
+    let q = '', canNext = true;
+    if (c.step === 0) q = `<h1 id="qMode">Dây hụi của bạn chơi kiểu gì?</h1><div class="opts" role="radiogroup" aria-labelledby="qMode">
+        ${opt('mode', 'bidding', 'Bỏ thăm', 'Ai cần tiền sớm thì bỏ thăm. Thăm cao nhất hốt, mọi người góp bớt đúng số đó.')}
+        ${opt('mode', 'fixed', 'Cố định', 'Hốt lần lượt theo thứ tự vào dây. Không lãi, không bỏ thăm.')}</div>`;
+    if (c.step === 1) q = `<h1>Bao nhiêu người chơi?</h1>
+        <div class="stepper"><button type="button" data-c="N:-1" aria-label="Bớt một người" ${c.N <= 3 ? 'disabled' : ''}>−</button><output aria-live="polite">${c.N}</output><button type="button" data-c="N:1" aria-label="Thêm một người" ${c.N >= 30 ? 'disabled' : ''}>+</button></div>
+        <div class="range"><input type="range" id="nRange" min="3" max="30" step="1" value="${c.N}" aria-label="Số người chơi, từ 3 đến 30"><span><span>3</span><span>30</span></span></div>
+        <p class="sub" id="nSub">${nSub(c.N)}</p>`;
+    if (c.step === 2) {
+      canNext = okC;
+      const chip = (v) => `<button type="button" data-c="C:${v}" aria-pressed="${c.C === String(v)}">${v}</button>`;
+      q = `<h1><label for="cIn">Mỗi kỳ, mỗi người góp bao nhiêu?</label></h1>
+        <div class="bigIn"><input id="cIn" inputmode="decimal" autocomplete="off" value="${c.C}" aria-describedby="cHint" aria-invalid="${!okC}"><span>USDC</span></div>
+        <div class="chips">${chip(10)}${chip(50)}${chip(100)}${chip(500)}</div>
+        <p class="sub${okC ? '' : ' err'}" id="cHint">${createHint(c.N, Cm, okC)}</p>`;
+    }
+    if (c.step === 3) q = `<h1 id="qPeriod">Bao lâu một kỳ?</h1><div class="opts" role="radiogroup" aria-labelledby="qPeriod">
+        ${opt('P', 7, 'Mỗi tuần', 'Nhanh, nhưng trần thăm theo luật rất nhỏ.')}
+        ${opt('P', 15, 'Nửa tháng', 'Cân bằng.')}
+        ${opt('P', 30, 'Mỗi tháng', 'Kiểu hụi quen thuộc nhất.')}</div>
+        <p class="sub">${c.mode === 'bidding' ? `Trần thăm kỳ 1 theo NĐ 19 Điều 21: <b class="mono">${fmt(m.cap)} USDC</b> (cách hiểu của nhóm, chờ luật sư xác nhận).` : 'Hụi cố định không có thăm nên không có trần thăm.'}</p>`;
+    if (c.step === 4) q = `<h1>Bạn khóa ký quỹ bao nhiêu?</h1>
+        <div class="bondBig">${fmt(m.bond)}<span>USDC</span></div>
+        <div class="meter"><span class="label">Chỉ số bảo chứng 100%</span><div><i></i></div></div>
+        <p class="sub">Đủ để mọi người nhận đủ tiền khi những ai đã hốt cùng bỏ đóng một lúc. Rủi ro lớn nhất ${fmt(m.omax)} USDC, tiền giữ lại 20% của người hốt che trước, ký quỹ che phần còn lại. Thấp hơn mức này dây không được bắt đầu.</p>`;
+    if (c.step === 5) q = `<h1>Xem lại rồi tạo dây.</h1>
+        <dl class="rc">
+          <div><dt>Kiểu</dt><dd>${c.mode === 'bidding' ? 'Bỏ thăm' : 'Cố định'}</dd></div>
+          <div><dt>Số người, số kỳ</dt><dd>${c.N}</dd></div>
+          <div><dt>Góp mỗi kỳ</dt><dd>${fmt(Cm)} USDC</dd></div>
+          <div><dt>Một kỳ</dt><dd>${c.P} ngày</dd></div>
+          <div><dt>Ký quỹ bạn khóa</dt><dd>${fmt(m.bond)} USDC</dd></div>
+          <div><dt>Mỗi thành viên cho dây trích tối đa</dt><dd>${fmt(m.allow)} USDC</dd></div>
+          <div><dt>Giữ lại / quỹ dự phòng</dt><dd>20% / 1%</dd></div></dl>`;
+    const txv = txUI('create', 'Gửi lại lệnh tạo dây');
+    const busy = !!(st.tx && st.tx.kind === 'create' && !st.tx.err);
+    const back = c.step > 0 ? `<button class="btn ghost" type="button" data-c="back" ${busy ? 'disabled' : ''}>‹ Quay lại</button>` : `<a class="btn ghost" href="#tong-quan">Huỷ tạo dây</a>`;
+    const next = txv ? txv.btn : `<button class="btn ${c.step === 5 ? 'lime' : 'ink'}" type="button" data-c="next" ${canNext ? '' : 'disabled'}>${c.step === 5 ? 'Tạo dây' : 'Tiếp tục ›'}</button>`;
+    return `<section class="cr in">${top}<div class="crQ in">${q}${txv ? txv.extra : ''}</div><div class="crNav">${back}${next}</div></section>`;
+  }
+  const nSub = (N) => `Dây có ${N} kỳ, mỗi người hốt đúng một lần. Từ 3 đến 30 người, tính cả bạn nếu bạn cũng chơi.`;
+  function createHint(N, Cm, ok) {
+    if (Cm === null) return 'Nhập số tiền, ví dụ 100.';
+    if (!ok) return Cm < U ? 'Tối thiểu 1 USDC.' : 'Bản thử nghiệm tối đa 10.000 USDC mỗi kỳ.';
+    return `Mỗi kỳ người hốt nhận khoảng ${fmt((N - 1) * Cm)} USDC trước phí và tiền giữ lại.`;
+  }
+  function handleCreate(a) {
+    const c = st.c;
+    const [k, v] = a.split(':');
+    let step = false;
+    if (k === 'mode') c.mode = v;
+    else if (k === 'N') c.N = Math.min(30, Math.max(3, c.N + Number(v)));
+    else if (k === 'C') c.C = v;
+    else if (k === 'P') c.P = Number(v);
+    else if (k === 'next') { if (c.step < 5) { step = true; c.step += 1; } else { runTx('create'); return; } }
+    else if (k === 'back') { step = true; c.step = Math.max(0, c.step - 1); }
+    else if (k === 'again') { step = true; st.c = freshC(); }
+    render(step);
+    if (step) $('#view .crQ button, #view .crQ input, #view [data-c="next"]')?.focus({ preventScroll: true });
+  }
+
+  // ---------- sheet (phone) ----------
+  const sheet = $('#sheet');
+  function openSheet(title = 'Nếu bạn thắng kỳ 3', html = st.sideHTML, from = null) {
+    $('#sheetTitle').textContent = title;
+    $('#sheetBody').innerHTML = html || '';
+    st.sheetFrom = from;
+    sheet.inert = false;
+    app.classList.add('sheetOpen');
+    $('#closeSheet').focus({ preventScroll: true });
+  }
+  function closeSheet(refocus = true) {
+    if (!app.classList.contains('sheetOpen')) return;
+    app.classList.remove('sheetOpen');
+    sheet.inert = true;
+    if (refocus) (st.sheetFrom && st.sheetFrom.isConnected ? st.sheetFrom : $('#openSheet'))?.focus({ preventScroll: true });
+  }
+  let drag = null;
+  sheet.addEventListener('pointerdown', (e) => {
+    if (!e.target.closest('.grab')) return;
+    drag = { y: e.clientY };
+    e.target.setPointerCapture(e.pointerId);
+    sheet.style.transition = 'none';
+  });
+  sheet.addEventListener('pointermove', (e) => { if (drag) sheet.style.transform = `translateY(${Math.max(0, e.clientY - drag.y)}px)`; });
+  const endDrag = (e) => {
+    if (!drag) return;
+    const dy = e.clientY - drag.y;
+    drag = null;
+    sheet.style.transition = '';
+    sheet.style.transform = '';
+    if (dy > 70) closeSheet();
+  };
+  sheet.addEventListener('pointerup', endDrag);
+  sheet.addEventListener('pointercancel', endDrag);
+
+  function stepRound(d) {
+    const k = Math.min(5, Math.max(1, st.round + d));
+    if (k === st.round) return;
+    st.dir = d;
+    st.round = k;
+    render();
+  }
+
+  // ---------- lamng-design-rule §1: loading, empty, error ----------
+  const LAT = { ok: 60, slow: 2200, fail: 1600, empty: 60 };
+  const NET = ['ok', 'slow', 'fail', 'empty'];
+  const NET_LABEL = { ok: 'thường', slow: 'mạng chậm', fail: 'lỗi mạng', empty: 'tài khoản mới' };
+  let reqId = 0;
+  // Fetch the data behind a view. Shell first; indicator only after 180 ms; once shown it stays ≥ 300 ms.
+  // Cached data stays on screen while it refreshes (stale-while-revalidate); a failed refresh keeps it and offers a retry.
+  function fetchView(v) {
+    const token = ++reqId;
+    const cached = st.loaded.has(v);
+    if (!cached) { st.pending = v; st.showSkel = false; st.err = null; render(false); }
+    let shownAt = 0;
+    const showT = setTimeout(() => {
+      if (token !== reqId) return;
+      shownAt = performance.now();
+      if (cached) { st.refreshing = true; health(); } else { st.showSkel = true; render(false); say('Đang tải dữ liệu từ chuỗi…'); }
+    }, 180);
+    setTimeout(() => {
+      if (token !== reqId) return;
+      clearTimeout(showT);
+      const finish = () => {
+        if (token !== reqId) return;
+        const failed = st.net === 'fail';
+        st.refreshing = false;
+        if (cached) { st.staleErr = failed; health(); if (failed) say('Chưa cập nhật được. Đang hiện dữ liệu cũ.'); return; }
+        st.pending = null; st.showSkel = false;
+        if (failed) { st.err = v; say('Chưa đọc được dữ liệu từ chuỗi.'); } else { st.loaded.add(v); st.err = null; if (shownAt) say('Đã tải xong.'); }
+        render(true);
+      };
+      const held = shownAt ? performance.now() - shownAt : Infinity;
+      if (held < 300) setTimeout(finish, 300 - held); else finish();
+    }, LAT[st.net]);
+  }
+  function setNet(mode) {
+    st.net = mode;
+    $('#netMode').textContent = 'Thử: ' + NET_LABEL[mode];
+    st.err = null; st.staleErr = false; st.tx = null;
+    const keep = mode === 'fail' && st.loaded.has(st.view);
+    st.loaded.clear();
+    if (keep) st.loaded.add(st.view);
+    say('Đang mô phỏng: ' + NET_LABEL[mode]);
+    if (st.view === 'tao') render(false); else fetchView(st.view);
+  }
+  // Skeleton blocks match the measured size of the real blocks (1440: 126/104/277/417, 387/544; 390: 147/214/271, 480, 593).
+  function skeleton(v) {
+    if (v === 'tong-quan') return `<section class="ov" aria-hidden="true"><div class="sk skVerdict"></div><div class="sk skStats"></div><div class="sk skCircles"></div><div class="sk skFeed skSide"></div></section>`;
+    if (v === 'so-hui') return `<section class="lg" aria-hidden="true"><div class="lgHead"><div><span class="label">Sổ hụi</span><h1>Kỳ × thành viên</h1></div></div><div class="sk skTable"></div><div class="sk skLgP"></div></section>`;
+    return `<section class="stage" aria-hidden="true"><div class="sk skDark"></div><div class="sk skSideP skSide"></div></section>`;
+  }
+  const skelCtx = () => `<div class="ctx" aria-hidden="true"><div class="sk" style="height:28px;width:min(260px,60%);border-radius:var(--r-in)"></div>
+    <div class="skRail">${'<div class="sk"></div>'.repeat(5)}</div><div class="sk skStory"></div></div>`;
+  function emptyView(v) {
+    const [h, p] = v === 'so-hui' ? ['Sổ hụi còn trống.', 'Sổ hụi hiện ra khi bạn vào một dây và dây bắt đầu.']
+      : v === 'day' ? ['Chưa có dây nào để xem.', 'Khi bạn vào một dây, các kỳ của dây hiện ở đây.']
+      : ['Bạn chưa ở dây hụi nào.', 'Tạo một dây cho nhóm của bạn, hoặc mở đường dẫn mời bạn bè gửi.'];
+    return `<section class="state in"><div class="stateBox"><span class="label">Tài khoản mới</span><h2>${h}</h2><p>${p}</p>
+      <div class="actions"><a class="btn lime" href="#tao">Tạo dây mới</a><button type="button" class="btn ghost" data-paste>Dán đường dẫn mời</button></div></div></section>`;
+  }
+  const errorView = () => `<section class="state in"><div class="stateBox" role="alert"><span class="label" style="color:var(--red-ink)">Lỗi mạng</span>
+    <h2>Chưa đọc được dữ liệu từ chuỗi.</h2><p>Máy chủ đọc sự kiện đang chậm hoặc mạng chập chờn. Tiền của bạn vẫn nằm trong hợp đồng, không bị ảnh hưởng.</p>
+    <div class="actions"><button type="button" class="btn ink" data-retry>Thử lại</button></div></div></section>`;
+  const pasteForm = () => `<form class="field" id="pasteForm" novalidate><label for="inviteIn">Đường dẫn mời</label>
+    <input id="inviteIn" type="url" inputmode="url" autocomplete="off" placeholder="https://huisafe.app/moi/…" aria-describedby="inviteHint">
+    <p class="hint" id="inviteHint" style="margin:0">Dán đường dẫn bạn bè gửi qua Zalo hoặc Messenger.</p>
+    <button class="btn ink" type="submit">Mở lời mời</button></form>`;
+
+  // ---------- transactions: steps, never optimistic (the stamp lands only after confirmation) ----------
+  const TX_STEPS = ['Ký', 'Gửi', 'Xác nhận'];
+  const TX_TEXT = ['Đang chờ bạn ký', 'Đang gửi qua relay', 'Chờ xác nhận trên Fuji'];
+  const TXD = { ok: [300, 400, 700], slow: [900, 1300, 2600], fail: [700, 1200, 0], empty: [300, 400, 700] };
+  const TX_DONE = {
+    seal: () => { st.sealed = true; st.justStamp = true; render(false); },
+    reveal: () => { st.revealed = true; st.justStamp = true; render(false); },
+    create: () => { st.c.created = true; st.justStamp = true; render(true); },
+  };
+  function txUI(kind, retryLabel) {
+    const tx = st.tx;
+    if (!tx || tx.kind !== kind) return null;
+    const steps = `<ol class="txSteps" aria-label="Tiến độ giao dịch">${TX_STEPS.map((s, i) => `<li class="${i < tx.step ? 'done' : i === tx.step ? (tx.err ? 'fail' : 'now') : ''}">${i + 1}. ${s}${i === tx.step && tx.err ? ' · lỗi' : ''}</li>`).join('')}</ol>`;
+    if (tx.err) return { btn: `<button class="btn lime" type="button" data-tx-retry="${kind}">${retryLabel}</button>`, extra: `${steps}<p class="hint err" role="alert" style="margin:0">${tx.err}</p>` };
+    return { btn: `<button class="btn lime" type="button" disabled aria-busy="true"><span class="spin" aria-hidden="true"></span>${TX_TEXT[tx.step]} · ${tx.step + 1}/3</button>`, extra: steps };
+  }
+  async function runTx(kind, modeOverride) {
+    if (st.tx && !st.tx.err) return;                    // locked: no double submit
+    const mode = modeOverride || st.net;
+    const d = TXD[mode] || TXD.ok;
+    st.tx = { kind, step: 0, err: null };
+    for (let i = 0; i < 3; i++) {
+      if (!st.tx) return;
+      st.tx.step = i;
+      render(false);
+      say(TX_TEXT[i] + '…');
+      await wait(d[i]);
+      if (!st.tx) return;
+      if (mode === 'fail' && i === 1) {
+        st.tx.err = kind === 'create' ? 'Gửi không được vì mạng lỗi. Dây chưa được tạo, bạn chưa mất gì.' : 'Gửi không được vì mạng lỗi. Lệnh chưa lên chuỗi, bạn chưa mất gì.';
+        render(false);
+        say(st.tx.err);
+        return;
+      }
+    }
+    st.tx = null;
+    say('Đã xác nhận trên chuỗi.');
+    TX_DONE[kind]();
+  }
+
+  // ---------- render ----------
+  function render(anim = true) {
+    const v = st.view;
+    document.querySelectorAll('[data-nav]').forEach((a) => a.setAttribute('aria-current', a.dataset.nav === v ? 'page' : 'false'));
+    health();
+    // lamng-design-rule §1: every view has 4 states — loading (skeleton), empty, error, data.
+    const busy = v !== 'tao' && st.pending === v;
+    $('#view').setAttribute('aria-busy', String(busy));
+    let html = '';
+    if (busy) { $('#ctx').innerHTML = v === 'day' && st.showSkel ? skelCtx() : ''; html = st.showSkel ? skeleton(v) : ''; }
+    else if (v !== 'tao' && st.err === v) { $('#ctx').innerHTML = ''; html = errorView(); }
+    else if (v !== 'tao' && st.net === 'empty') { $('#ctx').innerHTML = ''; html = emptyView(v); }
+    else {
+      $('#ctx').innerHTML = v === 'day' ? rail() : '';
+      if (v === 'tong-quan') html = viewOverview();
+      else if (v === 'so-hui') html = viewLedger();
+      else if (v === 'tao') html = viewCreate();
+      else html = st.round === 3 ? stageNow() : st.round < 3 ? stageDone(st.round) : stageLater(st.round);
+    }
+    $('#view').innerHTML = html;
+    // Typing in the bid box re-renders the numbers only: cancel the view entrance before it paints.
+    if (!anim) $('#view').querySelectorAll('.in').forEach((n) => n.classList.remove('in'));
+    else if (st.dir) { const f = $('#view').firstElementChild; f?.classList.replace('in', st.dir > 0 ? 'inL' : 'inR'); }
+    st.dir = 0;
+    // A stamp that just happened lands once (MOTION.md B3, 400 ms stamp ease); otherwise it is simply there.
+    const s = $('.stamp.on');
+    if (st.justStamp && s) { s.classList.remove('on'); void s.offsetWidth; s.classList.add('on'); }
+    st.justStamp = false;
+  }
+
+  function go() {
+    const h = location.hash.replace('#', '');
+    st.view = ['tong-quan', 'day', 'so-hui', 'tao'].includes(h) ? h : 'tong-quan';
+    closeSheet(false);
+    if (st.view === 'tao') { render(); return; }
+    if (st.loaded.has(st.view)) render();
+    fetchView(st.view);
+  }
+
+  // ---------- events ----------
+  app.addEventListener('click', (e) => {
+    const r = e.target.closest('[data-round]');
+    if (r) { st.round = Number(r.dataset.round); render(); return; }
+    if (e.target.closest('#seal')) { runTx('seal'); return; }
+    if (e.target.closest('#reveal')) { runTx('reveal'); return; }
+    const txr = e.target.closest('[data-tx-retry]');
+    if (txr) { st.tx = null; runTx(txr.dataset.txRetry, 'ok'); return; }
+    if (e.target.closest('[data-retry]')) { say('Đang thử lại…'); setNet('ok'); return; }
+    const pb = e.target.closest('[data-paste]');
+    if (pb) { openSheet('Mở lời mời', pasteForm(), pb); $('#inviteIn')?.focus({ preventScroll: true }); return; }
+    if (e.target.closest('#netMode')) { setNet(NET[(NET.indexOf(st.net) + 1) % NET.length]); return; }
+    const sr = e.target.closest('[data-step-round]');
+    if (sr) { stepRound(Number(sr.dataset.stepRound)); return; }
+    const cb = e.target.closest('[data-c]');
+    if (cb) { handleCreate(cb.dataset.c); return; }
+    if (e.target.closest('#openSheet')) { openSheet(); return; }
+    const lm = e.target.closest('[data-lg-mode]');
+    if (lm) { lgSet(() => { st.lgMode = lm.dataset.lgMode; }); return; }
+    const lk = e.target.closest('[data-lg-k]');
+    if (lk) { const k = Number(lk.dataset.lgK); lgSet(() => { st.lgRound = k; }, Math.sign(k - st.lgRound)); return; }
+    const ls = e.target.closest('[data-lg-step]');
+    if (ls) { lgStep(Number(ls.dataset.lgStep)); return; }
+    const cell = e.target.closest('[data-lg-cell]');
+    if (cell) { const [m, k] = cell.dataset.lgCell.split(':'); openSheet(`${m === 'M3' ? 'Bạn (M3)' : m} · Kỳ ${k}`, cellSheet(m, Number(k)), cell); return; }
+    const goto = e.target.closest('[data-lg-goto]');
+    if (goto) { closeSheet(false); lgSet(() => { st.lgMode = 'round'; st.lgRound = Number(goto.dataset.lgGoto); }); return; }
+    if (e.target.closest('#scrim, #closeSheet')) { closeSheet(); return; }
+  });
+  app.addEventListener('submit', (ev) => {
+    if (ev.target.id !== 'pasteForm') return;
+    ev.preventDefault();
+    const inp = $('#inviteIn'), hint = $('#inviteHint');
+    const ok = /^https?:\/\/\S+$/.test(inp.value.trim());
+    inp.setAttribute('aria-invalid', String(!ok));
+    hint.classList.toggle('err', !ok);
+    hint.textContent = ok ? 'Bản xem thử: chưa mở được lời mời thật.' : 'Chưa đúng đường dẫn. Dán nguyên đường dẫn bắt đầu bằng https://';
+  });
+  app.addEventListener('keydown', (ev) => {
+    const pressed = ev['key'];
+    if (pressed === 'Escape') closeSheet();
+    if (pressed === 'Enter' && ev.target.id === 'cIn') $('[data-c="next"]')?.click();
+  });
+  // Swipe between rounds on the circle stage (phone): horizontal only, never from a control.
+  let sw = null;
+  $('#view').addEventListener('pointerdown', (e) => {
+    const swipeable = st.view === 'day' || (st.view === 'so-hui' && st.lgMode === 'round');
+    sw = swipeable && !e.target.closest('input, button, a, .tableWrap') ? { x: e.clientX, y: e.clientY } : null;
+  });
+  $('#view').addEventListener('pointerup', (e) => {
+    if (!sw) return;
+    const dx = e.clientX - sw.x, dy = e.clientY - sw.y;
+    sw = null;
+    if (Math.abs(dx) > 60 && Math.abs(dx) > 1.5 * Math.abs(dy)) (st.view === 'so-hui' ? lgStep : stepRound)(dx < 0 ? 1 : -1);
+  });
+  app.addEventListener('input', (e) => {
+    if (e.target.id === 'nRange') {
+      st.c.N = Number(e.target.value);
+      $('.stepper output').textContent = st.c.N;
+      $('[data-c="N:-1"]').disabled = st.c.N <= 3;
+      $('[data-c="N:1"]').disabled = st.c.N >= 30;
+      $('#nSub').textContent = nSub(st.c.N);
+      return;
+    }
+    if (e.target.id === 'cIn') {
+      st.c.C = e.target.value.trim();
+      const Cm = parseBid(st.c.C), ok = Cm !== null && Cm >= U && Cm <= 10_000 * U;
+      $('#cHint').textContent = createHint(st.c.N, Cm, ok);
+      $('#cHint').classList.toggle('err', !ok);
+      e.target.setAttribute('aria-invalid', String(!ok));
+      $('[data-c="next"]').disabled = !ok;
+      document.querySelectorAll('.chips [data-c]').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.c === 'C:' + st.c.C)));
+      return;
+    }
+    if (e.target.id !== 'bid') return;
+    st.bid = e.target.value;
+    // Update the estimate and the button without rebuilding the input (keeps the caret).
+    const pos = e.target.selectionStart;
+    render(false);
+    const input = $('#bid');
+    if (input) { input.focus(); try { input.setSelectionRange(pos, pos); } catch {} }
+  });
+  $('#ffwd').addEventListener('click', () => {
+    if (st.settled) return;
+    if (st.phase === 'commit') { st.phase = 'reveal'; st.left = 0; }
+    else if (st.phase === 'reveal') {
+      const b = st.sealed && st.revealed ? parseBid(st.bid) : null;
+      const youWin = b !== null && b > M2_BID; // ties go to fewer late payments, then earlier commit (M2)
+      st.settled = youWin ? { who: 'Bạn', bid: b, payout: round3Estimate(b).payout } : { who: 'M2', bid: M2_BID, payout: round3Estimate(M2_BID).payout };
+      st.phase = 'done';
+      st.round = 3;
+      st.justStamp = true;
+    }
+    if (location.hash !== '#day') location.hash = '#day'; else render();
+  });
+  $('#frameToggle').addEventListener('click', (ev) => {
+    const phone = !$('#shell').classList.contains('phone');
+    $('#shell').classList.toggle('phone', phone);
+    ev.currentTarget.textContent = phone ? 'Xem: máy tính' : 'Xem: điện thoại';
+  });
+
+  // Countdown: only the digits change (no flip, no bounce), MOTION.md B3.
+  setInterval(() => {
+    if (st.phase !== 'commit' || st.settled || st.left <= 0) return;
+    st.left -= 1;
+    const c = $('#clock');
+    if (c) { c.textContent = clock(st.left); c.classList.toggle('low', st.left <= 30); }
+    const live = document.querySelector('.rail .now small');
+    if (live) live.textContent = `còn ${clock(st.left)}`;
+    const sub = $('#snSub');
+    if (sub && st.round === 3) sub.textContent = roundSub(3);
+    if (st.left === 0) { st.phase = 'reveal'; render(false); }
+  }, 1000);
+
+  setInterval(() => { if (st.view !== 'tao' && st.loaded.has(st.view) && !st.pending && !st.tx && st.net !== 'empty') fetchView(st.view); }, 20000);
+  window.addEventListener('hashchange', go);
+  go();
+})();
+</script>

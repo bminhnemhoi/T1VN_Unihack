@@ -54,3 +54,8 @@ export async function noClippedContent(page: Page) {
  * Returns whichever of the two is on screen, so a test can read the numbers at any width.
  */
 export const tableOrCards = (page: Page, name: RegExp) => page.getByRole('table', { name }).or(page.getByRole('list', { name }));
+
+/** The landing intro covers the first ~2.8 s of every visit; checks of the page at rest wait for it (no-op elsewhere). */
+export async function afterIntro(page: Page) {
+  await page.locator('[data-lp-intro]').waitFor({ state: 'hidden', timeout: 8000 });
+}

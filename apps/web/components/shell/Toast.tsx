@@ -9,6 +9,8 @@ interface Item {
   id: number;
   message: string;
   tone: Tone;
+  /** Playing its 150 ms exit before it leaves the list. */
+  leaving?: boolean;
 }
 interface ToastApi {
   show: (message: string, tone?: Tone) => void;
@@ -27,7 +29,11 @@ export const SOON_MESSAGE = 'Chức năng này cần đăng nhập và nối m�
 export function ToastProvider({ children }: { children: ReactNode }) {
   const [items, setItems] = useState<Item[]>([]);
   const next = useRef(1);
-  const dismiss = useCallback((id: number) => setItems((l) => l.filter((i) => i.id !== id)), []);
+  // Exit is quieter than the entrance: fade and drop 8 px in 150 ms, then the item leaves the list.
+  const dismiss = useCallback((id: number) => {
+    setItems((l) => l.map((i) => (i.id === id ? { ...i, leaving: true } : i)));
+    setTimeout(() => setItems((l) => l.filter((i) => i.id !== id)), 150);
+  }, []);
   const show = useCallback(
     (message: string, tone: Tone = 'info') => {
       const id = next.current++;
@@ -50,7 +56,8 @@ export function ToastProvider({ children }: { children: ReactNode }) {
           <div
             key={i.id}
             className={cn(
-              'pointer-events-auto flex w-full max-w-md items-start gap-3 rounded-xl border-2 px-4 py-3 text-base font-semibold shadow-lg animate-in fade-in slide-in-from-bottom-2 duration-150',
+              'pointer-events-auto flex w-full max-w-md items-start gap-3 rounded-xl border-2 px-4 py-3 text-base font-semibold shadow-lg duration-150',
+              i.leaving ? 'pointer-events-none animate-out fade-out slide-out-to-bottom-2 fill-mode-forwards ease-in' : 'animate-in fade-in slide-in-from-bottom-2 ease-out',
               i.tone === 'error' ? 'border-destructive bg-card text-destructive' : 'border-white/30 bg-foreground text-background',
             )}
           >

@@ -73,10 +73,10 @@ export function LiveSettle({ c }: { c: SampleCircleData }) {
           <h2 id="rong" className="font-display text-h1 font-bold">
             {me.net >= 0n ? `Bạn lời ròng ${formatCents(me.net)}` : `Bạn trả ròng ${formatCents(-me.net, 'up')}`}
           </h2>
-          <p className="so-ke mt-3 text-lead text-[#dfe5f0]">
+          <p className="so-ke mt-3 text-lead text-[#e9e4da]">
             Đã góp {formatCents(me.paid, 'up')}, đã nhận {formatCents(me.received + me.holdbackBack + me.reward)} (tiền hốt, tiền giữ lại, thưởng đúng hạn).
           </p>
-          <p className="mt-1 text-[#c9d2e0]">Phần ròng gồm lãi thăm và tiền công chủ hụi; hụi không sinh lời thêm từ đâu khác. Tiền đã chuyển thẳng vào ví của bạn khi dây kết thúc.</p>
+          <p className="mt-1 text-[#c9c2b6]">Phần ròng gồm lãi thăm và tiền công chủ hụi; hụi không sinh lời thêm từ đâu khác. Tiền đã chuyển thẳng vào ví của bạn khi dây kết thúc.</p>
         </section>
       ) : (
         <EmptyNote title={c.viewerIsOrganizer ? 'Bạn là chủ hụi, không giữ phần nào' : 'Bạn không ở trong dây này'}>

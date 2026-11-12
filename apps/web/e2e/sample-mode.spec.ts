@@ -5,10 +5,10 @@ import { watchErrors } from './helpers';
 // on sample data and say so. With a deployment the label is not rendered at all.
 test.describe('sample mode (nothing deployed)', () => {
   for (const path of ['/', '/circles', '/circles/new', '/circles/demo', '/dang-nhap']) {
-    test(`${path} shows the "Đang xem dữ liệu mẫu" label`, async ({ page }) => {
+    test(`${path} says it shows sample data`, async ({ page }) => {
       const errs = watchErrors(page);
       await page.goto(path);
-      await expect(page.getByTestId('sample-mode')).toHaveText('Đang xem dữ liệu mẫu');
+      await expect(page.getByTestId('sample-mode')).toContainText(path === '/' ? 'Đang xem dữ liệu mẫu' : 'dữ liệu mẫu');
       errs.expectClean();
     });
   }
@@ -21,7 +21,8 @@ test.describe('sample mode (nothing deployed)', () => {
   test('buttons that need the chain answer instead of doing nothing', async ({ page }) => {
     await page.goto('/circles/demo');
     await page.getByRole('button', { name: 'Niêm phong thăm' }).click();
-    await expect(page.getByText('Niêm phong thăm', { exact: false }).first()).toBeVisible();
+    // Sample data: the steps are simulated and the slip is stamped, nothing is sent (the frame says so).
+    await expect(page.locator('.slip .stamp.on')).toContainText('ĐÃ NIÊM PHONG');
   });
 
   test('login page keeps the "sắp có" buttons and no wallet is invented', async ({ page }) => {

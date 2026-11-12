@@ -89,31 +89,31 @@ export function ResultView({ c }: { c: SampleCircleData }) {
         <h2 id="ai-hot" className="font-display text-h1 font-bold">
           {mine ? 'Bạn hốt kỳ này' : `${winner.name} hốt kỳ này`}
         </h2>
-        <p className="so-ke mt-3 text-lead text-[#dfe5f0]">
+        <p className="so-ke mt-3 text-lead text-[#e9e4da]">
           Thực nhận <strong className="text-white">{formatUsdc(r.payout)}</strong>
           {fixed ? ', theo thứ tự đã định từ lúc vào dây (không bỏ thăm).' : `, thăm thắng ${formatUsdc(r.bid)} mỗi phần.`}
         </p>
-        <p className="mt-1 text-[#c9d2e0]">
+        <p className="mt-1 text-[#c9c2b6]">
           {fixed ? 'Dây cố định hốt lần lượt theo thứ tự vào dây.' : 'Thăm cao nhất hốt. Bằng nhau thì ít lần trễ hơn thắng, vẫn bằng thì ai nộp trước. Không có may rủi.'}
         </p>
         {c.live ? (
           (() => {
             const hash = events.data?.find((e) => e.eventName === 'RoundSettled' && Number(e.args.round) === k)?.txHash;
-            if (!hash) return <p className="mt-5 text-[#c9d2e0]">Đang tìm giao dịch chốt kỳ…</p>;
+            if (!hash) return <p className="mt-5 text-[#c9c2b6]">Đang tìm giao dịch chốt kỳ…</p>;
             return chain?.chainId === 43113 ? (
-              <Button asChild variant="outline" size="lg" className="mt-5 border-[#c9d2e0] bg-transparent text-white hover:bg-white/10 hover:text-white">
+              <Button asChild variant="outline" size="lg" className="mt-5 border-[#c9c2b6] bg-transparent text-white hover:bg-white/10 hover:text-white">
                 <a href={`${EXPLORER_TX}${hash}`} target="_blank" rel="noreferrer">
                   Xem giao dịch trên Snowtrace
                 </a>
               </Button>
             ) : (
-              <p className="so-ke mt-5 break-all text-[#c9d2e0]">
+              <p className="so-ke mt-5 break-all text-[#c9c2b6]">
                 Giao dịch chốt kỳ: <span data-testid="tx-hash">{hash}</span>
               </p>
             );
           })()
         ) : (
-          <SoonButton variant="outline" size="lg" className="mt-5 border-[#c9d2e0] bg-transparent text-white hover:bg-white/10 hover:text-white" message="Dây mẫu chưa có giao dịch thật nên chưa mở được Snowtrace. Dây thật sẽ có đường dẫn ở đây.">
+          <SoonButton variant="outline" size="lg" className="mt-5 border-[#c9c2b6] bg-transparent text-white hover:bg-white/10 hover:text-white" message="Dây mẫu chưa có giao dịch thật nên chưa mở được Snowtrace. Dây thật sẽ có đường dẫn ở đây.">
             Xem giao dịch trên Snowtrace
           </SoonButton>
         )}
@@ -174,7 +174,7 @@ export function ResultView({ c }: { c: SampleCircleData }) {
           {c.shortfalls.some((s) => s.round === k) && (
             <p className="mt-3 text-muted-foreground">
               Người hốt vẫn nhận đủ nhờ khoản bù.{' '}
-              <Link href={`/circles/${id}/thieu`} className="font-semibold text-primary underline underline-offset-4">
+              <Link href={`/circles/${id}/thieu`} className="font-semibold whitespace-nowrap text-primary underline underline-offset-4">
                 Xem khoản thiếu
               </Link>
               .

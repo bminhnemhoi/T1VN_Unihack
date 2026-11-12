@@ -9,6 +9,7 @@ import { formatUsdc } from 'sdk';
 import { PAUSED_REASON, usePaused } from '@/components/chain/PauseLock';
 import { useChain } from '@/lib/chain/provider';
 import { useHuiActions } from '@/lib/chain/actions';
+import { txSteps, type TxStep } from '@/lib/chain/write';
 import { useHuiWallet } from '@/lib/chain/walletProvider';
 import { cn } from '@/lib/utils';
 
@@ -23,8 +24,12 @@ export const SOON_DEFAULT = 'Cần mạng và ví để làm việc này, sắp 
 
 export interface TxState {
   pending: boolean;
+  /** While pending: 0 = waiting for the signature, 1 = sending through the relay, 2 = waiting for the receipt. */
+  step?: number;
   result?: RunResult;
 }
+
+const STEP_INDEX: Record<TxStep, number> = { sign: 0, send: 1, confirm: 2 };
 
 /** Why nothing was sent, as a failure result the notice can print. */
 const notReady = (code: string, message: string): RunResult => ({ ok: false, code, message });
@@ -69,12 +74,15 @@ export function useTx({ allowWhenPaused = false }: { allowWhenPaused?: boolean }
         return r;
       }
       busy.current = true;
-      setState({ pending: true });
+      setState({ pending: true, step: 0 });
+      const onStep = (e: Event) => setState((s) => (s.pending ? { ...s, step: STEP_INDEX[(e as CustomEvent<TxStep>).detail] } : s));
+      txSteps?.addEventListener('step', onStep);
       try {
         const r = await job(actions);
-        setState({ pending: false, result: r });
+        setState((s) => ({ pending: false, result: r, step: s.step }));
         return r;
       } finally {
+        txSteps?.removeEventListener('step', onStep);
         busy.current = false;
       }
     },

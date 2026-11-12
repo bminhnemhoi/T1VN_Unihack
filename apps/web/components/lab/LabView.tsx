@@ -80,7 +80,7 @@ export function LabView({ data }: { data: LabData }) {
             <h2 id="gia-dinh" className="font-display text-h2 font-bold">
               Giả định của lần chạy này
             </h2>
-            <ul className="so-ke mt-3 space-y-1 text-lead text-[#dfe5f0]">
+            <ul className="so-ke mt-3 space-y-1 text-lead text-[#e9e4da]">
               <li>
                 {run.circles.toLocaleString('vi-VN')} dây, mỗi dây {run.n} người, mức góp {run.c} USDC, kỳ {run.periodDays} ngày. Hạt giống ngẫu nhiên {run.seed} (chỉ trong mô phỏng ngoại tuyến).
               </li>
