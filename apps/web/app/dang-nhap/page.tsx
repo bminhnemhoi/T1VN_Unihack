@@ -49,7 +49,7 @@ export default async function Login({ searchParams }: { searchParams: Promise<{ 
         <h2 id="chon" className="font-display text-h2 font-bold">
           Chọn cách đăng nhập
         </h2>
-        <LoginActions />
+        <LoginActions next={back} />
         <p className="mt-3 text-muted-foreground">
           Chưa đăng nhập vẫn xem được sổ hụi và các màn mẫu.{' '}
           <Link href="/circles" className="font-semibold text-primary underline underline-offset-4">
