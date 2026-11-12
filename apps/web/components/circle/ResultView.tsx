@@ -174,7 +174,7 @@ export function ResultView({ c }: { c: SampleCircleData }) {
           {c.shortfalls.some((s) => s.round === k) && (
             <p className="mt-3 text-muted-foreground">
               Người hốt vẫn nhận đủ nhờ khoản bù.{' '}
-              <Link href={`/circles/${id}/thieu`} className="font-semibold text-primary underline underline-offset-4">
+              <Link href={`/circles/${id}/thieu`} className="font-semibold whitespace-nowrap text-primary underline underline-offset-4">
                 Xem khoản thiếu
               </Link>
               .

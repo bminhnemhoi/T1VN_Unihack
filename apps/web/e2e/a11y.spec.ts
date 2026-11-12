@@ -21,6 +21,11 @@ const ROUTES = [
 const TAGS = ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa'];
 
 async function scan(page: Page) {
+  // Let entrance animations land first (login promises fade in for 0.9 s): axe would measure contrast mid-fade.
+  // Looping decorations never finish, so only finite animations are awaited.
+  await page.evaluate(() =>
+    Promise.all(document.getAnimations().filter((a) => a.effect?.getTiming().iterations !== Infinity).map((a) => a.finished.catch(() => undefined))),
+  );
   const r = await new AxeBuilder({ page }).withTags(TAGS).analyze();
   return r.violations
     .filter((v) => v.impact === 'serious' || v.impact === 'critical')

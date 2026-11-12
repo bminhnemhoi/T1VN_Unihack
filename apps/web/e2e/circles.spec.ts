@@ -25,7 +25,9 @@ test.describe('/circles (Tổng quan)', () => {
   test('verdict first: the most urgent task with its deadline and one action', async ({ page }) => {
     await page.goto('/circles');
     const verdict = page.locator('.verdict');
-    await expect(verdict).toContainText('Bạn có 3 việc: nộp thăm kín cho kỳ 3 ở Hụi tổ dân phố 7, còn');
+    await expect(verdict).toContainText('Bạn có 3 việc');
+    await expect(verdict.locator('p')).toHaveText('Nộp thăm kín cho kỳ 3 · Hụi tổ dân phố 7');
+    await expect(verdict).toContainText(/Còn \d/);
     await verdict.getByRole('link', { name: 'Vào phòng thăm ↗' }).click();
     await expect(page).toHaveURL(/\/circles\/demo$/);
   });

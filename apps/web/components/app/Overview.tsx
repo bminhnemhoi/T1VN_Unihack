@@ -113,14 +113,22 @@ function Board({ list, my, refreshing, stale }: { list: SampleCircle[]; my: Extr
       <h1 className="sr">Tổng quan</h1>
       <div className="verdict">
         {first ? (
-          <p>
-            Bạn có {open.length} việc: <em>{first.todo.charAt(0).toLowerCase() + first.todo.slice(1)}</em> ở {first.label}
-            {first.secondsLeft > 0 ? `, còn ${clock(left)}.` : '.'}
-          </p>
+          <div className="vtxt">
+            <span className="label">Bạn có {open.length} việc · việc gấp nhất</span>
+            <p>
+              {first.todo} <span>· {first.label}</span>
+            </p>
+            {first.secondsLeft > 0 && (
+              <span className="clock">
+                Còn <b>{clock(left)}</b>
+              </span>
+            )}
+          </div>
         ) : (
-          <p>
-            Không có việc gì cần làm. <em>Mọi dây của bạn đã xong.</em>
-          </p>
+          <div className="vtxt">
+            <span className="label">Không có việc gì cần làm</span>
+            <p>Mọi dây của bạn đã xong.</p>
+          </div>
         )}
         <Link className="btn lime" href={first?.href ?? '/circles/new'}>
           {first ? first.action : 'Tạo dây mới'} ↗
