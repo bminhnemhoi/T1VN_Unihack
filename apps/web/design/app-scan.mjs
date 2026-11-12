@@ -14,7 +14,11 @@ const SCREENS = [
   ['/circles/demo/so-ho', ['seg:Theo kỳ']],
   ['/circles/co-dinh', []],
   ...[0, 1, 2, 3, 4, 5].map((n) => ['/circles/new', Array(n).fill('next')]),
+  // B22f: secondary pages on the page kit (`.pg`)
+  ...['/circles/demo/bao-chung', '/circles/demo/giu-lai', '/circles/demo/thieu', '/circles/demo/ket-qua', '/circles/da-xong/tat-toan',
+    '/circles/dang-gom', '/circles/da-xong', '/moi/dang-gom', '/cai-dat', '/thong-bao-ubnd', '/lab', '/dang-nhap', '/khong-co-trang-nay'].map((u) => [u, []]),
 ];
+const ONLY = process.argv[3] ? new RegExp(process.argv[3]) : null; // optional filter on the path
 const SIZES = [[1440, 900], [1280, 720], [768, 1024], [390, 844], [360, 740]];
 
 
@@ -29,7 +33,7 @@ function measure() {
   // spacing (the app's own classes only: Tailwind pages are out of scope)
   const off = [];
   for (const e of all) {
-    if (!e.closest('.room, .ov, .lg, .cr, .state, .top, .demo, .tabbar')) continue;
+    if (!e.closest('.room, .ov, .lg, .cr, .state, .top, .demo, .tabbar, .pg')) continue;
     const cs = getComputedStyle(e);
     for (const p of ['gap', 'rowGap', 'columnGap', 'paddingTop', 'paddingRight', 'paddingBottom', 'paddingLeft', 'marginTop', 'marginRight', 'marginBottom', 'marginLeft']) {
       const v = cs[p];
@@ -100,6 +104,7 @@ for (const [w, h] of SIZES) {
   const ctx = await b.newContext({ viewport: { width: w, height: h } });
   const p = await ctx.newPage();
   for (const [path, steps] of SCREENS) {
+    if (ONLY && !ONLY.test(path)) continue;
     await p.goto(base + path, { waitUntil: 'networkidle' });
     for (const s of steps) {
       const [k, arg] = s.split(':');

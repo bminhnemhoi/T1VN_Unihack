@@ -29,7 +29,7 @@ export function RepBadge({ rep, who = 'member', showNext = false, className }: {
   const info: TierResult | undefined = chain && rep.address ? (live.data ? live.data[who] : undefined) : sampleTier(rep, who, Math.floor(SAMPLE_NOW_MS / 1000));
   if (!info) {
     return (
-      <span className={cn('inline-flex min-h-8 items-center rounded-full border border-border px-3 py-0.5 text-base text-muted-foreground', className)}>
+      <span className={cn('inline-flex min-h-8 items-center rounded-full border border-border px-3 py-1 text-base text-muted-foreground', className)}>
         {live.isError ? 'Chưa đọc được huy hiệu' : 'Đang đọc huy hiệu'}
       </span>
     );
@@ -40,14 +40,14 @@ export function RepBadge({ rep, who = 'member', showNext = false, className }: {
     <span className={cn('inline-flex flex-wrap items-center gap-x-2 gap-y-1', className)}>
       <span
         title={`Bậc ${label} (${WHO[who]})`}
-        className={cn('inline-flex min-h-8 items-center gap-1.5 rounded-full border px-3 py-0.5 text-base font-semibold whitespace-nowrap', TONE[info.tier])}
+        className={cn('inline-flex min-h-8 items-center gap-2 rounded-full border px-3 py-1 text-base font-semibold whitespace-nowrap', TONE[info.tier])}
       >
         <Icon aria-hidden className="size-4" />
         <span className="sr-only">Bậc </span>
         {label}
       </span>
       {info.redFlag && (
-        <span className="inline-flex min-h-8 items-center gap-1.5 rounded-full border border-state-bad bg-state-bad/10 px-3 py-0.5 text-base font-semibold whitespace-nowrap text-state-bad">
+        <span className="inline-flex min-h-8 items-center gap-2 rounded-full border border-state-bad bg-state-bad/10 px-3 py-1 text-base font-semibold whitespace-nowrap text-state-bad">
           <TriangleAlert aria-hidden className="size-4" />
           Có nợ chưa trả
         </span>
