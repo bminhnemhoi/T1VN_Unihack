@@ -78,7 +78,7 @@ export function SettingsView() {
   };
 
   return (
-    <main id="noi-dung" className="mx-auto max-w-3xl px-4 py-10">
+    <main id="noi-dung" className="pg narrow">
       <h1 className="font-display text-h1 font-bold">Cài đặt</h1>
       <p className="mt-2 text-lead text-muted-foreground">Mọi lựa chọn ở đây chỉ nằm trên trình duyệt này.</p>
 

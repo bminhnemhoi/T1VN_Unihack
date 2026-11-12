@@ -65,7 +65,7 @@ export function LabView({ data }: { data: LabData }) {
   const run = data.runs.find((r) => r.id === id);
 
   return (
-    <main id="noi-dung" className="mx-auto max-w-6xl px-4 py-10">
+    <main id="noi-dung" className="pg">
       <h1 className="font-display text-h1 font-bold">Phòng mô phỏng</h1>
       <p className="mt-2 max-w-prose text-lead text-muted-foreground">So sánh ba cách tổ chức hụi trên cùng một bộ giả định. Đây là mô phỏng, không phải kết quả đo ngoài đời.</p>
 
