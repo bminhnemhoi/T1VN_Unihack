@@ -5,7 +5,7 @@ import { noClippedContent, noHorizontalOverflow, watchErrors } from './helpers';
 test.describe('/circles/demo/so-ho', () => {
   test('header, QR to Snowtrace, members, lines, totals and the on-chain note; every amount has its unit', async ({ page }) => {
     const errs = watchErrors(page);
-    await page.goto('/circles/demo/so-ho');
+    await page.goto('/circles/demo/so-ho?ban=day-du');
     await expect(page.getByRole('button', { name: 'In sổ hụi' })).toBeVisible();
     await expect(page.getByRole('button', { name: 'Tải JSON' })).toBeVisible();
     await expect(page.getByRole('button', { name: /Tải PDF/ })).toHaveCount(0);
@@ -24,7 +24,7 @@ test.describe('/circles/demo/so-ho', () => {
   });
 
   test('print preview: A4 sheet without site chrome, with the book, QR and the note', async ({ page }) => {
-    await page.goto('/circles/demo/so-ho');
+    await page.goto('/circles/demo/so-ho?ban=day-du');
     await page.emulateMedia({ media: 'print' });
     await expect(page.locator('header.sticky')).toBeHidden();
     await expect(page.locator('footer')).toBeHidden();
@@ -38,7 +38,7 @@ test.describe('/circles/demo/so-ho', () => {
   });
 
   test('"In sổ hụi" opens the print dialog', async ({ page }) => {
-    await page.goto('/circles/demo/so-ho');
+    await page.goto('/circles/demo/so-ho?ban=day-du');
     await page.evaluate(() => {
       (window as unknown as { __printed: number }).__printed = 0;
       window.print = () => {

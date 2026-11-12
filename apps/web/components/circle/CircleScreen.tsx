@@ -6,11 +6,9 @@ import { PauseLockProvider, PausedBanner } from '@/components/chain/PauseLock';
 import { BookView } from '@/components/circle/BookView';
 import { CoverageView } from '@/components/circle/CoverageView';
 import { DoneView, EndedView } from '@/components/circle/DoneView';
-import { FixedRoomView } from '@/components/circle/FixedRoomView';
 import { FormingView } from '@/components/circle/FormingView';
 import { HoldbackView } from '@/components/circle/HoldbackView';
 import { ResultView } from '@/components/circle/ResultView';
-import { RoomView } from '@/components/circle/RoomView';
 import { SettleView } from '@/components/circle/SettleView';
 import { ShortfallView } from '@/components/circle/ShortfallView';
 import { useCircleData } from '@/lib/live/useCircleData';
@@ -22,8 +20,8 @@ function Overview({ c }: { c: SampleCircleData }) {
   if (c.state === 'forming') return <FormingView c={c} />;
   if (c.live && (c.live.view.state === 'active' || c.live.view.state === 'paused') && c.settled === Number(c.terms.n)) return <SettleView c={c} />;
   if (c.live && (c.live.view.state === 'cancelled' || c.live.view.state === 'unwound')) return <EndedView c={c} />;
-  if (c.state === 'completed') return <DoneView c={c} />;
-  return c.terms.mode === 'fixed' ? <FixedRoomView c={c} /> : <RoomView c={c} />;
+  // Running circles are the timeline room (components/app/CircleRoom); this covers what is left.
+  return <DoneView c={c} />;
 }
 
 const SCREENS: Record<Screen, ComponentType<{ c: SampleCircleData }>> = {

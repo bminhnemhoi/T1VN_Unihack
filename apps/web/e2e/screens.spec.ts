@@ -96,14 +96,20 @@ test.describe('S04 forming circle', () => {
 });
 
 test.describe('circle sections', () => {
-  test('the section bar goes to every section and marks the current one', async ({ page }) => {
+  test('a settled round links to its result and to the shortfall page; the chips open coverage and holdback', async ({ page, isMobile }) => {
     await page.goto('/circles/demo');
-    const bar = page.getByRole('navigation', { name: 'Các mục của dây' });
-    for (const [label, slug] of [['Kết quả kỳ', 'ket-qua'], ['Khoản thiếu', 'thieu'], ['Bảo chứng', 'bao-chung'], ['Tiền giữ lại', 'giu-lai'], ['Sổ hụi', 'so-ho'], ['Tất toán', 'tat-toan'], ['Tổng quan', '']] as const) {
-      await bar.getByRole('link', { name: label, exact: true }).click();
-      await expect(page).toHaveURL(new RegExp(`/circles/demo${slug ? `/${slug}` : ''}$`));
-      await expect(bar.locator('[aria-current="page"]')).toHaveText(label);
-    }
+    if (isMobile) await page.getByRole('button', { name: 'Kỳ trước' }).click();
+    else await page.locator('.rail button').nth(1).click();
+    await page.locator('.receipt').getByRole('link', { name: 'Chi tiết kỳ 2' }).click();
+    await expect(page).toHaveURL(/\/circles\/demo\/ket-qua$/);
+    await page.goBack();
+    if (isMobile) await page.getByRole('button', { name: 'Kỳ trước' }).click();
+    else await page.locator('.rail button').nth(1).click();
+    await page.locator('.receipt').getByRole('link', { name: 'Khoản thiếu' }).click();
+    await expect(page).toHaveURL(/\/circles\/demo\/thieu$/);
+    await page.goto('/circles/demo');
+    await page.locator('#hs-health a.chip').first().click();
+    await expect(page).toHaveURL(/\/circles\/demo\/bao-chung$/);
   });
 
   test('S07 result: docs/03 numbers for kỳ 1 and kỳ 2, the sum line checks out', async ({ page }) => {
@@ -198,7 +204,7 @@ test.describe('circle sections', () => {
   });
 
   test('S11 book: round filter narrows the rows, JSON downloads, print resets the filter', async ({ page }) => {
-    await page.goto('/circles/demo/so-ho');
+    await page.goto('/circles/demo/so-ho?ban=day-du');
     const status = page.getByRole('status').filter({ hasText: /Đang hiện/ });
     const total = await status.textContent();
     await page.getByRole('radio', { name: 'Kỳ 1' }).click();
@@ -239,52 +245,34 @@ test.describe('circle sections', () => {
     await expect(page).toHaveURL(/\/circles\/da-xong\/tat-toan$/);
   });
 
-  test('Fixed circle runs end to end: overview, banner, pay, result, book, settlement preview', async ({ page }) => {
+  test('Fixed circle runs end to end: room, pay, result, full book', async ({ page }) => {
     await page.goto('/circles/co-dinh');
-    await expect(page.getByRole('heading', { name: 'Kỳ 3: bạn hốt' })).toBeVisible();
-    await expect(page.getByText('Cố định, không bỏ thăm')).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Kỳ này bạn hốt.' })).toBeVisible();
     await expect(page.getByRole('button', { name: /Niêm phong/ })).toHaveCount(0); // no sealed bid in a Fixed circle
-    await page.locator('section[role="alert"]').getByRole('link', { name: /^Trả ngay/ }).click();
+    await page.getByRole('link', { name: 'Trả khoản thiếu 20,00 USDC' }).click();
     await expect(page).toHaveURL(/\/circles\/co-dinh\/thieu$/);
-    await page.getByRole('navigation', { name: 'Các mục của dây' }).getByRole('link', { name: 'Kết quả kỳ' }).click();
+    await page.goto('/circles/co-dinh/ket-qua');
     await expect(page.getByRole('heading', { name: 'Thành viên 2 hốt kỳ này' })).toBeVisible();
     await expect(page.getByText('theo thứ tự đã định').first()).toBeVisible();
-    await page.getByRole('navigation', { name: 'Các mục của dây' }).getByRole('link', { name: 'Sổ hụi' }).click();
+    await page.goto('/circles/co-dinh/so-ho?ban=day-du');
     await expect(page.getByRole('table', { name: 'Các dòng sổ hụi' })).toBeVisible();
   });
 });
 
 test.describe('09/11 decisions in the screens', () => {
-  test('bid calculator: 6 USDC in kỳ 3 shows what you hold now; over the ceiling is refused with the reason', async ({ page }) => {
+  test('reputation: every member line says its tier in words, and the unpaid default is flagged', async ({ page, isMobile }) => {
     await page.goto('/circles/demo');
-    const calc = page.getByRole('region', { name: 'Máy tính thăm' });
-    await calc.getByLabel('Thử thăm kỳ 3').fill('1,5');
-    await expect(calc).toContainText('Bạn cầm ngay nếu thắng');
-    await expect(calc).toContainText('Lãi thăm bạn trả cho');
-    await expect(calc).toContainText('mỗi tháng');
-    await expect(calc).toContainText('Hoa hồng chủ hụi kỳ này');
-    await expect(calc).toContainText('Kỳ 1: Thành viên 4'); // past winning bids
-    await calc.getByLabel('Thử thăm kỳ 3').fill('9');
-    await expect(calc).toContainText('Thăm vượt trần kỳ này (3,287671 USDC)');
-    await expect(calc).not.toContainText('Bạn cầm ngay nếu thắng');
-  });
-
-  test('reputation badges: tier word + icon, red flag for an unpaid default, next-tier line', async ({ page }) => {
-    await page.goto('/circles/demo');
-    const people = page.getByRole('region', { name: 'Người trong dây' });
+    let people = page.locator('.panel.side');
+    if (isMobile) {
+      await page.locator('.peek').click();
+      people = page.getByRole('dialog');
+    }
     await expect(people).toContainText('Bậc Lâu năm');
     await expect(people).toContainText('Bậc Tin cậy');
-    await expect(people).toContainText('Có nợ chưa trả'); // Thành viên 4 defaulted and has not repaid
-    await expect(people).toContainText('Để lên bậc Tin cậy: Hoàn thành thêm 2 dây');
-    await expect(people).toContainText('Huy hiệu là lịch sử, không phải bảo đảm. Bảo đảm của bạn là cọc của chủ hụi.');
+    await expect(people).toContainText('có nợ chưa trả'); // Thành viên 4 defaulted and has not repaid
   });
 
-  test('late-penalty banner also tops "Dây của tôi" and links to the page where it is paid', async ({ page }) => {
-    await page.goto('/circles');
-    await expect(page.locator('section[role="alert"]')).toContainText('Bạn còn thiếu 20 USDC kỳ 2');
-    await page.locator('section[role="alert"]').getByRole('link', { name: /^Trả ngay/ }).click();
-    await expect(page).toHaveURL(/\/circles\/co-dinh\/thieu$/);
-  });
+
 });
 
 test.describe('S13 assistant drawer', () => {
@@ -311,20 +299,8 @@ test.describe('S13 assistant drawer', () => {
     await expect(dlg.getByText('Bạn cần ký quỹ 480 USDC để bảo chứng 100%.')).toBeVisible();
     await expect(dlg.getByText('Số liệu do hàm tính của HụiSafe tạo; lời giải thích do AI viết.', { exact: true })).toBeVisible();
     await expect(dlg.getByText('Ký quỹ cần')).toBeVisible();
-    await expect(dlg.getByRole('link', { name: 'Mở form tạo dây để điền' })).toBeVisible();
     await page.keyboard.press('Escape');
     await expect(dlg).toHaveCount(0);
-  });
-
-  test('"Điền vào form" fills the bond on the create page, only when the person clicks', async ({ page }) => {
-    await page.route('**/api/copilot', (r) => r.fulfill({ status: 200, contentType: 'application/x-ndjson', body: answer() }));
-    await page.goto('/circles/new?buoc=2');
-    const dlg = await open(page);
-    await dlg.getByLabel('Câu hỏi cho trợ lý').fill('Ký quỹ bao nhiêu?');
-    await dlg.getByRole('button', { name: 'Gửi câu hỏi' }).click();
-    await expect(page.getByLabel('Ký quỹ của chủ hụi')).toHaveValue('0');
-    await dlg.getByRole('button', { name: 'Điền vào form' }).click();
-    await expect(page.getByLabel('Ký quỹ của chủ hụi')).toHaveValue('480');
   });
 
   test('the request carries the form draft and no wallet address', async ({ page }) => {
@@ -334,7 +310,8 @@ test.describe('S13 assistant drawer', () => {
       return r.fulfill({ status: 200, contentType: 'application/x-ndjson', body: answer() });
     });
     await page.goto('/circles/new');
-    await page.getByLabel('Số phần hụi').fill('8');
+    await page.getByRole('button', { name: 'Tiếp tục ›' }).click();
+    for (let i = 0; i < 3; i++) await page.getByRole('button', { name: 'Thêm một người' }).click();
     const dlg = await open(page);
     await dlg.getByLabel('Câu hỏi cho trợ lý').fill('Rủi ro thế nào?');
     await dlg.getByRole('button', { name: 'Gửi câu hỏi' }).click();
@@ -433,14 +410,15 @@ test.describe('S16 /lab', () => {
   });
 });
 
-test.describe('header and footer reach the new pages', () => {
-  test('login link and assistant button are in the header; footer lists the tools', async ({ page }) => {
+test.describe('the top bar reaches the other pages', () => {
+  test('login link and assistant button are in the top bar; settings lists the tools', async ({ page }) => {
     await page.goto('/circles');
     await page.getByRole('banner').getByRole('link', { name: 'Đăng nhập' }).click();
     await expect(page).toHaveURL(/\/dang-nhap$/);
-    const tools = page.getByRole('list', { name: 'Công cụ khác' });
-    for (const [label, url] of [['Phòng mô phỏng', /\/lab$/], ['Thông báo UBND', /\/thong-bao-ubnd$/], ['Cài đặt', /\/cai-dat$/]] as const) {
-      await tools.getByRole('link', { name: label }).click();
+    await expect(page.getByRole('banner').getByRole('button', { name: 'Trợ lý', exact: true })).toBeVisible();
+    for (const [label, url] of [['Phòng mô phỏng', /\/lab$/], ['Thông báo UBND', /\/thong-bao-ubnd$/], ['Trang giới thiệu', /\/$/]] as const) {
+      await page.goto('/cai-dat');
+      await page.getByRole('list', { name: 'Công cụ khác' }).getByRole('link', { name: label }).click();
       await expect(page).toHaveURL(url);
     }
   });

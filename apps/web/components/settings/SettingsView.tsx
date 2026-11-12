@@ -1,5 +1,7 @@
 'use client';
 
+import Link from 'next/link';
+
 import { useEffect, useState } from 'react';
 import { useChain } from '@/lib/chain/provider';
 import { useHuiActions } from '@/lib/chain/actions';
@@ -199,6 +201,26 @@ export function SettingsView() {
           )}
         </div>
         <RepDisclaimer className="mt-3" />
+      </section>
+
+      <section aria-labelledby="cong-cu" className="o-phang mt-6 p-6">
+        <h2 id="cong-cu" className="font-display text-h2 font-bold">
+          Công cụ khác
+        </h2>
+        <ul aria-label="Công cụ khác" className="mt-2">
+          {[
+            ['/lab', 'Phòng mô phỏng', 'so ba cách chơi hụi trên 10.000 dây giả lập'],
+            ['/thong-bao-ubnd', 'Thông báo UBND', 'soạn thông báo tổ chức dây theo NĐ 19 Điều 14'],
+            ['/', 'Trang giới thiệu', 'HụiSafe là gì, chơi thử 5 tình huống'],
+          ].map(([href = '/', label, note]) => (
+            <li key={href} className="dong-ke last:border-b-0">
+              <Link href={href} className="flex min-h-12 flex-wrap items-center gap-x-3 py-2 font-semibold underline-offset-4 hover:underline">
+                {label}
+                <span className="font-normal text-muted-foreground">{note}</span>
+              </Link>
+            </li>
+          ))}
+        </ul>
       </section>
     </main>
   );

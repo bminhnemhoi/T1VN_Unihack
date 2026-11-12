@@ -2,7 +2,6 @@
 
 import { Bot, Send, X } from 'lucide-react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
 import { Dialog } from 'radix-ui';
 import { useRef, useState, type ChangeEvent } from 'react';
 import { CopilotCalc } from '@/components/copilot/CopilotCalc';
@@ -87,7 +86,6 @@ function ToolResult({ name, result }: { name: string; result: unknown }) {
 
 /** S13: the organizer assistant. A side drawer on desktop, a bottom sheet on phones. It only reads and computes; it never signs or moves money. */
 export function CopilotDrawer() {
-  const pathname = usePathname();
   const [open, setOpen] = useState(false);
   const [tab, setTab] = useState<'ask' | 'calc'>('ask');
   const [turns, setTurns] = useState<Turn[]>([]);
@@ -95,7 +93,6 @@ export function CopilotDrawer() {
   const [busy, setBusy] = useState(false);
   const [status, setStatus] = useState('');
   const end = useRef<HTMLDivElement>(null);
-  const onForm = pathname.startsWith('/circles/new');
 
   const send = async (question: string) => {
     const q = question.trim();
@@ -147,24 +144,18 @@ export function CopilotDrawer() {
     }
   };
 
-  const fill = (t: Turn) => {
-    const bond = t.tools?.flatMap((x) => (x.name === 'recommend_bond' && isObj(x.result) && typeof x.result.bond === 'string' ? [x.result.bond] : []))[0];
-    const detail = { ...(bond ? { bondUsdc: bond } : {}), ...(t.suggestion ?? {}) };
-    window.dispatchEvent(new CustomEvent('huisafe:fill-form', { detail }));
-  };
-
   return (
     <Dialog.Root open={open} onOpenChange={setOpen}>
       <Dialog.Trigger asChild>
-        <Button type="button" variant="outline" className="min-h-12">
-          <Bot aria-hidden className="size-5" /> Trợ lý
-        </Button>
+        <button type="button" aria-label="Trợ lý">
+          <Bot aria-hidden /> <span className="lbl">Trợ lý</span>
+        </button>
       </Dialog.Trigger>
       <Dialog.Portal>
-        <Dialog.Overlay className="fixed inset-0 z-50 bg-muc-dem/50 data-[state=open]:animate-in data-[state=open]:fade-in" />
+        <Dialog.Overlay className="fixed inset-0 z-50 bg-muc-dem/50 data-[state=open]:animate-in data-[state=open]:fade-in data-[state=closed]:animate-out data-[state=closed]:fade-out data-[state=closed]:duration-150" />
         <Dialog.Content
           aria-describedby="tro-ly-mo-ta"
-          className="fixed inset-x-0 bottom-0 z-50 flex h-[88vh] flex-col rounded-t-2xl bg-card shadow-2xl outline-none md:inset-y-0 md:right-0 md:left-auto md:h-auto md:w-[30rem] md:rounded-none"
+          className="fixed inset-x-0 bottom-0 z-50 flex h-[88vh] flex-col rounded-t-2xl bg-card shadow-2xl outline-none duration-240 ease-[cubic-bezier(0.16,1,0.3,1)] data-[state=open]:animate-in data-[state=open]:slide-in-from-bottom data-[state=closed]:animate-out data-[state=closed]:slide-out-to-bottom data-[state=closed]:duration-150 md:inset-y-0 md:right-0 md:left-auto md:h-auto md:w-[30rem] md:rounded-none md:data-[state=open]:slide-in-from-right md:data-[state=closed]:slide-out-to-right"
         >
           <header className="flex items-start justify-between gap-3 border-b border-border p-4">
             <div>
@@ -218,17 +209,6 @@ export function CopilotDrawer() {
                       {t.tools?.map((x, j) => <ToolResult key={j} name={x.name} result={x.result} />)}
                       {t.label && <p className="mt-2 text-sm text-muted-foreground">{t.label}</p>}
                       {t.role === 'assistant' && t.text && !t.failed && !t.text.includes(DISCLAIMER) && <p className="mt-1 text-sm text-muted-foreground">{DISCLAIMER}</p>}
-                      {t.tools?.some((x) => x.name === 'recommend_bond') || t.suggestion ? (
-                        onForm ? (
-                          <Button type="button" size="sm" className="mt-2" onClick={() => fill(t)}>
-                            Điền vào form
-                          </Button>
-                        ) : (
-                          <Button asChild size="sm" variant="outline" className="mt-2">
-                            <Link href="/circles/new?buoc=2" onClick={() => setOpen(false)}>Mở form tạo dây để điền</Link>
-                          </Button>
-                        )
-                      ) : null}
                     </li>
                   ))}
                 </ol>

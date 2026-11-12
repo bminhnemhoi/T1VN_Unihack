@@ -1,12 +1,7 @@
 import type { Metadata, Viewport } from 'next';
 import type { ReactNode } from 'react';
-import { AppChrome } from '@/components/shell/AppChrome';
-import { BottomNav } from '@/components/shell/BottomNav';
-import { DemoBanner } from '@/components/shell/DemoBanner';
-import { SampleModeLabel } from '@/components/shell/SampleModeLabel';
+import { AppFrame } from '@/components/app/AppFrame';
 import { FontSizeInit } from '@/components/shell/FontSizeInit';
-import { SiteFooter } from '@/components/shell/SiteFooter';
-import { SiteHeader } from '@/components/shell/SiteHeader';
 import { ToastProvider } from '@/components/shell/Toast';
 import { ChainProvider } from '@/lib/chain/provider';
 import { loadChainConfig } from '@/lib/chain/server';
@@ -14,6 +9,7 @@ import { HuiWalletProvider } from '@/lib/chain/walletProvider';
 import { cn } from '@/lib/utils';
 import { mono, sans } from './fonts';
 import './globals.css';
+import './hs.css';
 
 export const metadata: Metadata = {
   title: { default: 'HụiSafe', template: '%s | HụiSafe' },
@@ -42,16 +38,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
           <HuiWalletProvider>
             <ToastProvider>
               <FontSizeInit />
-              <AppChrome>
-                <DemoBanner sample={chain === null} />
-                {chain === null && <SampleModeLabel />}
-                <SiteHeader />
-              </AppChrome>
-              {children}
-              <AppChrome>
-                <SiteFooter inChain={chain !== null} />
-                <BottomNav />
-              </AppChrome>
+              <AppFrame sample={chain === null}>{children}</AppFrame>
             </ToastProvider>
           </HuiWalletProvider>
         </ChainProvider>

@@ -45,14 +45,28 @@ test.describe('axe: states that need a click', () => {
     await expect(page.getByRole('dialog', { name: 'Trợ lý AI cho chủ hụi' })).toBeVisible();
     expect(await scan(page)).toEqual([]);
   });
-  test('create form, step 2', async ({ page }) => {
-    await page.goto('/circles/new?buoc=2');
+  test('create form, every step', async ({ page }) => {
+    await page.goto('/circles/new');
+    for (let i = 0; i < 6; i++) {
+      await page.waitForTimeout(300); // let the 180 ms step entrance finish: axe reads colours mid-fade otherwise
+      expect(await scan(page), `step ${i + 1}`).toEqual([]);
+      if (i < 5) await page.getByRole('button', { name: 'Tiếp tục ›' }).click();
+    }
+  });
+  test('bid room with the estimate sheet open (phone) and a settled receipt', async ({ page, isMobile }) => {
+    await page.goto('/circles/demo');
+    if (isMobile) {
+      await page.locator('.peek').click();
+      await expect(page.getByRole('dialog')).toBeVisible();
+    } else {
+      await page.locator('.rail button').nth(1).click();
+    }
     expect(await scan(page)).toEqual([]);
   });
 });
 
 test.describe('banner demo', () => {
-  for (const path of ['/', '/circles', '/circles/new', '/circles/demo', '/circles/demo/so-ho', '/dang-nhap', '/cai-dat', '/thong-bao-ubnd', '/lab']) {
+  for (const path of ['/', '/circles', '/circles/new', '/circles/demo', '/circles/demo/so-ho', '/circles/demo/so-ho?ban=day-du', '/dang-nhap', '/cai-dat', '/thong-bao-ubnd', '/lab']) {
     test(`${path} shows the demo strip`, async ({ page }) => {
       await page.goto(path);
       const banner = page.getByTestId('demo-banner');
@@ -64,51 +78,39 @@ test.describe('banner demo', () => {
 });
 
 test.describe('keyboard only', () => {
-  test('create form: Tab reaches every field of step 1 and focus is always on something visible', async ({ page, isMobile }) => {
+  test('create form: radios take the arrow keys, Tab reaches "Tiếp tục", focus is always on something visible', async ({ page, isMobile }) => {
     test.skip(isMobile, 'keyboard path is checked on the desktop project');
     await page.goto('/circles/new');
-    const reached = new Set<string>();
-    for (let i = 0; i < 40; i++) {
+    await page.getByRole('radio', { name: /Bỏ thăm/ }).focus();
+    await page.keyboard.press('ArrowRight');
+    await expect(page.getByRole('radio', { name: /Cố định/ })).toBeFocused();
+    await expect(page.getByRole('radio', { name: /Cố định/ })).toHaveAttribute('aria-checked', 'true');
+    await page.keyboard.press('ArrowLeft');
+    await expect(page.getByRole('radio', { name: /Bỏ thăm/ })).toHaveAttribute('aria-checked', 'true');
+    let reachedNext = false;
+    for (let i = 0; i < 12 && !reachedNext; i++) {
       await page.keyboard.press('Tab');
-      const label = await page.evaluate(() => {
+      const { label, visible } = await page.evaluate(() => {
         const e = document.activeElement as HTMLElement | null;
-        if (!e) return '';
-        return e.getAttribute('aria-label') || (e as HTMLInputElement).labels?.[0]?.textContent || e.textContent || '';
-      });
-      reached.add(label.trim());
-      const visible = await page.evaluate(() => {
-        const r = document.activeElement?.getBoundingClientRect();
-        return !!r && r.width > 0 && r.height > 0;
+        const r = e?.getBoundingClientRect();
+        return { label: e?.textContent ?? '', visible: !!r && r.width > 0 && r.height > 0 };
       });
       expect(visible, `focus is on something invisible after ${i + 1} Tab presses`).toBe(true);
+      reachedNext = label.includes('Tiếp tục');
     }
-    expect([...reached].some((l) => l.includes('Số phần hụi'))).toBe(true);
-    expect([...reached].some((l) => l.includes('Mức góp mỗi kỳ'))).toBe(true);
-    expect([...reached].some((l) => l.includes('Tiếp tục'))).toBe(true);
-
-  });
-
-  test('create form: a radio takes the arrow keys, and Enter on "Tiếp tục" goes to step 2', async ({ page, isMobile }) => {
-    test.skip(isMobile, 'keyboard path is checked on the desktop project');
-    await page.goto('/circles/new');
-    await page.getByRole('radio', { name: 'Bỏ thăm' }).focus();
-    await page.keyboard.press('ArrowLeft');
-    await expect(page.getByRole('radio', { name: 'Cố định' })).toBeFocused();
-    await page.keyboard.press('ArrowRight');
-    await expect(page.getByRole('radio', { name: 'Bỏ thăm' })).toBeFocused();
-    await page.getByRole('button', { name: 'Tiếp tục' }).focus();
+    expect(reachedNext).toBe(true);
     await page.keyboard.press('Enter');
-    await expect(page).toHaveURL(/\?buoc=2$/);
+    await expect(page.locator('.crTop .label')).toHaveText('Tạo dây · bước 2/6');
+    await expect(page.getByRole('heading', { name: 'Bao nhiêu người chơi?' })).toBeFocused();
   });
 
-  test('bid room: the phase switch, the bid field and the seal button work without a mouse, with a visible focus ring', async ({ page, isMobile }) => {
+  test('bid room: the bid field and the seal button work without a mouse, with a visible focus ring', async ({ page, isMobile }) => {
     test.skip(isMobile, 'keyboard path is checked on the desktop project');
     await page.goto('/circles/demo');
-    const seal = page.getByRole('button', { name: 'Niêm phong thăm' });
-    await expect(seal).toBeVisible();
-    const bid = page.getByLabel('Tiền thăm mỗi phần hụi trả bớt');
+    const bid = page.getByLabel('Thăm của bạn (số tiền bớt cho mọi người)');
     await bid.focus();
     await bid.fill('3');
+    const seal = page.getByRole('button', { name: 'Niêm phong thăm' });
     await seal.focus();
     const ring = await seal.evaluate((e) => {
       const s = getComputedStyle(e);
@@ -116,7 +118,7 @@ test.describe('keyboard only', () => {
     });
     expect(ring, 'focused button has no visible ring').not.toBe('none|0px|none');
     await page.keyboard.press('Enter');
-    await expect(page.getByText('Đã niêm phong thăm của bạn.')).toBeVisible();
+    await expect(page.locator('.slip .stamp.on')).toContainText('ĐÃ NIÊM PHONG');
   });
 
   test('assistant drawer: opens from the keyboard, traps focus, Escape closes and returns focus to the button', async ({ page, isMobile }) => {
