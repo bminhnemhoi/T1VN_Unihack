@@ -662,7 +662,7 @@ function BidNow({ c, k, phase, maxBid, bidText, setBidText, run, setRun, stamp, 
           <span className="label" style={{ color: 'var(--mute)' }}>
             {run.settled ? `Kỳ ${k} đã chốt` : phase === 'commit' ? 'Còn thời gian nộp thăm' : phase === 'reveal' ? 'Còn thời gian mở thăm' : 'Chờ chốt kỳ'}
           </span>
-          <span className={`clock${left <= 30 && phase === 'commit' && !run.settled ? ' low' : ''}`} role="timer" aria-live="off">
+          <span className={`clock${left < 60 && phase === 'commit' && !run.settled ? ' low' : ''}`} role="timer" aria-live="off">
             {run.settled ? '00:00' : !live && phase !== 'commit' ? '—' : clock(left)}
           </span>
         </div>

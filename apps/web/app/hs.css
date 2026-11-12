@@ -263,8 +263,9 @@
     /* bottom sheet (phone): pulled up from the bid panel */
     & .scrim { position: absolute; inset: 0; z-index: 20; background: rgba(21, 19, 19, 0.45); opacity: 0; pointer-events: none; transition: opacity var(--dur-ui); }
     & .scrim.open { opacity: 1; pointer-events: auto; }
-    & .sheet { position: absolute; left: 0; right: 0; bottom: 0; z-index: 21; max-height: 84%; overflow: auto; overscroll-behavior: contain; background: var(--paper); border-radius: 22px 22px 0 0; padding: 8px 24px calc(16px + env(safe-area-inset-bottom, 0px)); box-shadow: 0 -24px 40px -24px rgba(21, 19, 19, 0.5); transform: translateY(102%); visibility: hidden; transition: transform 320ms var(--ease-out), visibility 0s 320ms; display: grid; gap: 12px; }
-    & .sheet.open { transform: none; visibility: visible; transition: transform 320ms var(--ease-out), visibility 0s; }
+    /* MOTION.md B3: the sheet rises in 240 ms (ease-out) and drops away in 180 ms (ease-in); the scrim only fades. */
+    & .sheet { position: absolute; left: 0; right: 0; bottom: 0; z-index: 21; max-height: 84%; overflow: auto; overscroll-behavior: contain; background: var(--paper); border-radius: 22px 22px 0 0; padding: 8px 24px calc(16px + env(safe-area-inset-bottom, 0px)); box-shadow: 0 -24px 40px -24px rgba(21, 19, 19, 0.5); transform: translateY(102%); visibility: hidden; transition: transform 180ms cubic-bezier(0.4, 0, 1, 1), visibility 0s 180ms; display: grid; gap: 12px; }
+    & .sheet.open { transform: none; visibility: visible; transition: transform 240ms var(--ease-out), visibility 0s; }
     & .grab { display: block; width: 100%; min-height: 28px; padding: 0; border: 0; background: none; touch-action: none; cursor: grab; }
     & .grab::before { content: ''; display: block; width: 44px; height: 5px; border-radius: 5px; background: var(--line); margin: 0 auto; }
     & .sheetHead { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
@@ -304,7 +305,7 @@
     & .bondBig span { font-size: 18px; color: var(--ink-2); margin-left: 8px; }
     & .meter { display: grid; gap: 8px; max-width: 520px; }
     & .meter > div { height: 12px; border-radius: 99px; background: var(--soft); overflow: hidden; }
-    & .meter i { display: block; height: 100%; background: var(--forest); transform-origin: left; animation: hsGrow 600ms var(--ease-out) both; }
+    & .meter i { display: block; height: 100%; background: var(--forest); transform-origin: left; animation: hsGrow var(--dur-state) var(--ease-out) both; }
     & .meter.low i { background: var(--red); }
     & .crNav { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
     & .cr .rc div { padding: 8px 0; }
@@ -354,7 +355,8 @@
 
     /* loading (lamng-design-rule §1) */
     & .sk { background: var(--soft); border-radius: var(--r); position: relative; overflow: hidden; }
-    & .sk::after { content: ''; position: absolute; inset: 0; transform: translateX(-100%); background: linear-gradient(90deg, transparent, rgba(251, 249, 244, 0.7), transparent); animation: hsShimmer 1.2s ease-in-out infinite; }
+    /* MOTION.md B3: a skeleton breathes on opacity only (1 to 0.6, 1.6 s); still under reduced motion. */
+    & .sk { animation: hsSkel 1.6s ease-in-out infinite alternate; }
     & .skRail { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 8px; margin: 12px 0 0; padding-bottom: 16px; }
     & .skRail .sk { height: 74px; border-radius: 12px; }
     & .skVerdict, & .skStats { grid-column: 1 / -1; }
@@ -484,11 +486,18 @@
 .hs.entering .view > * > :nth-child(4) { animation-delay: 540ms; }
 .hs.entering .view > * > :nth-child(n + 5) { animation-delay: 600ms; }
 @keyframes hsLift { to { transform: translateY(-100%); } }
+/* Lists on Tổng quan rise in once when the view mounts, 40 ms apart, capped at the sixth row (MOTION.md B3, 180 ms). */
+.hs .ov.in .circles > li, .hs .ov.in .feed li { animation: hsViewIn var(--dur-ui) var(--ease-out) both; }
+.hs .ov.in .circles > li:nth-child(2), .hs .ov.in .feed li:nth-child(2) { animation-delay: 40ms; }
+.hs .ov.in .circles > li:nth-child(3), .hs .ov.in .feed li:nth-child(3) { animation-delay: 80ms; }
+.hs .ov.in .circles > li:nth-child(4), .hs .ov.in .feed li:nth-child(4) { animation-delay: 120ms; }
+.hs .ov.in .circles > li:nth-child(5), .hs .ov.in .feed li:nth-child(5) { animation-delay: 160ms; }
+.hs .ov.in .circles > li:nth-child(n + 6), .hs .ov.in .feed li:nth-child(n + 6) { animation-delay: 200ms; }
 @keyframes hsViewIn { from { opacity: 0; transform: translateY(8px); } }
 @keyframes hsInL { from { opacity: 0; transform: translateX(18px); } }
 @keyframes hsInR { from { opacity: 0; transform: translateX(-18px); } }
 @keyframes hsGrow { from { transform: scaleX(0); } }
-@keyframes hsShimmer { to { transform: translateX(100%); } }
+@keyframes hsSkel { to { opacity: 0.6; } }
 @keyframes hsPulse { to { opacity: 0.3; } }
 @keyframes hsSpin { to { transform: rotate(360deg); } }
 @keyframes hsStamp { from { opacity: 0; transform: rotate(-10deg) scale(1.8); } to { opacity: 1; transform: rotate(-10deg) scale(1); } }
@@ -504,7 +513,7 @@
    cài đặt, UBND, lab, đăng nhập) on the app's own blocks. Unlayered on purpose: inside `.pg` it must win over the Tailwind
    utilities these pages still carry (margins, paddings, sizes), so every page lands on the same rhythm:
    24 px page gutter and gap (16 on phones), paper panels like `.panel`, ink panels like `.panel.inkp`, mono figures. ---------- */
-.hs .pg { width: 100%; max-width: 1280px; margin-inline: auto; padding: 24px var(--gx) 32px; display: grid; gap: 24px; align-content: start;
+.hs .pg { animation: hsViewIn var(--dur-ui) var(--ease-out); width: 100%; max-width: 1280px; margin-inline: auto; padding: 24px var(--gx) 32px; display: grid; gap: 24px; align-content: start;
   font-size: 15px; line-height: 1.5; letter-spacing: 0.005em; }
 .hs .pg.narrow { max-width: 880px; }
 .hs .pg.login { max-width: 1040px; min-height: 100%; align-content: center; column-gap: 32px; }
