@@ -10,6 +10,7 @@ import { DEFAULT_MIN_COVERAGE_BPS, formatUsdcNumber, parseUsdc, previewCircle } 
 import { TxButton, TxNote, TxSteps, useStepTx } from '@/components/app/tx';
 import { useChain } from '@/lib/chain/provider';
 import { DEFAULTS, termsOf, validateForm, type FormState } from '@/lib/circleForm';
+import { createThenDeposit } from '@/lib/create-flow';
 import { capOf } from '@/lib/hui-calc';
 import { buildCreateInput } from '@/lib/live/createInput';
 
@@ -82,6 +83,8 @@ export function CreateCircle() {
   };
   const set = (patch: Partial<FormState>) => setForm((s) => ({ ...s, ...patch }));
 
+  /** The circle this screen already created on chain, kept across retries (audit L-01). */
+  const createdRef = useRef<`0x${string}` | undefined>(undefined);
   const create = async (retry: boolean) => {
     if (!over18) {
       setTried18(true);
@@ -89,20 +92,19 @@ export function CreateCircle() {
       return;
     }
     if (!value) return;
-    let address: `0x${string}` | undefined;
+    // A retry after the bond deposit failed deposits into the circle already created, never a second one (audit L-01).
     const ok = await t.run(
-      async (a) => {
-        const chainNow = Number((await chain!.client.getBlock()).timestamp);
-        const created = await a.createCircle(buildCreateInput(full, value, { nowSec: chainNow, demo: DEMO_BUILD }));
-        if (!created.ok) return created;
-        address = created.circle;
-        const dep = await a.depositBond(created.circle, value.bond);
-        if (!dep.ok) return { ok: false as const, code: dep.code, message: `Dây đã tạo nhưng chưa nạp được ký quỹ: ${dep.message} Mở dây vừa tạo để nạp lại.` };
-        return dep;
-      },
+      (a) =>
+        createThenDeposit(
+          a,
+          async () => buildCreateInput(full, value, { nowSec: Number((await chain!.client.getBlock()).timestamp), demo: DEMO_BUILD }),
+          value.bond,
+          createdRef.current,
+          (c) => (createdRef.current = c),
+        ),
       { forceOk: retry, failText: 'Gửi không được vì mạng lỗi. Dây chưa được tạo, bạn chưa mất gì.' },
     );
-    if (ok) setMade({ ...(address ? { address } : {}) });
+    if (ok) setMade({ ...(createdRef.current ? { address: createdRef.current } : {}) });
   };
 
   const bars = Array.from({ length: STEPS }, (_, i) => <i key={i} className={made || i < step ? 'd' : i === step ? 'n' : ''} />);
@@ -347,7 +349,7 @@ export function CreateCircle() {
     );
   const next =
     step === 5 ? (
-      <TxButton t={t} label="Tạo dây" retryLabel="Gửi lại lệnh tạo dây" onRun={(r) => void create(r)} />
+      <TxButton t={t} label="Tạo dây" retryLabel={createdRef.current ? 'Nạp lại ký quỹ vào dây vừa tạo' : 'Gửi lại lệnh tạo dây'} onRun={(r) => void create(r)} />
     ) : (
       <button className="btn ink" type="button" disabled={!canNext} onClick={() => go(step + 1)}>
         Tiếp tục ›
