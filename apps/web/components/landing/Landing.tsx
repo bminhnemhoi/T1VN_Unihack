@@ -345,14 +345,16 @@ export function Landing({ sample }: { sample: boolean }) {
                           <span>trần 4,93</span>
                         </div>
                       </div>
-                      <div className={s.cover} aria-hidden />
+                      <div className={s.cover} aria-hidden>
+                        <span className={s.coverNote}>Kỳ 2 · niêm phong trên chuỗi</span>
+                        <span className={s.coverNote}>M1</span>
+                      </div>
                       <div className={s.flap} aria-hidden>
-                        <div className={s.flapFront}>
-                          <div className={s.seal}>
-                            THĂM
-                            <br />
-                            KÍN
-                          </div>
+                        <div className={s.flapFront} />
+                        <div className={s.seal}>
+                          THĂM
+                          <br />
+                          KÍN
                         </div>
                       </div>
                       <div className={s.stamp} aria-hidden>

@@ -225,17 +225,21 @@
 .dots i:nth-child(1), .story[data-state='2'] .dots i:nth-child(2), .story[data-state='3'] .dots i:nth-child(-n + 3) { background: var(--lime); }
 
 .slipScene { perspective: 1400px; display: grid; place-items: center; padding-block: 10px; }
-.slip { position: relative; width: min(100%, 420px); aspect-ratio: 1.45; max-width: 100%; }
-.slipPaper { position: absolute; inset: 0; background: var(--paper); color: var(--ink); border-radius: 6px; padding: 7% 8%; display: grid; align-content: space-between; background-image: repeating-linear-gradient(to bottom, transparent 0 31px, #e6e0d4 31px 32px); }
+.slip { position: relative; width: min(100%, 420px); aspect-ratio: 1.45; max-width: 100%; perspective: 1100px; border-radius: 8px; box-shadow: 0 28px 48px -20px rgb(0 0 0 / 0.65), 0 2px 0 rgb(255 255 255 / 0.04); }
+.slipPaper { position: absolute; inset: 0; background: var(--paper); color: var(--ink); border-radius: 8px; padding: 7% 8%; display: grid; align-content: space-between; background-image: repeating-linear-gradient(to bottom, transparent 0 31px, #e6e0d4 31px 32px); }
 .slipPaper .label { color: var(--ink-2); }
 .slipBid { font: 800 clamp(44px, 7vw, 74px)/1 var(--display); letter-spacing: -0.05em; }
 .slipBid small { font: 500 14px var(--mono); letter-spacing: 0; margin-left: 6px; }
 .slipRow { display: flex; justify-content: space-between; gap: 8px; font: 500 12px var(--mono); color: var(--ink-2); }
-.flap { position: absolute; inset: 0 0 50% 0; transform-origin: 50% 0%; transform-style: preserve-3d; transition: transform 1s cubic-bezier(0.7, 0, 0.2, 1), opacity 0.4s 0.55s; z-index: 3; }
-.flap > div { position: absolute; inset: 0; border-radius: 6px 6px 0 0; backface-visibility: hidden; background: #e9e2d5; }
-.flapFront { display: grid; place-items: center; border-bottom: 1px dashed #c9c0b0; }
-.seal { width: 74px; height: 74px; border-radius: 50%; background: var(--lime); display: grid; place-items: center; text-align: center; font: 600 10px/1.15 var(--mono); letter-spacing: 0.06em; box-shadow: inset 0 0 0 3px var(--ink); color: var(--ink); }
-.cover { position: absolute; inset: 50% 0 0 0; background: #e9e2d5; border-radius: 0 0 6px 6px; z-index: 2; transition: opacity 0.5s 0.35s; }
+/* Envelope (13/11): a pointed flap over a pocket with two diagonal folds; the seal sits on the flap tip. Flat paper tones
+   from the landing palette, depth from one soft shadow per layer. Only transform + opacity animate. */
+.flap { position: absolute; inset: 0 0 42% 0; transform-origin: 50% 0%; transition: transform 1s cubic-bezier(0.7, 0, 0.2, 1), opacity 0.4s 0.55s; z-index: 3; filter: drop-shadow(0 6px 8px rgb(23 21 18 / 0.22)); }
+.flapFront { position: absolute; inset: 0; clip-path: polygon(0 0, 100% 0, 50% 100%); border-radius: 8px 8px 0 0; background: linear-gradient(180deg, #f3eee4 0%, #e8e1d3 100%); }
+.seal { position: absolute; left: 50%; bottom: 0; width: 64px; height: 64px; translate: -50% 50%; rotate: -8deg; border-radius: 50%; background: var(--lime); display: grid; place-items: center; text-align: center; font: 600 10px/1.15 var(--mono); letter-spacing: 0.08em; color: var(--ink); box-shadow: inset 0 0 0 1.5px rgb(23 21 18 / 0.75), 0 4px 10px rgb(23 21 18 / 0.28); }
+.seal::after { content: ''; position: absolute; inset: 5px; border-radius: 50%; border: 1px dashed rgb(23 21 18 / 0.45); }
+.cover { position: absolute; inset: 0; border-radius: 8px; z-index: 2; overflow: hidden; display: flex; align-items: flex-end; justify-content: space-between; gap: 8px; padding: 0 6% 5%; background: #dcd3c2; transition: opacity 0.5s 0.35s; }
+.cover::before { content: ''; position: absolute; inset: 0; background: #e6dece; clip-path: polygon(0 100%, 50% 52%, 100% 100%); }
+.coverNote { position: relative; font: 500 11px var(--mono); letter-spacing: 0.08em; text-transform: uppercase; color: #5f584e; }
 .story[data-state='2'] .flap, .story[data-state='3'] .flap { transform: rotateX(100deg); opacity: 0; }
 .story[data-state='2'] .cover, .story[data-state='3'] .cover { opacity: 0; }
 .stamp { position: absolute; right: 6%; top: 10%; z-index: 4; transform: rotate(-12deg) scale(1.8); opacity: 0; border: 3px solid var(--red); color: var(--red-ink); border-radius: 6px; padding: 8px 12px; font: 800 20px/1 var(--display); letter-spacing: -0.02em; text-align: center; background: color-mix(in srgb, var(--paper) 80%, transparent); transition: transform 0.5s cubic-bezier(0.2, 1.6, 0.4, 1), opacity 0.2s; }
