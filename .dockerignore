@@ -2,6 +2,9 @@
 .github
 **/node_modules
 **/.next
+**/.next-*
+**/test-results
+**/playwright-report
 **/.turbo
 **/dist
 **/coverage
