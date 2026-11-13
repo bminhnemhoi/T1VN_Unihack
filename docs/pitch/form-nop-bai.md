@@ -58,7 +58,7 @@ Dev toggle: the demo runs in fast-forward mode (1 round = 3 minutes, grace = 2 m
 
 | Trường | Giá trị |
 |---|---|
-| GitHub repository | `github.com/Towfienes/T1VN_Unihack` (docs/12 mục 6; docs/11 mục 12 ghi repo public hoặc đã mời `tuantqse90`; cần xác nhận lúc nộp) |
+| GitHub repository | `github.com/bminhnemhoi/T1VN_Unihack` (docs/12 mục 6; docs/11 mục 12 ghi repo public hoặc đã mời `tuantqse90`; cần xác nhận lúc nộp) |
 | Pitch slides | `[CHƯA CÓ: link Canva hoặc Google Slides, quyền xem cho mọi người]` |
 | Demo video | `[CHƯA CÓ: link YouTube hoặc Loom, mở không cần đăng nhập]` |
 | Live app | `[CHƯA CÓ: link app đã triển khai]` |

@@ -238,7 +238,7 @@ Cùng lúc đăng ký Luma: workshop 11/11 (`luma.com/6npfwtlu`), workshop 17/11
 Gộp checklist mục 17 của bản tóm tắt cho trưởng nhóm với yêu cầu riêng của HụiSafe.
 
 **Repo và code**
-- [ ] Repo `github.com/Towfienes/T1VN_Unihack` public, hoặc private và đã mời `tuantqse90` làm collaborator.
+- [ ] Repo `github.com/bminhnemhoi/T1VN_Unihack` public, hoặc private và đã mời `tuantqse90` làm collaborator.
 - [ ] README: bài toán, kiến trúc, cách chạy, cách chạy test, số test và độ phủ, địa chỉ contract, ghi công starter code của BTC.
 - [ ] Contract đã deploy và verify trên Fuji, có link Snowtrace; `contracts/deployments/fuji.json` đã commit.
 - [ ] `forge test` xanh (unit, fuzz, invariant); CI xanh trên commit cuối; Slither không còn mức high.

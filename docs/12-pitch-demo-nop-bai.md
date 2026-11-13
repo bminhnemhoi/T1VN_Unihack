@@ -206,7 +206,7 @@ English, 701 ký tự trước khi thay chỗ trống:
 Dev toggle: the demo runs in fast-forward mode (1 round = 3 minutes, grace = 2 minutes); the interest cap and late fee still use a 30-day nominal period. Fuji testnet USDC only: no real money, no token, no personal data on-chain. Suggested order: (1) the video; (2) the app, circle "Demo Hoàn Tất": 5 members × 100 USDC, bond 480 (100% coverage), M4 stops paying after receiving and the bond covers in full; (3) that circle's ledger (sổ họ), no login needed; (4) README: architecture and how to run tests (unit, fuzz, invariant). To try it: log in with Google, a wallet is created for you; get Fuji USDC at faucet.circle.com. Contracts verified on Snowtrace: [HuiFactory address]. Contact: [Telegram].
 ```
 
-Các trường còn lại: GitHub repository `github.com/Towfienes/T1VN_Unihack`; Pitch slides (link Canva hoặc Google Slides, quyền xem cho mọi người); Demo video; Live app; Contract address (link Snowtrace của `HuiFactory`).
+Các trường còn lại: GitHub repository `github.com/bminhnemhoi/T1VN_Unihack`; Pitch slides (link Canva hoặc Google Slides, quyền xem cho mọi người); Demo video; Live app; Contract address (link Snowtrace của `HuiFactory`).
 
 ## 7. Hỏi đáp: 20 câu
 

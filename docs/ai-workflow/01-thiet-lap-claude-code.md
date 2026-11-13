@@ -1,6 +1,6 @@
 # Thiết lập Claude Code cho HụiSafe
 
-**Mục đích và đọc khi nào.** File này hướng dẫn cài Claude Code, chép bộ cấu hình (CLAUDE.md, `.claude/`) vào repo `Towfienes/T1VN_Unihack`, giải thích từng file, mô hình quyền, hooks, MCP, cách làm việc hằng ngày và cách đã kiểm thử. Đọc một lần ở M0 (07/11), đọc lại khi đổi `.claude/` hoặc khi Claude làm điều lạ. Prompt theo từng mốc ở [02-prompt-playbook.md](02-prompt-playbook.md); quy trình nhánh, PR, CI ở [03-quy-trinh-lam-viec.md](03-quy-trinh-lam-viec.md).
+**Mục đích và đọc khi nào.** File này hướng dẫn cài Claude Code, chép bộ cấu hình (CLAUDE.md, `.claude/`) vào repo `bminhnemhoi/T1VN_Unihack`, giải thích từng file, mô hình quyền, hooks, MCP, cách làm việc hằng ngày và cách đã kiểm thử. Đọc một lần ở M0 (07/11), đọc lại khi đổi `.claude/` hoặc khi Claude làm điều lạ. Prompt theo từng mốc ở [02-prompt-playbook.md](02-prompt-playbook.md); quy trình nhánh, PR, CI ở [03-quy-trinh-lam-viec.md](03-quy-trinh-lam-viec.md).
 
 Mọi định dạng (frontmatter, khóa settings, sự kiện hook, cờ dòng lệnh) đã đối chiếu với tài liệu chính thức tại code.claude.com/docs ngày 06/11/2026 và chạy thử với Claude Code 2.1.318 (danh sách nguồn ở mục 17). Chỗ nào chưa kiểm được thì ghi "kiểm tra lại".
 
@@ -74,7 +74,7 @@ docs/                             tài liệu 00..13 + ai-workflow/01..03
 Chép vào repo trên một nhánh riêng (thay `<KIT>` bằng thư mục bộ kit):
 
 ```bash
-git clone https://github.com/Towfienes/T1VN_Unihack.git && cd T1VN_Unihack
+git clone https://github.com/bminhnemhoi/T1VN_Unihack.git && cd T1VN_Unihack
 git switch -c chore/claude-kit
 cp -r <KIT>/CLAUDE.md <KIT>/.claude <KIT>/docs .
 chmod +x .claude/hooks/*.sh

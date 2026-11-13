@@ -181,7 +181,7 @@ Nộp trên `team1vn.xyz`: đăng nhập Google, vào trang hồ sơ, điền **
 
 💡 Nên điền đủ cả 3 trường tùy chọn. Live app và địa chỉ contract là bằng chứng nhanh nhất cho 25 điểm Tích hợp Avalanche. Trường "Anything else" nên dùng để chỉ giám khảo xem gì trước và cung cấp ví test có sẵn tiền testnet.
 
-Repo hiện tại `github.com/Towfienes/T1VN_Unihack` đang **public**.
+Repo hiện tại `github.com/bminhnemhoi/T1VN_Unihack` đang **public**.
 
 ---
 
