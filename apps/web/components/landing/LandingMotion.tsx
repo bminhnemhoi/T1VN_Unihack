@@ -186,7 +186,7 @@ export function LandingMotion() {
             .fromTo(q('[data-lp-strike]'), { '--s': 0 }, { '--s': 1, duration: 0.7, ease: 'power2.inOut' }, '-=0.2')
             .from(q('[data-lp-badge]'), { scale: 0, duration: 1, ease: 'back.out(1.6)' }, '-=0.9')
             .from(q('[data-lp-badge-ring]'), { rotation: -120, duration: 1.4, ease: 'power3.out' }, '<')
-            .from(q('[data-lp-navitem]'), { y: -12, opacity: 0, duration: 0.6, stagger: 0.06 }, 0)
+            .fromTo(q('[data-lp-navitem]'), { y: -12, opacity: 0 }, { y: 0, opacity: 1, duration: 0.6, stagger: 0.06, clearProps: 'transform' }, 0)
             .from(q('[data-lp-bubble]'), { x: -40, scale: 0.7, transformOrigin: '0% 50%', duration: 0.7, stagger: 0.14, ease: 'back.out(1.8)' }, '-=0.8')
             .from(q('[data-lp-side]'), { y: 24, duration: 0.8, stagger: 0.08 }, '-=0.9')
             .from(q('[data-lp-chip]'), { y: 30, scale: 0.6, rotation: (i: number) => TILT[i % TILT.length] ?? 0, duration: 0.7, stagger: 0.05, ease: 'back.out(1.8)' }, '-=0.6')

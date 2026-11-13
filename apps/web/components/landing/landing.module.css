@@ -365,6 +365,32 @@
 @media (min-width: 1100px) {
   .bubbles { display: grid; gap: 12px; justify-items: start; position: absolute; top: 46px; left: -120px; z-index: 1; margin: 0; padding: 0; list-style: none; }
 }
+/* Phone and tablet hero (under 900px): the badge sits beside the short last line of the title, the three chat
+   bubbles of the desktop come back under it; on phones (640px and less) the CTAs fill the width (thumb zone). */
+@media (max-width: 899px) {
+  .hero { padding-block: 32px 56px; }
+  .root h1 { font-size: clamp(60px, 20.5vw, 104px); }
+  .heroTop { gap: 24px; }
+  .heroTop > div:first-child { grid-row: 1; grid-column: 1; }
+  .side { display: contents; }
+  .badge { grid-row: 1; grid-column: 1; justify-self: end; align-self: end; width: clamp(80px, 23vw, 120px); translate: 0 28%; }
+  .bubbles { grid-row: 2; display: grid; gap: 8px; justify-items: start; margin: 0; padding: 0; list-style: none; }
+  .bw:nth-child(2) { margin-left: 24px; }
+  .bw:nth-child(3) { margin-left: 8px; }
+}
+@media (max-width: 640px) {
+  .ctaPair { display: grid; gap: 12px; }
+  .ctaPair .btn { justify-content: space-between; min-height: 56px; padding: 0 24px; font-size: 17px; }
+  .navIn { padding-block: 8px; }
+  .logo { font-size: 32px; }
+  .logo small { font-size: 12px; margin-left: 8px; }
+  .btn { border-radius: 12px; }
+  .btn .arr { border-radius: 6px; }
+  .nav .btn { min-height: 44px; padding: 0 16px; border-radius: 999px; }
+}
+@media (max-width: 380px) {
+  .bubble { font-size: 13px; }
+}
 @media (max-width: 899px) {
   .slip { width: min(100%, 340px); }
   .step { min-height: 52vh; }
