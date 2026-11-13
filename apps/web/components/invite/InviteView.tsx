@@ -17,6 +17,8 @@ import { TermsBox } from '@/components/circle/TermsBox';
 import { CommissionTable } from '@/components/wizard/CommissionTable';
 import { termsViewOf } from '@/lib/live/terms';
 import { capOf } from '@/lib/hui-calc';
+import { ErrorState } from '@/components/app/parts';
+import { Missing, PageSkeleton } from '@/components/circle/CircleScreen';
 import { useCircleData } from '@/lib/live/useCircleData';
 import { useMinCoverageBps } from '@/lib/live/useMinCoverage';
 import type { SampleCircleData } from '@/lib/sample-circles';
@@ -26,8 +28,10 @@ const REVEAL_BOND_BPS = 100n;
 /** `/moi/[id]`: loads the circle (sample or chain) and shows its invite page. */
 export function InviteScreen({ id }: { id: string }) {
   const d = useCircleData(id);
-  if (d.status === 'loading') return <main id="noi-dung" className="mx-auto max-w-5xl px-4 py-10"><p role="status" className="text-lead">Đang đọc dây từ mạng…</p></main>;
-  if (d.status !== 'ready') return <main id="noi-dung" className="mx-auto max-w-5xl px-4 py-10"><h1 className="font-display text-h2 font-bold">{d.status === 'error' ? 'Chưa đọc được dây' : 'Không tìm thấy dây này'}</h1></main>;
+  // Same four states as a circle's pages (B22f): skeleton, error with retry, "not found", data.
+  if (d.status === 'loading') return <PageSkeleton />;
+  if (d.status === 'error') return <ErrorState text={d.message} onRetry={() => window.location.reload()} />;
+  if (d.status !== 'ready') return <Missing />;
   return <InviteView c={d.data} />;
 }
 
@@ -71,7 +75,7 @@ export function InviteView({ c: C }: { c: SampleCircleData }) {
   };
 
   return (
-    <main id="noi-dung" className="mx-auto max-w-5xl px-4 py-10">
+    <main id="noi-dung" className="pg">
       <h1 className="font-display text-h1 font-bold">Lời mời vào dây {C.label}</h1>
       <div className="mt-2 flex flex-wrap items-center gap-2">
         <Badge variant="secondary">Còn {left} chỗ</Badge>

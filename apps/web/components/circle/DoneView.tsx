@@ -13,7 +13,7 @@ export function DoneView({ c }: { c: SampleCircleData }) {
   const n = Number(c.terms.n);
   const myRound = c.winnerByRound.indexOf(c.viewer) + 1;
   return (
-    <main id="noi-dung" className="mx-auto max-w-5xl px-4 py-10">
+    <main id="noi-dung" className="pg">
       <Link href="/circles" className="inline-flex min-h-12 items-center font-semibold text-primary underline-offset-4 hover:underline">
         ← Dây của tôi
       </Link>
@@ -68,7 +68,7 @@ export function EndedView({ c }: { c: SampleCircleData }) {
   const live = c.live!;
   const cancelled = live.view.state === 'cancelled';
   return (
-    <main id="noi-dung" className="mx-auto max-w-5xl px-4 py-10">
+    <main id="noi-dung" className="pg">
       <Link href="/circles" className="inline-flex min-h-12 items-center font-semibold text-primary underline-offset-4 hover:underline">
         ← Dây của tôi
       </Link>

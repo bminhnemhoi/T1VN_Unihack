@@ -17,6 +17,8 @@ export interface StepTx {
   busy: boolean;
   step: number;
   err?: string;
+  /** Code of the failure, e.g. `ReceiptTimeout` (sent, no receipt yet: offer a reload, never a resend). */
+  errCode?: string;
   txHash?: `0x${string}`;
   /** Runs the job (chain) or the simulation (sample). Resolves true once confirmed. */
   run: (job: TxRun, opts?: { failText?: string; forceOk?: boolean }) => Promise<boolean>;
@@ -64,7 +66,7 @@ export function useStepTx(): StepTx {
     return {
       busy: tx.pending,
       step: tx.step ?? 0,
-      ...(r && !r.ok ? { err: r.message } : {}),
+      ...(r && !r.ok ? { err: r.message, errCode: r.code } : {}),
       ...(r && r.ok ? { txHash: r.txHash } : {}),
       run,
       reset,
@@ -118,9 +120,16 @@ export function TxButton({
     );
   }
   return (
-    <button type="button" className={`btn ${tone} ${className}`} disabled={disabled} onClick={() => onRun(!!t.err)}>
-      {t.err ? retryLabel : label}
-    </button>
+    // After a receipt timeout the transaction may well be on chain: the button reloads to read it instead of resending (I-01).
+    t.errCode === 'ReceiptTimeout' ? (
+      <button type="button" className={`btn ${tone} ${className}`} onClick={() => window.location.reload()}>
+        Tải lại để xem kết quả
+      </button>
+    ) : (
+      <button type="button" className={`btn ${tone} ${className}`} disabled={disabled} onClick={() => onRun(!!t.err)}>
+        {t.err ? retryLabel : label}
+      </button>
+    )
   );
 }
 

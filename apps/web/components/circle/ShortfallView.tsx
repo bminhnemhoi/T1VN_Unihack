@@ -50,7 +50,7 @@ export function ShortfallView({ c }: { c: SampleCircleData }) {
   const debtQuote = live && me && debtPrincipal > 0n ? quoteRepay(live.view, me, Math.floor(live.nowMs / 1000), { principal: debtPrincipal }) : undefined;
 
   return (
-    <main id="noi-dung" className="mx-auto max-w-6xl px-4 py-10">
+    <main id="noi-dung" className="pg">
       <CirclePageHead circle={c} title="Khoản thiếu">
         Khi tiền góp của ai đó không trích được, dây bù ngay từ tiền giữ lại, ký quỹ rồi quỹ dự phòng. Người hốt kỳ đó vẫn nhận đủ.
       </CirclePageHead>

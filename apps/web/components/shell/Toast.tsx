@@ -29,10 +29,10 @@ export const SOON_MESSAGE = 'Chức năng này cần đăng nhập và nối m�
 export function ToastProvider({ children }: { children: ReactNode }) {
   const [items, setItems] = useState<Item[]>([]);
   const next = useRef(1);
-  // Exit is quieter than the entrance: fade and drop 8 px in 150 ms, then the item leaves the list.
+  // Exit is quieter than the entrance: fade and drop 12 px in 120 ms, then the item leaves the list.
   const dismiss = useCallback((id: number) => {
     setItems((l) => l.map((i) => (i.id === id ? { ...i, leaving: true } : i)));
-    setTimeout(() => setItems((l) => l.filter((i) => i.id !== id)), 150);
+    setTimeout(() => setItems((l) => l.filter((i) => i.id !== id)), 120);
   }, []);
   const show = useCallback(
     (message: string, tone: Tone = 'info') => {
@@ -56,8 +56,9 @@ export function ToastProvider({ children }: { children: ReactNode }) {
           <div
             key={i.id}
             className={cn(
-              'pointer-events-auto flex w-full max-w-md items-start gap-3 rounded-xl border-2 px-4 py-3 text-base font-semibold shadow-lg duration-150',
-              i.leaving ? 'pointer-events-none animate-out fade-out slide-out-to-bottom-2 fill-mode-forwards ease-in' : 'animate-in fade-in slide-in-from-bottom-2 ease-out',
+              'pointer-events-auto flex w-full max-w-md items-start gap-3 rounded-xl border-2 px-4 py-3 text-base font-semibold shadow-lg',
+              // MOTION.md B3: up 12 px and in over 180 ms; out in 120 ms, quieter than the entrance.
+              i.leaving ? 'pointer-events-none animate-out fade-out slide-out-to-bottom-3 fill-mode-forwards duration-120 ease-in' : 'animate-in fade-in slide-in-from-bottom-3 duration-180 ease-out',
               i.tone === 'error' ? 'border-destructive bg-card text-destructive' : 'border-white/30 bg-foreground text-background',
             )}
           >

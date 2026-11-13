@@ -56,6 +56,11 @@ export interface TxContext {
   saltStore?: SaltStore;
   /** Called after a mined success, e.g. to invalidate the read queries. */
   onMined?: (r: TxSuccess) => void | Promise<void>;
+  /**
+   * Progress of a transaction sent with this context (sign, relay, receipt). Each button's `useTx` binds its own, so two
+   * buttons on one page never show each other's steps (audit B22 L-02). Does not change what is signed or sent.
+   */
+  onStep?: (s: TxStep) => void;
 }
 
 export interface TxSuccess {
@@ -117,11 +122,10 @@ async function safely<T extends object>(job: () => Promise<TxResult<T>>): Promis
 
 /**
  * Progress of the transaction being sent (sign, send through the relay, wait for the receipt), so the button can show
- * "Ký -> Gửi -> Xác nhận" (lamng-design-rule section 1). Calls are serialised per wallet, so one channel is enough.
+ * "Ký -> Gửi -> Xác nhận" (lamng-design-rule section 1). Reported to the context that sent it (`ctx.onStep`).
  */
 export type TxStep = 'sign' | 'send' | 'confirm';
-export const txSteps: EventTarget | undefined = typeof EventTarget === 'undefined' ? undefined : new EventTarget();
-const step = (s: TxStep): void => void txSteps?.dispatchEvent(new CustomEvent<TxStep>('step', { detail: s }));
+const step = (ctx: TxContext, s: TxStep): void => ctx.onStep?.(s);
 
 /** Sign a forward request for `data`, relay it, wait for the receipt. */
 function relayCall(
@@ -146,7 +150,7 @@ async function relayOnce(
   const token = opts.needToken ? await ctx.getAccessToken?.() : undefined;
   if (opts.needToken && !token) return fail('NotLoggedIn', 'Bạn cần đăng nhập trước.');
   let signed;
-  step('sign');
+  step(ctx, 'sign');
   try {
     signed = await signForwardRequest(signCtx(ctx), ctx.chain.forwarder, to, data, {
       gas,
@@ -155,15 +159,16 @@ async function relayOnce(
   } catch {
     return fail('SignRejected', 'Ví không ký được hoặc bạn đã huỷ. Chưa có giao dịch nào được gửi.');
   }
-  step('send');
+  step(ctx, 'send');
   const sent = await postRelay(ctx.fetchFn ?? defaultFetch, ctx.relayUrl ?? '/api/relay', signed, token);
   if (!sent.ok) return sent;
-  step('confirm');
+  step(ctx, 'confirm');
   let receipt;
   try {
     receipt = await ctx.chain.client.waitForTransactionReceipt({ hash: sent.txHash });
-  } catch (e) {
-    return fail(decodeError(e).code, 'Giao dịch đã gửi nhưng chưa xác nhận được. Hãy tải lại trang để xem kết quả.');
+  } catch {
+    // Sent but no receipt yet (audit B22 I-01): a resend could duplicate it, so the button offers a reload, not a resend.
+    return fail('ReceiptTimeout', 'Giao dịch đã gửi nhưng chưa có xác nhận. Đừng gửi lại: tải lại trang để xem kết quả trên chuỗi.');
   }
   if (receipt.status !== 'success') return fail('Reverted', 'Giao dịch bị từ chối trên mạng.');
   const ok: TxSuccess & { receipt: typeof receipt } = {
@@ -307,10 +312,21 @@ const candidateKey = (circle: Address, round: number, member: Address, hash: Hex
  * fails in an unclear way (timeout after the relay broadcast) the chain may hold the old or the new commit, and
  * `revealBid` picks the salt that matches the commit actually on chain (audit H-01).
  */
-export function commitBid(ctx: TxContext, circle: Address, round: number, bid: bigint): Promise<TxResult> {
+/**
+ * `resume`: a retry after an unclear failure (audit B22 I-01). It reads the chain first: if a commit this device made is
+ * already there, nothing is sent again, because a resend would take a later `commitIndex` and lose the tie-break.
+ */
+export function commitBid(ctx: TxContext, circle: Address, round: number, bid: bigint, opts: { resume?: boolean } = {}): Promise<TxResult> {
   return safely(async () => {
     const store = ctx.saltStore ?? indexedDbSaltStore;
     const member = ctx.wallet.address;
+    if (opts.resume) {
+      const onchain = await readCircleFn<{ hash: Hex }>(ctx, circle, 'commitOf', [round, member]);
+      const mine = onchain.hash !== ZERO_HASH && (await store.get(candidateKey(circle, round, member, onchain.hash)).catch(() => undefined));
+      if (mine) {
+        return fail('AlreadyCommitted', 'Thăm của bạn đã lên chuỗi ở lần gửi trước, nên không gửi lại để giữ thứ tự nộp. Tải lại trang để thấy phong bì đã niêm phong.');
+      }
+    }
     const [params, max, current, phase] = await Promise.all([
       readCircleFn<{ contribution: bigint }>(ctx, circle, 'params'),
       readCircleFn<bigint>(ctx, circle, 'maxBid', [round]),
@@ -413,8 +429,8 @@ async function ensureRepayAllowance(
     try {
       const receipt = await ctx.chain.client.waitForTransactionReceipt({ hash: sent.txHash });
       if (receipt.status !== 'success') problem = fail('Reverted', 'Việc cấp quyền trích tiền bị từ chối trên mạng.');
-    } catch (e) {
-      problem = fail(decodeError(e).code, 'Đã gửi yêu cầu cấp quyền nhưng chưa xác nhận được. Hãy tải lại trang rồi thử lại.');
+    } catch {
+      problem = fail('ReceiptTimeout', 'Đã gửi yêu cầu cấp quyền nhưng chưa có xác nhận. Tải lại trang rồi thử lại.');
     }
   }
   if (!problem) return undefined;

@@ -20,7 +20,7 @@ export default async function Login({ searchParams }: { searchParams: Promise<{ 
   const { tiep } = await searchParams;
   const back = tiep && /^\/moi\/(dang-gom|0x[0-9a-fA-F]{40})$/.test(tiep) ? tiep : undefined;
   return (
-    <main id="noi-dung" className="mx-auto grid max-w-5xl gap-6 px-4 py-6 md:grid-cols-[3fr_2fr] md:items-center md:gap-12 md:py-16">
+    <main id="noi-dung" className="pg login md:grid-cols-[3fr_2fr] md:items-center">
       <div className="grid gap-6">
         <div className="flex items-center gap-4 sm:gap-6">
           <Seal size={112} center="100%" ring="CHỦ HỤI KHÔNG CẦM TIỀN · BẢO CHỨNG · " className="dn-dau size-18 shrink-0 text-le-do sm:size-28" />
@@ -49,7 +49,7 @@ export default async function Login({ searchParams }: { searchParams: Promise<{ 
         <h2 id="chon" className="font-display text-h2 font-bold">
           Chọn cách đăng nhập
         </h2>
-        <LoginActions />
+        <LoginActions next={back} />
         <p className="mt-3 text-muted-foreground">
           Chưa đăng nhập vẫn xem được sổ hụi và các màn mẫu.{' '}
           <Link href="/circles" className="font-semibold text-primary underline underline-offset-4">

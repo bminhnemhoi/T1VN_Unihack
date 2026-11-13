@@ -35,7 +35,7 @@ export function LiveSettle({ c }: { c: SampleCircleData }) {
 
   if (!s) {
     return (
-      <main id="noi-dung" className="mx-auto max-w-6xl px-4 py-10">
+      <main id="noi-dung" className="pg">
         <CirclePageHead circle={c} title="Tất toán" />
         <EmptyNote title={events.isError ? 'Chưa đọc được sổ của dây' : 'Đang đọc sổ của dây…'}>
           {events.isError ? 'Kiểm tra kết nối rồi mở lại trang này.' : 'Tất toán được dựng từ các giao dịch của dây trên mạng.'}
@@ -61,7 +61,7 @@ export function LiveSettle({ c }: { c: SampleCircleData }) {
   const n = Number(c.terms.n);
 
   return (
-    <main id="noi-dung" className="mx-auto max-w-6xl px-4 py-10">
+    <main id="noi-dung" className="pg">
       <CirclePageHead circle={c} title="Tất toán">
         {hadShortfall
           ? `Dây đã chi đủ ${n} kỳ và đóng sổ. Trong dây có khoản thiếu, nên các số dưới đây là tiền đã thật sự chuyển, cộng từ sổ hụi.`

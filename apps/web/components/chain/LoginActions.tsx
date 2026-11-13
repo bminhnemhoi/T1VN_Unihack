@@ -2,6 +2,9 @@
 
 import { Mail, Phone, ShieldCheck } from 'lucide-react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+import { useEffect } from 'react';
+import { loginRedirect } from '@/lib/login-redirect';
 import { useChain } from '@/lib/chain/provider';
 import { useHuiWallet } from '@/lib/chain/walletProvider';
 import { shortAddress } from '@/lib/live/circleData';
@@ -13,20 +16,30 @@ const GOOGLE_MSG = 'Đăng nhập bằng Google sẽ chạy khi nối ví. Hiệ
 const EMAIL_MSG = 'Đăng nhập bằng email sẽ chạy khi nối ví. Hiện là màn hình mẫu, chưa gửi mã nào.';
 const PHONE_MSG = 'Mã OTP số điện thoại là phần thêm, sắp có. Mỗi số điện thoại chỉ dùng cho một ví. Hiện là màn hình mẫu.';
 
-/** The three login buttons of S01. Real Privy login when configured, a local test wallet on anvil, otherwise the "sắp có" answers. */
-export function LoginActions() {
+/**
+ * The three login buttons of S01. Real Privy login when configured, a local test wallet on anvil, otherwise the "sắp có"
+ * answers. Once signed in (status ready with a wallet) the page leaves on its own: back to the invite, else /circles.
+ */
+export function LoginActions({ next }: { next?: string }) {
   const chain = useChain();
+  const router = useRouter();
   const { status, wallet, login, logout, devIndex, setDevIndex } = useHuiWallet();
+  const target = chain ? loginRedirect(status, Boolean(wallet), next) : null;
 
-  if (chain && status === 'ready' && wallet) {
+  useEffect(() => {
+    if (target) router.replace(target);
+  }, [target, router]);
+
+  if (target && wallet) {
     return (
       <div className="mt-5">
         <p role="status" className="font-semibold">
           Bạn đã đăng nhập với ví <span className="so-ke" data-testid="login-address">{shortAddress(wallet.address)}</span>.
+          Đang chuyển về {next ? 'trang mời' : 'dây của bạn'}…
         </p>
         <div className="mt-4 flex flex-wrap gap-3">
           <Button asChild size="lg">
-            <Link href="/circles">Xem dây của tôi</Link>
+            <Link href={target}>{next ? 'Quay lại trang mời' : 'Xem dây của tôi'}</Link>
           </Button>
           <Button type="button" size="lg" variant="outline" onClick={logout}>
             Đăng xuất

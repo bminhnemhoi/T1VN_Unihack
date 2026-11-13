@@ -206,7 +206,7 @@
     content: "";
     position: absolute;
     inset-inline: 0;
-    inset-block: -0.8rem;
+    inset-block: min(-0.8rem, calc((100% - 48px) / 2)); /* 48 px tall whatever the text size */
   }
   /* Ledger rows: ruled lines only where the data is. */
   .dong-ke {

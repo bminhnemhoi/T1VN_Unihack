@@ -28,7 +28,7 @@ export function CoverageView({ c }: { c: SampleCircleData }) {
       : undefined;
 
   return (
-    <main id="noi-dung" className="mx-auto max-w-6xl px-4 py-10">
+    <main id="noi-dung" className="pg">
       <CirclePageHead circle={c} title="Bảo chứng">
         Khi có người không góp được, dây bù lần lượt từ tiền giữ lại của chính người đó, ký quỹ của chủ hụi, quỹ dự phòng. Phần cuối cùng chưa bù được là khoản đòi công khai.
       </CirclePageHead>
