@@ -35,7 +35,7 @@ Server-only (không bao giờ đặt tiền tố `NEXT_PUBLIC_`, không đưa v�
 | `KEEPER_INTERVAL_SECONDS` | keeper | 15 khi demo, 300 cho dây thật |
 | `HUISAFE_NETWORK` | web, keeper | Để trống = `fuji`; từ chối mọi RPC khác chain 43113 và URL mainnet |
 
-Công khai (nhúng vào trình duyệt lúc build): `NEXT_PUBLIC_FUJI_RPC_URL` (tùy chọn, RPC cho phần đọc ở trình duyệt; KHÔNG chứa khóa API, mục 6), `NEXT_PUBLIC_PRIVY_APP_ID`, `NEXT_PUBLIC_HUISAFE_DEMO` (`true` hiện nhãn "Chế độ demo" và poll 10 giây). Giao diện không đọc biến nào khác từ trình duyệt.
+Công khai (nhúng vào trình duyệt lúc build): `NEXT_PUBLIC_FUJI_RPC_URL` (tùy chọn, RPC cho phần đọc ở trình duyệt; KHÔNG chứa khóa API, mục 6), `NEXT_PUBLIC_PRIVY_APP_ID`, `NEXT_PUBLIC_HUISAFE_DEMO` (`true` hiện nhãn "Chế độ demo" và poll 10 giây). Giao diện không đọc biến nào khác từ trình duyệt. `NEXT_PUBLIC_PRIVY_APP_ID` còn phải có LÚC CHẠY (route `/api/relay` và `/api/attest` đọc nó để xác minh token Privy; thiếu thì relay trả "Dịch vụ chưa được cấu hình"): với Docker truyền thêm `-e NEXT_PUBLIC_PRIVY_APP_ID=...` khi `docker run`.
 
 Kiểm biến có hay chưa mà không in giá trị: `for v in RELAYER_PRIVATE_KEY ATTESTER_PRIVATE_KEY ATTESTATION_ID_SECRET PRIVY_APP_SECRET KEEPER_PRIVATE_KEY; do [ -n "${!v:-}" ] && echo "$v: có" || echo "$v: THIẾU"; done`.
 
