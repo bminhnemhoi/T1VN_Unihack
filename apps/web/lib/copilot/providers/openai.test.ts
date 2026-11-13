@@ -58,7 +58,7 @@ describe('request shape', () => {
     expect(r.url).toBe('/v1/chat/completions');
     expect(r.auth).toBe(`Bearer ${KEY}`);
     expect(r.body).toMatchObject({ model: 'asked-model-medium', temperature: 0, tool_choice: 'auto' });
-    expect(r.body.stream).toBeUndefined();
+    expect(r.body.stream).toBe(false); // explicit: some routers answer with SSE when it is absent
     expect(r.body.messages[0]).toEqual({ role: 'system', content: 'SYS' });
     expect(r.body.messages[1]).toEqual({ role: 'user', content: 'xin chào' });
     expect(r.body.tools.map((t: any) => t.function.name)).toEqual(['compute_exposure', 'recommend_bond', 'max_bid_table', 'simulate_circle', 'explain_rule', 'draft_ubnd_notice']); // eslint-disable-line @typescript-eslint/no-explicit-any

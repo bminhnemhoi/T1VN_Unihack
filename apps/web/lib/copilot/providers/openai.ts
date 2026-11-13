@@ -88,6 +88,8 @@ export function createOpenAiCompatibleClient(cfg: { baseUrl: string; apiKey: str
         res = await client.chat.completions.create(
           {
             model: cfg.model,
+            // Explicit: some OpenAI-compatible routers (9router Gemini routes) answer with SSE when `stream` is absent.
+            stream: false,
             messages: [{ role: 'system', content: system }, ...messages.flatMap(toWire)],
             // Sampling is pinned to the most repeatable setting; the product has no random choices (CLAUDE.md rule 3).
             temperature: 0,
