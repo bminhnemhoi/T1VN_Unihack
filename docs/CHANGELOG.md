@@ -2,6 +2,33 @@
 
 Ghi những gì người dùng và giám khảo thấy được trên web (tính năng, sửa lỗi, bản chạy công khai). Mới nhất ở trên. Chi tiết kỹ thuật và số test nằm ở [TIEN-DO.md](TIEN-DO.md); lịch sử đầy đủ trong `git log`.
 
+## 15/11/2026
+
+### Thêm: hướng dẫn cho người mới
+- Ngay sau lần đăng nhập đầu tiên, nếu ví chưa ở dây nào, app hỏi hai câu: bạn từng chơi hụi chưa, và bạn vào HụiSafe để làm gì. Người mới nghe tới hụi được xem 4 thẻ giải thích (hụi là gì, bỏ thăm, hụi truyền thống sợ gì, HụiSafe khác ở đâu); người đã chơi xem 3 điểm khác. Cuối cùng là hướng dẫn 4 chỗ chính của app và nút đi tiếp theo câu trả lời: dán link mời, mở dây đầu tiên, hoặc xem dây mẫu.
+- Ví chưa có USDC thử nghiệm thì màn cuối chỉ chỗ lấy miễn phí 20 USDC ở faucet.circle.com.
+- Có nút **Bỏ qua** và phím Esc. Câu trả lời chỉ lưu trên máy này, không gửi lên máy chủ. Mở lại ở **Cài đặt → Xem lại hướng dẫn**.
+
+### Thêm: nhãn DEMO gọn thay dải đen
+- Dải demo đen ở trên cùng không còn. Thay vào đó là chip **DEMO · Fuji** ngay sau logo, trên landing và app. Bấm chip để đọc: đây là bản chạy thử trên Avalanche Fuji, tiền là USDC thử nghiệm, 1 kỳ = 3 phút, ân hạn 2 phút.
+- Hai nút "Thử: mạng" và "Tua nhanh" của bản xem thử chuyển sang **Cài đặt → Công cụ demo** (và vẫn nằm trong cửa sổ của chip khi xem dữ liệu mẫu).
+
+### Thêm: cài HụiSafe như một app trên điện thoại
+- Có manifest và biểu tượng, nên Chrome (Android) và Safari (iPhone) cho thêm HụiSafe vào màn hình chính, mở toàn màn hình ở danh sách dây.
+- Gợi ý cài hiện một thẻ nhỏ trên thanh menu, chỉ trên điện thoại và chỉ sau một việc thành công (vào dây, tạo dây, nộp thăm) hoặc lần ghé thứ hai ở ngày khác. Không hiện trên landing, giữa lúc đang gửi giao dịch hay đang xem hướng dẫn. Bấm "Để sau" thì 14 ngày sau mới hỏi lại, tối đa 3 lần. Android bấm "Thêm" là cài; iPhone hiện hướng dẫn nút Chia sẻ.
+- Chưa có chế độ ngoại tuyến: app không lưu số dư hay kỳ hụi cũ trong máy.
+
+### Đổi: menu nổi trên điện thoại, Tổng quan dễ đọc hơn
+- Thanh menu dưới thành một viên thuốc kính mờ nổi lên trên nội dung, một viên nền mực trượt theo mục đang chọn.
+- Tổng quan: nhãn viết thường dễ đọc ("Bạn đã góp", "Dây đang chơi"), số lớn hơn kèm đơn vị USDC ngay cạnh, ô "việc gấp nhất" gọn hơn. Chữ mono chỉ còn cho địa chỉ ví, mã giao dịch, đồng hồ đếm ngược và số trong bảng sổ hụi.
+
+### Đổi: landing viết lại
+- Hero nói rõ HụiSafe là hụi chạy bằng smart contract trên Avalanche, và đăng nhập bằng Google hoặc email là đủ, không cần ví crypto hay AVAX.
+- Phần "Một kỳ hụi" giải thích thăm kín được băm rồi mở ra thế nào và kỳ được chốt ra sao.
+- Hàng câu hỏi chuyển xuống thành mục lục bấm được ở phần Tình huống. Các ô tình huống viết lại cho rõ.
+- Phần mới **Công nghệ** (smart contract, USDC, ví nhúng Privy, commit-reveal, test và kiểm toán, trợ lý AI chỉ tính).
+- Logo mới: phong bì lá thăm với con dấu xanh chữ U, kèm chữ HụiSafe.
+
 ## 14/11/2026
 
 ### Thêm: hiện số dư ví
