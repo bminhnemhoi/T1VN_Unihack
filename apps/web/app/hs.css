@@ -35,11 +35,13 @@
 
     /* top bar */
     & .top { display: flex; align-items: center; gap: 16px; padding: 12px max(var(--gx), env(safe-area-inset-right, 0px)) 12px max(var(--gx), env(safe-area-inset-left, 0px)); border-bottom: 1px solid var(--line); background: var(--ivory); min-width: 0; }
-    & .logo { font: 900 22px/1 var(--display); letter-spacing: -0.05em; display: inline-flex; align-items: center; text-decoration: none; color: var(--ink); min-height: 44px; flex: none; }
-    & .logo span { position: relative; }
-    & .logo span i { position: absolute; left: 50%; bottom: -5px; width: 6px; height: 6px; margin-left: -4px; border-radius: 50%; background: var(--ink); box-shadow: 0 0 0 1.5px var(--lime); }
+    & .logo { font: 800 20px/1 var(--display); letter-spacing: -0.03em; word-spacing: 0.05em; display: inline-flex; align-items: center; gap: 8px; text-decoration: none; color: var(--ink); min-height: 44px; flex: none; }
+    & .logo svg { display: block; flex: none; }
+    /* The old H·U·I word with the lime-ringed dot is still the entry cover's, so its dot rule is scoped there. */
+    & .enterCover .logo span { position: relative; }
+    & .enterCover .logo span i { position: absolute; left: 50%; bottom: -5px; width: 6px; height: 6px; margin-left: -4px; border-radius: 50%; background: var(--ink); box-shadow: 0 0 0 1.5px var(--lime); }
     & .tabs { display: flex; gap: 4px; }
-    & .tabs a { display: inline-flex; align-items: center; min-height: 44px; padding: 0 12px; border-radius: 4px; text-decoration: none; color: var(--ink-2); font-weight: 600; font-size: 14px; }
+    & .tabs a { display: inline-flex; align-items: center; white-space: nowrap; min-height: 44px; padding: 0 12px; border-radius: 4px; text-decoration: none; color: var(--ink-2); font-weight: 600; font-size: 14px; }
     & .tabs a[aria-current='page'] { color: var(--ink); background: var(--soft); }
     & .health { margin-left: auto; display: flex; gap: 8px; align-items: center; min-width: 0; }
     & .acct { display: flex; gap: 4px; align-items: center; flex: none; }
@@ -401,6 +403,10 @@
     .hs .acct .lbl { display: none; }
   }
   /* ---------- phone layout ---------- */
+  /* On a tablet or phone the mark alone carries the brand (the link keeps its aria-label), so the DEMO chip, the tabs and the account buttons fit one row. */
+  @container app (max-width: 900px) {
+    .hs .logo .wm { display: none; }
+  }
   @container app (max-width: 760px) {
     .hs { --gx: 16px; }
     /* A container query cannot restyle its own container, so the menu inset is set on the frame's children: 64px menu + 12px from the edge + 12px air above it. */
@@ -487,7 +493,7 @@
    Transform + opacity only; the frame only mounts it when reduced motion is off, and drops it after 1.1 s. */
 .hs .enterCover { position: fixed; inset: 0; z-index: 90; background: var(--ink); display: grid; place-items: center; pointer-events: none;
   animation: hsLift 350ms cubic-bezier(0.16, 1, 0.3, 1) 260ms both; }
-.hs .enterCover .logo { color: var(--ivory); font-size: 64px; animation: hsViewIn 200ms cubic-bezier(0.16, 1, 0.3, 1) both; }
+.hs .enterCover .logo { gap: 0; color: var(--ivory); font-size: 64px; animation: hsViewIn 200ms cubic-bezier(0.16, 1, 0.3, 1) both; }
 .hs .enterCover .logo span i { width: 14px; height: 14px; margin-left: -8px; bottom: -12px; background: var(--ivory); box-shadow: 0 0 0 3px var(--lime); }
 .hs.entering .view > * > * { animation: hsViewIn 240ms cubic-bezier(0.16, 1, 0.3, 1) both; animation-delay: 360ms; }
 .hs.entering .view > * > :nth-child(2) { animation-delay: 420ms; }

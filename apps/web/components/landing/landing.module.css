@@ -91,7 +91,7 @@
 @keyframes lpFadeOut { to { opacity: 0; } }
 @keyframes lpGone { to { visibility: hidden; pointer-events: none; } }
 /* The nav logo waits for the word to land in it (fallback: shows when the CSS intro ends). */
-.logoMark { display: inline-flex; align-items: center; animation: lpFade 0.4s ease-out 3.2s both; }
+.logoMark { display: inline-flex; align-items: center; font: 800 22px/1 var(--display); letter-spacing: -0.03em; word-spacing: 0.05em; animation: lpFade 0.4s ease-out 3.2s both; }
 @media (prefers-reduced-motion: reduce) {
   .intro { display: none; }
   .logoMark { animation: none; }
@@ -112,14 +112,12 @@
 .brand { display: flex; align-items: center; gap: 12px; min-width: 0; }
 .nav { position: sticky; top: 0; z-index: 30; background: color-mix(in srgb, var(--ivory) 96%, transparent); }
 .navIn { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding-block: 12px; }
-.logo { font: 900 24px/1 var(--display); letter-spacing: -0.05em; text-decoration: none; display: inline-flex; align-items: center; min-height: 48px; }
-.logoU { position: relative; }
-.logoU i { position: absolute; left: 50%; bottom: -5px; width: 6px; height: 6px; margin-left: -3px; border-radius: 50%; background: var(--ink); box-shadow: 0 0 0 1.5px var(--lime); }
-.logo small { font: 500 11px var(--mono); letter-spacing: 0.06em; margin-left: 6px; align-self: center; color: var(--ink-2); }
+.logo { display: inline-flex; align-items: center; gap: 8px; min-height: 48px; text-decoration: none; color: var(--ink); }
+.logoIcon { flex: none; display: block; }
 .links { display: flex; gap: 8px; font-size: 15px; font-weight: 600; }
-.links a { display: inline-flex; align-items: center; min-height: 48px; padding: 0 10px; text-decoration: none; }
+.links a { white-space: nowrap; display: inline-flex; align-items: center; min-height: 48px; padding: 0 10px; text-decoration: none; }
 .links a:hover { text-decoration: underline; text-underline-offset: 4px; }
-@media (max-width: 760px) { .links { display: none; } }
+@media (max-width: 900px) { .links { display: none; } }
 
 /* ---------- hero ---------- */
 .hero { padding-block: 48px 72px; overflow-x: clip; }
@@ -384,8 +382,8 @@
   .ctaPair { display: grid; gap: 12px; }
   .ctaPair .btn { justify-content: space-between; min-height: 56px; padding: 0 24px; font-size: 17px; }
   .navIn { padding-block: 8px; }
-  .logo { font-size: 32px; }
-  .logo small { font-size: 12px; margin-left: 8px; }
+  .logo { gap: 8px; }
+  .nav .btn { white-space: nowrap; }
   .btn { border-radius: 12px; }
   .btn .arr { border-radius: 6px; }
   .nav .btn { min-height: 44px; padding: 0 16px; border-radius: 999px; }
@@ -409,4 +407,16 @@
 }
 @media (prefers-reduced-motion: reduce) {
   .root *, .root *::before, .root *::after { animation: none !important; transition: none !important; }
+}
+
+/* Narrow phones: the nav button drops its arrow so the logo, the DEMO chip and "Mở app" share one row. */
+@media (max-width: 480px) {
+  .nav .btn .arr { display: none; }
+  .nav .btn { padding: 0 16px; }
+  .brand { gap: 8px; }
+}
+@media (max-width: 400px) {
+  .logoMark { font-size: 19px; }
+  .logoIcon { height: 22px; width: auto; }
+  .brand { gap: 6px; }
 }

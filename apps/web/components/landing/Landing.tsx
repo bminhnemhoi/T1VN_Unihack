@@ -3,6 +3,7 @@ import { CircleDollarSign, FileCode2, KeyRound, Lock, ShieldCheck, Bot } from 'l
 import { Fragment, type CSSProperties } from 'react';
 import { FUJI_EVIDENCE, fujiAddressUrl } from 'config';
 import { BidCalc, CascadeDemo, CoverageDemo, DemoClock } from './DemoCards';
+import { LogoMark } from '@/components/brand/LogoMark';
 import { DemoChip } from '@/components/shell/DemoChip';
 import { LandingMotion } from './LandingMotion';
 import s from './landing.module.css';
@@ -182,14 +183,10 @@ export function Landing({ sample, factory }: { sample: boolean; factory?: `0x${s
           <div className={`${s.wrap} ${s.navIn}`}>
             <div className={s.brand}>
               <a className={s.logo} href="#top" aria-label="HụiSafe, lên đầu trang">
+                <LogoMark className={s.logoIcon} height={26} />
                 <span className={s.logoMark} data-lp-mark>
-                  H
-                  <span className={s.logoU}>
-                    U<i />
-                  </span>
-                  I
+                  HụiSafe
                 </span>
-                <small data-lp-navitem>SAFE</small>
               </a>
               <span data-lp-navitem>
                 <DemoChip sample={sample} />

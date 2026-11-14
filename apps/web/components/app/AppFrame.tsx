@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
+import { LogoMark } from '@/components/brand/LogoMark';
 import { InstallHint } from '@/components/app/InstallHint';
 import { OnboardingHost } from '@/components/app/Onboarding';
 import { CopilotDrawer } from '@/components/copilot/CopilotDrawer';
@@ -91,11 +92,8 @@ function TopBar({ pathname, sample }: { pathname: string; sample: boolean }) {
   return (
     <header className="top">
       <Link className="logo" href="/circles" aria-label="HụiSafe, tổng quan">
-        H
-        <span>
-          U<i />
-        </span>
-        I
+        <LogoMark height={24} />
+        <span className="wm">HụiSafe</span>
       </Link>
       <DemoChip sample={sample} />
       <nav className="tabs" aria-label="Điều hướng chính">
