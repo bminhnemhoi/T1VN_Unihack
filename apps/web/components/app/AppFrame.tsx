@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
+import { OnboardingHost } from '@/components/app/Onboarding';
 import { CopilotDrawer } from '@/components/copilot/CopilotDrawer';
 import { useCopyAddress } from '@/components/shell/CopyAddress';
 import { DemoChip } from '@/components/shell/DemoChip';
@@ -31,6 +32,7 @@ export function AppFrame({ sample, children }: { sample: boolean; children: Reac
         {children}
       </div>
       <TabBar pathname={pathname} />
+      <OnboardingHost />
     </div>
   );
 }

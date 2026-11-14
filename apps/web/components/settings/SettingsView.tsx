@@ -4,6 +4,7 @@ import Link from 'next/link';
 
 import { useEffect, useState } from 'react';
 import { useChain } from '@/lib/chain/provider';
+import { openOnboarding } from '@/lib/onboarding-store';
 import { cycleDemoNet, fastForward, NET_LABEL, useDemo } from '@/lib/demo-store';
 import { useHuiActions } from '@/lib/chain/actions';
 import { useHuiWallet } from '@/lib/chain/walletProvider';
@@ -228,6 +229,9 @@ export function SettingsView() {
             </li>
           ))}
         </ul>
+        <Button type="button" variant="outline" size="lg" className="mt-4" onClick={openOnboarding}>
+          Xem lại hướng dẫn
+        </Button>
       </section>
     </main>
   );
