@@ -7,18 +7,16 @@ import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 're
 import { createPortal } from 'react-dom';
 import { CopilotDrawer } from '@/components/copilot/CopilotDrawer';
 import { useCopyAddress } from '@/components/shell/CopyAddress';
-import { DEMO_BUILD } from '@/components/shell/DemoBanner';
+import { DemoChip } from '@/components/shell/DemoChip';
 import { useChain } from '@/lib/chain/provider';
 import { useHuiWallet } from '@/lib/chain/walletProvider';
 import { tabOf, useCurrentCircle, type AppTab } from '@/lib/current-circle';
-import { cycleDemoNet, fastForward, NET_LABEL, useDemo } from '@/lib/demo-store';
 import { shortAddress } from '@/lib/live/circleData';
 import { useWalletBalance } from '@/lib/live/useWalletBalance';
 import { formatCents } from '@/lib/money';
-import { vi } from '@/lib/vi';
 
 /**
- * The web-app frame of the approved prototype: demo strip, top bar (wordmark, four tabs, the circle's health chips,
+ * The web-app frame of the approved prototype: top bar (wordmark, `DEMO · Fuji` chip, four tabs, the circle's health chips,
  * account), the page area and the phone tab bar, all exactly one screen tall. The landing (`/`) keeps its own frame.
  */
 export function AppFrame({ sample, children }: { sample: boolean; children: ReactNode }) {
@@ -28,8 +26,7 @@ export function AppFrame({ sample, children }: { sample: boolean; children: Reac
   return (
     <div id="hs-root" className={entering ? 'hs entering' : 'hs'}>
       {entering && <EnterCover />}
-      <DemoStrip sample={sample} />
-      <TopBar pathname={pathname} />
+      <TopBar pathname={pathname} sample={sample} />
       <div className="view" id="hs-view">
         {children}
       </div>
@@ -72,30 +69,6 @@ function EnterCover() {
   );
 }
 
-function DemoStrip({ sample }: { sample: boolean }) {
-  const { net } = useDemo();
-  if (!DEMO_BUILD && !sample) return null;
-  const text = sample ? vi.demoBanner : vi.demoBanner.replace(' Màn hình này dùng số liệu mẫu.', '');
-  return (
-    <div className="demo" role="status" data-testid="demo-banner">
-      <b data-testid="sample-mode">
-        Demo<span className="more">{sample ? ' · dữ liệu mẫu' : ''}</span>
-      </b>
-      <span className="txt">{text}</span>
-      {sample && (
-        <div className="ctl">
-          <button type="button" onClick={() => cycleDemoNet()} title="Mô phỏng tình trạng mạng và dữ liệu">
-            Thử: {NET_LABEL[net]}
-          </button>
-          <button type="button" onClick={fastForward} title="Đưa kỳ đang chạy của dây mẫu sang giai đoạn tiếp theo">
-            Tua nhanh ›
-          </button>
-        </div>
-      )}
-    </div>
-  );
-}
-
 const TAB_LABEL: Record<AppTab, string> = { 'tong-quan': 'Tổng quan', day: 'Dây', 'so-hui': 'Sổ hụi', tao: 'Dây mới' };
 
 function useTabs(pathname: string): { tab: AppTab; href: string }[] {
@@ -108,7 +81,7 @@ function useTabs(pathname: string): { tab: AppTab; href: string }[] {
   ];
 }
 
-function TopBar({ pathname }: { pathname: string }) {
+function TopBar({ pathname, sample }: { pathname: string; sample: boolean }) {
   const tabs = useTabs(pathname);
   const on = tabOf(pathname);
   return (
@@ -120,6 +93,7 @@ function TopBar({ pathname }: { pathname: string }) {
         </span>
         I
       </Link>
+      <DemoChip sample={sample} />
       <nav className="tabs" aria-label="Điều hướng chính">
         {tabs.map((t) => (
           <Link key={t.tab} href={t.href} aria-current={on === t.tab ? 'page' : undefined}>

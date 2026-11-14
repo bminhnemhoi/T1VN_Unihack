@@ -65,6 +65,8 @@ Solidity (0.8.x pin một bản, ví dụ 0.8.28; OpenZeppelin 5.x; Foundry):
 
 TypeScript: `strict: true`; viem v2 + wagmi v2 + TanStack Query; số tiền là `bigint`; ABI và địa chỉ chỉ lấy từ `packages/sdk` và `packages/config` (không chép tay); typed data EIP-712 domain name "HuiSafe", version "1"; domain của USDC permit đọc `name()`/`version()` từ contract lúc chạy. Biến bí mật chỉ đọc ở API routes và keeper, không bao giờ có tiền tố `NEXT_PUBLIC_`.
 
+Nhãn DEMO: chip `DEMO · Fuji` ở thanh trên luôn hiện khi web không chạy mainnet (`isDemoBuild`). Chỉ được bỏ khi nhóm quyết định chạy mainnet với tiền thật; cuộc thi cấm nhận tiền thật nên trong thời gian thi không bao giờ bỏ.
+
 Python: 3.11+, type hints đầy đủ, `numpy.random.default_rng(seed)`; mọi kịch bản nhận `--seed`; kết quả ghi vào `sim/outputs/`. Ngẫu nhiên chỉ có trong mô phỏng ngoại tuyến (ADR-11).
 
 ## LUẬT CỨNG (không ngoại lệ)

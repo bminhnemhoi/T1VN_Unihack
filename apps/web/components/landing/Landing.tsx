@@ -2,8 +2,7 @@ import Link from 'next/link';
 import { Fragment, type CSSProperties } from 'react';
 import { FUJI_EVIDENCE, fujiAddressUrl } from 'config';
 import { BidCalc, CascadeDemo, CoverageDemo, DemoClock } from './DemoCards';
-import { DEMO_BUILD } from '@/components/shell/DemoBanner';
-import { vi } from '@/lib/vi';
+import { DemoChip } from '@/components/shell/DemoChip';
 import { LandingMotion } from './LandingMotion';
 import s from './landing.module.css';
 
@@ -104,33 +103,6 @@ function Arrow({ dir }: { dir: '↗' | '↓' }) {
  * one palette and type system that the web app will adopt. Numbers in the playable cards come from `lib/landing-demo`.
  */
 /**
- * Demo strip of the landing: same facts and role as the app's DemoBanner (docs/02 US-10, cannot be dismissed), set as
- * one quiet line in the landing palette instead of two full-width bars. `sample` = nothing deployed on this network.
- */
-function DemoStrip({ sample }: { sample: boolean }) {
-  if (!DEMO_BUILD && !sample) return null;
-  const facts = vi.demoBanner.replace('Chế độ demo:', '').replace(' Màn hình này dùng số liệu mẫu.', '');
-  return (
-    <div className={s.demo}>
-      <div className={`${s.wrap} ${s.demoIn}`}>
-        <span className={s.demoTag} aria-hidden="true">
-          Chế độ demo
-        </span>
-        <p role="status" data-testid="demo-banner" className={s.demoText} title={facts.trim()}>
-          <span className={s.srOnly}>Chế độ demo:</span>
-          {facts}
-        </p>
-        {sample && (
-          <p role="note" data-testid="sample-mode" className={s.demoSample}>
-            Đang xem dữ liệu mẫu
-          </p>
-        )}
-      </div>
-    </div>
-  );
-}
-
-/**
  * Neutomni-style intro, rendered with the page so it covers the very first paint (no flash of the hero). Pure CSS
  * keyframes drive it, so it finishes even if the motion libraries never load; LandingMotion only handles "Bỏ qua" and
  * starts the hero entrance when the curtain lifts. Hidden under prefers-reduced-motion.
@@ -168,19 +140,23 @@ export function Landing({ sample }: { sample: boolean }) {
     <>
       <Intro />
       <div data-lp-root className={s.root}>
-        <DemoStrip sample={sample} />
         <nav className={s.nav} aria-label="Trang giới thiệu">
           <div className={`${s.wrap} ${s.navIn}`}>
-            <a className={s.logo} href="#top" aria-label="HụiSafe, lên đầu trang">
-              <span className={s.logoMark} data-lp-mark>
-                H
-                <span className={s.logoU}>
-                  U<i />
+            <div className={s.brand}>
+              <a className={s.logo} href="#top" aria-label="HụiSafe, lên đầu trang">
+                <span className={s.logoMark} data-lp-mark>
+                  H
+                  <span className={s.logoU}>
+                    U<i />
+                  </span>
+                  I
                 </span>
-                I
+                <small data-lp-navitem>SAFE</small>
+              </a>
+              <span data-lp-navitem>
+                <DemoChip sample={sample} />
               </span>
-              <small data-lp-navitem>SAFE</small>
-            </a>
+            </div>
             <div className={s.links} data-lp-navitem>
               <a href="#mot-ky">Một kỳ hụi</a>
               <a href="#tinh-huong">Tình huống</a>

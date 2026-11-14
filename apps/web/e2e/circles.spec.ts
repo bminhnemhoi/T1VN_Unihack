@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { toast, watchErrors } from './helpers';
+import { demoClick, openDemo, toast, watchErrors } from './helpers';
 
 // "Tổng quan" (approved prototype, B22): verdict, four numbers, circles with their round strip, "Vừa xảy ra".
 test.describe('/circles (Tổng quan)', () => {
@@ -59,9 +59,10 @@ test.describe('/circles (Tổng quan)', () => {
 
   test('"Thử: tài khoản mới" shows the empty state; the paste box checks the link', async ({ page }) => {
     await page.goto('/circles');
-    const net = page.getByRole('button', { name: /^Thử:/ });
+    const net = (await openDemo(page)).getByRole('button', { name: /^Thử:/ });
     for (let i = 0; i < 3; i++) await net.click();
     await expect(net).toHaveText('Thử: tài khoản mới');
+    await page.keyboard.press('Escape');
     await expect(page.getByRole('heading', { name: 'Bạn chưa ở dây hụi nào.' })).toBeVisible();
     await page.getByRole('button', { name: 'Dán đường dẫn mời' }).click();
     const dialog = page.getByRole('dialog', { name: 'Mở lời mời' });
@@ -76,11 +77,10 @@ test.describe('/circles (Tổng quan)', () => {
 
   test('"Thử: mạng chậm" shows a skeleton first, then the data; "lỗi mạng" on a fresh page shows the error and Thử lại', async ({ page }) => {
     await page.goto('/circles');
-    const net = page.getByRole('button', { name: /^Thử:/ });
-    await net.click();
+    await demoClick(page, /^Thử:/);
     await expect(page.locator('.sk').first()).toBeVisible();
     await expect(page.locator('.verdict')).toBeVisible({ timeout: 5000 });
-    await net.click(); // lỗi mạng: what is on screen stays, marked stale
+    await demoClick(page, /^Thử:/); // lỗi mạng: what is on screen stays, marked stale
     await expect(page.getByRole('button', { name: 'Chưa cập nhật được · Thử lại' })).toBeVisible();
     await page.getByRole('link', { name: 'Sổ hụi' }).click();
     await expect(page.getByRole('heading', { name: 'Chưa đọc được dữ liệu từ chuỗi.' })).toBeVisible({ timeout: 5000 });

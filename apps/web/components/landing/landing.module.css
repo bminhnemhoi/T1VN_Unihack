@@ -97,18 +97,6 @@
   .logoMark { animation: none; }
 }
 
-/* ---------- demo strip: the app's demo banner, set as one quiet line ---------- */
-.demo { background: var(--ink); color: #e9e4da; }
-.demoIn { display: flex; align-items: center; gap: 14px; min-height: 36px; padding-block: 6px; font-size: 13px; line-height: 1.35; }
-.demoText { flex: 1; min-width: 0; max-width: none !important; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.demoTag { flex: none; font: 600 11px/1 var(--mono); letter-spacing: 0.08em; text-transform: uppercase; background: var(--lime); color: var(--ink); padding: 5px 8px; border-radius: 3px; }
-.demoSample { flex: none; font: 500 11px/1 var(--mono); letter-spacing: 0.08em; text-transform: uppercase; color: #c9c3b8; max-width: none !important; }
-.demoSample::before { content: ''; display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: var(--lime); margin-right: 8px; vertical-align: 1px; }
-.srOnly { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
-@media (max-width: 640px) {
-  .demoIn { flex-wrap: wrap; justify-content: space-between; row-gap: 6px; font-size: 12.5px; }
-  .demoText { order: 3; flex-basis: 100%; white-space: normal; }
-}
 
 /* Wide screens: the landing is composed for about 1280px; above that it scales up as a whole (like browser zoom)
    instead of leaving the type small in a sea of ivory. */
@@ -121,6 +109,7 @@
 
 /* ---------- nav ---------- */
 /* No backdrop blur: it re-blurs the page under the bar on every scroll frame (GPU cost on phones). Near-opaque instead. */
+.brand { display: flex; align-items: center; gap: 12px; min-width: 0; }
 .nav { position: sticky; top: 0; z-index: 30; background: color-mix(in srgb, var(--ivory) 96%, transparent); }
 .navIn { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding-block: 12px; }
 .logo { font: 900 24px/1 var(--display); letter-spacing: -0.05em; text-decoration: none; display: inline-flex; align-items: center; min-height: 48px; }

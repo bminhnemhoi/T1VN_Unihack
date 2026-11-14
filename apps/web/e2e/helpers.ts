@@ -59,3 +59,19 @@ export const tableOrCards = (page: Page, name: RegExp) => page.getByRole('table'
 export async function afterIntro(page: Page) {
   await page.locator('[data-lp-intro]').waitFor({ state: 'hidden', timeout: 8000 });
 }
+
+/** Opens the `DEMO · Fuji` popover (sample data only: it carries "Thử: …" and "Tua nhanh ›"). Returns the popover. */
+export async function openDemo(page: Page) {
+  const pop = page.getByTestId('demo-banner');
+  if (!(await pop.isVisible())) await page.getByTestId('demo-chip').click();
+  await expect(pop).toBeVisible();
+  return pop;
+}
+
+/** Presses a demo tool `times` times, then closes the popover. */
+export async function demoClick(page: Page, name: string | RegExp, times = 1) {
+  const pop = await openDemo(page);
+  for (let i = 0; i < times; i++) await pop.getByRole('button', { name }).click();
+  await page.keyboard.press('Escape');
+  await expect(pop).toBeHidden();
+}

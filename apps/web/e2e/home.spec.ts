@@ -9,13 +9,13 @@ async function openStill(page: Page) {
 }
 
 test.describe('S01 / landing', () => {
-  test('has its own navigation, no app header or bottom bar, and keeps the demo strip', async ({ page }) => {
+  test('has its own navigation, no app header or bottom bar, and the DEMO chip', async ({ page }) => {
     const errs = watchErrors(page);
     await openStill(page);
     await expect(page.getByRole('navigation', { name: 'Trang giới thiệu' })).toBeVisible();
     await expect(page.getByRole('navigation', { name: /^Điều hướng chính/ })).toHaveCount(0);
     await expect(page.getByRole('banner')).toHaveCount(0);
-    await expect(page.getByTestId('demo-banner')).toBeVisible();
+    await expect(page.getByTestId('demo-chip')).toBeVisible();
     await expect(page.getByRole('heading', { level: 1 })).toHaveText(/Chơi hụi\s+không sợ\s+giựt\./);
     await noHorizontalOverflow(page);
     errs.expectClean();

@@ -18,7 +18,7 @@ test.describe('shell: navigation on every route', () => {
       const nav = mainNav(page);
       await expect(nav.locator('[aria-current="page"]')).toHaveCount(1);
       await expect(nav.getByRole('link', { name: r.label, exact: true })).toHaveAttribute('aria-current', 'page');
-      await expect(page.getByTestId('demo-banner')).toBeVisible();
+      await expect(page.getByTestId('demo-chip')).toBeVisible();
       await noHorizontalOverflow(page);
       // The frame is exactly one screen: the page itself never scrolls, only the area inside it.
       const extra = await page.evaluate(() => document.documentElement.scrollHeight - window.innerHeight);
