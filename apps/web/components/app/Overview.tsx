@@ -114,7 +114,7 @@ function Board({ list, my, refreshing, stale }: { list: SampleCircle[]; my: Extr
       <div className="verdict">
         {first ? (
           <div className="vtxt">
-            <span className="label">Bạn có {open.length} việc · việc gấp nhất</span>
+            <span className="label">{open.length} việc cần làm · gấp nhất</span>
             <p>
               {first.todo} <span>· {first.label}</span>
             </p>
@@ -145,13 +145,19 @@ function Board({ list, my, refreshing, stale }: { list: SampleCircle[]; my: Extr
       <div className="stats">
         <div>
           <span className="label">Bạn đã góp</span>
-          <b>{f(my.wallet.paidSoFar)}</b>
-          <small>USDC đến nay</small>
+          <b>
+            {f(my.wallet.paidSoFar)}
+            <i>USDC</i>
+          </b>
+          <small>đến nay</small>
         </div>
         <div>
           <span className="label">Mỗi kỳ đang góp</span>
-          <b>{f(my.wallet.perRound)}</b>
-          <small>USDC ở các dây đang chạy</small>
+          <b>
+            {f(my.wallet.perRound)}
+            <i>USDC</i>
+          </b>
+          <small>ở các dây đang chạy</small>
         </div>
         <div>
           <span className="label">Dây đang chơi</span>

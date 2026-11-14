@@ -1,6 +1,6 @@
 /* "Thêm vào màn hình chính" card (B23 part 3): floats just above the phone menu, never over its buttons. Only transform + opacity move. */
 .card {
-  position: absolute; z-index: 40; left: 12px; right: 12px; bottom: calc(var(--hs-nav, 72px) + 12px + env(safe-area-inset-bottom, 0px));
+  position: absolute; z-index: 16; left: 12px; right: 12px; bottom: calc(var(--hs-nav, 88px) + env(safe-area-inset-bottom, 0px));
   display: grid; grid-template-columns: 40px minmax(0, 1fr) 44px; gap: 12px; align-items: start; padding: 16px; border-radius: 16px;
   background: #fbf9f4; color: #201d1d; border: 1px solid #dcd6cb; box-shadow: 0 12px 32px -12px rgb(32 29 29 / 0.4);
   font: 400 14px/1.45 var(--font-sans), 'Helvetica Neue', Arial, sans-serif; letter-spacing: 0.005em; word-spacing: 0.04em; touch-action: pan-x;

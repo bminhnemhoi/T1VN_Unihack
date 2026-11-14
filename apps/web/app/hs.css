@@ -13,7 +13,7 @@
     --display: var(--font-sans), 'Helvetica Neue', Arial, sans-serif;
     --body: var(--font-sans), 'Helvetica Neue', Arial, sans-serif;
     --mono: var(--font-mono), ui-monospace, Menlo, monospace;
-    --hs-nav: 72px;
+    --hs-nav: 0px;
     --dur-tap: 120ms; --dur-ui: 180ms; --dur-state: 400ms;
     --ease-out: cubic-bezier(0.16, 1, 0.3, 1); --ease-stamp: cubic-bezier(0.2, 1.6, 0.4, 1);
     color-scheme: light;
@@ -26,7 +26,8 @@
     & button { cursor: pointer; }
     & :focus-visible { outline: 3px solid var(--ink); outline-offset: 2px; }
     & .mono { font-family: var(--mono); font-variant-numeric: tabular-nums; }
-    & .label { font: 500 11px/1.3 var(--mono); letter-spacing: 0.08em; text-transform: uppercase; }
+    /* Labels read as sentences in Inter Tight (B23): spaced capitals in mono are hard to read in Vietnamese on a phone. The colour follows the surface (72% of the text colour), so it also works on the dark panels. */
+    & .label { font: 500 13px/1.35 var(--body); letter-spacing: 0.005em; text-transform: none; color: var(--ink-2); color: color-mix(in srgb, currentColor 72%, transparent); }
     & .room h1, & .room h2, & .room h3, & .ov h1, & .ov h2, & .ov h3, & .lg h1, & .lg h2, & .cr h1, & .cr h2, & .state h1, & .state h2, & .sheet h2 {
       font-family: var(--display); font-weight: 800; letter-spacing: -0.01em; word-spacing: 0.05em; line-height: 1.15; margin: 0; text-wrap: balance;
     }
@@ -170,15 +171,16 @@
     & .verdict { background: var(--ink); color: var(--ivory); border-radius: var(--r); padding: 24px 32px; display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 16px 24px; align-items: center; }
     & .verdict .vtxt { display: grid; gap: 8px; min-width: 0; }
     & .verdict .label { color: var(--lime); }
-    & .verdict p { margin: 0; font: 700 clamp(19px, 1.9vw, 24px)/1.3 var(--display); letter-spacing: -0.01em; word-spacing: 0.05em; max-width: 46ch; }
+    & .verdict p { margin: 0; font: 700 20px/1.3 var(--display); letter-spacing: -0.01em; word-spacing: 0.05em; max-width: 46ch; }
     & .verdict p span { font-weight: 500; color: #cfc8bc; }
     & .verdict .clock { font: 500 13px/1.3 var(--mono); color: #cfc8bc; }
     & .verdict .clock b { font-weight: 600; color: var(--ivory); font-variant-numeric: tabular-nums; }
     & .stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); border: 1px solid var(--line); border-radius: var(--r); background: var(--paper); }
     & .stats > div { padding: 16px; display: grid; gap: 4px; border-left: 1px solid var(--line); min-width: 0; }
     & .stats > div:first-child { border-left: 0; }
-    & .stats b { font: 500 26px/1.1 var(--mono); font-variant-numeric: tabular-nums; }
-    & .stats small { color: var(--ink-2); font: 400 12px/1.4 var(--mono); }
+    & .stats b { font: 600 32px/1.1 var(--body); font-variant-numeric: tabular-nums; letter-spacing: -0.01em; }
+    & .stats b i { font: 500 13px/1 var(--body); font-style: normal; letter-spacing: 0.005em; margin-left: 4px; color: var(--ink-2); }
+    & .stats small { color: var(--ink-2); font: 400 13px/1.4 var(--body); letter-spacing: 0.012em; word-spacing: 0.04em; }
     & .circles, & .feed { border: 1px solid var(--line); border-radius: var(--r); background: var(--paper); min-height: 0; max-height: 100%; overflow: auto; }
     & .circles { list-style: none; margin: 0; padding: 0; }
     & .feed { padding: 16px; display: grid; gap: 12px; align-content: start; }
@@ -186,15 +188,15 @@
     & .feed li { display: grid; grid-template-columns: 28px minmax(0, 1fr); gap: 8px; padding: 4px 0; align-items: end; }
     & .feed .av { width: 28px; height: 28px; font-size: 9.5px; }
     & .bub { display: flex; justify-content: space-between; align-items: flex-end; gap: 12px; background: var(--ivory); border: 1px solid var(--line); border-radius: 14px 14px 14px 4px; padding: 8px 12px; font-size: 13px; min-width: 0; }
-    & .bub small { display: block; font: 500 10.5px var(--mono); color: var(--ink-2); }
-    & .bub b { font: 500 12.5px var(--mono); font-variant-numeric: tabular-nums; white-space: nowrap; }
+    & .bub small { display: block; font: 500 12px var(--body); color: var(--ink-2); }
+    & .bub b { font: 600 13px var(--body); font-variant-numeric: tabular-nums; white-space: nowrap; }
     & .circles a { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1.6fr) auto; gap: 16px; align-items: center; padding: 16px; border-bottom: 1px solid var(--line); text-decoration: none; color: inherit; transition: background var(--dur-ui); }
     & .circles li:last-child a { border-bottom: 0; }
     & .circles a:hover { background: var(--ivory); }
     & .circles a.add { grid-template-columns: minmax(0, 1fr) auto; color: var(--ink-2); }
     & .circles a.add strong { font: 700 15px var(--display); color: var(--ink); }
     & .circles h3 { font-size: 18px; letter-spacing: -0.02em; }
-    & .circles small { color: var(--ink-2); font: 400 12px/1.4 var(--mono); }
+    & .circles small { color: var(--ink-2); font: 400 13px/1.4 var(--body); letter-spacing: 0.012em; word-spacing: 0.04em; font-variant-numeric: tabular-nums; }
     & .strip { display: grid; grid-template-columns: repeat(var(--n), minmax(0, 1fr)); gap: 4px; }
     & .strip i { height: 8px; border-radius: 3px; background: var(--soft); }
     & .strip i.d { background: var(--ink); }
@@ -401,6 +403,9 @@
   /* ---------- phone layout ---------- */
   @container app (max-width: 760px) {
     .hs { --gx: 16px; }
+    /* A container query cannot restyle its own container, so the menu inset is set on the frame's children: 64px menu + 12px from the edge + 12px air above it. */
+    .hs > * { --hs-nav: 88px; }
+    .hs .view { padding-bottom: calc(var(--hs-nav) + env(safe-area-inset-bottom, 0px)); }
     .hs .top { padding-block: 8px; gap: 12px; flex-wrap: wrap; row-gap: 0; }
     .hs .tabs { display: none; }
     /* Wordmark, DEMO chip and account share the first row; the circle's health chip gets its own row below (only when it has one). */
@@ -424,7 +429,7 @@
     .hs .ov { grid-template-columns: minmax(0, 1fr); gap: 12px; padding-block: 12px; height: auto; grid-template-rows: none; }
     .hs .feed { display: none; }
     .hs .bidIn input { font-size: 38px; min-height: 50px; }
-    .hs .act { position: sticky; bottom: 0; z-index: 1; display: grid; gap: 8px; background: var(--ivory); box-shadow: 0 -1px 0 var(--line); padding: 12px 0 0; }
+    .hs .act { position: sticky; bottom: var(--hs-nav); z-index: 1; display: grid; gap: 8px; background: var(--ivory); box-shadow: 0 -1px 0 var(--line); padding: 12px 0 0; }
     .hs .act .btn { width: 100%; }
     .hs .peek { display: flex; }
     .hs .skSide { display: none; }
@@ -443,21 +448,32 @@
     .hs .stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
     .hs .stats > div:nth-child(3) { border-left: 0; }
     .hs .stats > div:nth-child(n + 3) { border-top: 1px solid var(--line); }
-    .hs .stats b { font-size: 21px; }
+    .hs .stats b { font-size: 28px; }
     .hs .circles { overflow: visible; max-height: none; }
     .hs .circles a { grid-template-columns: minmax(0, 1fr) auto; gap: 8px 12px; }
     .hs .circles .strip { grid-column: 1 / -1; grid-row: 2; }
     .hs .lg { padding-block: 12px; gap: 12px; grid-template-rows: auto minmax(0, 1fr); }
     .hs .lg .tableWrap, .hs .lgFoot, .hs .lgHead .chip, .hs .lgTools { display: none; }
     .hs .lgP { display: grid; gap: 12px; align-content: start; min-height: 0; overflow-y: auto; overscroll-behavior: contain; }
-    .hs .lgP .bondBar { position: sticky; bottom: 0; z-index: 1; box-shadow: 0 -8px 0 var(--ivory); }
+    .hs .lgP .bondBar { position: sticky; bottom: var(--hs-nav); z-index: 1; box-shadow: 0 -8px 0 var(--ivory); }
     .hs .lgHead h1 { font-size: 21px; }
-    .hs .tabbar { display: grid; grid-template-columns: repeat(4, 1fr); border-top: 1px solid var(--line); background: var(--paper); padding-bottom: env(safe-area-inset-bottom, 0px); }
-    .hs .tabbar a { display: grid; place-items: center; gap: 4px; min-height: 56px; text-decoration: none; color: var(--ink-2); font-size: 11.5px; font-weight: 600; }
-    .hs .tabbar a i { width: 18px; height: 3px; border-radius: 3px; background: transparent; }
-    .hs .tabbar a[aria-current='page'] { color: var(--ink); }
-    .hs .tabbar a[aria-current='page'] i { background: var(--ink); }
-    .hs .tabbar a[aria-current='page'] svg { stroke-width: 2.4; }
+    /* Floating menu (B23, iOS-26 style): a glass pill 12px from the edges; a sliding ink pill marks the current tab. */
+    .hs .tabbar {
+      position: absolute; z-index: 15; left: 12px; right: 12px; bottom: calc(12px + env(safe-area-inset-bottom, 0px)); height: 64px; padding: 4px; border-radius: 32px;
+      display: grid; grid-template-columns: repeat(4, minmax(0, 1fr));
+      background: var(--paper); border: 1px solid color-mix(in srgb, var(--line) 60%, transparent); box-shadow: 0 8px 24px -8px rgb(32 29 29 / 0.28);
+    }
+    @supports (backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px)) {
+      .hs .tabbar { background: color-mix(in srgb, var(--paper) 72%, transparent); -webkit-backdrop-filter: blur(20px) saturate(1.6); backdrop-filter: blur(20px) saturate(1.6); }
+    }
+    .hs .tabbar .pill { position: absolute; z-index: 0; top: 4px; bottom: 4px; left: 4px; width: calc((100% - 8px) / 4); border-radius: 28px; background: var(--ink); transform: translateX(calc(var(--i, 0) * 100%)); transition: transform 280ms var(--ease-out), opacity 180ms; }
+    .hs .tabbar[data-on='none'] .pill { opacity: 0; }
+    .hs .tabbar a { position: relative; z-index: 1; display: grid; place-items: center; align-content: center; gap: 4px; min-height: 56px; border-radius: 28px; text-decoration: none; color: var(--ink-2); font-size: 11.5px; font-weight: 600; line-height: 1; transition: color 180ms; }
+    .hs .tabbar a[aria-current='page'] { color: var(--ivory); }
+    .hs .tabbar a[aria-current='page'] svg { stroke-width: 2.2; }
+    .hs .tabbar a:focus-visible { outline-offset: -3px; outline-color: var(--ink); }
+    .hs .tabbar a[aria-current='page']:focus-visible { outline-color: var(--lime); }
+    /* Pinned bars (.act, .bondBar) use bottom: var(--hs-nav) above, so they sit over the menu, not behind it. */
   }
 
   @media (max-height: 780px) {

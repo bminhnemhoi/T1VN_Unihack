@@ -192,11 +192,12 @@ const ICON: Record<AppTab, ReactNode> = {
 function TabBar({ pathname }: { pathname: string }) {
   const tabs = useTabs(pathname);
   const on = tabOf(pathname);
+  const index = Math.max(0, tabs.findIndex((t) => t.tab === on));
   return (
-    <nav className="tabbar" aria-label="Điều hướng chính (điện thoại)">
+    <nav className="tabbar" aria-label="Điều hướng chính (điện thoại)" data-on={on ?? 'none'} style={{ ['--i' as string]: index }}>
+      <span className="pill" aria-hidden="true" />
       {tabs.map((t) => (
         <Link key={t.tab} href={t.href} aria-current={on === t.tab ? 'page' : undefined}>
-          <i aria-hidden />
           <svg viewBox="0 0 24 24" aria-hidden="true">
             {ICON[t.tab]}
           </svg>
