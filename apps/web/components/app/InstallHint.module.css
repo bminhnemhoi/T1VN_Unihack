@@ -1,0 +1,25 @@
+/* "Thêm vào màn hình chính" card (B23 part 3): floats just above the phone menu, never over its buttons. Only transform + opacity move. */
+.card {
+  position: absolute; z-index: 40; left: 12px; right: 12px; bottom: calc(var(--hs-nav, 72px) + 12px + env(safe-area-inset-bottom, 0px));
+  display: grid; grid-template-columns: 40px minmax(0, 1fr) 44px; gap: 12px; align-items: start; padding: 16px; border-radius: 16px;
+  background: #fbf9f4; color: #201d1d; border: 1px solid #dcd6cb; box-shadow: 0 12px 32px -12px rgb(32 29 29 / 0.4);
+  font: 400 14px/1.45 var(--font-sans), 'Helvetica Neue', Arial, sans-serif; letter-spacing: 0.005em; word-spacing: 0.04em; touch-action: pan-x;
+  animation: up 240ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+.icon { width: 40px; height: 40px; border-radius: 10px; display: block; }
+.text { margin: 0; padding-top: 2px; }
+.share { display: inline-block; width: 18px; height: 18px; margin-left: 4px; vertical-align: -3px; }
+.close { position: relative; display: grid; place-items: center; width: 44px; height: 44px; margin: -8px -8px 0 0; border: 0; border-radius: 999px; background: transparent; color: #201d1d; cursor: pointer; }
+.close:hover { background: #ece7dd; }
+.close svg { width: 18px; height: 18px; }
+.actions { grid-column: 2 / 4; display: flex; flex-wrap: wrap; gap: 8px; }
+.btn { min-height: 44px; padding: 0 16px; border-radius: 4px; border: 1.5px solid transparent; font-family: inherit; font-size: 14px; font-weight: 700; cursor: pointer; transition: transform 120ms; }
+.btn:active { transform: scale(0.98); }
+.main { background: #a1ff62; color: #201d1d; }
+.ghost { background: transparent; color: #201d1d; border-color: #201d1d; }
+.close:focus-visible, .btn:focus-visible { outline: 3px solid #201d1d; outline-offset: 2px; }
+.out { animation: down 180ms cubic-bezier(0.4, 0, 1, 1) both; }
+@keyframes up { from { opacity: 0; transform: translateY(16px); } }
+@keyframes down { to { opacity: 0; transform: translateY(16px); } }
+@media (min-width: 761px) { .card { display: none; } }
+@media (prefers-reduced-motion: reduce) { .card, .out { animation: none; } .btn { transition: none; } }

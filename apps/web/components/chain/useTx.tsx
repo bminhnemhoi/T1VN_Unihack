@@ -11,6 +11,7 @@ import { useChain } from '@/lib/chain/provider';
 import { useHuiActions } from '@/lib/chain/actions';
 import type { TxStep } from '@/lib/chain/write';
 import { useHuiWallet } from '@/lib/chain/walletProvider';
+import { txBegin, txEnd, txSuccess } from '@/lib/install-store';
 import { cn } from '@/lib/utils';
 
 type Actions = NonNullable<ReturnType<typeof useHuiActions>>;
@@ -76,15 +77,18 @@ export function useTx({ allowWhenPaused = false }: { allowWhenPaused?: boolean }
         return r;
       }
       busy.current = true;
+      txBegin();
       setState({ pending: true, step: 0 });
       stepTo.current = (st) => setState((s) => (s.pending ? { ...s, step: STEP_INDEX[st] } : s));
       try {
         const r = await job(actions);
         setState((s) => ({ pending: false, result: r, step: s.step }));
+        if (r.ok) txSuccess();
         return r;
       } finally {
         stepTo.current = undefined;
         busy.current = false;
+        txEnd();
       }
     },
     [chain, actions, status, login, paused],

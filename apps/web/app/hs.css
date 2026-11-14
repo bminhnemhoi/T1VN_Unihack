@@ -13,6 +13,7 @@
     --display: var(--font-sans), 'Helvetica Neue', Arial, sans-serif;
     --body: var(--font-sans), 'Helvetica Neue', Arial, sans-serif;
     --mono: var(--font-mono), ui-monospace, Menlo, monospace;
+    --hs-nav: 72px;
     --dur-tap: 120ms; --dur-ui: 180ms; --dur-state: 400ms;
     --ease-out: cubic-bezier(0.16, 1, 0.3, 1); --ease-stamp: cubic-bezier(0.2, 1.6, 0.4, 1);
     color-scheme: light;
