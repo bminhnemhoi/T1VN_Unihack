@@ -13,6 +13,8 @@ import { useHuiWallet } from '@/lib/chain/walletProvider';
 import { tabOf, useCurrentCircle, type AppTab } from '@/lib/current-circle';
 import { cycleDemoNet, fastForward, NET_LABEL, useDemo } from '@/lib/demo-store';
 import { shortAddress } from '@/lib/live/circleData';
+import { useWalletBalance } from '@/lib/live/useWalletBalance';
+import { formatCents } from '@/lib/money';
 import { vi } from '@/lib/vi';
 
 /**
@@ -145,6 +147,7 @@ function Account({ pathname }: { pathname: string }) {
           <button type="button" className="mono" onClick={() => void copyAddress(wallet.address)} data-testid="wallet-address" title={`${wallet.address} (bấm để sao chép)`} aria-label={`Sao chép địa chỉ ví ${shortAddress(wallet.address)}`}>
             <span className="lbl">{shortAddress(wallet.address)}</span>
           </button>
+          <WalletBalanceChip owner={wallet.address} />
           <button type="button" onClick={logout} aria-label="Đăng xuất">
             <LogOut aria-hidden />
             <span className="lbl">Đăng xuất</span>
@@ -165,6 +168,24 @@ function Account({ pathname }: { pathname: string }) {
         <Settings aria-hidden />
       </Link>
     </div>
+  );
+}
+
+/** USDC in the wallet, next to the address. Keeps the last value while refreshing; "…" only on the first load. */
+function WalletBalanceChip({ owner }: { owner: `0x${string}` }) {
+  const { data, isError } = useWalletBalance(owner);
+  const text = data ? formatCents(data.usdc) : isError ? 'Chưa đọc được số dư' : 'Đang đọc số dư…';
+  return (
+    <Link
+      href="/cai-dat#so-du"
+      className="bal mono"
+      data-testid="wallet-balance"
+      aria-busy={!data && !isError}
+      aria-label={data ? `Số dư ví: ${text}. Xem chi tiết` : text}
+      title={isError ? 'Không đọc được số dư từ mạng Fuji, sẽ thử lại' : 'Số dư USDC của ví. Bấm để xem chi tiết'}
+    >
+      {data ? text : isError ? '–' : '…'}
+    </Link>
   );
 }
 

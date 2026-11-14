@@ -1,4 +1,5 @@
 import { formatUsdc } from 'sdk';
+import { formatUnits } from 'viem';
 
 const CENT = 10_000n; // 0,01 USDC in base units
 
@@ -15,4 +16,11 @@ export function formatCents(units: bigint, dir: 'down' | 'up' = 'down'): string 
   const rest = abs % CENT;
   const rounded = rest === 0n ? abs : abs - rest + (magnitudeUp ? CENT : 0n);
   return `${units < 0n && rounded > 0n ? '-' : ''}${formatUsdc(rounded)}`;
+}
+
+/** AVAX with at most 4 decimals, rounded down, decimal comma: 1500000000000000000n -> "1,5 AVAX". */
+export function formatAvax(wei: bigint): string {
+  const [whole, frac = ''] = formatUnits(wei, 18).split('.');
+  const cut = frac.slice(0, 4).replace(/0+$/, '');
+  return `${whole}${cut ? `,${cut}` : ''} AVAX`;
 }

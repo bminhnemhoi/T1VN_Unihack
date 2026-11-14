@@ -142,6 +142,7 @@ Nguồn sự thật: [docs/03-dac-ta-giao-thuc.md](docs/03-dac-ta-giao-thuc.md) 
 | `docs/09-kiem-thu-va-bao-mat.md`, `docs/10-phap-ly-va-tuan-thu.md` | Kiểm thử, bảo mật, pháp lý |
 | `docs/12-pitch-demo-nop-bai.md`, `docs/pitch/` | Pitch, kịch bản demo, bản nháp form nộp bài |
 | `docs/DEPLOY-FUJI.md`, `docs/TIEN-DO.md` | Runbook deploy, tiến độ |
+| `docs/CHANGELOG.md` | Nhật ký thay đổi: tính năng và sửa lỗi người dùng thấy được, mới nhất ở trên |
 | `CLAUDE.md`, `.claude/` | Cấu hình cho Claude Code (luật cứng, subagent, hook) |
 
 Quy ước: code, tên biến, commit message bằng tiếng Anh; tài liệu và giao diện bằng tiếng Việt. Commit theo Conventional Commits.

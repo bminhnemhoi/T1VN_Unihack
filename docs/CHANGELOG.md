@@ -1,0 +1,29 @@
+# Nhật ký thay đổi
+
+Ghi những gì người dùng và giám khảo thấy được trên web (tính năng, sửa lỗi, bản chạy công khai). Mới nhất ở trên. Chi tiết kỹ thuật và số test nằm ở [TIEN-DO.md](TIEN-DO.md); lịch sử đầy đủ trong `git log`.
+
+## 14/11/2026
+
+### Thêm: hiện số dư ví
+- **Thanh trên cùng của app** (mọi màn trừ landing): khi đã đăng nhập, cạnh địa chỉ ví có ô **số dư USDC** (làm tròn xuống tới 0,01). Bấm vào ô này để mở phần chi tiết ở Cài đặt. Trên điện thoại ô số dư vẫn hiện.
+- **Cài đặt → Số dư ví** (`/cai-dat#so-du`): USDC chính xác tới 6 chữ số thập phân và AVAX (tối đa 4 chữ số, làm tròn xuống). Ghi rõ "Không cần AVAX: phí mạng do HụiSafe trả". Ví có 0 USDC thì hiện hướng dẫn lấy 20 USDC thử nghiệm ở faucet.circle.com (Avalanche Fuji).
+- Số dư đọc thẳng từ chuỗi Fuji (`USDC.balanceOf` và số dư AVAX của ví), tự làm mới theo chu kỳ của web (10 giây ở chế độ demo) và giữ số cũ trong lúc làm mới. Đủ trạng thái: đang đọc (khung chờ), đọc lỗi (nút "Đọc lại số dư"), có số.
+- Chỉ đọc, không ký và không gửi giao dịch nào. Code: `apps/web/lib/live/useWalletBalance.ts`, `apps/web/components/app/AppFrame.tsx` (`WalletBalanceChip`), `apps/web/components/settings/SettingsView.tsx` (`WalletBalanceBlock`), `formatAvax` trong `apps/web/lib/money.ts` (có test).
+
+## 13/11/2026
+
+### Web chạy công khai
+- Địa chỉ: https://lamng.tail3abf4e.ts.net:8443 (VPS của đội, Docker: 1 web + 1 keeper chốt kỳ mỗi 15 giây, Tailscale Funnel). Hướng dẫn: [HOSTING.md](HOSTING.md).
+- Đăng nhập Privy bằng Google hoặc email chạy trên địa chỉ công khai; ví nhúng tự tạo, người dùng không cần AVAX.
+- Trợ lý chủ hụi chạy bằng model thật (`ag/gemini-3.8-flash` qua 9router).
+
+### Sửa
+- Trang trắng khi bấm đăng nhập (vòng cập nhật giữa Privy và web).
+- Tạo dây báo "Dịch vụ chưa được cấu hình" trên bản công khai (relay thiếu App ID Privy lúc chạy).
+- Trang Sổ hụi của dây thật báo lỗi 500.
+- Hero của landing trên điện thoại: ba tin nhắn trong nhóm hiện lại, tiêu đề và logo to hơn, con dấu nằm cạnh dòng "giựt.", hai nút chính rộng hết màn hình. Nút "Mở app" không còn bị lệch lên trên (cả máy tính).
+- Thử lại "Tạo dây" sau khi nạp ký quỹ lỗi giờ nạp vào đúng dây vừa tạo, không tạo dây thứ hai.
+
+### Giao diện mới của web app
+- Dựng lại theo bản bấm thử đã duyệt: Tổng quan, Dây (thanh kỳ, biên lai, phòng bỏ thăm), Sổ hụi, Dây mới (6 câu hỏi) và mọi trang phụ. Nút giao dịch hiện từng bước Ký → Gửi → Xác nhận.
+- Chuyển động mượt hơn và nhẹ hơn trên điện thoại; tắt hết khi bật chế độ giảm chuyển động.

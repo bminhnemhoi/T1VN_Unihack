@@ -6,6 +6,9 @@ import { useEffect, useState } from 'react';
 import { useChain } from '@/lib/chain/provider';
 import { useHuiActions } from '@/lib/chain/actions';
 import { useHuiWallet } from '@/lib/chain/walletProvider';
+import { formatUsdc } from 'sdk';
+import { useWalletBalance } from '@/lib/live/useWalletBalance';
+import { formatAvax } from '@/lib/money';
 import { Button } from '@/components/ui/button';
 import { RepBadge, RepDisclaimer } from '@/components/circle/RepBadge';
 import { applyFontSize, FONT_KEY, readFontSize, type FontSize } from '@/components/shell/FontSizeInit';
@@ -96,6 +99,7 @@ export function SettingsView() {
               <div className="mt-3">
                 <CopyAddressButton address={wallet.address} />
               </div>
+              <WalletBalanceBlock owner={wallet.address as `0x${string}`} />
             </>
           ) : (
             <p className="mt-1 max-w-prose text-muted-foreground">Hãy đăng nhập để thấy địa chỉ ví của bạn.</p>
@@ -223,5 +227,49 @@ export function SettingsView() {
         </ul>
       </section>
     </main>
+  );
+}
+
+/** Balance of the signed-in wallet (USDC exact, AVAX), with the faucet when the wallet has no USDC yet. */
+function WalletBalanceBlock({ owner }: { owner: `0x${string}` }) {
+  const { data, isError, isFetching, refetch } = useWalletBalance(owner);
+  return (
+    <div id="so-du" className="mt-6" aria-busy={!data && !isError}>
+      <h3 className="font-display text-lg font-bold">Số dư ví</h3>
+      {data ? (
+        <>
+          <dl className="mt-2 grid grid-cols-[auto_1fr] gap-x-4 gap-y-2">
+            <dt className="text-muted-foreground">USDC</dt>
+            <dd className="so-ke text-right" data-testid="balance-usdc">{formatUsdc(data.usdc)}</dd>
+            <dt className="text-muted-foreground">AVAX</dt>
+            <dd className="so-ke text-right" data-testid="balance-avax">{formatAvax(data.avax)}</dd>
+          </dl>
+          <p className="mt-2 max-w-prose text-sm text-muted-foreground">
+            Không cần AVAX: phí mạng do HụiSafe trả. Số dư tự cập nhật{isFetching ? ' (đang làm mới…)' : ''}.
+          </p>
+          {data.usdc === 0n && (
+            <p className="mt-2 max-w-prose text-sm" role="status">
+              Ví chưa có USDC thử nghiệm. Lấy miễn phí 20 USDC ở{' '}
+              <a className="underline underline-offset-4" href="https://faucet.circle.com" target="_blank" rel="noreferrer">
+                faucet.circle.com
+              </a>{' '}
+              (chọn Avalanche Fuji, dán địa chỉ ví ở trên).
+            </p>
+          )}
+        </>
+      ) : isError ? (
+        <div className="mt-2" role="status">
+          <p className="text-muted-foreground">Chưa đọc được số dư từ mạng Fuji.</p>
+          <Button type="button" variant="outline" className="mt-2" onClick={() => void refetch()}>
+            Đọc lại số dư
+          </Button>
+        </div>
+      ) : (
+        <div className="mt-2 grid gap-2" role="status" aria-label="Đang đọc số dư">
+          <div className="h-6 w-full animate-pulse rounded bg-secondary motion-reduce:animate-none" />
+          <div className="h-6 w-full animate-pulse rounded bg-secondary motion-reduce:animate-none" />
+        </div>
+      )}
+    </div>
   );
 }
