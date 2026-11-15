@@ -6,6 +6,7 @@
   transition: transform 120ms cubic-bezier(0.16, 1, 0.3, 1);
 }
 .chip::after { content: ''; position: absolute; inset: -10px -4px; } /* 44px touch area around a 24px chip */
+@media (max-width: 399px) { .long { display: none; } } /* one row of top bar at 360-390: "DEMO" alone, the popover says the rest */
 .chip:active { transform: scale(0.96); }
 .chip:focus-visible { outline: 3px solid #201d1d; outline-offset: 2px; }
 .pop {

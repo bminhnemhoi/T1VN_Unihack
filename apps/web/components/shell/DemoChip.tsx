@@ -39,8 +39,8 @@ export function DemoChip({ sample }: { sample: boolean }) {
   if (!isDemoBuild(chain?.chainId, DEMO_BUILD)) return null;
   return (
     <span className={s.wrap} ref={root}>
-      <button type="button" className={s.chip} data-testid="demo-chip" aria-expanded={open} aria-controls={id} onClick={() => setOpen((v) => !v)}>
-        DEMO · Fuji
+      <button type="button" className={s.chip} data-testid="demo-chip" title="DEMO · Fuji (mạng thử nghiệm)" aria-expanded={open} aria-controls={id} onClick={() => setOpen((v) => !v)}>
+        DEMO<span className={s.long}> · Fuji</span>
       </button>
       {open && (
         <div id={id} className={s.pop} role="note" data-testid="demo-banner">

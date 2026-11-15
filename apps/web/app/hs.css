@@ -37,6 +37,8 @@
     & .top { display: flex; align-items: center; gap: 16px; padding: 12px max(var(--gx), env(safe-area-inset-right, 0px)) 12px max(var(--gx), env(safe-area-inset-left, 0px)); border-bottom: 1px solid var(--line); background: var(--ivory); min-width: 0; }
     & .logo { font: 800 20px/1 var(--display); letter-spacing: -0.03em; word-spacing: 0.05em; display: inline-flex; align-items: center; gap: 8px; text-decoration: none; color: var(--ink); min-height: 44px; flex: none; }
     & .logo svg { display: block; flex: none; }
+    & .logo { position: relative; }
+    & .logo::after { content: ''; position: absolute; inset: 0 -4px; } /* 37px wide mark: the tap area still reaches 45px */
     /* The old H·U·I word with the lime-ringed dot is still the entry cover's, so its dot rule is scoped there. */
     & .enterCover .logo span { position: relative; }
     & .enterCover .logo span i { position: absolute; left: 50%; bottom: -5px; width: 6px; height: 6px; margin-left: -4px; border-radius: 50%; background: var(--ink); box-shadow: 0 0 0 1.5px var(--lime); }
@@ -48,6 +50,7 @@
     & .acct a, & .acct > button { display: inline-flex; align-items: center; gap: 8px; min-height: 44px; min-width: 44px; justify-content: center; padding: 0 12px; border-radius: 4px; border: 0; background: transparent; color: var(--ink); font-weight: 600; font-size: 14px; text-decoration: none; }
     & .acct a:hover, & .acct > button:hover { background: var(--soft); }
     & .acct svg { width: 20px; height: 20px; flex: none; }
+    & .acct a.bal .bShort { display: none; }
     & .acct a.bal { padding: 0 12px; border-radius: 999px; background: var(--soft); font-family: var(--mono); font-size: 13px; font-weight: 500; font-variant-numeric: tabular-nums; white-space: nowrap; }
     & .chip { display: inline-flex; align-items: center; gap: 8px; padding: 8px 12px; border-radius: 999px; background: var(--paper); border: 1px solid var(--line); font-size: 12.5px; white-space: nowrap; color: var(--ink); text-decoration: none; }
     & a.chip:hover { border-color: var(--ink-2); }
@@ -414,11 +417,17 @@
     .hs .logo .wm { display: none; }
   }
   @container app (max-width: 760px) {
-    .hs { --gx: 16px; }
+    .hs > * { --gx: 16px; } /* a container query cannot restyle its own container: the gutter is set on the frame's children (it was 24px on phones before B24) */
     /* A container query cannot restyle its own container, so the menu inset is set on the frame's children: 64px menu + 12px from the edge + 12px air above it. */
     .hs > * { --hs-nav: 88px; }
     .hs .view { padding-bottom: calc(var(--hs-nav) + env(safe-area-inset-bottom, 0px)); }
-    .hs .top { padding-block: 8px; gap: 12px; flex-wrap: wrap; row-gap: 0; }
+    .hs .top { padding-block: 8px; gap: 8px; flex-wrap: wrap; row-gap: 0; }
+    /* B24 bug 4: logo, chip and the whole account strip stay on ONE row from 360 up. The address button is in Cài đặt, so it is not shown here. */
+    .hs .acct { gap: 0; }
+    .hs .acct [data-testid='wallet-address'] { display: none; }
+    .hs .acct a.bal { padding: 0 8px; margin: 0; font-size: 12px; }
+    .hs .acct a.bal .bFull { display: none; }
+    .hs .acct a.bal .bShort { display: inline; }
     .hs .tabs { display: none; }
     /* Wordmark, DEMO chip and account share the first row; the circle's health chip gets its own row below (only when it has one). */
     .hs .acct { margin-left: auto; }
