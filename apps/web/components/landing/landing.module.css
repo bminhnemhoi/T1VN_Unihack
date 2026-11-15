@@ -124,7 +124,7 @@
 .heroTop { display: grid; grid-template-columns: 1fr; gap: 28px; align-items: end; }
 .eyebrow { color: var(--ink-2); display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-bottom: 22px; }
 .eyebrow b { background: var(--lime); color: var(--ink); padding: 4px 8px; border-radius: 3px; font-weight: 500; }
-.line { display: block; overflow: hidden; padding-bottom: 0.06em; margin-bottom: -0.06em; }
+.line { display: block; overflow: hidden; padding-bottom: 0.06em; padding-right: 0.1em; margin-bottom: -0.06em; } /* the negative letter-spacing lets the last glyph (the horn of ơ) poke out of its box: room on the right so it is never cut */
 .line > span { display: inline-block; }
 .strike { position: relative; }
 .strike::after { content: ''; position: absolute; left: -1%; right: -1%; top: 54%; height: 0.1em; background: var(--red); border-radius: 99px; transform: scaleX(var(--s, 1)); transform-origin: left center; }
@@ -361,16 +361,17 @@
 .foot nav a { display: inline-flex; align-items: center; min-height: 48px; padding: 0 8px; }
 
 @media (min-width: 900px) {
-  .heroTop { grid-template-columns: 1.5fr 1fr; gap: 50px; align-items: stretch; }
-  /* B24 (zoom): nothing in the hero is absolutely placed any more. Chat bubbles and the seal share the first row, the
-     paragraph, the buttons and the login note follow in normal flow, so large text only makes the column taller. */
-  .side { grid-template-columns: minmax(0, 1fr) auto; grid-template-rows: auto 1fr auto auto auto; align-items: start; column-gap: 16px; }
+  /* B25: the two hero columns sit as ONE centred cluster. The title column is as wide as its text (up to 58%), the right
+     column is 30rem at most, and the gap between them is fixed on the scale (48 to 96px): on a wide screen the right
+     column starts right after the title instead of drifting to the far edge. */
+  .heroTop { grid-template-columns: fit-content(58%) minmax(0, 30rem); column-gap: clamp(48px, 6vw, 96px); row-gap: 0; justify-content: center; align-items: stretch; }
+  /* The right column is a stack in normal flow (B24: nothing absolute), centred against the title so the space above the
+     chat cluster and below the login note is the same. */
+  .side { grid-template-columns: minmax(0, 1fr) auto; align-content: center; align-items: start; row-gap: 24px; column-gap: 16px; }
   .side > :not(.bubbles):not(.badge) { grid-column: 1 / -1; }
-  .side > p:not(.ctaNote) { grid-row: 3; }
-  .side > .ctaPair { grid-row: 4; }
-  .side > .ctaNote { grid-row: 5; }
   .bubbles { grid-column: 1; grid-row: 1; display: grid; gap: 12px; justify-items: start; min-width: 0; margin: 0; padding: 0; list-style: none; }
   .badge { grid-column: 2; grid-row: 1; align-self: start; }
+  .side > .ctaNote { margin-top: -8px; }
   .storyGrid { grid-template-columns: 1fr 1.05fr; }
   .slipCol { grid-column: 2; grid-row: 1; top: 22vh; padding: 0; }
   .steps { grid-column: 1; grid-row: 1; }
