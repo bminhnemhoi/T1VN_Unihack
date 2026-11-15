@@ -31,8 +31,12 @@ export interface SampleCircle {
   role: 'organizer' | 'member';
   /** `cancelled`: never started (not enough people before the deadline). `unwound`: stopped by the admin after a 48 h pause. Neither is "done". */
   state: 'active' | 'forming' | 'completed' | 'cancelled' | 'unwound';
-  /** Cancelled or unwound circles: the organizer still has bond to withdraw (docs/03 section 5.1 step 6). */
+  /** Cancelled circle: the organizer still has bond to withdraw (docs/03 section 5.1 step 6). */
   bondLeft?: boolean;
+  /** The bond the organizer can still get back or put to use, in base units (chain data of the organizer's own circle). */
+  bondUnits?: bigint;
+  /** Gathering circle past its join deadline that nobody has cancelled yet. */
+  expired?: boolean;
   round: number;
   n: number;
   contribution: bigint;

@@ -76,4 +76,19 @@ describe('adapter', () => {
     expect(toSampleCircle({ ...cancelled, state: 'unwound' } as unknown as CircleView, ORG, 1000).state).toBe('unwound');
     expect(toSampleCircle({ ...view(), state: 'completed' } as unknown as CircleView, ORG, 1000).state).toBe('completed');
   });
+  it('bond and expiry feed the delete flow (B25): only the organizer sees a bond, only a cancelled circle offers withdrawal', () => {
+    const cancelled = { ...view(), state: 'cancelled', settledRounds: 0, currentRound: 1, rounds: [], bondRemaining: 480n * U } as unknown as CircleView;
+    expect(toSampleCircle(cancelled, ORG, 1000)).toMatchObject({ bondLeft: true, bondUnits: 480n * U });
+    expect(toSampleCircle(cancelled, A(2), 1000).bondUnits).toBeUndefined();
+    // a stopped circle: the factory already paid the bond out, so there is nothing to withdraw
+    const unwound = { ...cancelled, state: 'unwound' } as unknown as CircleView;
+    expect(toSampleCircle(unwound, ORG, 1000).bondLeft).toBeUndefined();
+    // gathering circle past its deadline, nobody cancelled: the organizer may cancel it and take the bond back
+    const gathering = { ...view(), state: 'forming', settledRounds: 0, currentRound: 1, rounds: [], members: [], params: { N: 3, C: 10n * U, joinDeadline: 500 }, bondRemaining: 48n * U } as unknown as CircleView;
+    const mine = toSampleCircle(gathering, ORG, 1000);
+    expect(mine).toMatchObject({ state: 'forming', expired: true, bondUnits: 48n * U, action: 'Hủy dây', secondsLeft: 0 });
+    expect(mine.todo).toContain('Hết hạn gom người');
+    expect(toSampleCircle(gathering, ORG, 400).expired).toBeUndefined(); // still inside the deadline
+    expect(toSampleCircle(gathering, A(2), 1000)).toMatchObject({ expired: true, role: 'member' });
+  });
 });
