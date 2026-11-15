@@ -66,4 +66,45 @@ test.describe('zoom and text size', () => {
     expect(r.scrollW).toBeLessThanOrEqual(r.viewW + 1);
     await ctx.close();
   });
+
+  // B24 bug 4: logo, DEMO chip and the account strip share ONE row on phones. The sample build has no Privy session, so the
+  // strip is dressed like a signed-in one (address, balance, sign out) with the longest balance the chip can show.
+  for (const width of [360, 375, 390, 414]) {
+    test(`phone top bar is one row at ${width}px, tap targets stay 44px`, async ({ page }) => {
+      await page.setViewportSize({ width, height: 800 });
+      await page.goto('/circles');
+      await page.waitForLoadState('networkidle');
+      await page.evaluate(() => {
+        const acct = document.querySelector('.acct')!;
+        const login = [...acct.children].find((e) => e.getAttribute('aria-label') === 'Đăng nhập')!;
+        const addr = document.createElement('button');
+        addr.type = 'button';
+        addr.className = 'mono';
+        addr.setAttribute('data-testid', 'wallet-address');
+        addr.innerHTML = '<span class="lbl">0x6e55…5A63</span>';
+        const bal = document.createElement('a');
+        bal.href = '/cai-dat#so-du';
+        bal.className = 'bal mono';
+        bal.innerHTML = '<span class="bFull">1.234,56 USDC</span><span class="bShort" aria-hidden="true">1.234 USDC</span>';
+        const out = document.createElement('button');
+        out.type = 'button';
+        out.setAttribute('aria-label', 'Đăng xuất');
+        out.innerHTML = login.innerHTML;
+        acct.replaceChild(out, login);
+        acct.insertBefore(bal, out);
+        acct.insertBefore(addr, bal);
+      });
+      const m = await page.evaluate(() => {
+        const top = document.querySelector('.top')!;
+        const items = [...top.querySelectorAll('.logo, [data-testid=demo-chip], .acct > *')].filter((e) => e.getBoundingClientRect().width > 0);
+        const centres = items.map((e) => Math.round(e.getBoundingClientRect().top + e.getBoundingClientRect().height / 2));
+        const targets = [...top.querySelectorAll('.acct > *')].filter((e) => e.getBoundingClientRect().width > 0).map((e) => e.getBoundingClientRect());
+        return { spread: Math.max(...centres) - Math.min(...centres), height: Math.round(top.getBoundingClientRect().height), minTarget: Math.min(...targets.map((r) => Math.min(r.width, r.height))), right: Math.max(...items.map((e) => e.getBoundingClientRect().right)) };
+      });
+      expect(m.spread, 'every item is on the same row').toBeLessThanOrEqual(2);
+      expect(m.height, 'the bar is one row tall').toBeLessThanOrEqual(64);
+      expect(m.minTarget).toBeGreaterThanOrEqual(44);
+      expect(m.right, 'nothing runs past the right gutter').toBeLessThanOrEqual(width - 15);
+    });
+  }
 });

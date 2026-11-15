@@ -100,7 +100,7 @@ test.describe('S01 / landing', () => {
     await expect(story).toContainText('Một kỳ hụi trên blockchain');
     await expect(story).toContainText('Cuộn xuống để xem kỳ 2 của dây mẫu Tổ dân phố 7, từ lúc nộp thăm tới lúc chi tiền.');
     await expect(story.getByRole('heading', { level: 3 })).toHaveText(['Bạn ghi số tiền muốn bớt, rồi niêm phong.', 'Hết giờ nộp, mọi người mở thăm.', 'Gom tiền và chi trong cùng một giao dịch.']);
-    await expect(story).toContainText('rồi băm thành một mã (keccak256). Lên chuỗi chỉ có mã đó.');
+    await expect(story).toContainText('rồi băm thành một hash (keccak256). On-chain chỉ có hash đó.');
     await expect(story).toContainText('Không bốc thăm, không ai chọn hộ.');
     await expect(story).toContainText('Sau giao dịch, hợp đồng chỉ còn giữ ký quỹ, tiền giữ lại và quỹ dự phòng.');
   });
@@ -137,10 +137,15 @@ test.describe('S01 / landing', () => {
       'Tiền góp bằng USDC',
       'Đăng nhập không cần ví crypto',
       'Thăm kín bằng commit-reveal',
-      'Kiểm thử và kiểm toán',
+      'Kiểm thử và kiểm toán (audit)',
       'Trợ lý AI chỉ tính, không ký',
     ]);
-    await expect(tech).toContainText('632 bài test Foundry, trong đó 54 bất biến về tiền được kiểm bằng fuzzing.');
+    await expect(tech).toContainText('632 bài test Foundry, trong đó 54 invariant về tiền (điều kiện về tiền luôn phải đúng) được kiểm bằng fuzz test.');
+    // B24: a text partner strip under the title (names only, no logos) and one "why we chose it" line per card.
+    await expect(tech.getByRole('list', { name: 'Công nghệ và đối tác' }).getByRole('listitem')).toHaveText(['Avalanche', 'Circle USDC', 'Privy', 'OpenZeppelin', 'Foundry']);
+    await expect(tech.getByText('Vì sao chọn')).toHaveCount(6);
+    await expect(tech).toContainText('Giao dịch chốt sau khoảng 1-2 giây');
+    await expect(tech.locator('img')).toHaveCount(0);
     // The factory link needs a deployment to take the address from; this build has none (sample data), so no link and no invented address.
     await expect(tech.getByRole('link', { name: /factory contract trên Snowtrace/ })).toHaveCount(0);
     await expect(tech).toContainText('Dự thi Avalanche Team1 Vietnam UniHack 2026, nhánh Social finance.');
