@@ -45,7 +45,7 @@ test.describe('S01 / landing', () => {
     const bid = page.getByLabel(/Thăm kỳ 1/);
     await expect(page.getByTestId('lp-payout')).toHaveText('288,48');
     await bid.fill('7');
-    await expect(page.getByText('Vượt trần 6,575342 USDC: hợp đồng không cho mở thăm này.')).toBeVisible();
+    await expect(page.getByText('Vượt trần 6,575342 USDC: smart contract không cho mở thăm này.')).toBeVisible();
     await expect(page.getByTestId('lp-payout')).toHaveCount(0);
     await bid.fill('6,575342');
     await expect(page.getByText(/Hợp lệ\. Mỗi người còn lại bớt 6,575342 USDC\./)).toBeVisible();
@@ -96,7 +96,7 @@ test.describe('S01 / landing', () => {
   test('B23 one kỳ: label, title and the three steps in the brief\'s words', async ({ page }) => {
     await openStill(page);
     const story = page.locator('[data-lp-story]');
-    await expect(story.getByRole('heading', { level: 2 })).toHaveText('Một kỳ hụi chạy thế nào trên chuỗi');
+    await expect(story.getByRole('heading', { level: 2 })).toHaveText('Một kỳ hụi chạy thế nào on-chain');
     await expect(story).toContainText('Một kỳ hụi trên blockchain');
     await expect(story).toContainText('Cuộn xuống để xem kỳ 2 của dây mẫu Tổ dân phố 7, từ lúc nộp thăm tới lúc chi tiền.');
     await expect(story.getByRole('heading', { level: 3 })).toHaveText(['Bạn ghi số tiền muốn bớt, rồi niêm phong.', 'Hết giờ nộp, mọi người mở thăm.', 'Gom tiền và chi trong cùng một giao dịch.']);
@@ -108,7 +108,7 @@ test.describe('S01 / landing', () => {
   test('B23 situations: five index chips jump to their cards, the cards carry the new labels and words', async ({ page }) => {
     await openStill(page);
     const section = page.locator('#tinh-huong');
-    await expect(section.getByRole('heading', { level: 2 })).toHaveText('Gặp chuyện thì hợp đồng xử lý ra sao');
+    await expect(section.getByRole('heading', { level: 2 })).toHaveText('Gặp chuyện thì smart contract xử lý ra sao');
     const chips = section.getByRole('list', { name: 'Chọn một tình huống để xem' }).getByRole('link');
     await expect(chips).toHaveText(['Muốn hốt sớm?', 'Có người hốt rồi bỏ đóng?', 'Dây có an toàn không?', 'Lỡ trễ một kỳ?', 'Chủ hụi gian lận được không?']);
     for (const [i, id] of ['th-hot-som', 'th-bo-dong', 'th-an-toan', 'th-tre-ky', 'th-chu-hui'].entries()) {

@@ -32,13 +32,13 @@ const STEPS = [
     n: 1,
     label: '01 · Nộp thăm kín',
     title: 'Bạn ghi số tiền muốn bớt, rồi niêm phong.',
-    body: 'Trình duyệt trộn số tiền với một chuỗi bí mật chỉ máy bạn giữ, rồi băm thành một mã (keccak256). Lên chuỗi chỉ có mã đó. Chủ hụi, người chơi khác và cả đội HụiSafe đều không đọc được bạn bỏ bao nhiêu.',
+    body: 'Trình duyệt trộn số tiền với một chuỗi bí mật (salt) chỉ máy bạn giữ, rồi băm thành một hash (keccak256). On-chain chỉ có hash đó. Chủ hụi, người chơi khác và cả đội HụiSafe đều không đọc được bạn bỏ bao nhiêu.',
   },
   {
     n: 2,
     label: '02 · Mở thăm',
     title: 'Hết giờ nộp, mọi người mở thăm.',
-    body: 'Bạn gửi lại số tiền cùng chuỗi bí mật; hợp đồng băm lại và đối chiếu với mã đã niêm phong, sai một chữ số là không mở được. Thăm cao nhất thắng. Bằng nhau thì người ít lần trễ hơn thắng, rồi tới người nộp sớm hơn. Không bốc thăm, không ai chọn hộ.',
+    body: 'Bạn gửi lại số tiền cùng salt; smart contract băm lại và đối chiếu với hash đã niêm phong, sai một chữ số là không mở được. Thăm cao nhất thắng. Bằng nhau thì người ít lần trễ hơn thắng, rồi tới người nộp sớm hơn. Không bốc thăm, không ai chọn hộ.',
   },
   {
     n: 3,
@@ -78,7 +78,7 @@ const SHEETS = [
       ['Kỳ 1', 'Người vào đầu tiên hốt', '15,60'],
       ['Kỳ 2', 'Người thứ hai hốt', '17,60'],
       ['Kỳ 3', 'Người cuối hốt, nhận lại tiền giữ lại', '19,60'],
-      ['Kết', 'Tất toán, số dư hợp đồng về 0', '0,00'],
+      ['Kết', 'Tất toán, số dư smart contract về 0', '0,00'],
     ],
   },
 ];
@@ -279,7 +279,7 @@ export function Landing({ sample, factory }: { sample: boolean; factory?: `0x${s
                     </svg>
                   </div>
                   <p data-lp-side>
-                    HụiSafe đưa luật của một dây hụi vào smart contract trên blockchain Avalanche. Tiền góp ở trong ví bạn tới đúng lúc chi; chủ hụi không giữ đồng nào nhưng phải khóa ký quỹ để bảo lãnh. Ai bỏ đóng, hợp đồng lấy ký quỹ bù ngay, không cần ai đồng ý.
+                    HụiSafe đưa luật của một dây hụi vào smart contract trên blockchain Avalanche. Tiền góp ở trong ví (wallet) của bạn tới đúng lúc chi; chủ hụi không giữ đồng nào nhưng phải khóa ký quỹ để bảo lãnh. Ai bỏ đóng, hợp đồng lấy ký quỹ bù ngay, không cần ai đồng ý.
                   </p>
                   <div className={s.ctaPair} data-lp-side>
                     <Link className={`${s.btn} ${s.lime}`} href={APP}>
@@ -346,7 +346,7 @@ export function Landing({ sample, factory }: { sample: boolean; factory?: `0x${s
             <div className={s.wrap}>
               <div className={s.head} data-lp-head>
                 <p className={s.label}>Một kỳ hụi trên blockchain</p>
-                <h2 id="lp-story-h">Một kỳ hụi chạy thế nào trên chuỗi</h2>
+                <h2 id="lp-story-h">Một kỳ hụi chạy thế nào on-chain</h2>
                 <p>Cuộn xuống để xem kỳ 2 của dây mẫu Tổ dân phố 7, từ lúc nộp thăm tới lúc chi tiền.</p>
               </div>
               <div className={s.storyGrid}>
@@ -367,7 +367,7 @@ export function Landing({ sample, factory }: { sample: boolean; factory?: `0x${s
                         </div>
                       </div>
                       <div className={s.cover} aria-hidden>
-                        <span className={s.coverNote}>Kỳ 2 · niêm phong trên chuỗi</span>
+                        <span className={s.coverNote}>Kỳ 2 · niêm phong on-chain</span>
                         <span className={s.coverNote}>M1</span>
                       </div>
                       <div className={s.flap} aria-hidden>
@@ -406,7 +406,7 @@ export function Landing({ sample, factory }: { sample: boolean; factory?: `0x${s
             <div className={s.wrap}>
               <div className={s.head} data-lp-head>
                 <p className={s.label}>Tình huống thường gặp</p>
-                <h2 id="lp-bento-h">Gặp chuyện thì hợp đồng xử lý ra sao</h2>
+                <h2 id="lp-bento-h">Gặp chuyện thì smart contract xử lý ra sao</h2>
                 <p>Số liệu từ dây mẫu 5 người, mỗi kỳ góp 100 USDC. Ô nào cũng bấm hoặc gõ thử được; phép tính dùng đúng công thức của smart contract.</p>
               </div>
               <ul className={s.chips} aria-label="Chọn một tình huống để xem">
@@ -555,7 +555,7 @@ export function Landing({ sample, factory }: { sample: boolean; factory?: `0x${s
 
           <section className={s.closing} aria-labelledby="lp-close-h">
             <div className={s.wrap}>
-              <p className={s.label}>Hụi của xóm, sổ của chuỗi</p>
+              <p className={s.label}>Hụi của xóm, sổ on-chain</p>
               <h2 id="lp-close-h" data-lp-close>
                 {CLOSE.map(([w, em]) => (
                   <Fragment key={w}>

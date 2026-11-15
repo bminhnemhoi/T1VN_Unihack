@@ -130,8 +130,8 @@ export function CreateCircle() {
           </div>
           <h1 tabIndex={-1}>Gửi đường dẫn mời cho {n - 1} người còn lại.</h1>
           <p className="sub">
-            Đủ người thì bạn bấm &quot;Bắt đầu dây&quot;. Ký quỹ {f(bond)} USDC khóa trong hợp đồng, bạn không rút được cho tới khi dây kết thúc.
-            {chain ? '' : ' Bản xem thử: chưa gửi gì lên chuỗi.'}
+            Đủ người thì bạn bấm &quot;Bắt đầu dây&quot;. Ký quỹ {f(bond)} USDC khóa trong smart contract, bạn không rút được cho tới khi dây kết thúc.
+            {chain ? '' : ' Bản xem thử: chưa gửi gì lên blockchain.'}
           </p>
           <TxNote t={t} ok="Đã xác nhận trên Fuji." />
         </div>

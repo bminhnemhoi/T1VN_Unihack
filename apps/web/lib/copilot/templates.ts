@@ -14,7 +14,7 @@ interface SimRunLike {
 
 const DESIGN_NAME: Record<string, string> = {
   traditional: 'hụi truyền thống',
-  naive_onchain: 'hụi trên chuỗi đơn giản',
+  naive_onchain: 'hụi on-chain đơn giản',
   huisafe: 'HụiSafe',
 };
 
@@ -77,7 +77,7 @@ export function refusalAnswer(kind: 'action' | 'model'): CopilotAnswer {
   if (kind === 'action') {
     return {
       answer:
-        'Mình không thể chuyển tiền, bỏ thăm, ký hay gọi hàm hợp đồng thay bạn. Bạn hãy bấm nút tương ứng trong ứng dụng. Mình có thể giúp tính rủi ro, ký quỹ, trần thăm hoặc giải thích quy tắc.\n' +
+        'Mình không thể chuyển tiền, bỏ thăm, ký hay gọi hàm smart contract thay bạn. Bạn hãy bấm nút tương ứng trong ứng dụng. Mình có thể giúp tính rủi ro, ký quỹ, trần thăm hoặc giải thích quy tắc.\n' +
         DISCLAIMER,
       figures: [],
       citations: [],

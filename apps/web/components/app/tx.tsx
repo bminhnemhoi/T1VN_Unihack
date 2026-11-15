@@ -48,7 +48,7 @@ export function useStepTx(): StepTx {
             setSim({ busy: true, step: i });
             await wait(d[i]!);
             if (net === 'fail' && i === 1) {
-              setSim({ busy: false, step: 1, err: opts.failText ?? 'Gửi không được vì mạng lỗi. Lệnh chưa lên chuỗi, bạn chưa mất gì.' });
+              setSim({ busy: false, step: 1, err: opts.failText ?? 'Gửi không được vì mạng lỗi. Lệnh chưa lên blockchain, bạn chưa mất gì.' });
               return false;
             }
           }

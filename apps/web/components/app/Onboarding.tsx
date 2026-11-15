@@ -173,7 +173,7 @@ function Guide({ address, onChain }: { address: `0x${string}` | undefined; onCha
           <ul className={s.rows}>
             {[
               [<ArrowRightLeft key="a" aria-hidden />, 'Không ai cầm tiền', 'tiền góp đi thẳng từ ví người góp sang ví người hốt trong một giao dịch.'],
-              [<Lock key="b" aria-hidden />, 'Thăm kín thật', 'lá thăm được niêm phong trên chuỗi, tới giờ mới mở, không ai đọc trộm được.'],
+              [<Lock key="b" aria-hidden />, 'Thăm kín thật', 'lá thăm được niêm phong on-chain, tới giờ mới mở, không ai đọc trộm được.'],
               [<Wallet key="c" aria-hidden />, 'Không cần AVAX', 'đăng nhập bằng Google hoặc email là có ví, phí mạng do HụiSafe trả.'],
             ].map(([icon, head, rest]) => (
               <li key={head as string}>

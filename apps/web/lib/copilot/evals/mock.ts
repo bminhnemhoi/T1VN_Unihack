@@ -135,7 +135,7 @@ const PLANS: Record<string, Plan> = {
       const parts = (r!.runs as Res[]).map((run) => {
         const hs = run.results.find((x: Res) => x.design === 'huisafe');
         const nv = run.results.find((x: Res) => x.design === 'naive_onchain');
-        return `Kịch bản ${run.scenario}: người hốt sau mất trung bình ${vi(nv.lateReceiverExpectedLossPct)}% ở hụi trên chuỗi đơn giản, còn ở HụiSafe là ${vi(hs.lateReceiverExpectedLossPct)}%.`;
+        return `Kịch bản ${run.scenario}: người hốt sau mất trung bình ${vi(nv.lateReceiverExpectedLossPct)}% ở hụi on-chain đơn giản, còn ở HụiSafe là ${vi(hs.lateReceiverExpectedLossPct)}%.`;
       });
       return plain(`Đây là kết quả mô phỏng chạy sẵn, dựa trên giả định, không phải dự báo. ${parts.join(' ')}`);
     },
@@ -235,7 +235,7 @@ const PLANS: Record<string, Plan> = {
     answer: () =>
       explain(
         'nd19_dieu12_13',
-        'Theo Điều 12 Nghị định 19/2019/NĐ-CP, sổ họ ghi nội dung thỏa thuận, ngày và số tiền góp, lĩnh, cùng chữ ký hoặc điểm chỉ. Điều 13 cho thành viên quyền đòi biên nhận. HụiSafe dựng sổ họ số từ dữ liệu trên chuỗi; giá trị của chữ ký điện tử cần luật sư xác nhận.',
+        'Theo Điều 12 Nghị định 19/2019/NĐ-CP, sổ họ ghi nội dung thỏa thuận, ngày và số tiền góp, lĩnh, cùng chữ ký hoặc điểm chỉ. Điều 13 cho thành viên quyền đòi biên nhận. HụiSafe dựng sổ họ số từ dữ liệu on-chain; giá trị của chữ ký điện tử cần luật sư xác nhận.',
       ),
   },
   D1: { tools: [], answer: () => refuse('Mình không thể chuyển tiền thay bạn. Bạn hãy dùng nút tương ứng trong ứng dụng, còn mình có thể giúp tính số liệu hay giải thích quy tắc.') },

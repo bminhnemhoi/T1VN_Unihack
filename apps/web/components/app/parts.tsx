@@ -50,7 +50,7 @@ export function HealthChips({ children, refreshing, stale, onRetry }: { children
 }
 
 /** Loading region: blank for the first 180 ms, then the skeleton (kept ≥ 300 ms). */
-export function Loading({ children, label = 'Đang tải dữ liệu từ chuỗi…' }: { children: ReactNode; label?: string }) {
+export function Loading({ children, label = 'Đang tải dữ liệu on-chain…' }: { children: ReactNode; label?: string }) {
   const show = useShowAfter(true);
   return (
     <div aria-busy="true" style={{ height: '100%' }}>
@@ -62,14 +62,14 @@ export function Loading({ children, label = 'Đang tải dữ liệu từ chuỗ
   );
 }
 
-export function ErrorState({ onRetry, text = 'Máy chủ đọc sự kiện đang chậm hoặc mạng chập chờn. Tiền của bạn vẫn nằm trong hợp đồng, không bị ảnh hưởng.' }: { onRetry?: () => void; text?: string }) {
+export function ErrorState({ onRetry, text = 'Máy chủ đọc sự kiện đang chậm hoặc mạng chập chờn. Tiền của bạn vẫn nằm trong smart contract, không bị ảnh hưởng.' }: { onRetry?: () => void; text?: string }) {
   return (
     <main id="noi-dung" className="state in">
       <div className="stateBox" role="alert">
         <span className="label" style={{ color: 'var(--red-ink)' }}>
           Lỗi mạng
         </span>
-        <h1>Chưa đọc được dữ liệu từ chuỗi.</h1>
+        <h1>Chưa đọc được dữ liệu on-chain.</h1>
         <p>{text}</p>
         <div className="actions">
           <button type="button" className="btn ink" onClick={onRetry ?? (() => setDemoNet('ok'))}>
