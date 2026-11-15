@@ -548,7 +548,7 @@ function BidNow({ c, k, phase, maxBid, bidText, setBidText, run, setRun, stamp, 
     ) : (
       <TxButton t={t} label="Niêm phong thăm" retryLabel="Gửi lại thăm" onRun={(r) => void seal(r)} disabled={!!err || !!blocker} />
     );
-    note = blocker ?? (sealed ? (live ? 'Hết giờ nộp thì mở thăm. Muốn đổi số, nộp lại trước khi hết giờ (cọc giữ nguyên).' : 'Hết giờ nộp thì mở thăm. Bấm "Tua nhanh" để đi tiếp.') : `Thăm được gửi lên chuỗi dạng mã niêm phong. Kèm cọc mở thăm ${f((C * 100n) / 10_000n)} USDC, trả lại khi bạn mở.`);
+    note = blocker ?? (sealed ? (live ? 'Hết giờ nộp thì mở thăm. Muốn đổi số, nộp lại trước khi hết giờ (cọc giữ nguyên).' : 'Hết giờ nộp thì mở thăm. Bấm "Tua nhanh" để đi tiếp.') : `Thăm được gửi on-chain dưới dạng hash niêm phong. Kèm cọc mở thăm ${f((C * 100n) / 10_000n)} USDC, trả lại khi bạn mở.`);
   } else if (phase === 'reveal') {
     stampEl = (
       <div className={`stamp${revealed ? ' on' : ''}${revealed && stamp ? ' land' : ''}`}>

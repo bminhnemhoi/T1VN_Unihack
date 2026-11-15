@@ -168,7 +168,7 @@ async function relayOnce(
     receipt = await ctx.chain.client.waitForTransactionReceipt({ hash: sent.txHash });
   } catch {
     // Sent but no receipt yet (audit B22 I-01): a resend could duplicate it, so the button offers a reload, not a resend.
-    return fail('ReceiptTimeout', 'Giao dịch đã gửi nhưng chưa có xác nhận. Đừng gửi lại: tải lại trang để xem kết quả trên chuỗi.');
+    return fail('ReceiptTimeout', 'Giao dịch đã gửi nhưng chưa có xác nhận. Đừng gửi lại: tải lại trang để xem kết quả on-chain.');
   }
   if (receipt.status !== 'success') return fail('Reverted', 'Giao dịch bị từ chối trên mạng.');
   const ok: TxSuccess & { receipt: typeof receipt } = {
@@ -324,7 +324,7 @@ export function commitBid(ctx: TxContext, circle: Address, round: number, bid: b
       const onchain = await readCircleFn<{ hash: Hex }>(ctx, circle, 'commitOf', [round, member]);
       const mine = onchain.hash !== ZERO_HASH && (await store.get(candidateKey(circle, round, member, onchain.hash)).catch(() => undefined));
       if (mine) {
-        return fail('AlreadyCommitted', 'Thăm của bạn đã lên chuỗi ở lần gửi trước, nên không gửi lại để giữ thứ tự nộp. Tải lại trang để thấy phong bì đã niêm phong.');
+        return fail('AlreadyCommitted', 'Thăm của bạn đã lên blockchain ở lần gửi trước, nên không gửi lại để giữ thứ tự nộp. Tải lại trang để thấy phong bì đã niêm phong.');
       }
     }
     const [params, max, current, phase] = await Promise.all([

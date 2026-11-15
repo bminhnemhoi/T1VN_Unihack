@@ -92,7 +92,7 @@ test.describe('/circles/demo (Dây)', () => {
     await expect(page.getByRole('button', { name: 'Chưa cập nhật được · Thử lại' })).toBeVisible();
     await page.getByLabel('Thăm của bạn (số tiền bớt cho mọi người)').fill('3');
     await page.getByRole('button', { name: 'Niêm phong thăm' }).click();
-    await expect(page.getByRole('alert').filter({ hasText: 'Lệnh chưa lên chuỗi, bạn chưa mất gì' })).toBeVisible();
+    await expect(page.getByRole('alert').filter({ hasText: 'Lệnh chưa lên blockchain, bạn chưa mất gì' })).toBeVisible();
     await expect(page.locator('.slip .stamp.on')).toHaveCount(0);
     await page.getByRole('button', { name: 'Gửi lại thăm' }).click();
     await expect(page.locator('.slip .stamp.on')).toContainText('ĐÃ NIÊM PHONG');

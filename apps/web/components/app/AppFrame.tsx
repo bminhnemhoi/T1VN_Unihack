@@ -16,6 +16,7 @@ import { useHuiWallet } from '@/lib/chain/walletProvider';
 import { tabOf, useCurrentCircle, type AppTab } from '@/lib/current-circle';
 import { shortAddress } from '@/lib/live/circleData';
 import { useWalletBalance } from '@/lib/live/useWalletBalance';
+import { formatUsdc } from 'sdk';
 import { formatCents } from '@/lib/money';
 
 /**
@@ -160,7 +161,18 @@ function WalletBalanceChip({ owner }: { owner: `0x${string}` }) {
       aria-label={data ? `Số dư ví: ${text}. Xem chi tiết` : text}
       title={isError ? 'Không đọc được số dư từ mạng Fuji, sẽ thử lại' : 'Số dư USDC của ví. Bấm để xem chi tiết'}
     >
-      {data ? text : isError ? '–' : '…'}
+      {data ? (
+        <>
+          <span className="bFull">{text}</span>
+          <span className="bShort" aria-hidden>
+            {formatUsdc(data.usdc - (data.usdc % 1_000_000n))}
+          </span>
+        </>
+      ) : isError ? (
+        '–'
+      ) : (
+        '…'
+      )}
     </Link>
   );
 }

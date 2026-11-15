@@ -83,7 +83,7 @@ test.describe('/circles (Tổng quan)', () => {
     await demoClick(page, /^Thử:/); // lỗi mạng: what is on screen stays, marked stale
     await expect(page.getByRole('button', { name: 'Chưa cập nhật được · Thử lại' })).toBeVisible();
     await page.getByRole('link', { name: 'Sổ hụi' }).click();
-    await expect(page.getByRole('heading', { name: 'Chưa đọc được dữ liệu từ chuỗi.' })).toBeVisible({ timeout: 5000 });
+    await expect(page.getByRole('heading', { name: 'Chưa đọc được dữ liệu on-chain.' })).toBeVisible({ timeout: 5000 });
     await page.getByRole('button', { name: 'Thử lại' }).click();
     await expect(page.getByRole('heading', { name: 'Kỳ × thành viên' })).toBeVisible();
   });

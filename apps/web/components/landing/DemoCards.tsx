@@ -24,7 +24,7 @@ export function BidCalc() {
         {q.ok
           ? `Hợp lệ. Mỗi người còn lại bớt ${formatUsdcNumber(q.bid)} USDC.`
           : q.reason === 'cap'
-            ? `Vượt trần ${cap} USDC: hợp đồng không cho mở thăm này.`
+            ? `Vượt trần ${cap} USDC: smart contract không cho mở thăm này.`
             : 'Nhập số, tối đa 6 chữ số sau dấu phẩy.'}
       </p>
       {q.ok && (

@@ -29,7 +29,10 @@ export interface SampleCircle {
   id: string;
   label: string;
   role: 'organizer' | 'member';
-  state: 'active' | 'forming' | 'completed';
+  /** `cancelled`: never started (not enough people before the deadline). `unwound`: stopped by the admin after a 48 h pause. Neither is "done". */
+  state: 'active' | 'forming' | 'completed' | 'cancelled' | 'unwound';
+  /** Cancelled or unwound circles: the organizer still has bond to withdraw (docs/03 section 5.1 step 6). */
+  bondLeft?: boolean;
   round: number;
   n: number;
   contribution: bigint;

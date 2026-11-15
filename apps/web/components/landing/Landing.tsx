@@ -32,13 +32,13 @@ const STEPS = [
     n: 1,
     label: '01 · Nộp thăm kín',
     title: 'Bạn ghi số tiền muốn bớt, rồi niêm phong.',
-    body: 'Trình duyệt trộn số tiền với một chuỗi bí mật chỉ máy bạn giữ, rồi băm thành một mã (keccak256). Lên chuỗi chỉ có mã đó. Chủ hụi, người chơi khác và cả đội HụiSafe đều không đọc được bạn bỏ bao nhiêu.',
+    body: 'Trình duyệt trộn số tiền với một chuỗi bí mật (salt) chỉ máy bạn giữ, rồi băm thành một hash (keccak256). On-chain chỉ có hash đó. Chủ hụi, người chơi khác và cả đội HụiSafe đều không đọc được bạn bỏ bao nhiêu.',
   },
   {
     n: 2,
     label: '02 · Mở thăm',
     title: 'Hết giờ nộp, mọi người mở thăm.',
-    body: 'Bạn gửi lại số tiền cùng chuỗi bí mật; hợp đồng băm lại và đối chiếu với mã đã niêm phong, sai một chữ số là không mở được. Thăm cao nhất thắng. Bằng nhau thì người ít lần trễ hơn thắng, rồi tới người nộp sớm hơn. Không bốc thăm, không ai chọn hộ.',
+    body: 'Bạn gửi lại số tiền cùng salt; smart contract băm lại và đối chiếu với hash đã niêm phong, sai một chữ số là không mở được. Thăm cao nhất thắng. Bằng nhau thì người ít lần trễ hơn thắng, rồi tới người nộp sớm hơn. Không bốc thăm, không ai chọn hộ.',
   },
   {
     n: 3,
@@ -78,7 +78,7 @@ const SHEETS = [
       ['Kỳ 1', 'Người vào đầu tiên hốt', '15,60'],
       ['Kỳ 2', 'Người thứ hai hốt', '17,60'],
       ['Kỳ 3', 'Người cuối hốt, nhận lại tiền giữ lại', '19,60'],
-      ['Kết', 'Tất toán, số dư hợp đồng về 0', '0,00'],
+      ['Kết', 'Tất toán, số dư smart contract về 0', '0,00'],
     ],
   },
 ];
@@ -92,40 +92,48 @@ const TECH = [
   {
     Icon: FileCode2,
     title: 'Smart contract trên Avalanche C-Chain',
-    text: 'Mỗi dây là một hợp đồng Solidity riêng, tạo từ một hợp đồng nhà máy. Mã nguồn đã verify công khai; ai cũng đọc được luật trên Snowtrace.',
+    text: 'Mỗi dây là một smart contract Solidity riêng, tạo từ một factory contract. Mã nguồn đã verify công khai; ai cũng đọc được luật trên Snowtrace.',
+    why: 'Giao dịch chốt sau khoảng 1-2 giây, phí thấp, và tương thích EVM nên dùng được công cụ Ethereum quen thuộc.',
     link: true,
   },
   {
     Icon: CircleDollarSign,
     title: 'Tiền góp bằng USDC',
-    text: 'Đồng USDC do Circle phát hành, giá trị neo 1:1 với đô la Mỹ. Bản trên Fuji là USDC thử nghiệm, không có giá trị.',
+    text: 'Đồng stablecoin USDC do Circle phát hành, giá trị neo 1:1 với đô la Mỹ. Bản trên Fuji là USDC thử nghiệm (testnet), không có giá trị.',
+    why: 'USDC có permit (EIP-2612), nên vào dây chỉ cần ký một lần.',
     link: false,
   },
   {
     Icon: KeyRound,
     title: 'Đăng nhập không cần ví crypto',
-    text: 'Ví nhúng Privy tạo sẵn khi bạn đăng nhập bằng Google hoặc email. Bạn chỉ ký; phí mạng do máy chủ chuyển tiếp của HụiSafe trả (chuẩn ERC-2771).',
+    text: 'Ví Privy (embedded wallet) được tạo sẵn khi bạn đăng nhập bằng Google hoặc email. Bạn chỉ ký; phí mạng do relayer của HụiSafe trả (chuẩn ERC-2771).',
+    why: 'Đăng nhập Google hoặc email là có ví, người mới không phải học seed phrase.',
     link: false,
   },
   {
     Icon: Lock,
     title: 'Thăm kín bằng commit-reveal',
-    text: 'Nộp mã băm trước, mở số thật sau. Không ai sửa được thăm sau khi đã nộp, cũng không ai đọc được trước giờ mở.',
+    text: 'Nộp hash trước, mở số thật sau. Không ai sửa được thăm sau khi đã nộp, cũng không ai đọc được trước giờ mở.',
+    why: 'Smart contract giữ kín thăm tới giờ mở, nên không cần một người cầm phong bì.',
     link: false,
   },
   {
     Icon: ShieldCheck,
-    title: 'Kiểm thử và kiểm toán',
-    text: '632 bài test Foundry, trong đó 54 bất biến về tiền được kiểm bằng fuzzing. Kiểm toán bảo mật không còn lỗi mức Critical hay High.',
+    title: 'Kiểm thử và kiểm toán (audit)',
+    text: '632 bài test Foundry, trong đó 54 invariant về tiền (điều kiện về tiền luôn phải đúng) được kiểm bằng fuzz test. Audit bảo mật không còn lỗi mức Critical hay High.',
+    why: 'Dùng thư viện OpenZeppelin, đã được audit và dùng rộng rãi; Foundry chạy fuzz và invariant test.',
     link: false,
   },
   {
     Icon: Bot,
     title: 'Trợ lý AI chỉ tính, không ký',
     text: 'Trợ lý chủ hụi dùng hàm tính tất định để trả lời về rủi ro, ký quỹ, trần thăm. Nó không ký giao dịch và không chuyển được tiền.',
+    why: 'Số liệu lấy từ hàm tính của HụiSafe; mô hình AI chỉ viết lời giải thích.',
     link: false,
   },
 ] as const;
+
+const PARTNERS = ['Avalanche', 'Circle USDC', 'Privy', 'OpenZeppelin', 'Foundry'];
 
 const MARQUEE = ['Smart contract trên Avalanche', 'Tiền góp bằng USDC', 'Không ai cầm tiền', 'Sổ hụi công khai'];
 
@@ -246,7 +254,7 @@ export function Landing({ sample, factory }: { sample: boolean; factory?: `0x${s
                   </ul>
                   <div className={s.badge} data-lp-badge role="img" aria-label="Con dấu HụiSafe: bảo chứng 100%, không ai cầm tiền">
                     <div className={s.badgeRing} data-lp-badge-ring>
-                      <svg viewBox="0 0 200 200" aria-hidden>
+                      <svg className={s.spinSvg} viewBox="0 0 200 200" aria-hidden>
                         <defs>
                           <path id="lp-seal-path" d="M100,100 m-78,0 a78,78 0 1,1 156,0 a78,78 0 1,1 -156,0" />
                         </defs>
@@ -258,14 +266,20 @@ export function Landing({ sample, factory }: { sample: boolean; factory?: `0x${s
                         </text>
                       </svg>
                     </div>
-                    <div className={s.core} data-lp-badge-core>
-                      <b>
-                        U<i />
-                      </b>
-                    </div>
+                    {/* The lá thăm logo, in layers so GSAP can seal it once: body slides in, flap folds down, the seal stamps. */}
+                    <svg className={s.logoSvg} data-lp-logo viewBox="160 290 704 452" fill="none" aria-hidden focusable="false">
+                      <g data-lp-env>
+                        <rect x="174" y="304" width="676" height="424" rx="6" fill="#f4f0e8" stroke="currentColor" strokeWidth="14" strokeLinejoin="round" />
+                      </g>
+                      <path data-lp-flap d="M174 430 L212 530 H812 L850 430" stroke="currentColor" strokeWidth="14" strokeLinecap="round" strokeLinejoin="round" />
+                      <g data-lp-stamp>
+                        <circle cx="512" cy="532" r="100" fill="#a1ff62" stroke="currentColor" strokeWidth="12" />
+                        <path d="M482 484 V539 A30 30 0 0 0 542 539 V484" stroke="currentColor" strokeWidth="28" />
+                      </g>
+                    </svg>
                   </div>
                   <p data-lp-side>
-                    HụiSafe đưa luật của một dây hụi vào smart contract trên blockchain Avalanche. Tiền góp ở trong ví bạn tới đúng lúc chi; chủ hụi không giữ đồng nào nhưng phải khóa ký quỹ để bảo lãnh. Ai bỏ đóng, hợp đồng lấy ký quỹ bù ngay, không cần ai đồng ý.
+                    HụiSafe đưa luật của một dây hụi vào smart contract trên blockchain Avalanche. Tiền góp ở trong ví (wallet) của bạn tới đúng lúc chi; chủ hụi không giữ đồng nào nhưng phải khóa ký quỹ để bảo lãnh. Ai bỏ đóng, hợp đồng lấy ký quỹ bù ngay, không cần ai đồng ý.
                   </p>
                   <div className={s.ctaPair} data-lp-side>
                     <Link className={`${s.btn} ${s.lime}`} href={APP}>
@@ -281,7 +295,7 @@ export function Landing({ sample, factory }: { sample: boolean; factory?: `0x${s
                 </div>
               </div>
 
-              <figure className={s.stage} data-lp-stage style={{ marginBlock: 0 }} aria-label="Xem trước web app: phòng bỏ thăm của một dây mẫu">
+              <figure className={s.stage} data-lp-stage aria-label="Xem trước web app: phòng bỏ thăm của một dây mẫu">
                 <div className={s.app}>
                   <div className={s.appBar} aria-hidden>
                     <i />
@@ -332,7 +346,7 @@ export function Landing({ sample, factory }: { sample: boolean; factory?: `0x${s
             <div className={s.wrap}>
               <div className={s.head} data-lp-head>
                 <p className={s.label}>Một kỳ hụi trên blockchain</p>
-                <h2 id="lp-story-h">Một kỳ hụi chạy thế nào trên chuỗi</h2>
+                <h2 id="lp-story-h">Một kỳ hụi chạy thế nào on-chain</h2>
                 <p>Cuộn xuống để xem kỳ 2 của dây mẫu Tổ dân phố 7, từ lúc nộp thăm tới lúc chi tiền.</p>
               </div>
               <div className={s.storyGrid}>
@@ -353,7 +367,7 @@ export function Landing({ sample, factory }: { sample: boolean; factory?: `0x${s
                         </div>
                       </div>
                       <div className={s.cover} aria-hidden>
-                        <span className={s.coverNote}>Kỳ 2 · niêm phong trên chuỗi</span>
+                        <span className={s.coverNote}>Kỳ 2 · niêm phong on-chain</span>
                         <span className={s.coverNote}>M1</span>
                       </div>
                       <div className={s.flap} aria-hidden>
@@ -392,7 +406,7 @@ export function Landing({ sample, factory }: { sample: boolean; factory?: `0x${s
             <div className={s.wrap}>
               <div className={s.head} data-lp-head>
                 <p className={s.label}>Tình huống thường gặp</p>
-                <h2 id="lp-bento-h">Gặp chuyện thì hợp đồng xử lý ra sao</h2>
+                <h2 id="lp-bento-h">Gặp chuyện thì smart contract xử lý ra sao</h2>
                 <p>Số liệu từ dây mẫu 5 người, mỗi kỳ góp 100 USDC. Ô nào cũng bấm hoặc gõ thử được; phép tính dùng đúng công thức của smart contract.</p>
               </div>
               <ul className={s.chips} aria-label="Chọn một tình huống để xem">
@@ -475,17 +489,26 @@ export function Landing({ sample, factory }: { sample: boolean; factory?: `0x${s
                 <p className={s.label}>Chạy bằng gì</p>
                 <h2 id="lp-tech-h">Công nghệ phía sau HụiSafe</h2>
               </div>
-              <ul className={s.techGrid}>
+              <ul className={s.partners} aria-label="Công nghệ và đối tác">
+                {PARTNERS.map((n) => (
+                  <li key={n}>{n}</li>
+                ))}
+              </ul>
+              <ul className={s.techGrid} data-lp-tech>
                 {TECH.map((t) => (
-                  <li key={t.title} className={s.techCard} data-lp-card>
+                  <li key={t.title} className={s.techCard} data-lp-tech-card>
                     <span className={s.techIcon}>
                       <t.Icon aria-hidden />
                     </span>
                     <h3>{t.title}</h3>
                     <p>{t.text}</p>
+                    <p className={s.techWhy}>
+                      <span>Vì sao chọn</span>
+                      {t.why}
+                    </p>
                     {t.link && factory && (
                       <a className={s.techLink} href={fujiAddressUrl(factory)} target="_blank" rel="noopener noreferrer">
-                        Xem hợp đồng nhà máy trên Snowtrace <Arrow dir="↗" />
+                        Xem factory contract trên Snowtrace <Arrow dir="↗" />
                       </a>
                     )}
                   </li>
@@ -532,7 +555,7 @@ export function Landing({ sample, factory }: { sample: boolean; factory?: `0x${s
 
           <section className={s.closing} aria-labelledby="lp-close-h">
             <div className={s.wrap}>
-              <p className={s.label}>Hụi của xóm, sổ của chuỗi</p>
+              <p className={s.label}>Hụi của xóm, sổ on-chain</p>
               <h2 id="lp-close-h" data-lp-close>
                 {CLOSE.map(([w, em]) => (
                   <Fragment key={w}>

@@ -4,6 +4,20 @@ Ghi những gì người dùng và giám khảo thấy được trên web (tính
 
 ## 15/11/2026
 
+### Sửa lỗi
+- Con dấu **ĐÃ TẠO DÂY** không còn bị lẹm mép trái ở màn tạo dây xong.
+- Dây bị hủy (không đủ người trước hạn) không còn hiện "Đã xong". Tổng quan ghi **ĐÃ HỦY**, nêu lý do, nhắc rút ký quỹ nếu còn, và không đếm dây đó vào "Dây đang chơi".
+- Rê chuột vào hàng trong danh sách dây ở Tổng quan không còn tràn ra ngoài góc bo.
+- Thanh trên của app trên điện thoại (360 tới 414px) gọn một hàng: logo, chip DEMO, trợ lý, số dư, đăng xuất, cài đặt. Chip rút thành "DEMO" dưới 400px, số dư hiện số USDC nguyên.
+- Landing và app không còn bị chữ chồng lên nhau khi phóng to trình duyệt (200%, 300%) hay tăng cỡ chữ trình duyệt: bong bóng chat ở hero chảy theo luồng, cỡ chữ landing tính theo rem, thanh điều hướng tự xuống dòng khi chật.
+
+### Thêm: chuyển động ở landing
+- Logo lá thăm ở hero được "niêm phong" một lần khi vào trang: phong bì trượt vào, nắp gập xuống, con dấu xanh cộp xuống (dưới 1 giây). Vòng chữ quanh logo xoay chậm và dừng khi khuất hoặc khi tab ẩn. Giảm chuyển động thì hiện sẵn bản hoàn chỉnh.
+- Sáu thẻ **Công nghệ** hiện lần lượt khi cuộn tới, icon vẽ nét. Có dải tên công nghệ (Avalanche, Circle USDC, Privy, OpenZeppelin, Foundry) và một câu "Vì sao chọn" ở mỗi thẻ.
+
+### Đổi: chữ Việt và Anh cân bằng
+- Thuật ngữ công nghệ giữ tiếng Anh (blockchain, on-chain, smart contract, hash, relayer, wallet), từ vựng hụi giữ tiếng Việt (dây, hốt, bỏ thăm, ký quỹ, kỳ, ân hạn).
+
 ### Thêm: hướng dẫn cho người mới
 - Ngay sau lần đăng nhập đầu tiên, nếu ví chưa ở dây nào, app hỏi hai câu: bạn từng chơi hụi chưa, và bạn vào HụiSafe để làm gì. Người mới nghe tới hụi được xem 4 thẻ giải thích (hụi là gì, bỏ thăm, hụi truyền thống sợ gì, HụiSafe khác ở đâu); người đã chơi xem 3 điểm khác. Cuối cùng là hướng dẫn 4 chỗ chính của app và nút đi tiếp theo câu trả lời: dán link mời, mở dây đầu tiên, hoặc xem dây mẫu.
 - Ví chưa có USDC thử nghiệm thì màn cuối chỉ chỗ lấy miễn phí 20 USDC ở faucet.circle.com.
@@ -26,7 +40,7 @@ Ghi những gì người dùng và giám khảo thấy được trên web (tính
 - Hero nói rõ HụiSafe là hụi chạy bằng smart contract trên Avalanche, và đăng nhập bằng Google hoặc email là đủ, không cần ví crypto hay AVAX.
 - Phần "Một kỳ hụi" giải thích thăm kín được băm rồi mở ra thế nào và kỳ được chốt ra sao.
 - Hàng câu hỏi chuyển xuống thành mục lục bấm được ở phần Tình huống. Các ô tình huống viết lại cho rõ.
-- Phần mới **Công nghệ** (smart contract, USDC, ví nhúng Privy, commit-reveal, test và kiểm toán, trợ lý AI chỉ tính).
+- Phần mới **Công nghệ** (smart contract, USDC, ví Privy, commit-reveal, test và kiểm toán, trợ lý AI chỉ tính).
 - Logo mới: phong bì lá thăm với con dấu xanh chữ U, kèm chữ HụiSafe.
 
 ## 14/11/2026

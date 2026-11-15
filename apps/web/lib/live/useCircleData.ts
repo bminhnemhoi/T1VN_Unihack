@@ -91,7 +91,7 @@ export function useMyCircles(): MyCirclesState {
         if (cell?.kind === 'paid') paidSoFar += cell.amount;
       }
       if (d.winnerByRound.includes(d.viewer)) received++;
-      else if (v.state !== 'forming') waiting++;
+      else if (v.state === 'active' || v.state === 'paused') waiting++;
       const open = d.shortfalls.find((s) => s.member === d.viewer && s.status === 'grace');
       if (open && (!late || (open.graceSecondsLeft ?? 0) < (late.shortfall.graceSecondsLeft ?? 0))) late = { circle: d, shortfall: open };
     });

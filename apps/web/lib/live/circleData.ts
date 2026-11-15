@@ -91,6 +91,7 @@ export function viewToCircleData(v: CircleView, viewer: Address | undefined, now
     terms: termsOf(v),
     state: v.state === 'forming' ? 'forming' : v.state === 'active' || v.state === 'paused' ? 'active' : 'completed',
     ...(v.state === 'paused' ? { paused: true } : {}),
+    ...(v.state === 'cancelled' || v.state === 'unwound' ? { ended: v.state } : {}),
     seats,
     viewer: viewerIdx,
     viewerIsOrganizer,

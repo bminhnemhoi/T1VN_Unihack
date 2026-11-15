@@ -45,7 +45,7 @@ test.describe('S01 / landing', () => {
     const bid = page.getByLabel(/Thăm kỳ 1/);
     await expect(page.getByTestId('lp-payout')).toHaveText('288,48');
     await bid.fill('7');
-    await expect(page.getByText('Vượt trần 6,575342 USDC: hợp đồng không cho mở thăm này.')).toBeVisible();
+    await expect(page.getByText('Vượt trần 6,575342 USDC: smart contract không cho mở thăm này.')).toBeVisible();
     await expect(page.getByTestId('lp-payout')).toHaveCount(0);
     await bid.fill('6,575342');
     await expect(page.getByText(/Hợp lệ\. Mỗi người còn lại bớt 6,575342 USDC\./)).toBeVisible();
@@ -96,11 +96,11 @@ test.describe('S01 / landing', () => {
   test('B23 one kỳ: label, title and the three steps in the brief\'s words', async ({ page }) => {
     await openStill(page);
     const story = page.locator('[data-lp-story]');
-    await expect(story.getByRole('heading', { level: 2 })).toHaveText('Một kỳ hụi chạy thế nào trên chuỗi');
+    await expect(story.getByRole('heading', { level: 2 })).toHaveText('Một kỳ hụi chạy thế nào on-chain');
     await expect(story).toContainText('Một kỳ hụi trên blockchain');
     await expect(story).toContainText('Cuộn xuống để xem kỳ 2 của dây mẫu Tổ dân phố 7, từ lúc nộp thăm tới lúc chi tiền.');
     await expect(story.getByRole('heading', { level: 3 })).toHaveText(['Bạn ghi số tiền muốn bớt, rồi niêm phong.', 'Hết giờ nộp, mọi người mở thăm.', 'Gom tiền và chi trong cùng một giao dịch.']);
-    await expect(story).toContainText('rồi băm thành một mã (keccak256). Lên chuỗi chỉ có mã đó.');
+    await expect(story).toContainText('rồi băm thành một hash (keccak256). On-chain chỉ có hash đó.');
     await expect(story).toContainText('Không bốc thăm, không ai chọn hộ.');
     await expect(story).toContainText('Sau giao dịch, hợp đồng chỉ còn giữ ký quỹ, tiền giữ lại và quỹ dự phòng.');
   });
@@ -108,7 +108,7 @@ test.describe('S01 / landing', () => {
   test('B23 situations: five index chips jump to their cards, the cards carry the new labels and words', async ({ page }) => {
     await openStill(page);
     const section = page.locator('#tinh-huong');
-    await expect(section.getByRole('heading', { level: 2 })).toHaveText('Gặp chuyện thì hợp đồng xử lý ra sao');
+    await expect(section.getByRole('heading', { level: 2 })).toHaveText('Gặp chuyện thì smart contract xử lý ra sao');
     const chips = section.getByRole('list', { name: 'Chọn một tình huống để xem' }).getByRole('link');
     await expect(chips).toHaveText(['Muốn hốt sớm?', 'Có người hốt rồi bỏ đóng?', 'Dây có an toàn không?', 'Lỡ trễ một kỳ?', 'Chủ hụi gian lận được không?']);
     for (const [i, id] of ['th-hot-som', 'th-bo-dong', 'th-an-toan', 'th-tre-ky', 'th-chu-hui'].entries()) {
@@ -137,12 +137,17 @@ test.describe('S01 / landing', () => {
       'Tiền góp bằng USDC',
       'Đăng nhập không cần ví crypto',
       'Thăm kín bằng commit-reveal',
-      'Kiểm thử và kiểm toán',
+      'Kiểm thử và kiểm toán (audit)',
       'Trợ lý AI chỉ tính, không ký',
     ]);
-    await expect(tech).toContainText('632 bài test Foundry, trong đó 54 bất biến về tiền được kiểm bằng fuzzing.');
+    await expect(tech).toContainText('632 bài test Foundry, trong đó 54 invariant về tiền (điều kiện về tiền luôn phải đúng) được kiểm bằng fuzz test.');
+    // B24: a text partner strip under the title (names only, no logos) and one "why we chose it" line per card.
+    await expect(tech.getByRole('list', { name: 'Công nghệ và đối tác' }).getByRole('listitem')).toHaveText(['Avalanche', 'Circle USDC', 'Privy', 'OpenZeppelin', 'Foundry']);
+    await expect(tech.getByText('Vì sao chọn')).toHaveCount(6);
+    await expect(tech).toContainText('Giao dịch chốt sau khoảng 1-2 giây');
+    await expect(tech.locator('img')).toHaveCount(0);
     // The factory link needs a deployment to take the address from; this build has none (sample data), so no link and no invented address.
-    await expect(tech.getByRole('link', { name: /hợp đồng nhà máy trên Snowtrace/ })).toHaveCount(0);
+    await expect(tech.getByRole('link', { name: /factory contract trên Snowtrace/ })).toHaveCount(0);
     await expect(tech).toContainText('Dự thi Avalanche Team1 Vietnam UniHack 2026, nhánh Social finance.');
     await expect(page.locator('#cong-nghe')).toHaveCount(1);
     // Order: Tình huống, then Công nghệ, then Sổ cái.

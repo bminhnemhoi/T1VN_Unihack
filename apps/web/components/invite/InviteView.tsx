@@ -187,7 +187,7 @@ export function InviteView({ c: C }: { c: SampleCircleData }) {
             </Button>
             {terms.check === 'mismatch' && (
               <p id="vao-khong-khop" className="mt-2 font-semibold text-state-bad">
-                Nút vào dây tắt vì thỏa thuận không khớp mã băm trên mạng.
+                Nút vào dây tắt vì thỏa thuận không khớp hash on-chain.
               </p>
             )}
           </>

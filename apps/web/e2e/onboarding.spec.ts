@@ -59,7 +59,7 @@ test.describe('B23 first-run guide', () => {
     await dialog.getByRole('radio', { name: 'Tự mở dây, làm chủ hụi' }).click();
     await expect(dialog.getByRole('heading', { level: 2 })).toHaveText('Ba điểm khác so với hụi bạn từng chơi');
     await expect(dialog).toContainText('Không ai cầm tiền: tiền góp đi thẳng từ ví người góp sang ví người hốt trong một giao dịch.');
-    await expect(dialog).toContainText('Thăm kín thật: lá thăm được niêm phong trên chuỗi, tới giờ mới mở, không ai đọc trộm được.');
+    await expect(dialog).toContainText('Thăm kín thật: lá thăm được niêm phong on-chain, tới giờ mới mở, không ai đọc trộm được.');
     await expect(dialog).toContainText('Không cần AVAX: đăng nhập bằng Google hoặc email là có ví, phí mạng do HụiSafe trả.');
     await dialog.getByRole('button', { name: 'Tiếp tục' }).click();
     await dialog.getByRole('button', { name: 'Mở dây đầu tiên' }).click();
