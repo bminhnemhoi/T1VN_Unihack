@@ -246,7 +246,7 @@ export function Landing({ sample, factory }: { sample: boolean; factory?: `0x${s
                   </ul>
                   <div className={s.badge} data-lp-badge role="img" aria-label="Con dấu HụiSafe: bảo chứng 100%, không ai cầm tiền">
                     <div className={s.badgeRing} data-lp-badge-ring>
-                      <svg viewBox="0 0 200 200" aria-hidden>
+                      <svg className={s.spinSvg} viewBox="0 0 200 200" aria-hidden>
                         <defs>
                           <path id="lp-seal-path" d="M100,100 m-78,0 a78,78 0 1,1 156,0 a78,78 0 1,1 -156,0" />
                         </defs>
@@ -258,11 +258,17 @@ export function Landing({ sample, factory }: { sample: boolean; factory?: `0x${s
                         </text>
                       </svg>
                     </div>
-                    <div className={s.core} data-lp-badge-core>
-                      <b>
-                        U<i />
-                      </b>
-                    </div>
+                    {/* The lá thăm logo, in layers so GSAP can seal it once: body slides in, flap folds down, the seal stamps. */}
+                    <svg className={s.logoSvg} data-lp-logo viewBox="160 290 704 452" fill="none" aria-hidden focusable="false">
+                      <g data-lp-env>
+                        <rect x="174" y="304" width="676" height="424" rx="6" fill="#f4f0e8" stroke="currentColor" strokeWidth="14" strokeLinejoin="round" />
+                      </g>
+                      <path data-lp-flap d="M174 430 L212 530 H812 L850 430" stroke="currentColor" strokeWidth="14" strokeLinecap="round" strokeLinejoin="round" />
+                      <g data-lp-stamp>
+                        <circle cx="512" cy="532" r="100" fill="#a1ff62" stroke="currentColor" strokeWidth="12" />
+                        <path d="M482 484 V539 A30 30 0 0 0 542 539 V484" stroke="currentColor" strokeWidth="28" />
+                      </g>
+                    </svg>
                   </div>
                   <p data-lp-side>
                     HụiSafe đưa luật của một dây hụi vào smart contract trên blockchain Avalanche. Tiền góp ở trong ví bạn tới đúng lúc chi; chủ hụi không giữ đồng nào nhưng phải khóa ký quỹ để bảo lãnh. Ai bỏ đóng, hợp đồng lấy ký quỹ bù ngay, không cần ai đồng ý.

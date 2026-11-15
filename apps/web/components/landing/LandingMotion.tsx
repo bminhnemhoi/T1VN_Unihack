@@ -127,12 +127,20 @@ export function LandingMotion() {
 
     // Endless loops (badge ring, bubbles, ballot playhead, marquee) pause while off screen (B22g):
     // nothing to see, so no compositor work and no battery spent on them. Their look is unchanged on screen.
-    const loopSel = [s.badge && `.${s.badge} svg`, s.bubble && `.${s.bubble}`, s.playhead && `.${s.playhead}`, s.marqueeTrack && `.${s.marqueeTrack}`]
+    const loopSel = [s.spinSvg && `.${s.spinSvg}`, s.bubble && `.${s.bubble}`, s.playhead && `.${s.playhead}`, s.marqueeTrack && `.${s.marqueeTrack}`]
       .filter(Boolean)
       .join(', ');
+    // They also pause while the tab is hidden (B24).
+    const onScreen = new Map<Element, boolean>();
+    const applyLoop = (el: Element) => ((el as HTMLElement).style.animationPlayState = onScreen.get(el) && !document.hidden ? '' : 'paused');
     const loops = new IntersectionObserver((entries) =>
-      entries.forEach((e) => ((e.target as HTMLElement).style.animationPlayState = e.isIntersecting ? '' : 'paused')),
+      entries.forEach((e) => {
+        onScreen.set(e.target, e.isIntersecting);
+        applyLoop(e.target);
+      }),
     );
+    const onVisibility = () => onScreen.forEach((_, el) => applyLoop(el));
+    document.addEventListener('visibilitychange', onVisibility);
     if (loopSel) root.querySelectorAll(loopSel).forEach((el) => loops.observe(el));
 
     // GSAP + Lenis load when the browser is idle (B22g): their parse used to land as one long frame during the intro.
@@ -170,13 +178,22 @@ export function LandingMotion() {
       const ctx = gsap.context(() => {
         const q = gsap.utils.selector(root);
 
+        // B24: the logo seals once, 0.9 s in total: the envelope slides in (0.4), its flap folds down (0.3, overlapping),
+        // the lime seal stamps down from 1.4x with one small bounce (0.35). transform + opacity only.
+        const seal = gsap.timeline({ defaults: { ease: 'power2.out' } });
+        seal
+          .from(q('[data-lp-env]'), { x: -28, opacity: 0, duration: 0.4 })
+          .from(q('[data-lp-flap]'), { scaleY: 0, transformOrigin: '50% 0%', transformBox: 'fill-box', duration: 0.3, ease: 'power2.in' }, 0.3)
+          .from(q('[data-lp-stamp]'), { scale: 1.4, opacity: 0, transformOrigin: '50% 50%', transformBox: 'fill-box', duration: 0.35, ease: 'back.out(2.4)' }, 0.55);
+
         // Built paused right away, so its start states apply under the intro curtain and nothing flashes.
         const hero = (() => {
           const tl = gsap.timeline({ paused: true, defaults: { ease: 'power3.out' } });
           tl.from(q('[data-lp-line]'), { yPercent: 110, duration: 1, stagger: 0.09 })
             .fromTo(q('[data-lp-strike]'), { '--s': 0 }, { '--s': 1, duration: 0.7, ease: 'power2.inOut' }, '-=0.2')
-            .from(q('[data-lp-badge]'), { scale: 0, duration: 1, ease: 'back.out(1.6)' }, '-=0.9')
-            .from(q('[data-lp-badge-ring]'), { rotation: -120, duration: 1.4, ease: 'power3.out' }, '<')
+            .from(q('[data-lp-badge]'), { opacity: 0, duration: 0.5, ease: 'power2.out' }, '-=0.9')
+            .from(q('[data-lp-badge-ring]'), { rotation: -50, duration: 1.4, ease: 'power3.out' }, '<')
+            .add(seal, '<0.1')
             .fromTo(q('[data-lp-navitem]'), { y: -12, opacity: 0 }, { y: 0, opacity: 1, duration: 0.6, stagger: 0.06, clearProps: 'transform' }, 0)
             .from(q('[data-lp-bubble]'), { x: -40, scale: 0.7, transformOrigin: '0% 50%', duration: 0.7, stagger: 0.14, ease: 'back.out(1.8)' }, '-=0.8')
             .from(q('[data-lp-side]'), { y: 24, duration: 0.8, stagger: 0.08 }, '-=0.9')
@@ -249,6 +266,7 @@ export function LandingMotion() {
       disposed = true;
       io.disconnect();
       loops.disconnect();
+      document.removeEventListener('visibilitychange', onVisibility);
       window.clearTimeout(introTimer);
       cleanup();
     };

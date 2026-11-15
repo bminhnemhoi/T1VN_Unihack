@@ -135,12 +135,10 @@
 
 .badge { position: relative; width: clamp(120px, 15vw, 200px); aspect-ratio: 1; justify-self: end; }
 .badgeRing { position: absolute; inset: 0; will-change: transform; }
-.badge svg { position: absolute; inset: 0; width: 100%; height: 100%; animation: spin 26s linear infinite; }
+.spinSvg { position: absolute; inset: 0; width: 100%; height: 100%; animation: spin 60s linear infinite; } /* the ring turns once a minute (B24): slow enough to read, never a distraction */
 .badge text { font: 500 8.6px var(--mono); letter-spacing: 0.14em; fill: var(--ink); text-transform: uppercase; }
 .ring { fill: none; stroke: var(--ink); stroke-width: 1; }
-.core { position: absolute; inset: 24%; border-radius: 50%; background: var(--ink); display: grid; place-items: center; }
-.core b { position: relative; font: 900 clamp(40px, 5vw, 66px)/1 var(--display); color: var(--ivory); letter-spacing: -0.05em; margin-top: -0.12em; }
-.core b i { position: absolute; left: 50%; bottom: -0.24em; width: 0.2em; height: 0.2em; margin-left: -0.1em; border-radius: 50%; background: var(--lime); }
+.logoSvg { position: absolute; left: 20%; top: 50%; width: 60%; height: auto; aspect-ratio: 704 / 452; translate: 0 -50%; color: var(--ink); overflow: visible; }
 @keyframes spin { to { transform: rotate(360deg); } }
 
 .bubbles { display: none; }
