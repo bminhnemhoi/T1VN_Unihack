@@ -4,6 +4,8 @@ import Link from 'next/link';
 
 import { useEffect, useState } from 'react';
 import { useChain } from '@/lib/chain/provider';
+import { openOnboarding } from '@/lib/onboarding-store';
+import { cycleDemoNet, fastForward, NET_LABEL, useDemo } from '@/lib/demo-store';
 import { useHuiActions } from '@/lib/chain/actions';
 import { useHuiWallet } from '@/lib/chain/walletProvider';
 import { formatUsdc } from 'sdk';
@@ -207,6 +209,8 @@ export function SettingsView() {
         <RepDisclaimer className="mt-3" />
       </section>
 
+      {!chain && <DemoTools />}
+
       <section aria-labelledby="cong-cu" className="o-phang mt-6 p-6">
         <h2 id="cong-cu" className="font-display text-h2 font-bold">
           Công cụ khác
@@ -225,6 +229,9 @@ export function SettingsView() {
             </li>
           ))}
         </ul>
+        <Button type="button" variant="outline" size="lg" className="mt-4" onClick={openOnboarding}>
+          Xem lại hướng dẫn
+        </Button>
       </section>
     </main>
   );
@@ -271,5 +278,29 @@ function WalletBalanceBlock({ owner }: { owner: `0x${string}` }) {
         </div>
       )}
     </div>
+  );
+}
+
+/**
+ * "Công cụ demo" (sample data only; it used to be the black demo strip). "Thử: …" cycles the network the sample screens
+ * pretend to have, "Tua nhanh" moves the sample round to its next phase. Nothing here touches the chain.
+ */
+function DemoTools() {
+  const { net } = useDemo();
+  return (
+    <section aria-labelledby="cong-cu-demo" className="o-phang mt-6 p-6" data-testid="demo-tools">
+      <h2 id="cong-cu-demo" className="font-display text-h2 font-bold">
+        Công cụ demo
+      </h2>
+      <p className="mt-2 max-w-prose text-muted-foreground">Chỉ có khi xem dữ liệu mẫu. Đổi tình trạng mạng để xem các trạng thái tải, trống và lỗi; tua nhanh để đưa kỳ đang chạy sang giai đoạn kế tiếp.</p>
+      <div className="mt-4 flex flex-wrap gap-3">
+        <Button type="button" variant="outline" size="lg" onClick={() => cycleDemoNet()} title="Mô phỏng tình trạng mạng và dữ liệu">
+          Thử: {NET_LABEL[net]}
+        </Button>
+        <Button type="button" variant="outline" size="lg" onClick={fastForward} title="Đưa kỳ đang chạy của dây mẫu sang giai đoạn tiếp theo">
+          Tua nhanh ›
+        </Button>
+      </div>
+    </section>
   );
 }

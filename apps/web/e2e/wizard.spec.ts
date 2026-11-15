@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
-import { watchErrors } from './helpers';
+import { demoClick, watchErrors } from './helpers';
 
 // "Dây mới" (approved prototype, B22): one question per screen, six steps. Numbers: docs/03 section 8 (5 x 100 USDC,
 // bond 480 = 0,8 x O_max 600, members allow (N - 1) x (C + 1% reveal bond) = 404).
@@ -111,9 +111,7 @@ test.describe('/circles/new (Dây mới)', () => {
 
   test('"Thử: lỗi mạng": the create fails at the send step and says nothing was lost; the retry works', async ({ page }) => {
     await page.goto('/circles/new');
-    const net = page.getByRole('button', { name: /^Thử:/ });
-    await net.click();
-    await net.click();
+    await demoClick(page, /^Thử:/, 2);
     for (let i = 0; i < 5; i++) await next(page).click();
     await page.getByLabel(/Tôi đủ 18 tuổi/).check();
     await page.getByRole('button', { name: 'Tạo dây' }).click();

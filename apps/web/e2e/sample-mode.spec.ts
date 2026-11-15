@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { watchErrors } from './helpers';
+import { openDemo, watchErrors } from './helpers';
 
 // These run against a build with NO deployment (no contracts/deployments/<network>.json): the app must keep working
 // on sample data and say so. With a deployment the label is not rendered at all.
@@ -8,7 +8,8 @@ test.describe('sample mode (nothing deployed)', () => {
     test(`${path} says it shows sample data`, async ({ page }) => {
       const errs = watchErrors(page);
       await page.goto(path);
-      await expect(page.getByTestId('sample-mode')).toContainText(path === '/' ? 'Đang xem dữ liệu mẫu' : 'dữ liệu mẫu');
+      await openDemo(page);
+      await expect(page.getByTestId('sample-mode')).toContainText('số liệu mẫu');
       errs.expectClean();
     });
   }

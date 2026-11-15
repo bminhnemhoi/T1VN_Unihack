@@ -91,24 +91,12 @@
 @keyframes lpFadeOut { to { opacity: 0; } }
 @keyframes lpGone { to { visibility: hidden; pointer-events: none; } }
 /* The nav logo waits for the word to land in it (fallback: shows when the CSS intro ends). */
-.logoMark { display: inline-flex; align-items: center; animation: lpFade 0.4s ease-out 3.2s both; }
+.logoMark { display: inline-flex; align-items: center; font: 800 22px/1 var(--display); letter-spacing: -0.03em; word-spacing: 0.05em; animation: lpFade 0.4s ease-out 3.2s both; }
 @media (prefers-reduced-motion: reduce) {
   .intro { display: none; }
   .logoMark { animation: none; }
 }
 
-/* ---------- demo strip: the app's demo banner, set as one quiet line ---------- */
-.demo { background: var(--ink); color: #e9e4da; }
-.demoIn { display: flex; align-items: center; gap: 14px; min-height: 36px; padding-block: 6px; font-size: 13px; line-height: 1.35; }
-.demoText { flex: 1; min-width: 0; max-width: none !important; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.demoTag { flex: none; font: 600 11px/1 var(--mono); letter-spacing: 0.08em; text-transform: uppercase; background: var(--lime); color: var(--ink); padding: 5px 8px; border-radius: 3px; }
-.demoSample { flex: none; font: 500 11px/1 var(--mono); letter-spacing: 0.08em; text-transform: uppercase; color: #c9c3b8; max-width: none !important; }
-.demoSample::before { content: ''; display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: var(--lime); margin-right: 8px; vertical-align: 1px; }
-.srOnly { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
-@media (max-width: 640px) {
-  .demoIn { flex-wrap: wrap; justify-content: space-between; row-gap: 6px; font-size: 12.5px; }
-  .demoText { order: 3; flex-basis: 100%; white-space: normal; }
-}
 
 /* Wide screens: the landing is composed for about 1280px; above that it scales up as a whole (like browser zoom)
    instead of leaving the type small in a sea of ivory. */
@@ -121,16 +109,15 @@
 
 /* ---------- nav ---------- */
 /* No backdrop blur: it re-blurs the page under the bar on every scroll frame (GPU cost on phones). Near-opaque instead. */
+.brand { display: flex; align-items: center; gap: 12px; min-width: 0; }
 .nav { position: sticky; top: 0; z-index: 30; background: color-mix(in srgb, var(--ivory) 96%, transparent); }
 .navIn { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding-block: 12px; }
-.logo { font: 900 24px/1 var(--display); letter-spacing: -0.05em; text-decoration: none; display: inline-flex; align-items: center; min-height: 48px; }
-.logoU { position: relative; }
-.logoU i { position: absolute; left: 50%; bottom: -5px; width: 6px; height: 6px; margin-left: -3px; border-radius: 50%; background: var(--ink); box-shadow: 0 0 0 1.5px var(--lime); }
-.logo small { font: 500 11px var(--mono); letter-spacing: 0.06em; margin-left: 6px; align-self: center; color: var(--ink-2); }
+.logo { display: inline-flex; align-items: center; gap: 8px; min-height: 48px; text-decoration: none; color: var(--ink); }
+.logoIcon { flex: none; display: block; }
 .links { display: flex; gap: 8px; font-size: 15px; font-weight: 600; }
-.links a { display: inline-flex; align-items: center; min-height: 48px; padding: 0 10px; text-decoration: none; }
+.links a { white-space: nowrap; display: inline-flex; align-items: center; min-height: 48px; padding: 0 10px; text-decoration: none; }
 .links a:hover { text-decoration: underline; text-underline-offset: 4px; }
-@media (max-width: 760px) { .links { display: none; } }
+@media (max-width: 900px) { .links { display: none; } }
 
 /* ---------- hero ---------- */
 .hero { padding-block: 48px 72px; overflow-x: clip; }
@@ -143,6 +130,7 @@
 .strike::after { content: ''; position: absolute; left: -1%; right: -1%; top: 54%; height: 0.1em; background: var(--red); border-radius: 99px; transform: scaleX(var(--s, 1)); transform-origin: left center; }
 .side { position: relative; display: grid; gap: 22px; }
 .side > p { font-size: 18px; color: var(--ink-2); }
+.ctaNote { margin: 12px 0 0; font: 400 13px/1.45 var(--body); color: var(--ink-2); max-width: none !important; }
 .ctaPair { display: flex; flex-wrap: wrap; gap: 10px; }
 
 .badge { position: relative; width: clamp(120px, 15vw, 200px); aspect-ratio: 1; justify-self: end; }
@@ -165,17 +153,14 @@
 .bw:nth-child(3) .bubble { animation-delay: -3s; }
 @keyframes floaty { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-9px); } }
 
-.chips { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px 12px; margin: 56px auto 34px; max-width: 900px; padding: 0; list-style: none; }
-.chip { font: 600 14px/1.2 var(--body); padding: 9px 14px; border-radius: 999px; background: var(--paper); border: 1px solid var(--line); white-space: nowrap; }
+.chips { display: flex; flex-wrap: wrap; justify-content: center; gap: 12px; margin: 0 auto 32px; max-width: 900px; padding: 0; list-style: none; }
+.chip { font: 600 14px/1.2 var(--body); border-radius: 999px; background: var(--paper); color: var(--ink); border: 1px solid var(--line); white-space: nowrap; transition: background-color 0.2s, color 0.2s; }
+.chip a { display: flex; align-items: center; min-height: 44px; padding: 0 16px; color: inherit; text-decoration: none; border-radius: 999px; }
+.chip:hover { background: var(--lime); }
+.chip a:focus-visible { outline: 3px solid var(--ink); outline-offset: 2px; }
 .chip:nth-child(3n) { transform: rotate(-3deg); }
 .chip:nth-child(3n + 1) { transform: rotate(2deg); }
 /* Idle float after the entrance, on the compositor: the `translate` property leaves each chip's tilt alone. */
-.floating .chip { animation: chipFloat 2.4s ease-in-out infinite alternate; }
-.floating .chip:nth-child(2n) { animation-delay: -1.2s; }
-.floating .chip:nth-child(3n) { animation-delay: -0.6s; }
-@keyframes chipFloat { to { translate: 0 -6px; } }
-.hot { background: var(--ink); color: var(--lime); border-color: var(--ink); }
-.warn { background: var(--red); color: var(--ink); border-color: var(--red); }
 
 /* web app preview */
 .stage { background: var(--paper); border: 1px solid var(--line); border-radius: 20px; padding: clamp(12px, 2.4vw, 28px); max-width: 980px; margin: 0 auto; }
@@ -249,7 +234,7 @@
 /* ---------- situations bento ---------- */
 .bento { background: var(--ink-deep); color: var(--ivory); padding-block: clamp(70px, 9vw, 130px); }
 .cards { display: grid; grid-template-columns: 1fr; gap: 14px; margin: 0; padding: 0; list-style: none; }
-.card { border-radius: 22px; padding: clamp(20px, 3vw, 32px); display: grid; gap: 16px; align-content: start; min-width: 0; }
+.card { scroll-margin-top: 80px; border-radius: 22px; padding: clamp(20px, 3vw, 32px); display: grid; gap: 16px; align-content: start; min-width: 0; }
 .card h3 { font-size: clamp(30px, 3.4vw, 46px); letter-spacing: -0.04em; }
 .card > p { font-size: 15px; }
 .mini { border-radius: 14px; padding: 16px; background: rgba(0, 0, 0, 0.18); min-width: 0; }
@@ -323,6 +308,21 @@
 .loss { color: var(--lime); }
 .gain { color: #ffb3a8; }
 
+/* ---------- technology (B23) ---------- */
+.tech { background: var(--ivory); color: var(--ink); padding-block: clamp(70px, 9vw, 130px); }
+.headLight .label { color: var(--ink-2); }
+.headLight h2 { color: var(--ink); }
+.techGrid { display: grid; grid-template-columns: 1fr; gap: 16px; margin: 0; padding: 0; list-style: none; }
+.techCard { display: grid; gap: 12px; align-content: start; padding: 24px; border-radius: 22px; background: var(--paper); border: 1px solid var(--line); min-width: 0; }
+.techIcon { display: grid; place-items: center; width: 48px; height: 48px; border-radius: 14px; background: var(--ink); color: var(--lime); }
+.techIcon svg { width: 24px; height: 24px; stroke-width: 1.8; }
+.techCard h3 { margin: 0; font: 800 20px/1.2 var(--display); letter-spacing: -0.02em; word-spacing: 0.05em; text-wrap: balance; }
+.techCard p { margin: 0; font: 400 15px/1.55 var(--body); color: var(--ink-2); max-width: none !important; word-spacing: 0.04em; }
+.techLink { display: inline-flex; align-items: center; gap: 8px; min-height: 44px; font: 600 14px/1.2 var(--body); color: var(--ink); text-decoration: underline; text-underline-offset: 4px; }
+.techLink:focus-visible { outline: 3px solid var(--ink); outline-offset: 2px; }
+.techFoot { margin: 32px 0 0; font: 500 13px/1.4 var(--mono); color: var(--ink-2); max-width: none !important; }
+@media (min-width: 761px) { .techGrid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+
 /* ---------- ledger ---------- */
 .ledger { background: var(--ink); color: var(--ivory); padding-block: clamp(70px, 9vw, 130px) 0; overflow: hidden; }
 .book { display: grid; grid-template-columns: 1fr; gap: 14px; }
@@ -382,8 +382,8 @@
   .ctaPair { display: grid; gap: 12px; }
   .ctaPair .btn { justify-content: space-between; min-height: 56px; padding: 0 24px; font-size: 17px; }
   .navIn { padding-block: 8px; }
-  .logo { font-size: 32px; }
-  .logo small { font-size: 12px; margin-left: 8px; }
+  .logo { gap: 8px; }
+  .nav .btn { white-space: nowrap; }
   .btn { border-radius: 12px; }
   .btn .arr { border-radius: 6px; }
   .nav .btn { min-height: 44px; padding: 0 16px; border-radius: 999px; }
@@ -400,10 +400,23 @@
   .tile { padding: 8px 5px; min-height: 72px; font-size: 10px; }
   .tile b { font-size: 12px; }
   .tile .mono { font-size: 9px; }
-  .chip { font-size: 13px; padding: 8px 12px; }
+  .chip { font-size: 13px; }
+  .chip a { padding: 0 12px; }
   .ringWrap { grid-template-columns: 96px 1fr; }
   .ringSvg { width: 96px; height: 96px; }
 }
 @media (prefers-reduced-motion: reduce) {
   .root *, .root *::before, .root *::after { animation: none !important; transition: none !important; }
+}
+
+/* Narrow phones: the nav button drops its arrow so the logo, the DEMO chip and "Mở app" share one row. */
+@media (max-width: 480px) {
+  .nav .btn .arr { display: none; }
+  .nav .btn { padding: 0 16px; }
+  .brand { gap: 8px; }
+}
+@media (max-width: 400px) {
+  .logoMark { font-size: 19px; }
+  .logoIcon { height: 22px; width: auto; }
+  .brand { gap: 6px; }
 }

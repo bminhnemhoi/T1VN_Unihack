@@ -3,9 +3,6 @@
 import { useEffect } from 'react';
 import s from './landing.module.css';
 
-/** Fixed chip tilts: the product has no randomness, not even in decoration. */
-const TILT = [-9, 7, -4, 11, -11, 5, -7, 9];
-
 /** Ballot story state: 1 sealed, 2 opened, 3 stamped. Pure CSS reads `data-state` on the story section. */
 function setStep(story: HTMLElement | null, i: number) {
   if (story) story.dataset.state = String(i);
@@ -128,9 +125,9 @@ export function LandingMotion() {
     );
     root.querySelectorAll('[data-step]').forEach((el) => io.observe(el));
 
-    // Endless loops (badge ring, bubbles, floating chips, ballot playhead, marquee) pause while off screen (B22g):
+    // Endless loops (badge ring, bubbles, ballot playhead, marquee) pause while off screen (B22g):
     // nothing to see, so no compositor work and no battery spent on them. Their look is unchanged on screen.
-    const loopSel = [s.badge && `.${s.badge} svg`, s.bubble && `.${s.bubble}`, s.chip && `.${s.chip}`, s.playhead && `.${s.playhead}`, s.marqueeTrack && `.${s.marqueeTrack}`]
+    const loopSel = [s.badge && `.${s.badge} svg`, s.bubble && `.${s.bubble}`, s.playhead && `.${s.playhead}`, s.marqueeTrack && `.${s.marqueeTrack}`]
       .filter(Boolean)
       .join(', ');
     const loops = new IntersectionObserver((entries) =>
@@ -174,14 +171,8 @@ export function LandingMotion() {
         const q = gsap.utils.selector(root);
 
         // Built paused right away, so its start states apply under the intro curtain and nothing flashes.
-        // After the entrance the chips float on CSS (compositor), so no GSAP tween runs forever on the main thread.
-        const floatChips = () => {
-          const chips = q('[data-lp-chip]');
-          gsap.set(chips, { clearProps: 'transform' });
-          chips[0]?.parentElement?.classList.add(s.floating ?? '');
-        };
         const hero = (() => {
-          const tl = gsap.timeline({ paused: true, defaults: { ease: 'power3.out' }, onComplete: floatChips });
+          const tl = gsap.timeline({ paused: true, defaults: { ease: 'power3.out' } });
           tl.from(q('[data-lp-line]'), { yPercent: 110, duration: 1, stagger: 0.09 })
             .fromTo(q('[data-lp-strike]'), { '--s': 0 }, { '--s': 1, duration: 0.7, ease: 'power2.inOut' }, '-=0.2')
             .from(q('[data-lp-badge]'), { scale: 0, duration: 1, ease: 'back.out(1.6)' }, '-=0.9')
@@ -189,7 +180,6 @@ export function LandingMotion() {
             .fromTo(q('[data-lp-navitem]'), { y: -12, opacity: 0 }, { y: 0, opacity: 1, duration: 0.6, stagger: 0.06, clearProps: 'transform' }, 0)
             .from(q('[data-lp-bubble]'), { x: -40, scale: 0.7, transformOrigin: '0% 50%', duration: 0.7, stagger: 0.14, ease: 'back.out(1.8)' }, '-=0.8')
             .from(q('[data-lp-side]'), { y: 24, duration: 0.8, stagger: 0.08 }, '-=0.9')
-            .from(q('[data-lp-chip]'), { y: 30, scale: 0.6, rotation: (i: number) => TILT[i % TILT.length] ?? 0, duration: 0.7, stagger: 0.05, ease: 'back.out(1.8)' }, '-=0.6')
             .from(q('[data-lp-stage]'), { y: 80, rotationX: 12, transformPerspective: 1200, duration: 1.1 }, '-=0.6')
             .from(q('[data-lp-tile]'), { y: 22, scale: 0.85, duration: 0.6, stagger: 0.08, ease: 'back.out(1.6)' }, '-=0.6');
           return tl;
@@ -205,7 +195,6 @@ export function LandingMotion() {
           // Libraries arrived after the intro: never hide what the reader already sees, just settle the hero.
           heroStarted = true;
           hero.progress(1);
-          floatChips();
         } else if (exiting) {
           playHero(); // the exit is already under way: join it now
         } else {

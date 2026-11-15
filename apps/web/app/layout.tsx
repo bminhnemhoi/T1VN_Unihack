@@ -14,6 +14,11 @@ import './hs.css';
 export const metadata: Metadata = {
   title: { default: 'HụiSafe', template: '%s | HụiSafe' },
   description: 'Hụi bỏ thăm trên Avalanche Fuji. Chủ hụi không cầm tiền, nhưng vẫn phải bảo lãnh.',
+  icons: {
+    icon: [{ url: '/brand/favicon.svg', type: 'image/svg+xml' }],
+    apple: [{ url: '/brand/apple-touch-icon.png', sizes: '180x180', type: 'image/png' }],
+  },
+  appleWebApp: { capable: true, title: 'HụiSafe', statusBarStyle: 'default' },
 };
 
 export const viewport: Viewport = {

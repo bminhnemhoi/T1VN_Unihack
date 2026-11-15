@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
-import { watchErrors } from './helpers';
+import { demoClick, openDemo, watchErrors } from './helpers';
 
 // The circle room as a timeline (approved prototype, B22): round rail (phone: story bars), receipt / bid room / plan.
 // Numbers: docs/03 section 8 (5 x 100 USDC, M4 takes kỳ 1 at 6, M1 takes kỳ 2 at 3, M4 misses kỳ 2: 80 holdback + 20 bond).
@@ -68,12 +68,12 @@ test.describe('/circles/demo (Dây)', () => {
     await expect(page.locator('.slip .stamp.on')).toContainText('ĐÃ NIÊM PHONG');
     await expect(page.getByLabel('Thăm của bạn (số tiền bớt cho mọi người)')).toBeDisabled();
 
-    await page.getByRole('button', { name: 'Tua nhanh ›' }).click();
+    await demoClick(page, 'Tua nhanh ›');
     await expect(page.getByRole('list', { name: 'Các bước của kỳ 3' }).locator('li.on')).toContainText('Mở thăm');
     await page.getByRole('button', { name: 'Mở thăm', exact: true }).click();
     await expect(page.locator('.slip .stamp.on')).toContainText('ĐÃ MỞ');
 
-    await page.getByRole('button', { name: 'Tua nhanh ›' }).click();
+    await demoClick(page, 'Tua nhanh ›');
     // 3,00 beats the sample rival's 2,50: you take the pot.
     await expect(page.locator('.slip .stamp.on')).toContainText('ĐÃ HỐT');
     await expect(page.locator('.slip .stamp.on')).toContainText('346,12');
@@ -82,10 +82,12 @@ test.describe('/circles/demo (Dây)', () => {
 
   test('"Thử: lỗi mạng": the send step fails, nothing is stamped, "Gửi lại thăm" recovers', async ({ page }) => {
     await page.goto('/circles/demo');
-    const net = page.getByRole('button', { name: /^Thử:/ });
+    const pop = await openDemo(page);
+    const net = pop.getByRole('button', { name: /^Thử:/ });
     await net.click(); // mạng chậm
     await net.click(); // lỗi mạng
     await expect(net).toHaveText('Thử: lỗi mạng');
+    await page.keyboard.press('Escape');
     // The data on screen stays (stale) and a retry chip appears.
     await expect(page.getByRole('button', { name: 'Chưa cập nhật được · Thử lại' })).toBeVisible();
     await page.getByLabel('Thăm của bạn (số tiền bớt cho mọi người)').fill('3');

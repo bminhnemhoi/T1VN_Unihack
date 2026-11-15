@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" role="img" aria-label="HụiSafe">
+  <rect width="1024" height="1024" rx="200" fill="#201d1d"/>
+  <g transform="translate(512 516) scale(1.2) translate(-512 -516)">
+  <rect x="174" y="304" width="676" height="424" fill="#f4f0e8"/>
+  <path d="M174 430 L212 530 H812 L850 430" fill="none" stroke="#201d1d" stroke-width="14" stroke-linecap="round" stroke-linejoin="round"/>
+  <circle cx="512" cy="532" r="100" fill="#a1ff62" stroke="#201d1d" stroke-width="12"/>
+  <path d="M482 484 V539 A30 30 0 0 0 542 539 V484" fill="none" stroke="#201d1d" stroke-width="28"/>
+  </g>
+</svg>

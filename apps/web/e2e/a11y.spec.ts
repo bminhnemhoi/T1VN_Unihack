@@ -70,14 +70,23 @@ test.describe('axe: states that need a click', () => {
   });
 });
 
-test.describe('banner demo', () => {
+test.describe('DEMO chip', () => {
   for (const path of ['/', '/circles', '/circles/new', '/circles/demo', '/circles/demo/so-ho', '/circles/demo/so-ho?ban=day-du', '/dang-nhap', '/cai-dat', '/thong-bao-ubnd', '/lab']) {
-    test(`${path} shows the demo strip`, async ({ page }) => {
+    test(`${path} shows the DEMO chip; it opens a popover that Esc closes`, async ({ page }) => {
       await page.goto(path);
-      const banner = page.getByTestId('demo-banner');
-      await expect(banner).toHaveCount(1);
-      await expect(banner).toContainText('Chế độ demo: 1 kỳ = 3 phút, lãi tính như hụi tháng');
-      await expect(banner).toHaveAttribute('role', 'status');
+      const chip = page.getByTestId('demo-chip');
+      await expect(chip).toHaveCount(1);
+      await expect(chip).toHaveText('DEMO · Fuji');
+      await expect(chip).toHaveAttribute('aria-expanded', 'false');
+      const box = await chip.boundingBox();
+      expect(box!.height).toBeGreaterThanOrEqual(24);
+      await chip.click();
+      const pop = page.getByTestId('demo-banner');
+      await expect(pop).toContainText('Bản chạy thử trên Avalanche Fuji (mạng thử nghiệm)');
+      await expect(pop).toContainText('1 kỳ = 3 phút, ân hạn 2 phút');
+      await expect(chip).toHaveAttribute('aria-expanded', 'true');
+      await page.keyboard.press('Escape');
+      await expect(pop).toHaveCount(0);
     });
   }
 });

@@ -1,24 +1,23 @@
 import Link from 'next/link';
+import { CircleDollarSign, FileCode2, KeyRound, Lock, ShieldCheck, Bot } from 'lucide-react';
 import { Fragment, type CSSProperties } from 'react';
 import { FUJI_EVIDENCE, fujiAddressUrl } from 'config';
 import { BidCalc, CascadeDemo, CoverageDemo, DemoClock } from './DemoCards';
-import { DEMO_BUILD } from '@/components/shell/DemoBanner';
-import { vi } from '@/lib/vi';
+import { LogoMark } from '@/components/brand/LogoMark';
+import { DemoChip } from '@/components/shell/DemoChip';
 import { LandingMotion } from './LandingMotion';
 import s from './landing.module.css';
 
 const APP = '/circles';
 
-const CHIPS: { text: string; tone?: 'hot' | 'warn' }[] = [
-  { text: 'Kỳ này ai hốt?' },
-  { text: 'Bỏ thăm 3 đồng', tone: 'hot' },
-  { text: 'Ký quỹ còn bao nhiêu?' },
-  { text: 'Cô Tư giựt hụi rồi!', tone: 'warn' },
-  { text: 'Trễ một kỳ có sao không?' },
-  { text: 'Hụi chết hay hụi sống?' },
-  { text: 'Bảo chứng 100%', tone: 'hot' },
-  { text: 'Chốt kỳ lúc mấy giờ?' },
-];
+/** Index of the "Tình huống" cards: each chip scrolls to its card (anchor; Lenis smooths it when it is loaded). */
+const JUMPS = [
+  ['th-hot-som', 'Muốn hốt sớm?'],
+  ['th-bo-dong', 'Có người hốt rồi bỏ đóng?'],
+  ['th-an-toan', 'Dây có an toàn không?'],
+  ['th-tre-ky', 'Lỡ trễ một kỳ?'],
+  ['th-chu-hui', 'Chủ hụi gian lận được không?'],
+] as const;
 
 const TILES = [
   { k: 1, who: 'M4', note: '288,48', state: 'done' },
@@ -32,20 +31,20 @@ const STEPS = [
   {
     n: 1,
     label: '01 · Nộp thăm kín',
-    title: 'Bạn gấp thăm. Không ai nhìn trộm được.',
-    body: 'Bạn ghi số tiền muốn bớt cho mọi người, rồi gửi lên chuỗi một mã niêm phong. Chủ hụi, người chơi khác, cả HụiSafe đều không đọc được số bên trong.',
+    title: 'Bạn ghi số tiền muốn bớt, rồi niêm phong.',
+    body: 'Trình duyệt trộn số tiền với một chuỗi bí mật chỉ máy bạn giữ, rồi băm thành một mã (keccak256). Lên chuỗi chỉ có mã đó. Chủ hụi, người chơi khác và cả đội HụiSafe đều không đọc được bạn bỏ bao nhiêu.',
   },
   {
     n: 2,
     label: '02 · Mở thăm',
-    title: 'Hết giờ, mọi lá thăm mở cùng lúc.',
-    body: 'Thăm cao nhất thắng. Bằng nhau thì người ít trễ hơn, rồi người nộp sớm hơn. Không có bốc thăm ngẫu nhiên, không ai chọn hộ.',
+    title: 'Hết giờ nộp, mọi người mở thăm.',
+    body: 'Bạn gửi lại số tiền cùng chuỗi bí mật; hợp đồng băm lại và đối chiếu với mã đã niêm phong, sai một chữ số là không mở được. Thăm cao nhất thắng. Bằng nhau thì người ít lần trễ hơn thắng, rồi tới người nộp sớm hơn. Không bốc thăm, không ai chọn hộ.',
   },
   {
     n: 3,
     label: '03 · Chốt kỳ',
-    title: 'Kéo tiền góp, chi ngay trong một giao dịch.',
-    body: 'Hợp đồng kéo phần góp từ ví từng người, trích hoa hồng và quỹ dự phòng, giữ lại 20% phòng khi người hốt bỏ đóng, rồi chuyển phần còn lại cho M1.',
+    title: 'Gom tiền và chi trong cùng một giao dịch.',
+    body: 'Tới hạn, hợp đồng trích phần góp từ ví từng người theo quyền trích bạn đã ký lúc vào dây, trừ hoa hồng và quỹ dự phòng, giữ lại 20% của người hốt để phòng họ bỏ đóng về sau, rồi chuyển phần còn lại cho M1. Sau giao dịch, hợp đồng chỉ còn giữ ký quỹ, tiền giữ lại và quỹ dự phòng.',
   },
 ];
 
@@ -89,7 +88,46 @@ const CLOSE: [string, boolean][] = [
   ['Không', true], ['ai', true], ['cầm', true], ['tiền.', true],
 ];
 
-const MARQUEE = ['Sổ cái công khai', 'Không ai cầm tiền', 'Bảo chứng 100%', 'Chạy thật trên Fuji'];
+const TECH = [
+  {
+    Icon: FileCode2,
+    title: 'Smart contract trên Avalanche C-Chain',
+    text: 'Mỗi dây là một hợp đồng Solidity riêng, tạo từ một hợp đồng nhà máy. Mã nguồn đã verify công khai; ai cũng đọc được luật trên Snowtrace.',
+    link: true,
+  },
+  {
+    Icon: CircleDollarSign,
+    title: 'Tiền góp bằng USDC',
+    text: 'Đồng USDC do Circle phát hành, giá trị neo 1:1 với đô la Mỹ. Bản trên Fuji là USDC thử nghiệm, không có giá trị.',
+    link: false,
+  },
+  {
+    Icon: KeyRound,
+    title: 'Đăng nhập không cần ví crypto',
+    text: 'Ví nhúng Privy tạo sẵn khi bạn đăng nhập bằng Google hoặc email. Bạn chỉ ký; phí mạng do máy chủ chuyển tiếp của HụiSafe trả (chuẩn ERC-2771).',
+    link: false,
+  },
+  {
+    Icon: Lock,
+    title: 'Thăm kín bằng commit-reveal',
+    text: 'Nộp mã băm trước, mở số thật sau. Không ai sửa được thăm sau khi đã nộp, cũng không ai đọc được trước giờ mở.',
+    link: false,
+  },
+  {
+    Icon: ShieldCheck,
+    title: 'Kiểm thử và kiểm toán',
+    text: '632 bài test Foundry, trong đó 54 bất biến về tiền được kiểm bằng fuzzing. Kiểm toán bảo mật không còn lỗi mức Critical hay High.',
+    link: false,
+  },
+  {
+    Icon: Bot,
+    title: 'Trợ lý AI chỉ tính, không ký',
+    text: 'Trợ lý chủ hụi dùng hàm tính tất định để trả lời về rủi ro, ký quỹ, trần thăm. Nó không ký giao dịch và không chuyển được tiền.',
+    link: false,
+  },
+] as const;
+
+const MARQUEE = ['Smart contract trên Avalanche', 'Tiền góp bằng USDC', 'Không ai cầm tiền', 'Sổ hụi công khai'];
 
 function Arrow({ dir }: { dir: '↗' | '↓' }) {
   return (
@@ -103,33 +141,6 @@ function Arrow({ dir }: { dir: '↗' | '↓' }) {
  * S01 landing. Every band is its own design (chip hero, sticky ballot story, colour bento, ledger, word scrub), sharing
  * one palette and type system that the web app will adopt. Numbers in the playable cards come from `lib/landing-demo`.
  */
-/**
- * Demo strip of the landing: same facts and role as the app's DemoBanner (docs/02 US-10, cannot be dismissed), set as
- * one quiet line in the landing palette instead of two full-width bars. `sample` = nothing deployed on this network.
- */
-function DemoStrip({ sample }: { sample: boolean }) {
-  if (!DEMO_BUILD && !sample) return null;
-  const facts = vi.demoBanner.replace('Chế độ demo:', '').replace(' Màn hình này dùng số liệu mẫu.', '');
-  return (
-    <div className={s.demo}>
-      <div className={`${s.wrap} ${s.demoIn}`}>
-        <span className={s.demoTag} aria-hidden="true">
-          Chế độ demo
-        </span>
-        <p role="status" data-testid="demo-banner" className={s.demoText} title={facts.trim()}>
-          <span className={s.srOnly}>Chế độ demo:</span>
-          {facts}
-        </p>
-        {sample && (
-          <p role="note" data-testid="sample-mode" className={s.demoSample}>
-            Đang xem dữ liệu mẫu
-          </p>
-        )}
-      </div>
-    </div>
-  );
-}
-
 /**
  * Neutomni-style intro, rendered with the page so it covers the very first paint (no flash of the hero). Pure CSS
  * keyframes drive it, so it finishes even if the motion libraries never load; LandingMotion only handles "Bỏ qua" and
@@ -163,27 +174,28 @@ function Intro() {
   );
 }
 
-export function Landing({ sample }: { sample: boolean }) {
+export function Landing({ sample, factory }: { sample: boolean; factory?: `0x${string}` }) {
   return (
     <>
       <Intro />
       <div data-lp-root className={s.root}>
-        <DemoStrip sample={sample} />
         <nav className={s.nav} aria-label="Trang giới thiệu">
           <div className={`${s.wrap} ${s.navIn}`}>
-            <a className={s.logo} href="#top" aria-label="HụiSafe, lên đầu trang">
-              <span className={s.logoMark} data-lp-mark>
-                H
-                <span className={s.logoU}>
-                  U<i />
+            <div className={s.brand}>
+              <a className={s.logo} href="#top" aria-label="HụiSafe, lên đầu trang">
+                <LogoMark className={s.logoIcon} height={26} />
+                <span className={s.logoMark} data-lp-mark>
+                  HụiSafe
                 </span>
-                I
+              </a>
+              <span data-lp-navitem>
+                <DemoChip sample={sample} />
               </span>
-              <small data-lp-navitem>SAFE</small>
-            </a>
+            </div>
             <div className={s.links} data-lp-navitem>
               <a href="#mot-ky">Một kỳ hụi</a>
               <a href="#tinh-huong">Tình huống</a>
+              <a href="#cong-nghe">Công nghệ</a>
               <a href="#so-cai">Sổ cái</a>
             </div>
             <Link className={`${s.btn} ${s.lime}`} href={APP} data-lp-navitem>
@@ -198,7 +210,7 @@ export function Landing({ sample }: { sample: boolean }) {
               <div className={s.heroTop}>
                 <div>
                   <p className={`${s.label} ${s.eyebrow}`}>
-                    <b>Testnet</b> Hụi bỏ thăm on-chain · Avalanche Fuji
+                    <b>Testnet</b> Hụi bỏ thăm chạy bằng smart contract trên Avalanche
                   </p>
                   <h1>
                     <span className={s.line}>
@@ -253,7 +265,7 @@ export function Landing({ sample }: { sample: boolean }) {
                     </div>
                   </div>
                   <p data-lp-side>
-                    Chủ hụi không cầm tiền, nhưng vẫn phải bảo lãnh. Tiền góp nằm trong ví bạn tới đúng lúc chi. Ai bỏ đóng thì ký quỹ của chủ hụi bù ngay.
+                    HụiSafe đưa luật của một dây hụi vào smart contract trên blockchain Avalanche. Tiền góp ở trong ví bạn tới đúng lúc chi; chủ hụi không giữ đồng nào nhưng phải khóa ký quỹ để bảo lãnh. Ai bỏ đóng, hợp đồng lấy ký quỹ bù ngay, không cần ai đồng ý.
                   </p>
                   <div className={s.ctaPair} data-lp-side>
                     <Link className={`${s.btn} ${s.lime}`} href={APP}>
@@ -263,16 +275,11 @@ export function Landing({ sample }: { sample: boolean }) {
                       Xem một kỳ hụi chạy <Arrow dir="↓" />
                     </a>
                   </div>
+                  <p className={s.ctaNote} data-lp-side>
+                    Đăng nhập bằng Google hoặc email. Không cần ví crypto, không cần AVAX.
+                  </p>
                 </div>
               </div>
-
-              <ul className={s.chips} aria-label="Những câu người chơi hụi hay hỏi">
-                {CHIPS.map((c) => (
-                  <li key={c.text} data-lp-chip className={`${s.chip} ${c.tone ? s[c.tone] : ''}`}>
-                    {c.text}
-                  </li>
-                ))}
-              </ul>
 
               <figure className={s.stage} data-lp-stage style={{ marginBlock: 0 }} aria-label="Xem trước web app: phòng bỏ thăm của một dây mẫu">
                 <div className={s.app}>
@@ -324,9 +331,9 @@ export function Landing({ sample }: { sample: boolean }) {
           <section className={s.story} id="mot-ky" data-lp-story data-state="1" aria-labelledby="lp-story-h">
             <div className={s.wrap}>
               <div className={s.head} data-lp-head>
-                <p className={s.label}>Một kỳ hụi, ba bước</p>
-                <h2 id="lp-story-h">Lá thăm gấp lại. Chuỗi khối giữ bí mật.</h2>
-                <p>Cuộn xuống để xem kỳ 2 của dây Tổ dân phố 7 chạy từ đầu tới cuối.</p>
+                <p className={s.label}>Một kỳ hụi trên blockchain</p>
+                <h2 id="lp-story-h">Một kỳ hụi chạy thế nào trên chuỗi</h2>
+                <p>Cuộn xuống để xem kỳ 2 của dây mẫu Tổ dân phố 7, từ lúc nộp thăm tới lúc chi tiền.</p>
               </div>
               <div className={s.storyGrid}>
                 <div className={s.slipCol}>
@@ -384,37 +391,44 @@ export function Landing({ sample }: { sample: boolean }) {
           <section className={s.bento} id="tinh-huong" aria-labelledby="lp-bento-h">
             <div className={s.wrap}>
               <div className={s.head} data-lp-head>
-                <p className={s.label}>Mọi tình huống của một dây hụi</p>
-                <h2 id="lp-bento-h">Câu hỏi của bạn. Hợp đồng trả lời.</h2>
-                <p>Số liệu lấy từ dây ví dụ 5 người × 100 USDC trong đặc tả của HụiSafe. Bấm, kéo, gõ thử.</p>
+                <p className={s.label}>Tình huống thường gặp</p>
+                <h2 id="lp-bento-h">Gặp chuyện thì hợp đồng xử lý ra sao</h2>
+                <p>Số liệu từ dây mẫu 5 người, mỗi kỳ góp 100 USDC. Ô nào cũng bấm hoặc gõ thử được; phép tính dùng đúng công thức của smart contract.</p>
               </div>
+              <ul className={s.chips} aria-label="Chọn một tình huống để xem">
+                {JUMPS.map(([id, text]) => (
+                  <li key={id} className={s.chip}>
+                    <a href={`#${id}`}>{text}</a>
+                  </li>
+                ))}
+              </ul>
               <ul className={s.cards} data-lp-cards>
-                <li className={`${s.card} ${s.cLime} ${s.w3}`} data-lp-card>
-                  <p className={s.label}>Bạn, lúc bỏ thăm</p>
+                <li id="th-hot-som" className={`${s.card} ${s.cLime} ${s.w3}`} data-lp-card>
+                  <p className={s.label}>Khi bỏ thăm</p>
                   <h3>
                     <q>Muốn hốt sớm thì sao?</q>
                   </h3>
-                  <p>Trả bớt cho mỗi người còn lại. Trần theo Nghị định 19, vượt là bị chặn.</p>
+                  <p>Bỏ thăm nghĩa là chịu bớt cho mỗi người còn lại một khoản để được hốt trước. Hợp đồng chặn thăm vượt trần lãi theo Nghị định 19/2019, nên không ai bị ép trả lãi cắt cổ.</p>
                   <BidCalc />
                 </li>
-                <li className={`${s.card} ${s.cViolet} ${s.w3}`} data-lp-card>
-                  <p className={s.label}>Bạn, khi có người bỏ đóng</p>
+                <li id="th-bo-dong" className={`${s.card} ${s.cViolet} ${s.w3}`} data-lp-card>
+                  <p className={s.label}>Khi có người bỏ đóng</p>
                   <h3>
-                    <q>M4 hốt rồi trốn!</q>
+                    <q>M4 hốt rồi bỏ đóng?</q>
                   </h3>
-                  <p>Phần thiếu được bù ngay trong cùng giao dịch: tiền giữ lại của chính M4 trước, rồi ký quỹ của chủ hụi.</p>
+                  <p>Tới hạn mà không trích được tiền của M4, hợp đồng bù ngay trong chính giao dịch chốt kỳ: lấy tiền giữ lại của M4 trước, thiếu nữa mới lấy ký quỹ của chủ hụi. Người hốt kỳ đó vẫn nhận đủ.</p>
                   <CascadeDemo />
                 </li>
-                <li className={`${s.card} ${s.cPaper} ${s.w2}`} data-lp-card>
-                  <p className={s.label}>Bạn, trước khi vào dây</p>
+                <li id="th-an-toan" className={`${s.card} ${s.cPaper} ${s.w2}`} data-lp-card>
+                  <p className={s.label}>Trước khi vào dây</p>
                   <h3>
-                    <q>Dây này an toàn không?</q>
+                    <q>Dây này có an toàn không?</q>
                   </h3>
                   <CoverageDemo />
-                  <p>Chỉ số bảo chứng 100% nghĩa là ký quỹ chịu được cú sốc lớn nhất: mọi người đã hốt cùng bỏ đóng một lúc.</p>
+                  <p>Chỉ số bảo chứng 100% nghĩa là ký quỹ chịu được cú sốc lớn nhất: mọi người đã hốt cùng bỏ đóng một lúc. Dưới 100%, hợp đồng không cho bắt đầu dây.</p>
                 </li>
-                <li className={`${s.card} ${s.cClay} ${s.w2}`} data-lp-card>
-                  <p className={s.label}>Bạn, khi lỡ trễ</p>
+                <li id="th-tre-ky" className={`${s.card} ${s.cClay} ${s.w2}`} data-lp-card>
+                  <p className={s.label}>Khi lỡ trễ</p>
                   <h3>
                     <q>Trễ một kỳ thì sao?</q>
                   </h3>
@@ -429,10 +443,10 @@ export function Landing({ sample }: { sample: boolean }) {
                       </div>
                     ))}
                   </dl>
-                  <p>Cuối dây, quỹ dự phòng 19,70 USDC chia theo đúng hạn. M4 trễ một kỳ nên mất 0,83 USDC, gấp khoảng 30 lần lãi chậm góp.</p>
+                  <p>Bạn có 48 giờ ân hạn để đóng bù kèm lãi chậm góp (bản demo: 2 phút). Cuối dây, quỹ dự phòng 19,70 USDC chia theo số lần đóng đúng hạn: M4 trễ một kỳ nên mất 0,83 USDC, gấp khoảng 30 lần lãi chậm góp.</p>
                 </li>
-                <li className={`${s.card} ${s.cForest} ${s.w2}`} data-lp-card>
-                  <p className={s.label}>Bạn, khi nghi chủ hụi</p>
+                <li id="th-chu-hui" className={`${s.card} ${s.cForest} ${s.w2}`} data-lp-card>
+                  <p className={s.label}>Khi nghi chủ hụi</p>
                   <h3>
                     <q>Chủ hụi dùng ví ảo?</q>
                   </h3>
@@ -455,12 +469,38 @@ export function Landing({ sample }: { sample: boolean }) {
             </div>
           </section>
 
+          <section className={s.tech} id="cong-nghe" aria-labelledby="lp-tech-h">
+            <div className={s.wrap}>
+              <div className={`${s.head} ${s.headLight}`} data-lp-head>
+                <p className={s.label}>Chạy bằng gì</p>
+                <h2 id="lp-tech-h">Công nghệ phía sau HụiSafe</h2>
+              </div>
+              <ul className={s.techGrid}>
+                {TECH.map((t) => (
+                  <li key={t.title} className={s.techCard} data-lp-card>
+                    <span className={s.techIcon}>
+                      <t.Icon aria-hidden />
+                    </span>
+                    <h3>{t.title}</h3>
+                    <p>{t.text}</p>
+                    {t.link && factory && (
+                      <a className={s.techLink} href={fujiAddressUrl(factory)} target="_blank" rel="noopener noreferrer">
+                        Xem hợp đồng nhà máy trên Snowtrace <Arrow dir="↗" />
+                      </a>
+                    )}
+                  </li>
+                ))}
+              </ul>
+              <p className={s.techFoot}>Dự thi Avalanche Team1 Vietnam UniHack 2026, nhánh Social finance.</p>
+            </div>
+          </section>
+
           <section className={s.ledger} id="so-cai" aria-labelledby="lp-ledger-h">
             <div className={s.wrap}>
               <div className={s.head} data-lp-head>
-                <p className={s.label}>Không phải lời hứa</p>
+                <p className={s.label}>Đã chạy thật, kiểm được</p>
                 <h2 id="lp-ledger-h">Sổ cái thật, trên Avalanche Fuji.</h2>
-                <p>Hai dây ví dụ do nhóm chạy bằng ví demo, số tiền thu nhỏ 10 lần. Bấm để xem từng giao dịch trên Snowtrace.</p>
+                <p>Hai dây do nhóm chạy bằng ví demo, số tiền thu nhỏ 10 lần. Mỗi dòng mở ra giao dịch tương ứng trên Snowtrace.</p>
               </div>
               <div className={s.book}>
                 {SHEETS.map((sh) => (

@@ -9,13 +9,13 @@ async function openStill(page: Page) {
 }
 
 test.describe('S01 / landing', () => {
-  test('has its own navigation, no app header or bottom bar, and keeps the demo strip', async ({ page }) => {
+  test('has its own navigation, no app header or bottom bar, and the DEMO chip', async ({ page }) => {
     const errs = watchErrors(page);
     await openStill(page);
     await expect(page.getByRole('navigation', { name: 'Trang giới thiệu' })).toBeVisible();
     await expect(page.getByRole('navigation', { name: /^Điều hướng chính/ })).toHaveCount(0);
     await expect(page.getByRole('banner')).toHaveCount(0);
-    await expect(page.getByTestId('demo-banner')).toBeVisible();
+    await expect(page.getByTestId('demo-chip')).toBeVisible();
     await expect(page.getByRole('heading', { level: 1 })).toHaveText(/Chơi hụi\s+không sợ\s+giựt\./);
     await noHorizontalOverflow(page);
     errs.expectClean();
@@ -80,6 +80,82 @@ test.describe('S01 / landing', () => {
       await expect(link).toHaveAttribute('target', '_blank');
       await expect(link).toHaveAttribute('rel', /noopener/);
     }
+  });
+
+  test('B23 hero: the new wording, the sign-in note under the buttons, and no question chips in the hero', async ({ page }) => {
+    await openStill(page);
+    const hero = page.locator('[data-lp-hero]');
+    await expect(hero).toContainText('Testnet Hụi bỏ thăm chạy bằng smart contract trên Avalanche');
+    await expect(hero).toContainText('HụiSafe đưa luật của một dây hụi vào smart contract trên blockchain Avalanche.');
+    await expect(hero).toContainText('Ai bỏ đóng, hợp đồng lấy ký quỹ bù ngay, không cần ai đồng ý.');
+    await expect(hero).toContainText('Đăng nhập bằng Google hoặc email. Không cần ví crypto, không cần AVAX.');
+    await expect(hero.getByRole('list', { name: /câu người chơi hụi hay hỏi/ })).toHaveCount(0);
+    await expect(hero.getByRole('list', { name: 'Chọn một tình huống để xem' })).toHaveCount(0);
+  });
+
+  test('B23 one kỳ: label, title and the three steps in the brief\'s words', async ({ page }) => {
+    await openStill(page);
+    const story = page.locator('[data-lp-story]');
+    await expect(story.getByRole('heading', { level: 2 })).toHaveText('Một kỳ hụi chạy thế nào trên chuỗi');
+    await expect(story).toContainText('Một kỳ hụi trên blockchain');
+    await expect(story).toContainText('Cuộn xuống để xem kỳ 2 của dây mẫu Tổ dân phố 7, từ lúc nộp thăm tới lúc chi tiền.');
+    await expect(story.getByRole('heading', { level: 3 })).toHaveText(['Bạn ghi số tiền muốn bớt, rồi niêm phong.', 'Hết giờ nộp, mọi người mở thăm.', 'Gom tiền và chi trong cùng một giao dịch.']);
+    await expect(story).toContainText('rồi băm thành một mã (keccak256). Lên chuỗi chỉ có mã đó.');
+    await expect(story).toContainText('Không bốc thăm, không ai chọn hộ.');
+    await expect(story).toContainText('Sau giao dịch, hợp đồng chỉ còn giữ ký quỹ, tiền giữ lại và quỹ dự phòng.');
+  });
+
+  test('B23 situations: five index chips jump to their cards, the cards carry the new labels and words', async ({ page }) => {
+    await openStill(page);
+    const section = page.locator('#tinh-huong');
+    await expect(section.getByRole('heading', { level: 2 })).toHaveText('Gặp chuyện thì hợp đồng xử lý ra sao');
+    const chips = section.getByRole('list', { name: 'Chọn một tình huống để xem' }).getByRole('link');
+    await expect(chips).toHaveText(['Muốn hốt sớm?', 'Có người hốt rồi bỏ đóng?', 'Dây có an toàn không?', 'Lỡ trễ một kỳ?', 'Chủ hụi gian lận được không?']);
+    for (const [i, id] of ['th-hot-som', 'th-bo-dong', 'th-an-toan', 'th-tre-ky', 'th-chu-hui'].entries()) {
+      await expect(chips.nth(i)).toHaveAttribute('href', `#${id}`);
+      await expect(page.locator(`#${id}`)).toHaveCount(1);
+    }
+    for (const label of ['Khi bỏ thăm', 'Khi có người bỏ đóng', 'Trước khi vào dây', 'Khi lỡ trễ', 'Khi nghi chủ hụi']) await expect(section.getByText(label, { exact: true })).toBeVisible();
+    await expect(section.getByText('Bạn,', { exact: false })).toHaveCount(0);
+    await expect(section).toContainText('M4 hốt rồi bỏ đóng?');
+    await expect(section).toContainText('Dưới 100%, hợp đồng không cho bắt đầu dây.');
+    await expect(section).toContainText('Bạn có 48 giờ ân hạn để đóng bù kèm lãi chậm góp (bản demo: 2 phút).');
+    // The commitment of docs/03 section 7.3, word for word.
+    await expect(section).toContainText('Cọc 100% chặn được chủ hụi dùng một ví ảo: làm vậy chủ hụi tự lỗ. Dùng nhiều ví ảo thì bị chặn bằng xác thực mỗi người một tài khoản, và mọi người thấy trước rủi ro tối đa của mình.');
+    await chips.nth(3).click();
+    await expect(page).toHaveURL(/#th-tre-ky$/);
+    await expect(page.locator('#th-tre-ky')).toBeInViewport();
+  });
+
+  test('B23 technology: six cards, a nav link, the contest line (no factory link without a deployment)', async ({ page }) => {
+    await openStill(page);
+    await expect(page.getByRole('navigation', { name: 'Trang giới thiệu' }).locator('a[href="#cong-nghe"]')).toHaveText('Công nghệ'); // the link row is hidden on phones
+    const tech = page.locator('#cong-nghe');
+    await expect(tech.getByRole('heading', { level: 2 })).toHaveText('Công nghệ phía sau HụiSafe');
+    await expect(tech.getByRole('heading', { level: 3 })).toHaveText([
+      'Smart contract trên Avalanche C-Chain',
+      'Tiền góp bằng USDC',
+      'Đăng nhập không cần ví crypto',
+      'Thăm kín bằng commit-reveal',
+      'Kiểm thử và kiểm toán',
+      'Trợ lý AI chỉ tính, không ký',
+    ]);
+    await expect(tech).toContainText('632 bài test Foundry, trong đó 54 bất biến về tiền được kiểm bằng fuzzing.');
+    // The factory link needs a deployment to take the address from; this build has none (sample data), so no link and no invented address.
+    await expect(tech.getByRole('link', { name: /hợp đồng nhà máy trên Snowtrace/ })).toHaveCount(0);
+    await expect(tech).toContainText('Dự thi Avalanche Team1 Vietnam UniHack 2026, nhánh Social finance.');
+    await expect(page.locator('#cong-nghe')).toHaveCount(1);
+    // Order: Tình huống, then Công nghệ, then Sổ cái.
+    const ids = await page.locator('main > section, main > header').evaluateAll((els) => els.map((e) => e.id));
+    expect(ids.indexOf('tinh-huong')).toBeLessThan(ids.indexOf('cong-nghe'));
+    expect(ids.indexOf('cong-nghe')).toBeLessThan(ids.indexOf('so-cai'));
+  });
+
+  test('B23 ledger: the new label and line', async ({ page }) => {
+    await openStill(page);
+    const ledger = page.locator('#so-cai');
+    await expect(ledger).toContainText('Đã chạy thật, kiểm được');
+    await expect(ledger).toContainText('Hai dây do nhóm chạy bằng ví demo, số tiền thu nhỏ 10 lần. Mỗi dòng mở ra giao dịch tương ứng trên Snowtrace.');
   });
 
   test('reduced motion: no intro, the ballot shows its final stamped state, nothing is moved', async ({ page }) => {

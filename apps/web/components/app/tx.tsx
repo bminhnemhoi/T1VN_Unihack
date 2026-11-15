@@ -8,6 +8,7 @@ import { useCallback, useRef, useState, type ReactNode } from 'react';
 import { useTx, type TxRun } from '@/components/chain/useTx';
 import { useChain } from '@/lib/chain/provider';
 import { demoNet, TX_LATENCY } from '@/lib/demo-store';
+import { txBegin, txEnd, txSuccess } from '@/lib/install-store';
 
 const STEPS = ['Ký', 'Gửi', 'Xác nhận'];
 const STEP_TEXT = ['Đang chờ bạn ký', 'Đang gửi qua relay', 'Chờ xác nhận trên Fuji'];
@@ -41,16 +42,22 @@ export function useStepTx(): StepTx {
         }
         const net = opts.forceOk ? 'ok' : demoNet();
         const d = TX_LATENCY[net];
-        for (let i = 0; i < 3; i++) {
-          setSim({ busy: true, step: i });
-          await wait(d[i]!);
-          if (net === 'fail' && i === 1) {
-            setSim({ busy: false, step: 1, err: opts.failText ?? 'Gửi không được vì mạng lỗi. Lệnh chưa lên chuỗi, bạn chưa mất gì.' });
-            return false;
+        txBegin();
+        try {
+          for (let i = 0; i < 3; i++) {
+            setSim({ busy: true, step: i });
+            await wait(d[i]!);
+            if (net === 'fail' && i === 1) {
+              setSim({ busy: false, step: 1, err: opts.failText ?? 'Gửi không được vì mạng lỗi. Lệnh chưa lên chuỗi, bạn chưa mất gì.' });
+              return false;
+            }
           }
+          setSim({ busy: false, step: 0 });
+          txSuccess();
+          return true;
+        } finally {
+          txEnd();
         }
-        setSim({ busy: false, step: 0 });
-        return true;
       } finally {
         lock.current = false;
       }
