@@ -244,6 +244,29 @@ export function LandingMotion() {
           stagger: 0.1,
           ease: 'power3.out',
         });
+        // B24: the six technology cards come in one after another as each reaches the viewport (once), then the icon
+        // draws its strokes. Rest state (no JS, reduced motion) is the finished card.
+        const techCards = q('[data-lp-tech-card]');
+        if (techCards.length) {
+          const strokes = new Map<Element, Element[]>();
+          techCards.forEach((card) => {
+            const parts = [...card.querySelectorAll<SVGGeometryElement>('svg path, svg circle, svg rect, svg line, svg polyline')].filter((el) => typeof el.getTotalLength === 'function');
+            parts.forEach((el) => gsap.set(el, { strokeDasharray: el.getTotalLength(), strokeDashoffset: el.getTotalLength() }));
+            strokes.set(card, parts);
+          });
+          gsap.set(techCards, { y: 24, opacity: 0 });
+          ScrollTrigger.batch(techCards, {
+            start: 'top 88%',
+            once: true,
+            onEnter: (batch) => {
+              gsap.to(batch, { y: 0, opacity: 1, duration: 0.6, stagger: 0.08, ease: 'power2.out', clearProps: 'transform,opacity' });
+              batch.forEach((card, i) => {
+                const parts = strokes.get(card) ?? [];
+                gsap.to(parts, { strokeDashoffset: 0, duration: 0.7, stagger: 0.04, ease: 'power2.out', delay: 0.35 + i * 0.08, clearProps: 'strokeDasharray,strokeDashoffset' });
+              });
+            },
+          });
+        }
         q('[data-lp-sheet]').forEach((sh) => {
           gsap.from(sh.querySelectorAll('[data-lp-entry]'), { scrollTrigger: { trigger: sh, start: 'top 80%' }, x: -30, duration: 0.6, stagger: 0.1, ease: 'power2.out' });
         });

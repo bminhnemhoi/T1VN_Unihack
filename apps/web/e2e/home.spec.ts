@@ -142,7 +142,7 @@ test.describe('S01 / landing', () => {
     ]);
     await expect(tech).toContainText('632 bài test Foundry, trong đó 54 bất biến về tiền được kiểm bằng fuzzing.');
     // The factory link needs a deployment to take the address from; this build has none (sample data), so no link and no invented address.
-    await expect(tech.getByRole('link', { name: /hợp đồng nhà máy trên Snowtrace/ })).toHaveCount(0);
+    await expect(tech.getByRole('link', { name: /factory contract trên Snowtrace/ })).toHaveCount(0);
     await expect(tech).toContainText('Dự thi Avalanche Team1 Vietnam UniHack 2026, nhánh Social finance.');
     await expect(page.locator('#cong-nghe')).toHaveCount(1);
     // Order: Tình huống, then Công nghệ, then Sổ cái.

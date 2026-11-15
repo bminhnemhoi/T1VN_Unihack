@@ -316,9 +316,17 @@
 .techIcon svg { width: 24px; height: 24px; stroke-width: 1.8; }
 .techCard h3 { margin: 0; font: 800 20px/1.2 var(--display); letter-spacing: -0.02em; word-spacing: 0.05em; text-wrap: balance; }
 .techCard p { margin: 0; font: 400 15px/1.55 var(--body); color: var(--ink-2); max-width: none !important; word-spacing: 0.04em; }
+.partners { display: flex; flex-wrap: wrap; gap: 8px 0; margin: 0 0 32px; padding: 0; list-style: none; font: 500 12px/1.4 var(--mono); letter-spacing: 0.06em; text-transform: uppercase; color: var(--ink-2); }
+.partners li:not(:last-child)::after { content: '·'; margin-inline: 12px; color: var(--dim, #8f8a82); }
+.techWhy { display: grid; gap: 4px; padding-top: 12px; border-top: 1px dashed var(--line); color: var(--ink) !important; font-size: 14px !important; }
+.techWhy span { font: 500 11px/1.2 var(--mono); letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink-2); }
 .techLink { display: inline-flex; align-items: center; gap: 8px; min-height: 44px; font: 600 14px/1.2 var(--body); color: var(--ink); text-decoration: underline; text-underline-offset: 4px; }
 .techLink:focus-visible { outline: 3px solid var(--ink); outline-offset: 2px; }
 .techFoot { margin: 32px 0 0; font: 500 13px/1.4 var(--mono); color: var(--ink-2); max-width: none !important; }
+@media (hover: hover) and (prefers-reduced-motion: no-preference) {
+  .techCard { transition: transform 200ms var(--ease, cubic-bezier(0.16, 1, 0.3, 1)), border-color 200ms, box-shadow 200ms; }
+  .techCard:hover { transform: translateY(-4px); border-color: var(--lime); box-shadow: 0 0 0 1px var(--lime), 0 12px 28px -14px rgb(161 255 98 / 0.9); }
+}
 @media (min-width: 761px) { .techGrid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 
 /* ---------- ledger ---------- */

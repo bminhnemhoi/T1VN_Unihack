@@ -92,40 +92,48 @@ const TECH = [
   {
     Icon: FileCode2,
     title: 'Smart contract trên Avalanche C-Chain',
-    text: 'Mỗi dây là một hợp đồng Solidity riêng, tạo từ một hợp đồng nhà máy. Mã nguồn đã verify công khai; ai cũng đọc được luật trên Snowtrace.',
+    text: 'Mỗi dây là một smart contract Solidity riêng, tạo từ một factory contract. Mã nguồn đã verify công khai; ai cũng đọc được luật trên Snowtrace.',
+    why: 'Giao dịch chốt sau khoảng 1-2 giây, phí thấp, và tương thích EVM nên dùng được công cụ Ethereum quen thuộc.',
     link: true,
   },
   {
     Icon: CircleDollarSign,
     title: 'Tiền góp bằng USDC',
-    text: 'Đồng USDC do Circle phát hành, giá trị neo 1:1 với đô la Mỹ. Bản trên Fuji là USDC thử nghiệm, không có giá trị.',
+    text: 'Đồng stablecoin USDC do Circle phát hành, giá trị neo 1:1 với đô la Mỹ. Bản trên Fuji là USDC thử nghiệm (testnet), không có giá trị.',
+    why: 'USDC có permit (EIP-2612), nên vào dây chỉ cần ký một lần.',
     link: false,
   },
   {
     Icon: KeyRound,
     title: 'Đăng nhập không cần ví crypto',
-    text: 'Ví nhúng Privy tạo sẵn khi bạn đăng nhập bằng Google hoặc email. Bạn chỉ ký; phí mạng do máy chủ chuyển tiếp của HụiSafe trả (chuẩn ERC-2771).',
+    text: 'Ví Privy (embedded wallet) được tạo sẵn khi bạn đăng nhập bằng Google hoặc email. Bạn chỉ ký; phí mạng do relayer của HụiSafe trả (chuẩn ERC-2771).',
+    why: 'Đăng nhập Google hoặc email là có ví, người mới không phải học seed phrase.',
     link: false,
   },
   {
     Icon: Lock,
     title: 'Thăm kín bằng commit-reveal',
-    text: 'Nộp mã băm trước, mở số thật sau. Không ai sửa được thăm sau khi đã nộp, cũng không ai đọc được trước giờ mở.',
+    text: 'Nộp hash trước, mở số thật sau. Không ai sửa được thăm sau khi đã nộp, cũng không ai đọc được trước giờ mở.',
+    why: 'Smart contract giữ kín thăm tới giờ mở, nên không cần một người cầm phong bì.',
     link: false,
   },
   {
     Icon: ShieldCheck,
-    title: 'Kiểm thử và kiểm toán',
-    text: '632 bài test Foundry, trong đó 54 bất biến về tiền được kiểm bằng fuzzing. Kiểm toán bảo mật không còn lỗi mức Critical hay High.',
+    title: 'Kiểm thử và kiểm toán (audit)',
+    text: '632 bài test Foundry, trong đó 54 invariant về tiền (điều kiện về tiền luôn phải đúng) được kiểm bằng fuzz test. Audit bảo mật không còn lỗi mức Critical hay High.',
+    why: 'Dùng thư viện OpenZeppelin, đã được audit và dùng rộng rãi; Foundry chạy fuzz và invariant test.',
     link: false,
   },
   {
     Icon: Bot,
     title: 'Trợ lý AI chỉ tính, không ký',
     text: 'Trợ lý chủ hụi dùng hàm tính tất định để trả lời về rủi ro, ký quỹ, trần thăm. Nó không ký giao dịch và không chuyển được tiền.',
+    why: 'Số liệu lấy từ hàm tính của HụiSafe; mô hình AI chỉ viết lời giải thích.',
     link: false,
   },
 ] as const;
+
+const PARTNERS = ['Avalanche', 'Circle USDC', 'Privy', 'OpenZeppelin', 'Foundry'];
 
 const MARQUEE = ['Smart contract trên Avalanche', 'Tiền góp bằng USDC', 'Không ai cầm tiền', 'Sổ hụi công khai'];
 
@@ -481,17 +489,26 @@ export function Landing({ sample, factory }: { sample: boolean; factory?: `0x${s
                 <p className={s.label}>Chạy bằng gì</p>
                 <h2 id="lp-tech-h">Công nghệ phía sau HụiSafe</h2>
               </div>
-              <ul className={s.techGrid}>
+              <ul className={s.partners} aria-label="Công nghệ và đối tác">
+                {PARTNERS.map((n) => (
+                  <li key={n}>{n}</li>
+                ))}
+              </ul>
+              <ul className={s.techGrid} data-lp-tech>
                 {TECH.map((t) => (
-                  <li key={t.title} className={s.techCard} data-lp-card>
+                  <li key={t.title} className={s.techCard} data-lp-tech-card>
                     <span className={s.techIcon}>
                       <t.Icon aria-hidden />
                     </span>
                     <h3>{t.title}</h3>
                     <p>{t.text}</p>
+                    <p className={s.techWhy}>
+                      <span>Vì sao chọn</span>
+                      {t.why}
+                    </p>
                     {t.link && factory && (
                       <a className={s.techLink} href={fujiAddressUrl(factory)} target="_blank" rel="noopener noreferrer">
-                        Xem hợp đồng nhà máy trên Snowtrace <Arrow dir="↗" />
+                        Xem factory contract trên Snowtrace <Arrow dir="↗" />
                       </a>
                     )}
                   </li>
