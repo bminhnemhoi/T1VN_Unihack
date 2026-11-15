@@ -295,7 +295,7 @@ export function Landing({ sample, factory }: { sample: boolean; factory?: `0x${s
                 </div>
               </div>
 
-              <figure className={s.stage} data-lp-stage style={{ marginBlock: 0 }} aria-label="Xem trước web app: phòng bỏ thăm của một dây mẫu">
+              <figure className={s.stage} data-lp-stage aria-label="Xem trước web app: phòng bỏ thăm của một dây mẫu">
                 <div className={s.app}>
                   <div className={s.appBar} aria-hidden>
                     <i />
