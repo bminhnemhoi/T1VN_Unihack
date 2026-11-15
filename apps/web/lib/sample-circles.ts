@@ -60,6 +60,8 @@ export interface SampleCircleData {
   label: string;
   terms: Terms;
   state: 'forming' | 'active' | 'completed';
+  /** Chain only: how a `completed` circle really ended when it was cancelled or unwound (the room draws it like a finished one, the labels must not say "done"). */
+  ended?: 'cancelled' | 'unwound';
   /**
    * Chain only: the circle is `Paused` (it stays `state: 'active'` so the room still draws). While paused only `claim()`
    * works on chain; every other button is locked and a banner says so (docs/03 section 5.4).

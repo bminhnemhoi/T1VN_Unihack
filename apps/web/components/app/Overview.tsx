@@ -18,7 +18,9 @@ const f = (u: bigint): string => {
   const s = formatUsdcNumber(u);
   return s.includes(',') ? s : `${s},00`;
 };
-const URGENCY: Record<string, number> = { active: 0, forming: 1, completed: 2 };
+const URGENCY: Record<string, number> = { active: 0, forming: 1, completed: 2, cancelled: 3, unwound: 3 };
+/** Circles with nothing left to do. A cancelled circle is closed too, but it is NOT "done". */
+const isClosed = (c: SampleCircle): boolean => c.state === 'completed' || c.state === 'cancelled' || c.state === 'unwound';
 
 function useTicking(seconds: number): number {
   const [left, setLeft] = useState(seconds);
@@ -41,6 +43,8 @@ const clock = (s: number) => {
 
 function tagOf(c: SampleCircle): { cls: string; text: string } {
   if (c.state === 'completed') return { cls: 'ok', text: 'Đã xong' };
+  if (c.state === 'cancelled') return { cls: 'void', text: 'Đã hủy' };
+  if (c.state === 'unwound') return { cls: 'void', text: 'Đã dừng' };
   if (c.state === 'forming') return { cls: '', text: 'Đang gom' };
   if (c.todo.startsWith('Trả')) return { cls: 'bad', text: 'Còn thiếu' };
   if (c.todo.startsWith('Nộp thăm')) return { cls: 'lime', text: 'Cần bỏ thăm' };
@@ -99,7 +103,7 @@ function OverviewSkeleton() {
 }
 
 function Board({ list, my, refreshing, stale }: { list: SampleCircle[]; my: Extract<ReturnType<typeof useMyCircles>, { status: 'ready' }>; refreshing: boolean; stale: boolean }) {
-  const open = list.filter((c) => c.state !== 'completed');
+  const open = list.filter((c) => !isClosed(c) || (c.bondLeft && c.role === 'organizer'));
   const first = open[0];
   const left = useTicking(first?.secondsLeft ?? 0);
   const running = list.filter((c) => c.state === 'active').length;
@@ -175,7 +179,7 @@ function Board({ list, my, refreshing, stale }: { list: SampleCircle[]; my: Extr
       <ul className="circles" aria-label="Các dây của bạn">
         {list.map((c) => {
           const tag = tagOf(c);
-          const done = c.state === 'completed' ? c.n : c.round;
+          const done = c.state === 'completed' ? c.n : c.state === 'cancelled' || c.state === 'unwound' ? 0 : c.round;
           return (
             <li key={c.id}>
               <Link href={c.href}>
@@ -186,6 +190,10 @@ function Board({ list, my, refreshing, stale }: { list: SampleCircle[]; my: Extr
                       ? `Đang gom ${c.joined ?? 0}/${c.n} người · ${f(c.contribution)} USDC/kỳ`
                       : c.state === 'completed'
                         ? `Đã xong ${c.n} kỳ · ${c.role === 'organizer' ? 'bạn là chủ hụi' : 'sổ khớp'}`
+                        : c.state === 'cancelled'
+                          ? `Hủy vì không đủ người trước hạn${c.role === 'organizer' ? ' · bạn là chủ hụi' : ''}${c.bondLeft ? ' · rút ký quỹ' : ''}`
+                          : c.state === 'unwound'
+                            ? `Dừng khẩn cấp, tiền trả theo sổ${c.role === 'organizer' ? ' · bạn là chủ hụi' : ''}`
                         : `Kỳ ${Math.min(c.round + 1, c.n)}/${c.n} · ${f(c.contribution)} USDC/kỳ${c.role === 'organizer' ? ' · bạn là chủ hụi' : ''}`}
                   </small>
                 </div>

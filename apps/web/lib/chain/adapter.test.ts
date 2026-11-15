@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { CircleView } from 'sdk';
-import { toLedger, toSampleCircle, toSampleMembers } from './adapter';
+import { STATE_MAP, toLedger, toSampleCircle, toSampleMembers } from './adapter';
 
 const U = 1_000_000n;
 const A = (i: number) => `0x${i.toString(16).padStart(40, '0')}` as const;
@@ -59,5 +59,21 @@ describe('adapter', () => {
     expect(c).toMatchObject({ role: 'member', state: 'active', round: 2, n: 3, todo: 'Nộp thăm kín cho kỳ 3', secondsLeft: 90 });
     expect(c.winners).toEqual(['Thành viên 3', 'Thành viên 1']);
     expect(toSampleCircle(view(), ORG, 1000).role).toBe('organizer');
+  });
+  it('a cancelled or unwound circle is never "completed" (B24, bug 2)', () => {
+    expect(STATE_MAP).toEqual({ forming: 'forming', active: 'active', paused: 'active', completed: 'completed', cancelled: 'cancelled', unwound: 'unwound' });
+    const cancelled = { ...view(), state: 'cancelled', settledRounds: 0, currentRound: 1, rounds: [], bondRemaining: 480n * U } as unknown as CircleView;
+    const mine = toSampleCircle(cancelled, ORG, 1000);
+    expect(mine).toMatchObject({ state: 'cancelled', round: 0, role: 'organizer', bondLeft: true, action: 'Rút ký quỹ' });
+    expect(mine.todo).toContain('không đủ người trước hạn');
+    // a member sees the same fact but has nothing to withdraw
+    const member = toSampleCircle(cancelled, A(2), 1000);
+    expect(member).toMatchObject({ state: 'cancelled', action: 'Xem dây' });
+    expect(member.todo).not.toContain('Rút ký quỹ');
+    // bond already withdrawn: no "rút ký quỹ" any more
+    const empty = toSampleCircle({ ...cancelled, bondRemaining: 0n } as unknown as CircleView, ORG, 1000);
+    expect(empty.bondLeft).toBeUndefined();
+    expect(toSampleCircle({ ...cancelled, state: 'unwound' } as unknown as CircleView, ORG, 1000).state).toBe('unwound');
+    expect(toSampleCircle({ ...view(), state: 'completed' } as unknown as CircleView, ORG, 1000).state).toBe('completed');
   });
 });

@@ -14,7 +14,7 @@ export function CirclePageHead({ circle, title, children }: { circle: SampleCirc
       <h1>{title}</h1>
       <div className="pgTags">
         <Badge variant="outline">{circle.label}</Badge>
-        <Badge variant="secondary">{STATE[circle.state]}</Badge>
+        <Badge variant="secondary">{circle.ended === 'cancelled' ? 'Đã hủy' : circle.ended === 'unwound' ? 'Đã dừng khẩn cấp' : STATE[circle.state]}</Badge>
         <Badge variant="secondary">{circle.terms.mode === 'fixed' ? 'Cố định' : 'Bỏ thăm'}</Badge>
         {!circle.live && <Badge variant="secondary">Dữ liệu mẫu</Badge>}
       </div>

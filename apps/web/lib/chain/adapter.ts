@@ -66,7 +66,8 @@ export function toLedger(v: CircleView): LedgerRound[] {
   });
 }
 
-const STATE_MAP = { forming: 'forming', active: 'active', paused: 'active', completed: 'completed', cancelled: 'completed', unwound: 'completed' } as const;
+/** Chain state -> list state. A cancelled or unwound circle is NOT "completed": it never paid out (audit by Towfienes 15/11). */
+export const STATE_MAP = { forming: 'forming', active: 'active', paused: 'active', completed: 'completed', cancelled: 'cancelled', unwound: 'unwound' } as const;
 
 function nextStep(v: CircleView, isOrganizer: boolean): { todo: string; action: string; secondsLeft: (now: number) => number } {
   const k = v.currentRound;
@@ -86,6 +87,14 @@ function nextStep(v: CircleView, isOrganizer: boolean): { todo: string; action: 
       phase === 'commit' ? `Nộp thăm kín cho kỳ ${k}` : phase === 'reveal' ? `Mở thăm kỳ ${k}` : phase === 'awaiting-settle' ? `Chờ chốt kỳ ${k}` : `Chờ kỳ ${k} bắt đầu`;
     return { todo, action: 'Vào phòng thăm', secondsLeft: (now) => Math.max(0, until - now) };
   }
+  if (v.state === 'cancelled') {
+    return {
+      todo: isOrganizer && v.bondRemaining > 0n ? 'Dây đã hủy vì không đủ người trước hạn. Rút ký quỹ về ví' : 'Dây đã hủy vì không đủ người trước hạn',
+      action: isOrganizer && v.bondRemaining > 0n ? 'Rút ký quỹ' : 'Xem dây',
+      secondsLeft: () => 0,
+    };
+  }
+  if (v.state === 'unwound') return { todo: 'Dây đã dừng khẩn cấp, tiền trả theo sổ', action: 'Xem dây', secondsLeft: () => 0 };
   return { todo: 'Đã xong. Xem sổ hụi hoặc nhận lại phần còn lại', action: 'Xem lại dây', secondsLeft: () => 0 };
 }
 
@@ -114,6 +123,7 @@ export function toSampleCircle(v: CircleView, viewer?: Address, nowSec: number =
     winners: winners.length ? winners : undefined,
     myRound: mine?.receivedRound,
     joined: v.state === 'forming' ? v.members.length : undefined,
+    bondLeft: (v.state === 'cancelled' || v.state === 'unwound') && v.bondRemaining > 0n ? true : undefined,
     action: step.action,
   };
 }

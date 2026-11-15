@@ -158,6 +158,7 @@
     & .tag.ok { background: var(--forest-soft); color: var(--forest); }
     & .tag.bad { background: var(--red); color: var(--ink); }
     & .tag.lime { background: var(--lime); }
+    & .tag.void { background: var(--soft); color: var(--ink-2); box-shadow: inset 0 0 0 1px var(--line); }
     & .tag.inkt { background: var(--ink); color: var(--ivory); }
 
     & .cascade { display: grid; gap: 8px; padding: 16px; border-radius: var(--r-in); background: #fff3ee; border: 1px solid #f3c9bd; }
