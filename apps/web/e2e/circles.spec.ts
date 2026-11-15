@@ -7,12 +7,13 @@ test.describe('/circles (Tổng quan)', () => {
     const errs = watchErrors(page);
     await page.goto('/circles');
     const list = page.getByRole('list', { name: 'Các dây của bạn' });
-    await expect(list.getByRole('heading', { level: 3 })).toHaveText(['Hụi tổ dân phố 7', 'Hụi cố định gia đình', 'Hụi bạn đại học', 'Hụi chị em văn phòng']);
+    await expect(list.getByRole('heading', { level: 3 })).toHaveText(['Hụi tổ dân phố 7', 'Hụi cố định gia đình', 'Hụi bạn đại học', 'Hụi chị em văn phòng', 'Hụi tổ dân phố 9']);
     for (const [label, path] of [
       ['Hụi tổ dân phố 7', 'demo'],
       ['Hụi cố định gia đình', 'co-dinh'],
       ['Hụi bạn đại học', 'dang-gom'],
       ['Hụi chị em văn phòng', 'da-xong'],
+      ['Hụi tổ dân phố 9', 'da-huy'],
     ] as const) {
       await page.goto('/circles');
       await list.getByRole('link', { name: new RegExp(label) }).click();
@@ -25,7 +26,7 @@ test.describe('/circles (Tổng quan)', () => {
   test('verdict first: the most urgent task with its deadline and one action', async ({ page }) => {
     await page.goto('/circles');
     const verdict = page.locator('.verdict');
-    await expect(verdict).toContainText('3 việc cần làm · gấp nhất');
+    await expect(verdict).toContainText('4 việc cần làm · gấp nhất');
     await expect(verdict.locator('p')).toHaveText('Nộp thăm kín cho kỳ 3 · Hụi tổ dân phố 7');
     await expect(verdict).toContainText(/Còn \d/);
     await verdict.getByRole('link', { name: 'Vào phòng thăm ↗' }).click();

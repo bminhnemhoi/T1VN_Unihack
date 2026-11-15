@@ -112,6 +112,21 @@ export const SAMPLE_CIRCLES: SampleCircle[] = [
     myRound: 5,
     action: 'Xem lại dây',
   },
+  {
+    id: 'e',
+    label: 'Hụi tổ dân phố 9',
+    role: 'organizer',
+    state: 'cancelled',
+    bondLeft: true,
+    bondUnits: usdc(48),
+    round: 0,
+    n: 5,
+    contribution: usdc(10),
+    todo: 'Dây đã hủy vì không đủ người trước hạn. Rút ký quỹ về ví',
+    secondsLeft: 0,
+    href: '/circles/da-huy',
+    action: 'Rút ký quỹ',
+  },
 ];
 
 /** What the viewer (Thành viên 2 of "Hụi tổ dân phố 7") has put in so far. Numbers from docs/03 section 8. */

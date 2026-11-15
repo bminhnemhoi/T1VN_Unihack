@@ -21,7 +21,7 @@ export function SettleView({ c }: { c: SampleCircleData }) {
   const { show } = useToast();
   const [claimed, setClaimed] = useState(false);
   const live = c.live;
-  const done = c.state === 'completed' && live?.view.state !== 'cancelled';
+  const done = c.state === 'completed' && !c.ended && live?.view.state !== 'cancelled';
   // Sample data: the clean model (nobody defaulted) is what `settleCleanCircle` computes. A circle read from the chain is settled from its own events (`LiveSettle`).
   const s = useMemo(
     () => (done && !live && c.shortfalls.length === 0 && c.viewer >= 0 ? settleCleanCircle({ terms: c.terms, winnerByRound: c.winnerByRound, bids: c.bids, bond: c.bond }) : undefined),

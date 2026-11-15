@@ -21,6 +21,7 @@ import { Field, FieldDescription, FieldLabel } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
+import { useHiddenCircles } from '@/lib/hidden-store';
 import { getSampleCircle } from '@/lib/sample-circles';
 import { TOGGLE_ON } from '@/lib/utils';
 
@@ -211,6 +212,8 @@ export function SettingsView() {
 
       {!chain && <DemoTools />}
 
+      <HiddenCircles owner={wallet?.address} />
+
       <section aria-labelledby="cong-cu" className="o-phang mt-6 p-6">
         <h2 id="cong-cu" className="font-display text-h2 font-bold">
           Công cụ khác
@@ -234,6 +237,43 @@ export function SettingsView() {
         </Button>
       </section>
     </main>
+  );
+}
+
+/** "Dây đã ẩn" (B25): circles this wallet deleted from the list on this device, each with "Hiện lại". The on-chain book is untouched. */
+function HiddenCircles({ owner }: { owner?: `0x${string}` }) {
+  const { hidden, unhide } = useHiddenCircles(owner);
+  const { show } = useToast();
+  return (
+    <section id="day-da-an" aria-labelledby="da-an" className="o-phang mt-6 p-6" data-testid="hidden-circles">
+      <h2 id="da-an" className="font-display text-h2 font-bold">
+        Dây đã ẩn
+      </h2>
+      <p className="mt-1 text-muted-foreground">Dây bạn đã xóa khỏi danh sách trên máy này. Sổ trên blockchain vẫn giữ nguyên; hiện lại là dây quay về danh sách.</p>
+      {hidden.length === 0 ? (
+        <p className="mt-3 text-muted-foreground">Chưa ẩn dây nào.</p>
+      ) : (
+        <ul aria-label="Dây đã ẩn" className="mt-2">
+          {hidden.map((h) => (
+            <li key={h.id} className="dong-ke flex min-h-12 flex-wrap items-center justify-between gap-3 py-2 last:border-b-0">
+              <span className="font-semibold">{h.label}</span>
+              <Button
+                type="button"
+                variant="outline"
+                size="lg"
+                aria-label={`Hiện lại dây ${h.label}`}
+                onClick={() => {
+                  unhide(h.id);
+                  show(`Đã hiện lại dây "${h.label}"`);
+                }}
+              >
+                Hiện lại
+              </Button>
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
   );
 }
 
