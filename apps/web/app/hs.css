@@ -306,7 +306,8 @@
     & .crNav { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
     & .cr .rc div { padding: 8px 0; }
     & .crDone { display: grid; gap: 16px; align-content: safe center; }
-    & .crDone .stamp { position: static; justify-self: start; font-size: 30px; padding: 12px 16px; }
+    & .crDone .stamp { position: static; justify-self: start; font-size: 30px; padding: 12px 16px; margin: 12px 0 12px 16px; /* the tilt sweeps ~9px past the box on the left and the landing scale more: keep it inside the column */ transform-origin: 30% 50%; max-width: calc(100% - 32px); }
+    @media (max-width: 400px) { & .crDone .stamp { font-size: 26px; padding: 10px 14px; } }
     & .check { display: flex; align-items: flex-start; gap: 12px; font-size: 14px; max-width: 60ch; }
     & .check input { width: 24px; height: 24px; margin: 0; accent-color: var(--ink); flex: none; }
 
