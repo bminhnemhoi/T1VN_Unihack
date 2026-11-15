@@ -195,6 +195,10 @@
     & .bub b { font: 600 13px var(--body); font-variant-numeric: tabular-nums; white-space: nowrap; }
     & .circles a { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1.6fr) auto; gap: 16px; align-items: center; padding: 16px; border-bottom: 1px solid var(--line); text-decoration: none; color: inherit; transition: background var(--dur-ui); }
     & .circles li:last-child a { border-bottom: 0; }
+    /* hover stays inside the rounded frame: the first and last row carry the frame's radius themselves (an animated list item can escape the overflow clip) */
+    & .circles { isolation: isolate; }
+    & .circles li:first-child a { border-top-left-radius: calc(var(--r) - 1px); border-top-right-radius: calc(var(--r) - 1px); }
+    & .circles li:last-child a { border-bottom-left-radius: calc(var(--r) - 1px); border-bottom-right-radius: calc(var(--r) - 1px); }
     & .circles a:hover { background: var(--ivory); }
     & .circles a.add { grid-template-columns: minmax(0, 1fr) auto; color: var(--ink-2); }
     & .circles a.add strong { font: 700 15px var(--display); color: var(--ink); }
