@@ -8,6 +8,22 @@ function setStep(story: HTMLElement | null, i: number) {
   if (story) story.dataset.state = String(i);
 }
 
+/** Lenis instances alive right now (0 or 1): the class sweep below must not strip a newer instance's classes. */
+let liveLenis = 0;
+
+/**
+ * Lenis keeps a 400 ms timer after a scroll that sets `isScrolling = false`, and that setter re-applies the `lenis` class on
+ * <html> even after `destroy()`. Leaving the landing right after a scroll (Next scrolls to the top) therefore left
+ * `html.lenis` behind on the app. Sweep the classes once that timer has fired, unless a new Lenis has started meanwhile.
+ */
+function sweepLenisClasses() {
+  window.setTimeout(() => {
+    if (liveLenis > 0) return;
+    const html = document.documentElement;
+    html.className = html.className.replace(/(^|\s)lenis(-[\w-]+)?(?=\s|$)/g, ' ').replace(/\s+/g, ' ').trim();
+  }, 600);
+}
+
 /**
  * All landing motion (Neutomni-style intro, hero entrance, scroll reveals, ballot story, word scrub) plus Lenis smooth
  * scrolling. GSAP and Lenis load after hydration, so the page is complete and readable without them; every tween only
@@ -159,6 +175,7 @@ export function LandingMotion() {
       ScrollTrigger.config({ autoRefreshEvents: 'visibilitychange,DOMContentLoaded,resize' });
 
       const lenis = new Lenis({ lerp: 0.1 });
+      liveLenis++;
       lenis.on('scroll', ScrollTrigger.update);
       const tick = (time: number) => lenis.raf(time * 1000);
       gsap.ticker.add(tick);
@@ -282,6 +299,8 @@ export function LandingMotion() {
         gsap.ticker.remove(tick);
         gsap.ticker.lagSmoothing(500, 33);
         lenis.destroy();
+        liveLenis--;
+        sweepLenisClasses();
       };
     });
 

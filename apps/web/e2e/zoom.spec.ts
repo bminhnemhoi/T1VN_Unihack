@@ -107,4 +107,31 @@ test.describe('zoom and text size', () => {
       expect(m.right, 'nothing runs past the right gutter').toBeLessThanOrEqual(width - 15);
     });
   }
+
+  // B25 item 2: on a wide screen the two hero columns stay together. Widths are those of 1440, 1920 and 2560 screens; the page
+  // scales itself (CSS zoom) above 1400px, so gaps are compared in CSS pixels (divided by that zoom).
+  for (const width of [1440, 1920, 2560]) {
+    test(`hero columns sit together and centred at ${width}px`, async ({ page }) => {
+      await page.setViewportSize({ width, height: 1000 });
+      await page.goto('/');
+      await page.waitForLoadState('networkidle');
+      await page.waitForTimeout(500);
+      const m = await page.evaluate(() => {
+        const zoom = Number(getComputedStyle(document.querySelector('[data-lp-root]')!).zoom) || 1;
+        // The right edge of the title TEXT (not of its box: the box used to be a wide column with empty space in it).
+        const range = document.createRange();
+        range.selectNodeContents(document.querySelector('h1')!);
+        const h1 = range.getBoundingClientRect();
+        const side = document.querySelector('[data-lp-side]')!.getBoundingClientRect();
+        const bubble = document.querySelector('[data-lp-bubble]')!.getBoundingClientRect();
+        const cta = document.querySelector('a[href="#mot-ky"]')!.getBoundingClientRect();
+        const logo = document.querySelector('[data-lp-root] nav a')!.getBoundingClientRect();
+        return { zoom, gap: (side.left - h1.right) / zoom, leftMargin: h1.left / zoom, rightMargin: (innerWidth - side.right) / zoom, bubbleLeft: bubble.left, sideLeft: side.left, ctaTop: cta.top, logoLeft: logo.left };
+      });
+      expect(m.gap, 'gap between the title and the right column, in CSS px').toBeGreaterThanOrEqual(48);
+      expect(m.gap).toBeLessThanOrEqual(110);
+      expect(Math.abs(m.leftMargin - m.rightMargin), 'the cluster is centred: equal margins left and right').toBeLessThanOrEqual(90);
+      expect(Math.abs(m.bubbleLeft - m.sideLeft), 'chat bubbles and the paragraph share the left edge of the right column').toBeLessThanOrEqual(40 * m.zoom);
+    });
+  }
 });
