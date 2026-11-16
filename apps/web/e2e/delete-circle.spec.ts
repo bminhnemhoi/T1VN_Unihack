@@ -58,6 +58,7 @@ test.describe('delete a cancelled circle', () => {
     await row(page).getByRole('button', { name: `Xóa dây ${NAME}` }).click();
     const dialog = page.getByRole('dialog');
     const inside = () => page.evaluate(() => !!document.activeElement?.closest('[role="dialog"]'));
+    await expect(dialog.getByRole('heading')).toBeFocused(); // the dialog moves focus to its title on open
     for (let i = 0; i < 4; i++) {
       await page.keyboard.press('Tab');
       expect(await inside()).toBe(true);

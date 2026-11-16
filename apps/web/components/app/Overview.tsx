@@ -116,6 +116,7 @@ function OverviewSkeleton() {
 }
 
 function Board({ list, my, refreshing, stale, onHide }: { list: SampleCircle[]; my: Extract<ReturnType<typeof useMyCircles>, { status: 'ready' }>; refreshing: boolean; stale: boolean; onHide: (c: SampleCircle) => void }) {
+  const { wallet } = useHuiWallet();
   const [deleting, setDeleting] = useState<SampleCircle | null>(null);
   const listEl = useRef<HTMLUListElement>(null);
   /** After the receipts (or at once when none is needed): motion, then hide. Reduced motion hides straight away. */
@@ -210,7 +211,7 @@ function Board({ list, my, refreshing, stale, onHide }: { list: SampleCircle[]; 
         </li>
       </ul>
       {firstId && <Feed id={firstId} label={first!.label} />}
-      {deleting && <DeleteDialog c={deleting} onClose={() => setDeleting(null)} onDeleted={(plan) => finishDelete(deleting, plan)} />}
+      {deleting && <DeleteDialog c={deleting} viewer={wallet?.address as `0x${string}` | undefined} onClose={() => setDeleting(null)} onDeleted={(plan) => finishDelete(deleting, plan)} />}
     </main>
   );
 }

@@ -64,3 +64,33 @@ export function planDelete(c: Deletable): DeletePlan {
   if (c.state === 'forming' && c.expired && bond > 0n) return { kind: 'cancel-withdraw', bond, signatures: 2 };
   return { kind: 'hide-only', bond: 0n, signatures: 0 };
 }
+
+/** What the chain says right before deleting (audit B25 L-01): never trust the cached row for money. */
+export interface FreshDeleteState {
+  /** `CircleState` from the contract: 0 Forming, 1 Active, 2 Paused, 3 Completed, 4 Cancelled, 5 Unwound. */
+  state: number;
+  bondRemaining: bigint;
+  isOrganizer: boolean;
+  /** `claimable(viewer)`: money the circle could not push to this wallet (audit B25 M-01). */
+  claimable: bigint;
+}
+
+export interface FreshSteps {
+  cancel: boolean;
+  withdraw: boolean;
+  /** USDC (base units) waiting in `claimable`; hiding is blocked while this is above 0. */
+  owed: bigint;
+}
+
+/**
+ * The transactions still needed, from a fresh read. A circle the keeper already cancelled skips `cancel`; a bond already
+ * withdrawn skips `withdrawBond`; money in `claimable` must be claimed before the circle may be hidden.
+ */
+export function freshSteps(plan: DeletePlan, f: FreshDeleteState): FreshSteps {
+  const hasBond = f.isOrganizer && f.bondRemaining > 0n;
+  return {
+    cancel: plan.kind === 'cancel-withdraw' && f.state === 0 && hasBond,
+    withdraw: hasBond && (f.state === 4 || (plan.kind === 'cancel-withdraw' && f.state === 0)),
+    owed: f.claimable,
+  };
+}

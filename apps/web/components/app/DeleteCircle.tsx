@@ -8,9 +8,10 @@
 import { Trash2 } from 'lucide-react';
 import { useEffect, useId, useRef, useState, type KeyboardEvent, type TouchEvent } from 'react';
 import { createPortal } from 'react-dom';
-import { formatUsdcNumber } from 'sdk';
+import { formatUsdcNumber, huiCircleFullAbi } from 'sdk';
 import { TxButton, TxNote, TxSteps, useStepTx } from '@/components/app/tx';
-import { planDelete, type DeletePlan } from '@/lib/hidden-circles';
+import { useChain } from '@/lib/chain/provider';
+import { freshSteps, planDelete, type DeletePlan, type FreshDeleteState } from '@/lib/hidden-circles';
 import type { SampleCircle } from '@/lib/sample';
 import s from './DeleteDialog.module.css';
 
@@ -111,9 +112,13 @@ function bodyOf(plan: DeletePlan, label: string) {
 }
 
 /** The confirmation. `onDeleted` runs once, after the receipt of every transaction the plan needs (or at once when none is needed). */
-export function DeleteDialog({ c, onClose, onDeleted }: { c: SampleCircle; onClose: () => void; onDeleted: (plan: DeletePlan) => void }) {
+export function DeleteDialog({ c, viewer, onClose, onDeleted }: { c: SampleCircle; viewer?: `0x${string}`; onClose: () => void; onDeleted: (plan: DeletePlan) => void }) {
   const plan = planDelete(c);
   const t = useStepTx();
+  const chain = useChain();
+  /** USDC waiting in `claimable` for this wallet: the circle may not be hidden until it is claimed (audit B25 M-01). */
+  const [owed, setOwed] = useState(0n);
+  const [checking, setChecking] = useState(false);
   const [phase, setPhase] = useState<1 | 2>(1);
   const cancelDone = useRef(false);
   const [host, setHost] = useState<HTMLElement | null>(null);
@@ -134,17 +139,50 @@ export function DeleteDialog({ c, onClose, onDeleted }: { c: SampleCircle; onClo
     if (host) title.current?.focus({ preventScroll: true });
   }, [host]);
 
+  /** Fresh read from the chain (audit B25 L-01). `null` on sample data or when the read fails (then the cached plan stands). */
+  const readFresh = async (): Promise<FreshDeleteState | null> => {
+    if (!chain || !viewer) return null;
+    const read = (functionName: string, args: unknown[] = []) =>
+      chain.client.readContract({ address, abi: huiCircleFullAbi, functionName, args } as never) as Promise<unknown>;
+    try {
+      const [state, bondRemaining, organizer, claimable] = await Promise.all([read('state'), read('bondRemaining'), read('organizer'), read('claimable', [viewer])]);
+      return { state: Number(state), bondRemaining: bondRemaining as bigint, isOrganizer: String(organizer).toLowerCase() === viewer.toLowerCase(), claimable: claimable as bigint };
+    } catch {
+      return null;
+    }
+  };
+
+  /** Hides only when the chain shows nothing left for this wallet; otherwise offers `claim()` first. */
+  const finish = async (): Promise<void> => {
+    const f = await readFresh();
+    if (f && f.claimable > 0n) {
+      setOwed(f.claimable);
+      return;
+    }
+    onDeleted(plan);
+  };
+
   const confirm = async () => {
-    if (plan.kind === 'cancel-withdraw' && !cancelDone.current) {
+    setChecking(true);
+    const f = await readFresh();
+    setChecking(false);
+    const steps = f ? freshSteps(plan, f) : { cancel: plan.kind === 'cancel-withdraw', withdraw: plan.kind === 'withdraw' || plan.kind === 'cancel-withdraw', owed: 0n };
+    if (steps.cancel && !cancelDone.current) {
       setPhase(1);
       if (!(await t.run((a) => a.cancel(address)))) return;
       cancelDone.current = true; // a retry after a failed withdrawal must not ask for the cancel again
     }
-    if (plan.kind === 'withdraw' || plan.kind === 'cancel-withdraw') {
+    if (steps.withdraw) {
       setPhase(2);
       if (!(await t.run((a) => a.withdrawBond(address)))) return;
     }
-    onDeleted(plan);
+    await finish();
+  };
+
+  const claimThenHide = async () => {
+    if (!(await t.run((a) => a.claim(address)))) return;
+    setOwed(0n);
+    await finish();
   };
 
   const onKey = (e: KeyboardEvent) => {
@@ -178,16 +216,24 @@ export function DeleteDialog({ c, onClose, onDeleted }: { c: SampleCircle; onClo
         <h2 id={titleId} ref={title} tabIndex={-1} className={s.title}>
           Xóa dây &quot;{c.label}&quot;?
         </h2>
-        {bodyOf(plan, c.label)}
+        {owed > 0n ? (
+          <p className={s.body} data-testid="delete-owed">
+            Dây còn <span className={s.amount}>{usdc(owed)}</span> chờ bạn nhận (chuyển thẳng không được nên hợp đồng giữ lại). Nhận tiền về ví trước, rồi mới ẩn dây.
+          </p>
+        ) : (
+          bodyOf(plan, c.label)
+        )}
         {plan.signatures === 2 && t.busy && <p className={s.steps}>Lần ký {phase}/2</p>}
         <TxSteps t={t} />
         <TxNote t={t} />
         <p className={s.sure}>Dây là smart contract trên blockchain nên không xóa hẳn được; &quot;xóa&quot; là ẩn khỏi danh sách của ví này.</p>
         <div className={s.actions}>
-          {money ? (
+          {owed > 0n ? (
+            <TxButton t={t} label={`Nhận ${usdc(owed)} rồi xóa`} retryLabel="Thử lại" tone="ink" onRun={() => void claimThenHide()} />
+          ) : money ? (
             <TxButton t={t} label={label} retryLabel="Thử lại" tone="ink" onRun={() => void confirm()} />
           ) : (
-            <button type="button" className="btn ink" onClick={() => onDeleted(plan)}>
+            <button type="button" className="btn ink" disabled={checking} onClick={() => void (async () => { setChecking(true); await finish(); setChecking(false); })()}>
               {label}
             </button>
           )}

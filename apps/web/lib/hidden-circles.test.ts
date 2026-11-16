@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { canDelete, hiddenKey, parseHidden, planDelete, withHidden, withoutHidden } from './hidden-circles';
+import { canDelete, freshSteps, hiddenKey, parseHidden, planDelete, withHidden, withoutHidden } from './hidden-circles';
 
 const U = 1_000_000n;
 
@@ -52,5 +52,28 @@ describe('what deleting does (the four branches of B25)', () => {
   });
   it('a member never holds anything in a cancelled circle: hide only, with the allowance tip', () => {
     expect(planDelete({ state: 'cancelled', role: 'member', bondUnits: 480n * U })).toEqual({ kind: 'member', bond: 0n, signatures: 0 });
+  });
+});
+
+describe('freshSteps (audit B25 M-01, L-01): the chain decides, not the cached row', () => {
+  const withdraw = planDelete({ state: 'cancelled', role: 'organizer', bondUnits: 48n * U });
+  const cancelWithdraw = planDelete({ state: 'forming', role: 'organizer', expired: true, bondUnits: 48n * U });
+  it('the keeper already cancelled the expired circle: skip cancel, still withdraw', () => {
+    expect(freshSteps(cancelWithdraw, { state: 4, bondRemaining: 48n * U, isOrganizer: true, claimable: 0n })).toEqual({ cancel: false, withdraw: true, owed: 0n });
+  });
+  it('still gathering past its deadline: cancel then withdraw', () => {
+    expect(freshSteps(cancelWithdraw, { state: 0, bondRemaining: 48n * U, isOrganizer: true, claimable: 0n })).toEqual({ cancel: true, withdraw: true, owed: 0n });
+  });
+  it('bond already withdrawn elsewhere: nothing to send', () => {
+    expect(freshSteps(withdraw, { state: 4, bondRemaining: 0n, isOrganizer: true, claimable: 0n })).toEqual({ cancel: false, withdraw: false, owed: 0n });
+  });
+  it('money waiting in claimable is reported so the hide is blocked', () => {
+    expect(freshSteps(withdraw, { state: 4, bondRemaining: 0n, isOrganizer: true, claimable: 48n * U }).owed).toBe(48n * U);
+    const member = planDelete({ state: 'unwound', role: 'member' });
+    expect(freshSteps(member, { state: 5, bondRemaining: 0n, isOrganizer: false, claimable: 3n * U }).owed).toBe(3n * U);
+  });
+  it('a member is never asked to cancel or withdraw', () => {
+    const member = planDelete({ state: 'cancelled', role: 'member' });
+    expect(freshSteps(member, { state: 4, bondRemaining: 48n * U, isOrganizer: false, claimable: 0n })).toEqual({ cancel: false, withdraw: false, owed: 0n });
   });
 });
