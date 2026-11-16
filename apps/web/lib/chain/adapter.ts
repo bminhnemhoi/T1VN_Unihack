@@ -109,6 +109,9 @@ export function toSampleCircle(v: CircleView, viewer?: Address, nowSec: number =
     const w = sorted.find((m) => same(m.address, r.winner!));
     return w ? nameFor(w, names) : '';
   });
+  // Gathering circle past its deadline that nobody has cancelled: the organizer can cancel it and take the bond back.
+  const expired = v.state === 'forming' && nowSec > v.params.joinDeadline;
+  const expiredMine = expired && isOrganizer;
   return {
     id: v.address,
     label: v.label || 'Dây hụi',
@@ -117,13 +120,15 @@ export function toSampleCircle(v: CircleView, viewer?: Address, nowSec: number =
     round: v.settledRounds,
     n: v.params.N,
     contribution: v.params.C,
-    todo: step.todo,
-    secondsLeft: step.secondsLeft(nowSec),
+    todo: expiredMine ? (v.bondRemaining > 0n ? 'Hết hạn gom người mà chưa đủ. Hủy dây và rút ký quỹ về ví' : 'Hết hạn gom người mà chưa đủ') : step.todo,
+    secondsLeft: expiredMine ? 0 : step.secondsLeft(nowSec),
     href: `/circles/${v.address}`,
     winners: winners.length ? winners : undefined,
     myRound: mine?.receivedRound,
     joined: v.state === 'forming' ? v.members.length : undefined,
-    bondLeft: (v.state === 'cancelled' || v.state === 'unwound') && v.bondRemaining > 0n ? true : undefined,
-    action: step.action,
+    bondLeft: v.state === 'cancelled' && v.bondRemaining > 0n ? true : undefined,
+    ...(isOrganizer && v.bondRemaining > 0n && (v.state === 'cancelled' || expired) ? { bondUnits: v.bondRemaining } : {}),
+    ...(expired ? { expired: true } : {}),
+    action: expiredMine && v.bondRemaining > 0n ? 'Hủy dây' : step.action,
   };
 }

@@ -34,7 +34,7 @@ const SRC = [
 export function ledgerOf(c: SampleCircleData): { cells: Cell[][]; bond: (bigint | null)[]; k: number } {
   const n = Number(c.terms.n);
   const C = c.terms.c;
-  const k = c.state === 'completed' ? n + 1 : c.settled + 1;
+  const k = c.state === 'completed' && !c.ended ? n + 1 : c.settled + 1;
   const cells = c.seats.map((_, i): Cell[] =>
     Array.from({ length: n }, (_, j): Cell => {
       const r = j + 1;

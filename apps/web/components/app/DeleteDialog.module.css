@@ -1,0 +1,25 @@
+/* "Xóa" confirmation (B25). Phone: a sheet from the bottom. Desktop (761px and up): a 460px dialog. App palette; transform and opacity only. */
+.layer { position: absolute; inset: 0; z-index: 100; display: grid; align-items: end; justify-items: center; }
+.scrim { position: absolute; inset: 0; background: rgb(21 19 19 / 0.55); animation: fade 180ms ease-out both; }
+.card {
+  position: relative; width: 100%; max-height: 100%; overflow: auto; overscroll-behavior: contain; display: grid; gap: 16px; padding: 24px;
+  border-radius: 16px 16px 0 0; background: #fbf9f4; color: #201d1d; font: 400 15px/1.5 var(--font-sans), 'Helvetica Neue', Arial, sans-serif; letter-spacing: 0.005em; word-spacing: 0.04em;
+  padding-bottom: max(24px, env(safe-area-inset-bottom, 0px)); animation: up 240ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+.title { margin: 0; font-weight: 800; font-size: 22px; line-height: 1.25; letter-spacing: -0.01em; word-spacing: 0.05em; text-wrap: balance; }
+.title:focus { outline: none; }
+.body { margin: 0; color: #201d1d; }
+.note { margin: 0; color: #5a5555; font-size: 14px; }
+.amount { display: inline-block; font: 600 0.95em var(--font-mono), ui-monospace, Menlo, monospace; font-variant-numeric: tabular-nums; }
+.steps { margin: 0; font: 500 12px/1.4 var(--font-mono), ui-monospace, Menlo, monospace; letter-spacing: 0.04em; text-transform: uppercase; color: #5a5555; }
+.actions { display: grid; gap: 12px; }
+.sure { margin: 0; color: #5a5555; font-size: 14px; }
+@media (min-width: 761px) {
+  .layer { align-items: center; padding: 24px; }
+  .card { max-width: 460px; border-radius: 16px; padding-bottom: 24px; animation-name: upDesk; }
+  .actions { display: flex; flex-direction: row-reverse; justify-content: flex-start; flex-wrap: wrap; }
+}
+@keyframes fade { from { opacity: 0; } to { opacity: 1; } }
+@keyframes up { from { opacity: 0; transform: translateY(24px); } to { opacity: 1; transform: none; } }
+@keyframes upDesk { from { opacity: 0; transform: translateY(8px) scale(0.98); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) { .scrim, .card { animation: none; } }

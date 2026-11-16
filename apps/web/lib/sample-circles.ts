@@ -13,8 +13,8 @@ import { roundSplit, sampleBids, type Reputation, type Terms } from '@/lib/hui-c
 const U = 1_000_000n;
 const usdc = (whole: number, cents = 0): bigint => BigInt(whole) * U + BigInt(cents) * 10_000n;
 
-export type CircleId = 'demo' | 'co-dinh' | 'dang-gom' | 'da-xong';
-export const CIRCLE_IDS: CircleId[] = ['demo', 'co-dinh', 'dang-gom', 'da-xong'];
+export type CircleId = 'demo' | 'co-dinh' | 'dang-gom' | 'da-xong' | 'da-huy';
+export const CIRCLE_IDS: CircleId[] = ['demo', 'co-dinh', 'dang-gom', 'da-xong', 'da-huy'];
 export const isCircleId = (s: string): s is CircleId => (CIRCLE_IDS as string[]).includes(s);
 
 export interface SampleSeat {
@@ -265,7 +265,19 @@ const DONE: SampleCircleData = {
   graceSeconds: 172_800,
 };
 
-const ALL: Record<CircleId, SampleCircleData> = { demo: DEMO, 'co-dinh': FIXED, 'dang-gom': GATHER, 'da-xong': DONE };
+// A circle that never filled before its deadline (B25): cancelled, the organizer's bond is still in it, ready to withdraw.
+const CANCELLED: SampleCircleData = {
+  ...GATHER,
+  id: 'da-huy',
+  label: 'Hụi tổ dân phố 9',
+  state: 'completed',
+  ended: 'cancelled',
+  seats: GATHER.seats.map((s) => ({ ...s })),
+  joinSecondsLeft: undefined,
+  startMs: vnTime(2026, 10, 20, 9, 0),
+};
+
+const ALL: Record<CircleId, SampleCircleData> = { demo: DEMO, 'co-dinh': FIXED, 'dang-gom': GATHER, 'da-xong': DONE, 'da-huy': CANCELLED };
 export const getSampleCircle = (id: CircleId): SampleCircleData => ALL[id];
 export const SAMPLE_CIRCLES_LIST: SampleCircleData[] = CIRCLE_IDS.map((id) => ALL[id]);
 

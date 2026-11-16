@@ -41,7 +41,7 @@ export function HoldbackView({ c }: { c: SampleCircleData }) {
         Người hốt bị giữ lại một phần tiền hốt để bù nếu họ ngừng đóng. Đóng đủ, đúng hạn thì nhận lại hết, mỗi kỳ một ít.
       </CirclePageHead>
 
-      {myRound === 0 && c.state !== 'completed' && futureRounds.length > 0 && (
+      {myRound === 0 && (c.state !== 'completed' || c.ended !== undefined) && futureRounds.length > 0 && (
         <div className="mt-6">
           <p id="neu-hot" className="text-muted-foreground">
             Bạn chưa hốt nên chưa bị giữ lại tiền. Xem thử nếu bạn hốt ở kỳ

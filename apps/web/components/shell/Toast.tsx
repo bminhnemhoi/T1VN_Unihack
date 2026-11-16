@@ -11,9 +11,11 @@ interface Item {
   tone: Tone;
   /** Playing its 150 ms exit before it leaves the list. */
   leaving?: boolean;
+  /** One text button next to the message ("Hoàn tác"). Taps it, the toast closes. */
+  action?: { label: string; onClick: () => void };
 }
 interface ToastApi {
-  show: (message: string, tone?: Tone) => void;
+  show: (message: string, tone?: Tone, opts?: { action?: { label: string; onClick: () => void }; ms?: number }) => void;
 }
 
 const Ctx = createContext<ToastApi>({ show: () => {} });
@@ -35,11 +37,11 @@ export function ToastProvider({ children }: { children: ReactNode }) {
     setTimeout(() => setItems((l) => l.filter((i) => i.id !== id)), 120);
   }, []);
   const show = useCallback(
-    (message: string, tone: Tone = 'info') => {
+    (message: string, tone: Tone = 'info', opts?: { action?: { label: string; onClick: () => void }; ms?: number }) => {
       const id = next.current++;
       // Same text twice in a row replaces the old toast instead of stacking.
-      setItems((l) => [...l.filter((i) => i.message !== message).slice(-2), { id, message, tone }]);
-      setTimeout(() => dismiss(id), 5000);
+      setItems((l) => [...l.filter((i) => i.message !== message).slice(-2), { id, message, tone, ...(opts?.action ? { action: opts.action } : {}) }]);
+      setTimeout(() => dismiss(id), opts?.ms ?? 5000);
     },
     [dismiss],
   );
@@ -63,6 +65,18 @@ export function ToastProvider({ children }: { children: ReactNode }) {
             )}
           >
             <p className="flex-1 leading-snug">{i.message}</p>
+            {i.action && (
+              <button
+                type="button"
+                onClick={() => {
+                  i.action!.onClick();
+                  dismiss(i.id);
+                }}
+                className="-my-2 grid min-h-11 shrink-0 place-content-center rounded-full px-3 text-base font-bold underline underline-offset-4 hover:no-underline"
+              >
+                {i.action.label}
+              </button>
+            )}
             <button
               type="button"
               onClick={() => dismiss(i.id)}
