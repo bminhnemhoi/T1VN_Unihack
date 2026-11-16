@@ -263,7 +263,13 @@ function LedgerBody({ c, refreshing, stale }: { c: SampleCircleData; refreshing:
       </div>
 
       <div className="lgFoot">
-        <span>Bảo chứng lúc mở 100%: ký quỹ chịu được khi mọi người đã hốt cùng bỏ đóng một lúc.</span>
+        {c.ended === 'cancelled' ? (
+          <span data-testid="ledger-never-ran">Dây đã hủy vì không đủ người trước hạn, nên chưa có kỳ nào chạy và chưa ai góp tiền.</span>
+        ) : c.state === 'forming' ? (
+          <span data-testid="ledger-never-ran">Dây đang gom người, chưa bắt đầu kỳ nào.</span>
+        ) : (
+          <span>Bảo chứng lúc mở 100%: ký quỹ chịu được khi mọi người đã hốt cùng bỏ đóng một lúc.</span>
+        )}
         {claims.length > 0 && (
           <span>
             Khoản đòi công khai: {claims.map((x) => `${av(x.member)} ${f(x.amount)} USDC`).join(', ')}.

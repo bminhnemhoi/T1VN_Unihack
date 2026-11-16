@@ -34,7 +34,9 @@ const SRC = [
 export function ledgerOf(c: SampleCircleData): { cells: Cell[][]; bond: (bigint | null)[]; k: number } {
   const n = Number(c.terms.n);
   const C = c.terms.c;
-  const k = c.state === 'completed' && !c.ended ? n + 1 : c.settled + 1;
+  // A circle still gathering, or cancelled before it opened, has no round running: every cell is "not yet" (k = 0).
+  const neverRan = c.state === 'forming' || c.ended === 'cancelled';
+  const k = neverRan ? 0 : c.state === 'completed' && !c.ended ? n + 1 : c.settled + 1;
   const cells = c.seats.map((_, i): Cell[] =>
     Array.from({ length: n }, (_, j): Cell => {
       const r = j + 1;
@@ -54,7 +56,7 @@ export function ledgerOf(c: SampleCircleData): { cells: Cell[][]; bond: (bigint 
         if (dead) return { kind: 'miss', v: '—', note: `vỡ nợ · ký quỹ sẽ bù ${f(C)}` };
         return { kind: 'now', v: '—', note: received ? `đã hốt · sẽ góp đủ ${f(C)}` : i === c.viewer ? 'kỳ này của bạn đang chạy' : 'kỳ này đang chạy' };
       }
-      return { kind: 'later', v: '—', note: 'chưa tới kỳ này' };
+      return { kind: 'later', v: '—', note: c.ended === 'cancelled' ? 'dây đã hủy trước khi chạy' : c.state === 'forming' ? 'dây chưa bắt đầu' : 'chưa tới kỳ này' };
     }),
   );
   const bond = Array.from({ length: n }, (_, j) => (j + 1 <= c.settled ? c.bond - c.shortfalls.filter((x) => x.round <= j + 1).reduce((a, x) => a + x.fromBond, 0n) : null));

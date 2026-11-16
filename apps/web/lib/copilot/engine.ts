@@ -11,6 +11,7 @@ import { stripReasoning } from './text';
 import { answerSchema, type CopilotAnswer, type CopilotRequest } from './schemas';
 import { runTool, ToolError, type ToolContext } from './tools';
 import { calculatorAnswer, refusalAnswer } from './templates';
+import { ProviderError } from './providers/error';
 
 export interface ToolUseBlock {
   type: 'tool_use';
@@ -278,7 +279,7 @@ export async function* runCopilot(opts: RunOptions): AsyncGenerator<CopilotEvent
     if (actionRequest) yield finish(withLabel(refusalAnswer('action'), 'refusal'));
     else yield finish(withLabel(calculatorAnswer(toolResults), 'calculator'));
   } catch (e) {
-    log({ requestId, event: 'error', name: e instanceof Error ? e.name : 'unknown' });
+    log({ requestId, event: 'error', name: e instanceof Error ? e.name : 'unknown', ...(e instanceof ProviderError && e.status ? { status: e.status } : {}) });
     if (actionRequest) {
       yield finish(withLabel(refusalAnswer('action'), 'refusal'));
       return;

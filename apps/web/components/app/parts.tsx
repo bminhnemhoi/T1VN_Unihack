@@ -211,6 +211,8 @@ function coveragePct(c: SampleCircleData): number {
 /** The circle's health in the top bar: coverage at opening, bond left, reserve. Each chip opens the page that explains it. */
 export function CircleChips({ c, bondSpent = 0n, refreshing, stale }: { c: SampleCircleData; bondSpent?: bigint; refreshing?: boolean; stale?: boolean }) {
   const w = (u: bigint) => formatUsdcNumber(u);
+  // A circle that never opened (still gathering, or cancelled before it started) has no coverage "at opening" to show.
+  if (c.state === 'forming' || c.ended === 'cancelled') return <HealthChips refreshing={refreshing} stale={stale} onRetry={() => setDemoNet('ok')} />;
   return (
     <HealthChips refreshing={refreshing} stale={stale} onRetry={() => setDemoNet('ok')}>
       <Link className="chip" href={`/circles/${c.id}/bao-chung`}>

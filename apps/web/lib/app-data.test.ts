@@ -58,3 +58,17 @@ describe('tabOf', () => {
     expect(tabOf('/lab')).toBeNull();
   });
 });
+
+describe('ledger of a circle that never ran (bug 16/11: cancelled circle showed "đang chạy")', () => {
+  it('a cancelled circle has no running round: every cell is "later" and says why', () => {
+    const { cells, k } = ledgerOf(getSampleCircle('da-huy'));
+    expect(k).toBe(0);
+    expect(cells.flat().every((x) => x.kind === 'later')).toBe(true);
+    expect(cells[0]![0]!.note).toBe('dây đã hủy trước khi chạy');
+  });
+  it('a gathering circle has no running round either', () => {
+    const { cells, k } = ledgerOf(getSampleCircle('dang-gom'));
+    expect(k).toBe(0);
+    expect(cells.flat().every((x) => x.kind === 'later')).toBe(true);
+  });
+});

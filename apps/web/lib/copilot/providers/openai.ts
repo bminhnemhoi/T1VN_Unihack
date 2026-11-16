@@ -77,7 +77,7 @@ function textOf(content: unknown): string {
 }
 
 export function createOpenAiCompatibleClient(cfg: { baseUrl: string; apiKey: string; model: string }): ModelClient {
-  const client = new OpenAI({ baseURL: cfg.baseUrl, apiKey: cfg.apiKey, timeout: MODEL_TIMEOUT_MS, maxRetries: 1 });
+  const client = new OpenAI({ baseURL: cfg.baseUrl, apiKey: cfg.apiKey, timeout: MODEL_TIMEOUT_MS, maxRetries: 2 }); // the router fails now and then (16/11: two ProviderError in a row); the SDK backs off between tries
   const tools = toolDefinitions().map(toOpenAiTool);
 
   return {
