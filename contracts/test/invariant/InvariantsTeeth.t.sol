@@ -560,8 +560,7 @@ contract HuiInvariantsCommissionTeeth is HuiInvariants {
 
     function test_Teeth_INV12_FailsWhenTheSharesDoNotAddUp() public {
         _finalize();
-        stdstore.target(address(handler))
-            .sig("ghostReserveSharedSum()")
+        stdstore.target(address(handler)).sig("ghostReserveSharedSum()")
             .checked_write(handler.ghostReserveSharedSum() + 1);
         vm.expectRevert();
         this.invariant_INV12_reserveSplit();
