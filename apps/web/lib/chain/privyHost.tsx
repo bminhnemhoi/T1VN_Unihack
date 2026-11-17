@@ -6,7 +6,7 @@
  * It does not wrap the app. It renders next to the app's children and reports its `HuiWalletValue` upward, so the
  * children tree keeps its place (no remount, no lost form state) when this chunk arrives.
  */
-import { memo, useEffect, useMemo, useRef } from 'react';
+import { memo, useEffect, useMemo, useRef, useState } from 'react';
 import { createWalletClient, custom } from 'viem';
 import { avalancheFuji } from 'viem/chains';
 import { PrivyProvider, usePrivy, useWallets, type PrivyClientConfig } from '@privy-io/react-auth';
@@ -14,6 +14,9 @@ import type { TypedDataSigner } from 'sdk';
 import { useChain } from './provider';
 import type { HuiWallet } from './wallet';
 import type { HuiWalletValue } from './walletContext';
+
+/** How long a signed-in Privy session may wait for its embedded wallet before the UI offers a clean retry. */
+const WALLET_CREATION_GRACE_MS = 15_000;
 
 /**
  * Privy hands out new function and wallet objects on its own re-renders. The value reported upward must change only when
@@ -48,15 +51,40 @@ function usePrivyValue(): HuiWalletValue {
   }, [address, chainId]);
 
   const { ready, authenticated } = privy;
+  // Signed in at Privy but the embedded wallet is not there (yet): Privy is creating it. Show "loading" for a while;
+  // if it never appears (a hung creation), fall back to "logged-out" so the login button works again instead of
+  // leaving the user stuck behind a dead "Creating your wallet" dialog.
+  const pending = ready && authenticated && !wallet;
+  const [stuck, setStuck] = useState(false);
+  useEffect(() => {
+    if (!pending) {
+      setStuck(false);
+      return;
+    }
+    const t = setTimeout(() => setStuck(true), WALLET_CREATION_GRACE_MS);
+    return () => clearTimeout(t);
+  }, [pending]);
   return useMemo<HuiWalletValue>(
     () => ({
-      status: !ready ? 'loading' : authenticated && wallet ? 'ready' : 'logged-out',
+      status: !ready ? 'loading' : authenticated && wallet ? 'ready' : pending && !stuck ? 'loading' : 'logged-out',
       wallet,
-      login: () => void latest.current.privy.login(),
+      login: () => {
+        const { privy: p, embedded: w } = latest.current;
+        // `privy.login()` does nothing while a session exists ("user is already logged in"): with no wallet, reset the
+        // session first so the login dialog can create the wallet again.
+        if (p.authenticated && !w) {
+          void (async () => {
+            await p.logout();
+            latest.current.privy.login();
+          })();
+        } else {
+          void p.login();
+        }
+      },
       logout: () => void latest.current.privy.logout(),
       getAccessToken: () => latest.current.privy.getAccessToken(),
     }),
-    [ready, authenticated, wallet],
+    [ready, authenticated, wallet, pending, stuck],
   );
 }
 
