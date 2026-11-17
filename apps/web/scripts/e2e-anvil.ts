@@ -96,12 +96,17 @@ function check(label: string, actual: unknown, expected: unknown, unit?: string)
 const step = (s: string): void => console.log(`\n== ${s}`);
 
 /** Minimal environment for children: nothing the operator exported (DEPLOY_OUT, keys...) leaks into the rehearsal. */
-const baseEnv = (): NodeJS.ProcessEnv =>
-  ({
-    PATH: `${FOUNDRY_BIN}:${process.env.PATH ?? ''}`,
-    HOME: process.env.HOME ?? '',
-    NODE_ENV: 'development',
-  }) as NodeJS.ProcessEnv;
+const baseEnv = (): NodeJS.ProcessEnv => {
+  if (process.platform !== 'win32') {
+    return { PATH: `${FOUNDRY_BIN}:${process.env.PATH ?? ''}`, HOME: process.env.HOME ?? '', NODE_ENV: 'development' } as NodeJS.ProcessEnv;
+  }
+  // Windows: PATH is ';'-separated, and cmd.exe, pnpm.cmd and forge need the system variables (SystemRoot, ComSpec, ...).
+  // The rehearsal still reads no .env file and uses only anvil's public test mnemonic.
+  const vars: NodeJS.ProcessEnv = { ...process.env, NODE_ENV: 'development' };
+  const pathKey = Object.keys(vars).find((k) => k.toLowerCase() === 'path') ?? 'PATH';
+  vars[pathKey] = `${FOUNDRY_BIN};${vars[pathKey] ?? ''}`;
+  return vars;
+};
 
 function run(cmd: string, args: string[], cwd: string, env: Record<string, string>): string {
   const r = spawnSync(cmd, args, { cwd, env: { ...baseEnv(), ...env }, encoding: 'utf8' });
@@ -125,6 +130,11 @@ async function rpcChainId(): Promise<string | undefined> {
 /** Kills a detached child and everything it forked (pnpm -> node keeper loop). */
 function killGroup(child: ChildProcess): void {
   if (child.pid === undefined) return;
+  if (process.platform === 'win32') {
+    // No process groups on Windows: kill the whole tree (pnpm.cmd -> cmd -> node).
+    spawnSync('taskkill', ['/PID', String(child.pid), '/T', '/F'], { stdio: 'ignore' });
+    return;
+  }
   try {
     process.kill(-child.pid, 'SIGTERM');
   } catch {
@@ -497,9 +507,10 @@ async function scenario(): Promise<void> {
   step('9. the real keeper process starts and scans once (entry point smoke test)');
   const child = spawn('pnpm', ['--filter', 'keeper', 'start'], {
     cwd: ROOT,
+    shell: process.platform === 'win32', // pnpm is pnpm.cmd on Windows, which spawn cannot resolve without a shell
     env: { ...baseEnv(), HUISAFE_NETWORK: 'anvil', KEEPER_PRIVATE_KEY: keyOf(keeperAcct), KEEPER_INTERVAL_SECONDS: '3600' },
     stdio: ['ignore', 'pipe', 'pipe'],
-    detached: true, // own process group: pnpm forks node, and killing only pnpm leaves the keeper loop alive
+    detached: process.platform !== 'win32', // own process group: pnpm forks node, and killing only pnpm leaves the keeper loop alive (Windows: taskkill /T instead)
   });
   const seen = await new Promise<string>((resolve) => {
     let out = '';
