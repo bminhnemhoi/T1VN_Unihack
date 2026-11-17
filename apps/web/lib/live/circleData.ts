@@ -81,7 +81,11 @@ export function viewToCircleData(v: CircleView, viewer: Address | undefined, now
     }),
   );
 
+  // The bond the organizer locked. Read it from the contract: once the circle is finalized, cancelled or unwound,
+  // `bondRemaining` is back to 0 (paid out), so remaining + still-owed bond parts would show only the open claims
+  // (e.g. 32 of a 48 USDC bond, and a 73% coverage on a circle that opened at 100%). The sum is only a fallback.
   const openBondShare = shortfalls.filter((s) => s.status !== 'paid').reduce((a, s) => a + s.fromBond, 0n);
+  const bondLocked = v.bondDeposited ?? v.bondRemaining + openBondShare;
   const running = v.rounds.find((r) => r.k === v.currentRound);
 
   return {
@@ -97,7 +101,7 @@ export function viewToCircleData(v: CircleView, viewer: Address | undefined, now
     viewerIsOrganizer,
     organizerAddr: shortAddress(v.organizer),
     organizerRep: withAddress(v.organizer),
-    bond: v.bondRemaining + openBondShare,
+    bond: bondLocked,
     bondRemaining: v.bondRemaining,
     reserve: v.reserve,
     settled: v.settledRounds,

@@ -69,6 +69,17 @@ describe('viewToCircleData', () => {
     expect(viewToCircleData(v, undefined, NOW * 1000).bond).toBe(48n * U);
   });
 
+  it('after finalize the bond is still the amount locked, not just the open claims (Fuji 0xc628...5Bfc)', () => {
+    // docs/03 section 8 branch B at C = 10: bond 48 locked, finalize returned the remaining 16, and M4's unpaid
+    // parts (32 from the bond) stay open as a public claim. The page showed "0 trên 32 USDC" and coverage 73%.
+    const open = (round: number, fromBond: bigint) => ({ round, member: A(3), amount: 10n * U, fromHoldback: 0n, fromBond, fromReserve: 0n, uncovered: 0n, since: NOW - 900, resolved: false, pausedAtSettle: 0, graceEndsAt: NOW - 600 });
+    const v = view({ state: 'completed', bondDeposited: 48n * U, bondRemaining: 0n, settledRounds: 5, currentRound: 5 });
+    v.rounds = [round(1, { ...v.rounds[0]!, shortfalls: [open(1, 2n * U)] }), round(2, { phase: 'done', winner: A(1), shortfalls: [open(2, 10n * U), open(3, 10n * U), open(4, 10n * U)] })];
+    const d = viewToCircleData(v, undefined, NOW * 1000);
+    expect(d.bond).toBe(48n * U);
+    expect(d.bondRemaining).toBe(0n);
+  });
+
   it('keeps a paused circle in the active room but flags it paused', () => {
     const d = viewToCircleData(view({ state: 'paused' }), A(1), NOW * 1000);
     expect(d.state).toBe('active');

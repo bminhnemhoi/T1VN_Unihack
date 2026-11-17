@@ -8,7 +8,7 @@ import Link from 'next/link';
 import { useCallback, useRef, useState } from 'react';
 import { formatUsdcNumber } from 'sdk';
 import { CircleChips, ErrorState, EmptyState, Loading, Sheet, av } from '@/components/app/parts';
-import { CircleScreen } from '@/components/circle/CircleScreen';
+import { CircleScreen, Missing } from '@/components/circle/CircleScreen';
 import { setDemoNet, useSampleLoad } from '@/lib/demo-store';
 import { useCircleData } from '@/lib/live/useCircleData';
 import { GLYPH, KIND, ledgerOf, type Cell } from '@/lib/app-data';
@@ -25,7 +25,8 @@ export function Ledger({ id }: { id: string }) {
   const sample = useSampleLoad(d.status === 'ready' && d.source === 'sample');
   if (d.status === 'loading' || sample.status === 'loading') return <LedgerSkeleton />;
   if (d.status === 'error' || sample.status === 'error') return <ErrorState onRetry={d.status === 'error' ? () => window.location.reload() : () => setDemoNet('ok')} />;
-  if (d.status === 'missing' || sample.status === 'empty') return <EmptyState title="Sổ hụi còn trống." text="Sổ hụi hiện ra khi bạn vào một dây và dây bắt đầu." />;
+  if (d.status === 'missing') return <Missing />;
+  if (sample.status === 'empty') return <EmptyState title="Sổ hụi còn trống." text="Sổ hụi hiện ra khi bạn vào một dây và dây bắt đầu." />;
   const c = d.data;
   if (c.state === 'forming') return <EmptyState label={c.label} title="Sổ hụi còn trống." text="Dây chưa bắt đầu. Đủ người và chủ hụi bấm bắt đầu thì mỗi kỳ có một dòng ở đây." />;
   return <LedgerBody c={c} refreshing={sample.refreshing} stale={sample.stale} />;
