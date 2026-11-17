@@ -5,7 +5,7 @@
  */
 import { useMemo } from 'react';
 import { useChain } from '@/lib/chain/provider';
-import { NotACircleError, useCircle, useCircles } from '@/lib/chain/hooks';
+import { useCircle, useCircles } from '@/lib/chain/hooks';
 import { useHuiWallet } from '@/lib/chain/walletProvider';
 import { toLedger, toSampleCircle } from '@/lib/chain/adapter';
 import { SAMPLE_CIRCLES, SAMPLE_WALLET, type SampleCircle } from '@/lib/sample';
@@ -33,7 +33,6 @@ export function useCircleData(id: string): CircleDataState {
   );
   if (!chain) return isCircleId(id) ? { status: 'ready', data: getSampleCircle(id), source: 'sample' } : { status: 'missing' };
   if (!isAddress(id)) return { status: 'missing' };
-  if (q.error instanceof NotACircleError) return { status: 'missing' };
   if (q.isError && !data) return { status: 'error', message: ERROR };
   if (!data) return { status: 'loading' };
   return { status: 'ready', data, source: 'chain', refetch: () => void q.refetch() };

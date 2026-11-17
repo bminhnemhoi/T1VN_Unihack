@@ -1,6 +1,7 @@
-// Overlap scanner used for the B22 port: node apps/web/design/overlap-scan.mjs <url> <out-dir>, against a sample build on :3101.
-// Flags visible text boxes that overlap each other (occlusion-aware) or stick out of their clipping box.
-import { chromium } from '@playwright/test';
+// Overlap scanner used for the B22 port: node apps/web/design/overlap-scan.mjs x <out-dir> against a sample build on :3101.
+// Flags visible text boxes that overlap each other (occlusion-aware) or stick out of a clipping box.
+// Detects visible text boxes that overlap each other or are clipped by their scroll container.
+import pw from '/home/towfienes/orca/workspaces/T1VN_Unihack/sim-ai/node_modules/.pnpm/@playwright+test@1.64.1/node_modules/@playwright/test/index.js';
 const url = process.argv[2];
 const routes = ['#tong-quan', '#day', '#so-hui', 'tao0','tao1','tao2','tao3','tao4','tao5'];
 const sizes = [[1440, 900], [1280, 720], [768, 1024], [530, 1000], [390, 844], [375, 667], [360, 740]];
@@ -36,7 +37,7 @@ const scan = () => {
     while (p && p !== document.body) { const cs = getComputedStyle(p); if (/hidden|clip/.test(cs.overflowX + cs.overflowY)) { const pr = p.getBoundingClientRect(); if (r.right > pr.right + 2 || r.left < pr.left - 2 || r.bottom > pr.bottom + 2 || r.top < pr.top - 2) { if (!/auto|scroll/.test(cs.overflowX + cs.overflowY)) clip.push(`${e.tagName}.${e.className}"${e.textContent.trim().slice(0, 18)}" in .${p.className}`); } break; } p = p.parentElement; } }
   return { hits: [...new Set(hits)].slice(0, 8), clip: [...new Set(clip)].slice(0, 6) };
 };
-const b = await chromium.launch();
+const b = await pw.chromium.launch();
 const paths = ['/circles', '/circles/demo', '/circles/demo/so-ho', '/circles/new', '/circles/co-dinh', '/circles/da-xong/tat-toan'];
 for (const [w, h] of [[1440, 900], [1280, 720], [768, 1024], [390, 844], [360, 740]]) {
   const p = await b.newPage({ viewport: { width: w, height: h } });

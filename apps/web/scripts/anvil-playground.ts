@@ -37,14 +37,7 @@ const keyOf = (a: HDAccount): Hex => toHex(a.getHdKey().privateKey!);
 const [deployer, attester, relayer, , organizer] = [hd(0), hd(1), hd(2), hd(3), hd(4)];
 const M = [hd(5), hd(6), hd(7), hd(8), hd(9)];
 
-const baseEnv = (): NodeJS.ProcessEnv => {
-  if (process.platform !== 'win32') return { PATH: `${FOUNDRY_BIN}:${process.env.PATH ?? ''}`, HOME: process.env.HOME ?? '', NODE_ENV: 'development' } as NodeJS.ProcessEnv;
-  // Windows: ';'-separated PATH, and the system variables that forge and cmd.exe need (same as e2e-anvil.ts).
-  const vars: NodeJS.ProcessEnv = { ...process.env, NODE_ENV: 'development' };
-  const pathKey = Object.keys(vars).find((k) => k.toLowerCase() === 'path') ?? 'PATH';
-  vars[pathKey] = `${FOUNDRY_BIN};${vars[pathKey] ?? ''}`;
-  return vars;
-};
+const baseEnv = (): NodeJS.ProcessEnv => ({ PATH: `${FOUNDRY_BIN}:${process.env.PATH ?? ''}`, HOME: process.env.HOME ?? '', NODE_ENV: 'development' }) as NodeJS.ProcessEnv;
 function run(cmd: string, args: string[], env: Record<string, string>): void {
   const r = spawnSync(cmd, args, { cwd: CONTRACTS, env: { ...baseEnv(), ...env }, encoding: 'utf8' });
   if (r.status !== 0) throw new Error(`${cmd} failed:\n${(r.stdout ?? '').slice(-1200)}\n${(r.stderr ?? '').slice(-1200)}`);

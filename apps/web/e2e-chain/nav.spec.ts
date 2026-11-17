@@ -23,17 +23,22 @@ test('no page of the chain-mode build answers 404 to its own menu, footer or pre
 });
 
 test('the menu has no sample room in chain mode (header, bottom bar, footer) and nothing points at /circles/demo', async ({ page }) => {
+  const width = page.viewportSize()?.width ?? 1440;
   for (const path of PAGES) {
     await page.goto(path);
     await page.waitForLoadState('networkidle');
     await expect(page.locator('a[href="/circles/demo"]')).toHaveCount(0);
     await expect(page.getByRole('link', { name: 'Phòng thăm', exact: true })).toHaveCount(0);
   }
-  // The app frame (B22) has four tabs on every width: Tổng quan, Dây, Sổ hụi, Dây mới. None of them is the sample room.
-  await page.goto('/circles');
-  const nav = page.getByRole('navigation', { name: /^Điều hướng chính/ });
-  await expect(nav.getByRole('link')).toHaveCount(4);
-  for (const name of ['Tổng quan', 'Dây', 'Sổ hụi', 'Dây mới']) await expect(nav.getByRole('link', { name, exact: true })).toBeVisible();
+  await page.goto('/');
+  if (width < 1024) {
+    const bar = page.getByRole('navigation', { name: /Điều hướng chính \(điện thoại\)/ });
+    await expect(bar.getByRole('link')).toHaveCount(3);
+    for (const name of ['Trang chủ', 'Dây của tôi', 'Tạo dây']) await expect(bar.getByRole('link', { name })).toBeVisible();
+  } else {
+    const nav = page.getByRole('navigation', { name: 'Điều hướng chính' });
+    await expect(nav.getByRole('link')).toHaveCount(3);
+  }
 });
 
 test('settings: without a wallet it asks to log in instead of showing a copy button that has nothing to copy', async ({ page }) => {
