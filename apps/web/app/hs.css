@@ -467,6 +467,9 @@
     .hs .health:empty { display: none; }
   }
   /* ---------- phone layout ---------- */
+  @container app (max-width: 960px) {
+    .hs .phases li b { display: none; }
+  }
   /* On a tablet or phone the mark alone carries the brand (the link keeps its aria-label), so the DEMO chip, the tabs and the account buttons fit one row. */
   @container app (max-width: 900px) {
     .hs .logo .wm { display: none; }
@@ -504,7 +507,10 @@
     .hs .rail { display: none; }
     .hs .storyNav { display: grid; grid-template-columns: 44px minmax(0, 1fr) 44px; align-items: center; gap: 12px; padding: 8px 0 12px; }
     .hs .stage { grid-template-columns: minmax(0, 1fr); gap: 12px; padding-bottom: 12px; }
-    .hs .bidPresets button, .hs .winBanner .wbBtn { min-height: 44px; padding: 0 16px; }
+    .hs .slip { padding: 16px; }
+    .hs .bidPresets button { min-height: 44px; padding: 0 12px; flex: 1 1 auto; }
+    .hs .bidPresets .pVal { display: none; }
+    .hs .winBanner .wbBtn { min-height: 44px; padding: 0 16px; }
     .hs .roleBox { padding: 16px; }
     .hs .panel { padding: 16px; gap: 12px; }
     .hs .panel.side { display: none; }
@@ -515,6 +521,7 @@
     .hs .feed { display: none; }
     .hs .bidIn input { font-size: 38px; min-height: 50px; }
     .hs .act { position: sticky; bottom: var(--hs-nav); z-index: 1; display: grid; gap: 8px; background: var(--ivory); box-shadow: 0 -1px 0 var(--line); padding: 12px 0 0; }
+    .hs .room .act { bottom: 0; }
     .hs .act .btn { width: 100%; }
     .hs .peek { display: flex; }
     .hs .skSide { display: none; }

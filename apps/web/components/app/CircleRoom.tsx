@@ -555,7 +555,7 @@ function readAutoRevealPref(): boolean {
   }
 }
 
-function buildPresetChips(maxBid: bigint, cUnits: bigint): Array<{ label: string; value: bigint; text: string }> {
+function buildPresetChips(maxBid: bigint, cUnits: bigint): Array<{ short: string; label: string; value: bigint; text: string }> {
   const cap = maxBid < cUnits ? maxBid : cUnits > 1n ? cUnits - 1n : 0n;
   if (cap <= 0n) return [];
   const items: Array<{ label: string; pct: bigint; exact?: boolean }> = [
@@ -565,7 +565,7 @@ function buildPresetChips(maxBid: bigint, cUnits: bigint): Array<{ label: string
     { label: 'Kịch trần', pct: 100n, exact: true },
   ];
   const seen = new Set<string>();
-  const out: Array<{ label: string; value: bigint; text: string }> = [];
+  const out: Array<{ short: string; label: string; value: bigint; text: string }> = [];
   for (const it of items) {
     const raw = it.exact ? cap : (cap * it.pct) / 100n;
     const rounded = !it.exact && raw >= 10_000n ? (raw / 10_000n) * 10_000n : raw;
@@ -573,7 +573,7 @@ function buildPresetChips(maxBid: bigint, cUnits: bigint): Array<{ label: string
     const text = formatUsdcNumber(rounded);
     if (seen.has(text)) continue;
     seen.add(text);
-    out.push({ label: `${it.label} · ${text}`, value: rounded, text });
+    out.push({ short: it.label, label: `${it.label} · ${text}`, value: rounded, text });
   }
   return out;
 }
@@ -1021,8 +1021,9 @@ function BidNow({ c, k, phase, chainNowSec, sampleLeft, maxBid, bidText, setBidT
         {!locked && presets.length > 0 && (
           <div className="bidPresets" role="group" aria-label="Mức thăm gợi ý nhanh">
             {presets.map((p) => (
-              <button key={p.text} type="button" aria-pressed={bid === p.value} onClick={() => setBidText(p.text)}>
-                {p.label}
+              <button key={p.text} type="button" aria-label={p.label} aria-pressed={bid === p.value} onClick={() => setBidText(p.text)}>
+                {p.short}
+                <span className="pVal"> · {p.text}</span>
               </button>
             ))}
           </div>
