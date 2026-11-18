@@ -6,8 +6,8 @@
  * (every button sends its transaction; nothing changes on screen before the receipt).
  */
 import Link from 'next/link';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { formatUsdcNumber, parseUsdc } from 'sdk';
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { formatUsdcNumber, huiMath, parseUsdc, type RoundCommitView } from 'sdk';
 import { CircleChips, Loading, ErrorState, EmptyState, Sheet, Who, av } from '@/components/app/parts';
 import { TxButton, TxNote, TxSteps, useStepTx } from '@/components/app/tx';
 import { PauseLockProvider, PausedBanner } from '@/components/chain/PauseLock';
@@ -16,8 +16,11 @@ import { TierText } from '@/components/circle/RepBadge';
 import { bidQuote, capOf, roundSplit, startingBid } from '@/lib/hui-calc';
 import { setDemoNet, useDemo, useSampleLoad } from '@/lib/demo-store';
 import { commitBlocker, eligibilityBlocker } from '@/lib/live/bidEligibility';
+import { deriveLivePhase, useChainNowSec, windowLeftSec } from '@/lib/live/useChainClock';
 import { useCircleData } from '@/lib/live/useCircleData';
 import { useMyCommit } from '@/lib/live/useMyCommit';
+import { useRoundCommits } from '@/lib/live/useRoundCommits';
+import { useWalletBalance } from '@/lib/live/useWalletBalance';
 import { formatVnTime, settledAtMs, settledRound, type SampleCircleData } from '@/lib/sample-circles';
 import { usdc } from '@/lib/sample';
 
@@ -53,7 +56,7 @@ export function CircleRoom({ id }: { id: string }) {
   const paused = c.paused === true || c.live?.view.state === 'paused';
   return (
     <PauseLockProvider value={paused}>
-      <Room c={c} refreshing={sample.refreshing} stale={sample.stale} />
+      <Room c={c} refreshing={sample.refreshing} stale={sample.stale} onRefetch={d.refetch} />
     </PauseLockProvider>
   );
 }
@@ -87,19 +90,49 @@ interface SampleRun {
   settled?: { winner: number; bid: bigint; payout: bigint };
 }
 
-function Room({ c, refreshing, stale }: { c: SampleCircleData; refreshing: boolean; stale: boolean }) {
+function Room({ c, refreshing, stale, onRefetch }: { c: SampleCircleData; refreshing: boolean; stale: boolean; onRefetch?: () => void }) {
   const live = c.live;
   const n = Number(c.terms.n);
   const k = Math.min(c.settled + 1, n);
   const [sel, setSel] = useState(k);
   const [dir, setDir] = useState(0);
   const [stamp, setStamp] = useState(false);
+  const [justSettledK, setJustSettledK] = useState<number | null>(null);
+  const bannerRef = useRef<HTMLDivElement>(null);
   const rv = live?.view.rounds.find((r) => r.k === k);
+  const chainNowSec = useChainNowSec(live?.nowMs);
+  const sampleLeft = useSampleSecondsLeft(c.roundSecondsLeft ?? 78);
   const { ffwd } = useDemo();
   const [run, setRun] = useState<SampleRun>({ phase: 'commit', sealed: false, revealed: false });
   const [bidText, setBidText] = useState(() => startingBid(live ? (rv?.maxBid ?? 0n) : capOf(c.terms, k)));
   const firstFfwd = useRef(ffwd);
+  const prevSettledRef = useRef(c.settled);
   const maxBid = live ? (rv?.maxBid ?? 0n) : capOf(c.terms, k);
+
+  // When Keeper settles round k-1 on-chain and advances `c.settled`, smoothly follow the new round and announce the winner.
+  useEffect(() => {
+    if (c.settled > prevSettledRef.current) {
+      const finishedK = c.settled;
+      prevSettledRef.current = c.settled;
+      const nextK = Math.min(c.settled + 1, n);
+      setSel(nextK);
+      setBidText(startingBid(live ? (live.view.rounds.find((r) => r.k === nextK)?.maxBid ?? 0n) : capOf(c.terms, nextK)));
+      setJustSettledK(finishedK);
+    } else {
+      prevSettledRef.current = c.settled;
+    }
+  }, [c.settled, n, live, c.terms]);
+
+  // Subtle GSAP entrance on the round-transition winner banner (respecting reduced-motion).
+  useEffect(() => {
+    const el = bannerRef.current;
+    if (!el || justSettledK === null) return;
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    void import('gsap').then(({ gsap }) => {
+      gsap.fromTo(el, { y: -8, opacity: 0 }, { y: 0, opacity: 1, duration: 0.28, ease: 'power3.out' });
+    }).catch(() => undefined);
+  }, [justSettledK]);
+
   // The sample rival: the first other live member, sealed at 2,50 USDC (or 3/4 of a smaller ceiling). Ties go to the rival (earlier commit).
   const rival = useMemo(() => {
     const i = c.seats.findIndex((s, i) => i !== c.viewer && s.joined && !c.winnerByRound.includes(i) && !c.shortfalls.some((x) => x.member === i && x.status === 'defaulted'));
@@ -141,12 +174,37 @@ function Room({ c, refreshing, stale }: { c: SampleCircleData; refreshing: boole
   const touch = useRef<{ x: number; y: number } | null>(null);
   const roundDone = (r: number) => r < k || (r === k && !!run.settled && !live);
   const flag = (r: number) => c.shortfalls.some((s) => s.round === r);
-  const rvUntil = rv ? (rv.phase === 'commit' ? rv.commitEndsAt : rv.phase === 'reveal' ? rv.revealEndsAt : rv.deadline) : undefined;
-  const railLeft = useSecondsLeft(live ? rvUntil : undefined, live?.nowMs, c.roundSecondsLeft ?? 78);
-  const phase: Phase = live ? ({ commit: 'commit', reveal: 'reveal', 'awaiting-settle': 'settle', 'not-started': 'commit', done: 'done' } as const)[rv?.phase ?? 'commit'] : run.phase;
-  const viewerName = c.viewer >= 0 ? `bạn là ${av(c.viewer)}` : c.live ? 'bạn đang xem, chưa ở trong dây' : '';
+  const phase: Phase = live ? deriveLivePhase(rv, chainNowSec) : run.phase;
+  const rvUntil = rv ? (phase === 'commit' ? rv.commitEndsAt : phase === 'reveal' ? rv.revealEndsAt : rv.deadline) : undefined;
+  const railLeft = live ? windowLeftSec(rvUntil, chainNowSec) : sampleLeft;
+
+  // Immediately refresh circle state on phase boundary crossings and poll rapidly (2.5s) while waiting for Keeper auto-settlement.
+  const prevPhaseRef = useRef<Phase>(phase);
+  useEffect(() => {
+    if (!live || !onRefetch) return;
+    if (prevPhaseRef.current !== phase) {
+      prevPhaseRef.current = phase;
+      onRefetch();
+    }
+    if (phase !== 'settle') return;
+    const fast = setInterval(() => onRefetch(), 2500);
+    return () => clearInterval(fast);
+  }, [live, phase, onRefetch]);
+
+  const viewerName =
+    c.viewerIsOrganizer && c.viewer >= 0
+      ? `bạn là Chủ hụi · ghế ${av(c.viewer)}`
+      : c.viewerIsOrganizer
+        ? 'bạn là Chủ hụi (quản lý dây)'
+        : c.viewer >= 0
+          ? `bạn là ${av(c.viewer)}`
+          : c.live
+            ? 'chế độ xem trực tiếp'
+            : '';
   const mode = c.terms.mode === 'fixed' ? 'hốt theo thứ tự' : 'bỏ thăm kín';
   const period = c.terms.periodDays >= 28n ? 'hụi tháng' : c.terms.periodDays >= 14n ? 'hụi nửa tháng' : c.terms.periodDays === 7n ? 'hụi tuần' : `kỳ ${c.terms.periodDays} ngày`;
+  const liveCount = live ? live.view.members.filter((m) => m.status === 'live').length : c.seats.filter((s, i) => s.joined && !c.winnerByRound.includes(i) && !c.shortfalls.some((x) => x.member === i && x.status === 'defaulted')).length;
+  const soleLiveBidding = Boolean(live && c.terms.mode === 'bidding' && liveCount <= 1);
 
   const railItem = (r: number) => {
     if (roundDone(r)) {
@@ -154,7 +212,12 @@ function Room({ c, refreshing, stale }: { c: SampleCircleData; refreshing: boole
       return { cls: 'done', main: `${av(s.winner)} hốt`, sub: `${f(s.payout)} USDC` };
     }
     if (r === k) {
-      const main = c.terms.mode === 'fixed' ? `${av(fixedTaker(c, k))} hốt` : ['Đang thăm', 'Mở thăm', 'Chốt kỳ', 'Chốt kỳ'][PHASE_IDX[phase]]!;
+      const main =
+        c.terms.mode === 'fixed'
+          ? `${av(fixedTaker(c, k))} hốt`
+          : soleLiveBidding
+            ? 'Hốt chót'
+            : ['Đang thăm', 'Mở thăm', 'Đang khui', 'Đang khui'][PHASE_IDX[phase]]!;
       return { cls: 'now', main, sub: phase === 'commit' || live ? `còn ${clock(railLeft)}` : 'đang chạy' };
     }
     return { cls: 'later', main: r === n ? 'Kỳ cuối' : 'Kỳ sau', sub: c.terms.mode === 'fixed' ? `${av(fixedTaker(c, r))} hốt` : r === n ? 'không thăm' : `trần ${f(capOf(c.terms, r))}` };
@@ -163,6 +226,30 @@ function Room({ c, refreshing, stale }: { c: SampleCircleData; refreshing: boole
     const it = railItem(r);
     return `${it.main} · ${it.sub}`;
   };
+
+  const settledBanner =
+    justSettledK !== null && justSettledK <= c.settled
+      ? (() => {
+          const sr = settledRound(c, justSettledK);
+          const wName = sr.winner === c.viewer ? 'Bạn' : av(sr.winner);
+          return (
+            <div ref={bannerRef} className="winBanner" role="status">
+              <p>
+                <strong>Kỳ {justSettledK} vừa khui xong:</strong> {wName} hốt <strong>{f(sr.payout)} USDC</strong>
+                {c.terms.mode === 'bidding' ? ` (thăm thắng ${f(sr.bid)} USDC)` : ''}. Đã mở Kỳ {k}.
+              </p>
+              <div className="wbActs">
+                <button type="button" className="wbBtn" onClick={() => go(justSettledK)}>
+                  Xem biên lai kỳ {justSettledK}
+                </button>
+                <button type="button" className="wbBtn" onClick={() => setJustSettledK(null)} aria-label="Đóng thông báo kết quả kỳ trước">
+                  Đóng
+                </button>
+              </div>
+            </div>
+          );
+        })()
+      : null;
 
   return (
     <main id="noi-dung" className="room">
@@ -235,9 +322,11 @@ function Room({ c, refreshing, stale }: { c: SampleCircleData; refreshing: boole
           {roundDone(sel) && !(sel === k && run.settled) && <Receipt c={c} r={sel} stamp={stamp} />}
           {sel === k && (!roundDone(k) || run.settled) &&
             (c.terms.mode === 'fixed' ? (
-              <FixedNow c={c} k={k} />
+              <FixedNow c={c} k={k} chainNowSec={chainNowSec} sampleLeft={sampleLeft} banner={settledBanner} onRefetch={onRefetch} />
+            ) : soleLiveBidding ? (
+              <FinalRoundNow c={c} k={k} chainNowSec={chainNowSec} banner={settledBanner} onRefetch={onRefetch} />
             ) : (
-              <BidNow c={c} k={k} phase={phase} maxBid={maxBid} bidText={bidText} setBidText={setBidText} run={run} setRun={setRun} stamp={stamp} setStamp={setStamp} rival={rival} rivalBid={rivalBid} />
+              <BidNow c={c} k={k} phase={phase} chainNowSec={chainNowSec} sampleLeft={sampleLeft} maxBid={maxBid} bidText={bidText} setBidText={setBidText} run={run} setRun={setRun} stamp={stamp} setStamp={setStamp} rival={rival} rivalBid={rivalBid} banner={settledBanner} onRefetch={onRefetch} />
             ))}
           {sel > k && <Later c={c} r={sel} k={k} settledNow={!!run.settled} />}
         </div>
@@ -443,23 +532,58 @@ function Later({ c, r, k, settledNow }: { c: SampleCircleData; r: number; k: num
   );
 }
 
-/** Seconds left of a live round's current window, ticking locally between polls. */
-function useSecondsLeft(until: number | undefined, nowMs: number | undefined, fallback: number | undefined): number {
-  const [start] = useState(() => Date.now());
-  const [now, setNow] = useState(start);
+const AUTO_REVEAL_KEY = 'huisafe.autoReveal.v1';
+
+/** Sample-only 1 Hz countdown (live circles use `useChainNowSec` + `windowLeftSec`). */
+function useSampleSecondsLeft(fallback: number): number {
+  const [left, setLeft] = useState(fallback);
   useEffect(() => {
-    const t = setInterval(() => setNow(Date.now()), 1000);
+    setLeft(fallback);
+    if (fallback <= 0) return;
+    const t = setInterval(() => setLeft((s) => Math.max(0, s - 1)), 1000);
     return () => clearInterval(t);
-  }, []);
-  const elapsed = Math.floor((now - start) / 1000);
-  if (until !== undefined && nowMs !== undefined) return Math.max(0, until - Math.floor(nowMs / 1000) - elapsed);
-  return Math.max(0, (fallback ?? 0) - elapsed);
+  }, [fallback]);
+  return left;
+}
+
+function readAutoRevealPref(): boolean {
+  try {
+    const raw = window.localStorage.getItem(AUTO_REVEAL_KEY);
+    return raw === null ? true : raw === '1';
+  } catch {
+    return true;
+  }
+}
+
+function buildPresetChips(maxBid: bigint, cUnits: bigint): Array<{ label: string; value: bigint; text: string }> {
+  const cap = maxBid < cUnits ? maxBid : cUnits > 1n ? cUnits - 1n : 0n;
+  if (cap <= 0n) return [];
+  const items: Array<{ label: string; pct: bigint; exact?: boolean }> = [
+    { label: '25%', pct: 25n },
+    { label: '50%', pct: 50n },
+    { label: '75%', pct: 75n },
+    { label: 'Kịch trần', pct: 100n, exact: true },
+  ];
+  const seen = new Set<string>();
+  const out: Array<{ label: string; value: bigint; text: string }> = [];
+  for (const it of items) {
+    const raw = it.exact ? cap : (cap * it.pct) / 100n;
+    const rounded = !it.exact && raw >= 10_000n ? (raw / 10_000n) * 10_000n : raw;
+    if (rounded <= 0n) continue;
+    const text = formatUsdcNumber(rounded);
+    if (seen.has(text)) continue;
+    seen.add(text);
+    out.push({ label: `${it.label} · ${text}`, value: rounded, text });
+  }
+  return out;
 }
 
 interface BidNowProps {
   c: SampleCircleData;
   k: number;
   phase: Phase;
+  chainNowSec: number;
+  sampleLeft: number;
   maxBid: bigint;
   bidText: string;
   setBidText: (v: string) => void;
@@ -469,31 +593,123 @@ interface BidNowProps {
   setStamp: (v: boolean) => void;
   rival: number;
   rivalBid: bigint;
+  banner?: ReactNode;
+  onRefetch?: () => void;
 }
 
-function BidNow({ c, k, phase, maxBid, bidText, setBidText, run, setRun, stamp, setStamp, rival, rivalBid }: BidNowProps) {
+function BidNow({ c, k, phase, chainNowSec, sampleLeft, maxBid, bidText, setBidText, run, setRun, stamp, setStamp, rival, rivalBid, banner, onRefetch }: BidNowProps) {
   const live = c.live;
   const rv = live?.view.rounds.find((r) => r.k === k);
   const me = live?.viewerAddress;
   const commit = useMyCommit(live?.address, k, me);
+  const memberAddresses = useMemo(() => (live ? live.view.members.map((m) => m.address) : []), [live]);
+  const liveCommitsQuery = useRoundCommits(live?.address, k, memberAddresses, Boolean(live && phase !== 'done'));
+  const walletBal = useWalletBalance(live ? me : undefined);
   const mine = commit.data;
   const t = useStepTx();
   const [sheet, setSheet] = useState(false);
   const [editing, setEditing] = useState(false);
+  const [autoReveal, setAutoReveal] = useState<boolean>(true);
+  const autoTriggeredKeyRef = useRef<string>('');
   const closeSheet = useCallback(() => setSheet(false), []);
+
+  useEffect(() => {
+    setAutoReveal(readAutoRevealPref());
+  }, []);
+  const toggleAutoReveal = (checked: boolean) => {
+    setAutoReveal(checked);
+    try {
+      window.localStorage.setItem(AUTO_REVEAL_KEY, checked ? '1' : '0');
+    } catch {
+      /* ignore */
+    }
+  };
+
   const C = c.terms.c;
+  const viewerMember = useMemo(
+    () => (live && me ? live.view.members.find((m) => m.address.toLowerCase() === me.toLowerCase()) : undefined),
+    [live, me],
+  );
+  const isNonMemberOrganizer = Boolean(live && c.viewerIsOrganizer && c.viewer < 0);
+  const isSettledOrFrozenMember = Boolean(live && c.viewer >= 0 && viewerMember && viewerMember.status !== 'live');
+  const isGuestViewer = Boolean(live && !c.viewerIsOrganizer && c.viewer < 0);
+  const canUseBidSlip = !isNonMemberOrganizer && !isSettledOrFrozenMember && !isGuestViewer;
+
   const bid = parseUsdc(bidText.trim().replace(/\./g, ''));
-  const err = bid === undefined ? 'Nhập số tiền, ví dụ 2,5' : bid >= C ? `Thăm phải nhỏ hơn ${f(C)} USDC.` : bid > maxBid ? `Vượt trần kỳ này (${f(maxBid)} USDC). Thăm này sẽ không mở được.` : '';
+  const lowWalletBalance = Boolean(
+    live && canUseBidSlip && phase === 'commit' && walletBal.data && walletBal.data.usdc < C,
+  );
+  const err =
+    bid === undefined
+      ? 'Nhập số tiền, ví dụ 2,5'
+      : bid >= C
+        ? `Thăm phải nhỏ hơn ${f(C)} USDC.`
+        : bid > maxBid
+          ? `Vượt trần kỳ này (${f(maxBid)} USDC). Thăm này sẽ không mở được.`
+          : lowWalletBalance
+            ? `Ví hiện có ${f(walletBal.data!.usdc)} USDC — cần tối thiểu ${f(C)} USDC (1 phần góp) để bỏ thăm.`
+            : '';
   const organizerSeat = c.viewerIsOrganizer && c.viewer >= 0;
-  const q = bidQuote(c.terms, k, err ? 0n : bid!, organizerSeat);
+  const q = bidQuote(c.terms, k, bid === undefined || bid >= C || bid > maxBid ? 0n : bid, organizerSeat);
   const sealed = live ? !!mine?.committed && !editing : run.sealed && !editing;
   const revealed = live ? !!mine?.revealed : run.revealed;
-  const blocker = live ? (phase === 'commit' ? commitBlocker(live.view, me) : eligibilityBlocker(live.view, me)) : c.viewer < 0 ? 'Bạn chưa ở trong dây này nên không bỏ thăm được.' : undefined;
+  const blocker = live
+    ? phase === 'commit'
+      ? commitBlocker(live.view, me)
+      : eligibilityBlocker(live.view, me)
+    : c.viewer < 0
+      ? 'Bạn chưa ở trong dây này nên không bỏ thăm được.'
+      : undefined;
   const until = phase === 'commit' ? rv?.commitEndsAt : phase === 'reveal' ? rv?.revealEndsAt : rv?.deadline;
-  const left = useSecondsLeft(live ? until : undefined, live?.nowMs, phase === 'commit' ? (c.roundSecondsLeft ?? 78) : 0);
-  const settleOpen = live ? rv !== undefined && left === 0 && phase === 'settle' : false;
-  const locked = sealed || phase !== 'commit' || !!run.settled || t.busy;
+  const left = live ? windowLeftSec(until, chainNowSec) : phase === 'commit' ? sampleLeft : 0;
+  const windowTotal = live && rv
+    ? phase === 'commit'
+      ? Math.max(1, rv.commitEndsAt - rv.roundStart)
+      : phase === 'reveal'
+        ? Math.max(1, rv.revealEndsAt - rv.commitEndsAt)
+        : 1
+    : 78;
+  const progress = phase === 'commit' || phase === 'reveal' ? Math.min(1, Math.max(0, left / windowTotal)) : 0;
+  const settleOpen = Boolean(live && rv !== undefined && chainNowSec >= rv.deadline);
+  const keeperDelayed = Boolean(live && rv !== undefined && chainNowSec > rv.deadline + 30);
+  const locked = !canUseBidSlip || sealed || phase !== 'commit' || !!run.settled || t.busy || (live !== undefined && left === 0);
   const ph = PHASE_IDX[phase];
+  const presets = useMemo(() => buildPresetChips(maxBid, C), [maxBid, C]);
+
+  // Merge 0-lag RPC Multicall `commitOf` with event-rebuilt `rv.commits` for the live multiplayer board.
+  const mergedCommits = useMemo<Map<string, RoundCommitView>>(() => {
+    const m = new Map<string, RoundCommitView>();
+    for (const item of rv?.commits ?? []) m.set(item.member.toLowerCase(), item);
+    for (const item of liveCommitsQuery.data ?? []) m.set(item.member.toLowerCase(), item);
+    return m;
+  }, [rv?.commits, liveCommitsQuery.data]);
+
+  // Identify the current revealed leader using the exact deterministic rule of HuiCircle._selectWinner (bid desc -> late asc -> commitIndex asc).
+  const leadingAddr = useMemo<string | undefined>(() => {
+    if (!live) return undefined;
+    let best: { addr: string; bid: bigint; late: number; commitIndex: number } | undefined;
+    for (const cm of mergedCommits.values()) {
+      if (!cm.revealed || cm.bid === undefined) continue;
+      const mv = live.view.members.find((x) => x.address.toLowerCase() === cm.member.toLowerCase());
+      const late = mv?.reputation.late ?? mv?.lateCount ?? 0;
+      if (
+        !best ||
+        cm.bid > best.bid ||
+        (cm.bid === best.bid && (late < best.late || (late === best.late && cm.commitIndex < best.commitIndex)))
+      ) {
+        best = { addr: cm.member.toLowerCase(), bid: cm.bid, late, commitIndex: cm.commitIndex };
+      }
+    }
+    return best?.addr;
+  }, [live, mergedCommits]);
+
+  const eligibleLiveCount = live
+    ? live.view.members.filter((m) => m.status === 'live' && m.debt === 0n).length
+    : c.seats.filter((s, i) => s.joined && !c.winnerByRound.includes(i)).length;
+  const committedCount = live ? mergedCommits.size : (run.sealed ? 1 : 0) + 1;
+  const revealedCount = live
+    ? [...mergedCommits.values()].filter((x) => x.revealed).length
+    : (run.revealed ? 1 : 0) + (phase !== 'commit' ? 1 : 0);
 
   const seal = async (retry: boolean) => {
     if (err || bid === undefined) return;
@@ -503,18 +719,38 @@ function BidNow({ c, k, phase, maxBid, bidText, setBidText, run, setRun, stamp, 
       setEditing(false);
       if (!live) setRun((r) => ({ ...r, sealed: true }));
       setStamp(true);
+      void commit.refetch();
+      void liveCommitsQuery.refetch();
+      onRefetch?.();
     }
   };
-  const reveal = async (retry: boolean) => {
-    const ok = await t.run((a) => a.revealBid(live!.address, k), { forceOk: retry });
-    if (ok) {
-      if (!live) setRun((r) => ({ ...r, revealed: true }));
-      setStamp(true);
-    }
-  };
+  const reveal = useCallback(
+    async (retry: boolean) => {
+      const ok = await t.run((a) => a.revealBid(live!.address, k), { forceOk: retry });
+      if (ok) {
+        if (!live) setRun((r) => ({ ...r, revealed: true }));
+        setStamp(true);
+        void commit.refetch();
+        void liveCommitsQuery.refetch();
+        onRefetch?.();
+      }
+    },
+    [t, live, k, setRun, setStamp, commit, liveCommitsQuery, onRefetch],
+  );
   const settle = async (retry: boolean) => {
-    await t.run((a) => a.settleRound(live!.address), { forceOk: retry });
+    const ok = await t.run((a) => a.settleRound(live!.address), { forceOk: retry });
+    if (ok) onRefetch?.();
   };
+
+  // Auto-Reveal: when a live circle enters the Reveal window and the member sealed a bid on this device, prompt once automatically.
+  useEffect(() => {
+    if (!live || phase !== 'reveal' || left === 0) return;
+    if (!autoReveal || !mine?.committed || mine.revealed || !mine.saltOnDevice || t.busy) return;
+    const key = `${live.address.toLowerCase()}:${k}`;
+    if (autoTriggeredKeyRef.current === key) return;
+    autoTriggeredKeyRef.current = key;
+    void reveal(false);
+  }, [live, phase, left, autoReveal, mine?.committed, mine?.revealed, mine?.saltOnDevice, t.busy, k, reveal]);
 
   let stampEl = null;
   let primary = null;
@@ -541,14 +777,21 @@ function BidNow({ c, k, phase, maxBid, bidText, setBidText, run, setRun, stamp, 
         ĐÃ NIÊM PHONG<small>không ai đọc được</small>
       </div>
     );
-    primary = sealed ? (
-      <button type="button" className="btn ghost" onClick={() => setEditing(true)}>
+    primary = !canUseBidSlip ? null : sealed ? (
+      <button type="button" className="btn ghost" disabled={live !== undefined && left === 0} onClick={() => setEditing(true)}>
         Đổi thăm
       </button>
     ) : (
-      <TxButton t={t} label="Niêm phong thăm" retryLabel="Gửi lại thăm" onRun={(r) => void seal(r)} disabled={!!err || !!blocker} />
+      <TxButton t={t} label="Niêm phong thăm" retryLabel="Gửi lại thăm" onRun={(r) => void seal(r)} disabled={!!err || !!blocker || (live !== undefined && left === 0)} />
     );
-    note = blocker ?? (sealed ? (live ? 'Hết giờ nộp thì mở thăm. Muốn đổi số, nộp lại trước khi hết giờ (cọc giữ nguyên).' : 'Hết giờ nộp thì mở thăm. Bấm "Tua nhanh" để đi tiếp.') : `Thăm được gửi on-chain dưới dạng hash niêm phong. Kèm cọc mở thăm ${f((C * 100n) / 10_000n)} USDC, trả lại khi bạn mở.`);
+    note = !canUseBidSlip
+      ? `Đang trong khung nộp thăm kín (${committedCount}/${eligibleLiveCount} người đã nộp). Hết giờ nộp sẽ chuyển sang Mở thăm.`
+      : blocker ??
+        (sealed
+          ? live
+            ? 'Đã niêm phong an toàn. Tới giờ mở thăm hệ thống sẽ nhắc (hoặc tự bật hộp ký nếu bật công tắc bên trên).'
+            : 'Hết giờ nộp thì mở thăm. Bấm "Tua nhanh" để đi tiếp.'
+          : `Thăm gửi dưới dạng mã băm kín. Kèm cọc mở thăm ${f((C * 100n) / 10_000n)} USDC, hoàn trả ngay khi mở.`);
   } else if (phase === 'reveal') {
     stampEl = (
       <div className={`stamp${revealed ? ' on' : ''}${revealed && stamp ? ' land' : ''}`}>
@@ -556,26 +799,69 @@ function BidNow({ c, k, phase, maxBid, bidText, setBidText, run, setRun, stamp, 
       </div>
     );
     const hasSealed = live ? !!mine?.committed : run.sealed;
-    primary =
-      hasSealed && !revealed ? (
-        <TxButton t={t} label="Mở thăm" retryLabel="Gửi lại lệnh mở thăm" onRun={(r) => void reveal(r)} disabled={!!blocker && live !== undefined} />
-      ) : (
-        <button type="button" className="btn ghost" disabled>
-          {hasSealed ? 'Đã mở, chờ chốt kỳ' : 'Bạn không nộp thăm kỳ này'}
-        </button>
-      );
-    note = hasSealed && !revealed ? 'Mở đúng số đã niêm phong. Không mở thì mất cọc và tính một lần trễ.' : live ? 'Hết giờ mở thăm thì ai cũng chốt kỳ được.' : 'Bấm "Tua nhanh" để chốt kỳ.';
+    primary = !canUseBidSlip ? null : hasSealed && !revealed ? (
+      <TxButton t={t} label="Mở thăm" retryLabel="Gửi lại lệnh mở thăm" onRun={(r) => void reveal(r)} disabled={(!!blocker && live !== undefined) || (live !== undefined && left === 0)} />
+    ) : (
+      <button type="button" className="btn ghost" disabled>
+        {hasSealed ? 'Đã mở thăm · Chờ tự động khui' : 'Bạn không nộp thăm kỳ này'}
+      </button>
+    );
+    note = !canUseBidSlip
+      ? `Đang mở thăm công khai (${revealedCount}/${committedCount} phong bì đã mở). Hết giờ hệ thống tự động khui kỳ.`
+      : hasSealed && !revealed
+        ? 'Mở đúng số đã niêm phong ngay trước khi hết giờ để nhận lại cọc mở thăm.'
+        : live
+          ? 'Hết giờ mở thăm hệ thống sẽ tự động khui thăm và chi tiền kỳ này.'
+          : 'Bấm "Tua nhanh" để chốt kỳ.';
   } else {
-    primary = live ? (
-      <TxButton t={t} label={`Chốt kỳ ${k}`} retryLabel={`Gửi lại lệnh chốt kỳ ${k}`} onRun={(r) => void settle(r)} disabled={!settleOpen} />
-    ) : null;
-    note = settleOpen ? 'Ai cũng bấm được, không cần chờ chủ hụi.' : `Chốt kỳ bấm được sau giờ chốt, còn ${clock(left)}.`;
+    if (live) {
+      primary = (
+        <>
+          <div className="autoSettle" role="status">
+            <span className="spin" aria-hidden="true" />
+            <span>
+              {settleOpen
+                ? `Đang tự động khui thăm & chi tiền kỳ ${k}…`
+                : `Chuẩn bị tự động khui kỳ ${k} sau ${clock(left)}…`}
+            </span>
+          </div>
+          {c.viewerIsOrganizer && (
+            <TxButton
+              t={t}
+              tone="ink"
+              label={`Khui kỳ ${k} ngay`}
+              retryLabel={`Gửi lại lệnh khui kỳ ${k}`}
+              onRun={(r) => void settle(r)}
+              disabled={!settleOpen}
+            />
+          )}
+          {!c.viewerIsOrganizer && keeperDelayed && (
+            <TxButton
+              t={t}
+              tone="ink"
+              label="Máy chủ khui chậm · Khui dự phòng"
+              retryLabel={`Gửi lại lệnh khui kỳ ${k}`}
+              onRun={(r) => void settle(r)}
+            />
+          )}
+        </>
+      );
+      note = c.viewerIsOrganizer
+        ? 'Keeper tự động khui trong vài giây; với vai trò Chủ hụi, bạn cũng có thể bấm Khui kỳ ngay.'
+        : 'Bạn không cần thao tác thêm — hệ thống tự động công bố người hốt và mở kỳ kế tiếp.';
+    } else {
+      primary = null;
+      note = 'Chờ khui kỳ.';
+    }
   }
 
   const others = c.seats.flatMap((seat, i) => {
     if (!seat.joined) return [];
     const got = c.winnerByRound.indexOf(i);
     const dead = c.shortfalls.find((s) => s.member === i && s.status === 'defaulted');
+    const addrLower = seat.address?.toLowerCase();
+    const cm = addrLower ? mergedCommits.get(addrLower) : undefined;
+    const isLeader = Boolean(addrLower && leadingAddr === addrLower);
     let sub: string;
     let right;
     if (dead) {
@@ -583,16 +869,38 @@ function BidNow({ c, k, phase, maxBid, bidText, setBidText, run, setRun, stamp, 
       right = <span className="tag bad">Vỡ nợ</span>;
     } else if (got >= 0) {
       sub = `Đã hốt kỳ ${got + 1}, góp ${f(C)}`;
-      right = <span className="tag">Không thăm</span>;
+      right = <span className="tag">Đã hốt K{got + 1}</span>;
     } else if (i === c.viewer) {
-      sub = 'Bạn';
-      right = <span className={`tag ${sealed ? 'ok' : 'lime'}`}>{revealed ? f(live && mine ? mine.bid : (bid ?? 0n)) : sealed ? 'Kín' : 'Chưa nộp'}</span>;
+      sub = cm ? `Bạn · nộp thứ #${cm.commitIndex}` : 'Bạn';
+      right = revealed ? (
+        <span className={`tag ${isLeader ? 'lime' : 'ok'}`}>
+          {f(live && mine ? mine.bid : (bid ?? 0n))}
+          {isLeader ? ' · Cao nhất' : ''}
+        </span>
+      ) : sealed ? (
+        <span className="tag ok">{cm ? `Phong bì #${cm.commitIndex}` : 'Kín'}</span>
+      ) : (
+        <span className="tag lime">Chưa nộp</span>
+      );
     } else if (!live && i === rival) {
-      sub = phase === 'commit' ? 'Đã niêm phong' : 'Đã mở';
-      right = <span className={`tag ${phase === 'commit' ? 'ok' : 'lime'}`}>{phase === 'commit' ? 'Kín' : f(rivalBid)}</span>;
+      sub = phase === 'commit' ? 'Đã niêm phong · nộp thứ #1' : 'Đã mở thăm';
+      right = <span className={`tag ${phase === 'commit' ? 'ok' : 'lime'}`}>{phase === 'commit' ? 'Phong bì #1' : f(rivalBid)}</span>;
+    } else if (live && cm) {
+      if (cm.revealed && cm.bid !== undefined) {
+        sub = `Đã mở thăm · nộp thứ #${cm.commitIndex}`;
+        right = (
+          <span className={`tag ${isLeader ? 'lime' : 'ok'}`}>
+            {f(cm.bid)}
+            {isLeader ? ' · Cao nhất' : ''}
+          </span>
+        );
+      } else {
+        sub = phase === 'commit' ? `Đã niêm phong · thứ #${cm.commitIndex}` : `Chờ mở phong bì #${cm.commitIndex}`;
+        right = <span className="tag ok">Phong bì #{cm.commitIndex}</span>;
+      }
     } else {
-      sub = live ? 'Được bỏ thăm' : 'Chưa nộp thăm';
-      right = <span className="tag">{live ? 'Được thăm' : 'Chưa nộp'}</span>;
+      sub = phase === 'commit' ? 'Chưa nộp thăm' : 'Không nộp thăm kỳ này';
+      right = <span className="tag">{phase === 'commit' ? 'Chưa nộp' : 'Bỏ qua'}</span>;
     }
     return [
       {
@@ -602,7 +910,7 @@ function BidNow({ c, k, phase, maxBid, bidText, setBidText, run, setRun, stamp, 
         name: i === c.viewer ? 'Bạn' : seat.name,
         sub: (
           <>
-            {i === c.viewer ? '' : `${sub} · `}
+            {i === c.viewer && !cm ? '' : `${sub} · `}
             <TierText rep={seat.rep} />
           </>
         ),
@@ -611,90 +919,182 @@ function BidNow({ c, k, phase, maxBid, bidText, setBidText, run, setRun, stamp, 
     ];
   });
 
-  const label = (
-    <span className="label">
-      Nếu bạn thắng kỳ {k} với thăm {err ? '—' : f(bid!)}
-    </span>
+  const label = canUseBidSlip ? (
+    <div className="sideHead">
+      <span className="label">Nếu bạn thắng kỳ {k} với thăm {err ? '—' : f(bid!)}</span>
+      <span className="tag">{committedCount}/{eligibleLiveCount} đã nộp</span>
+    </div>
+  ) : (
+    <div className="sideHead">
+      <span className="label">Bàn đấu thăm trực tiếp · Kỳ {k}</span>
+      <span className="tag">{committedCount}/{eligibleLiveCount} đã nộp</span>
+    </div>
   );
-  const estimate = (
-    <>
+
+  const estimate = canUseBidSlip ? (
+    <dl className="rc">
+      <div>
+        <dt>
+          Tiền góp ({q.livePayers} × {err ? '…' : f(C - bid!)}
+          {q.deadPayers > 0 ? ` + ${q.deadPayers} × ${f(C)}` : ''})
+        </dt>
+        <dd>{f(q.pot)}</dd>
+      </div>
+      <div className="neg">
+        <dt>Hoa hồng chủ hụi</dt>
+        <dd>−{f(q.fee)}</dd>
+      </div>
+      <div className="neg">
+        <dt>Quỹ dự phòng</dt>
+        <dd>−{f(q.premium)}</dd>
+      </div>
+      <div className="neg">
+        <dt>
+          Giữ lại ({Number(c.terms.alphaBps) / 100}% × {Number(c.terms.n) - k} kỳ còn lại)
+        </dt>
+        <dd>−{f(q.holdback)}</dd>
+      </div>
+      <div className="big">
+        <dt>Bạn nhận ngay</dt>
+        <dd>{f(q.payout)}</dd>
+      </div>
+    </dl>
+  ) : null;
+
+  const roleCenterpiece = isNonMemberOrganizer ? (
+    <div className="roleBox" data-testid="organizer-desk">
+      <h3>Bàn giám sát Chủ hụi · Không ghi thăm</h3>
+      <p>Bạn là Chủ hụi đứng ra tổ chức và bảo lãnh dây này (không giữ ghế thành viên), nên không cần viết thăm.</p>
       <dl className="rc">
         <div>
-          <dt>
-            Tiền góp ({q.livePayers} × {err ? '…' : f(C - bid!)}
-            {q.deadPayers > 0 ? ` + ${q.deadPayers} × ${f(C)}` : ''})
-          </dt>
-          <dd>{f(q.pot)}</dd>
+          <dt>Phong bì thăm kín kỳ {k}</dt>
+          <dd>{committedCount}/{eligibleLiveCount} người</dd>
         </div>
-        <div className="neg">
-          <dt>Hoa hồng chủ hụi</dt>
-          <dd>−{f(q.fee)}</dd>
+        <div>
+          <dt>Đã mở thăm</dt>
+          <dd>{revealedCount}/{committedCount}</dd>
         </div>
-        <div className="neg">
-          <dt>Quỹ dự phòng</dt>
-          <dd>−{f(q.premium)}</dd>
+        <div>
+          <dt>Trần thăm kỳ này</dt>
+          <dd>{f(maxBid)} USDC</dd>
         </div>
-        <div className="neg">
-          <dt>
-            Giữ lại ({Number(c.terms.alphaBps) / 100}% × {Number(c.terms.n) - k} kỳ còn lại)
-          </dt>
-          <dd>−{f(q.holdback)}</dd>
-        </div>
-        <div className="big">
-          <dt>Bạn nhận ngay</dt>
-          <dd>{f(q.payout)}</dd>
+        <div>
+          <dt>Ký quỹ bảo lãnh còn</dt>
+          <dd>{f(c.bondRemaining)}/{f(c.bond)} USDC</dd>
         </div>
       </dl>
+    </div>
+  ) : isSettledOrFrozenMember ? (
+    <div className="roleBox" data-testid="member-settled-role">
+      {viewerMember?.receivedRound ? (
+        <>
+          <h3>Bạn đã hốt ở Kỳ {viewerMember.receivedRound}</h3>
+          <p>
+            Thành viên đã hốt không bỏ thăm ở các kỳ sau. Khi kỳ {k} tự động khui, hợp đồng trích đúng <b>{f(C)} USDC</b> từ ví bạn và nhả lại{' '}
+            <b>{f(huiMath.releasePerRound(c.terms.alphaBps, C))} USDC</b> tiền giữ lại.
+          </p>
+        </>
+      ) : (
+        <>
+          <h3>Chân hụi đang đóng băng</h3>
+          <p>Bạn còn khoản góp quá hạn nên không bỏ thăm kỳ này. Hãy hoàn trả ở mục Khoản thiếu hoặc chờ khấu trừ ở kỳ cuối.</p>
+        </>
+      )}
+    </div>
+  ) : isGuestViewer ? (
+    <div className="roleBox" data-testid="guest-observer-role">
+      <h3>Đang xem trực tiếp bàn hụi</h3>
+      <p>
+        Kỳ {k} có trần thăm {f(maxBid)} USDC · Hiện có {committedCount}/{eligibleLiveCount} thành viên đã nộp phong bì kín.
+      </p>
+    </div>
+  ) : (
+    <>
+      <div className="slip">
+        <label className="label" htmlFor="bid">
+          Thăm của bạn (số tiền bớt cho mọi người)
+        </label>
+        <div className="bidIn">
+          <input id="bid" inputMode="decimal" autoComplete="off" value={bidText} disabled={locked} onChange={(e) => setBidText(e.target.value)} aria-describedby="bidHint" aria-invalid={!!err && !locked} />
+          <span>USDC</span>
+        </div>
+        {!locked && presets.length > 0 && (
+          <div className="bidPresets" role="group" aria-label="Mức thăm gợi ý nhanh">
+            {presets.map((p) => (
+              <button key={p.text} type="button" aria-pressed={bid === p.value} onClick={() => setBidText(p.text)}>
+                {p.label}
+              </button>
+            ))}
+          </div>
+        )}
+        <p className={`hint${err && !locked ? ' err' : ''}`} id="bidHint">
+          {err && !locked ? err : `Trần kỳ này ${f(maxBid)} USDC · thăm cao nhất thắng, bằng nhau thì ít trễ hơn`}
+        </p>
+        {lowWalletBalance && !locked && (
+          <p className="hint err">
+            Nhận USDC thử nghiệm tại{' '}
+            <a href="https://faucet.circle.com" target="_blank" rel="noreferrer" style={{ color: 'inherit', textDecoration: 'underline' }}>
+              faucet.circle.com
+            </a>{' '}
+            rồi thử lại.
+          </p>
+        )}
+        {live && mine?.committed && !mine.saltOnDevice && (
+          <p className="hint err" role="alert">
+            Máy này không còn mã bí mật của thăm. Nạp file sao lưu ở Cài đặt, nếu không sẽ không mở thăm được và mất cọc.
+          </p>
+        )}
+        {stampEl}
+      </div>
+      {live && sealed && !revealed && mine?.saltOnDevice && (phase === 'commit' || phase === 'reveal') && (
+        <label className="autoRev">
+          <input type="checkbox" checked={autoReveal} onChange={(e) => toggleAutoReveal(e.target.checked)} />
+          <span>Tự động bật hộp ký mở thăm ngay khi chuyển sang pha Mở thăm</span>
+        </label>
+      )}
     </>
   );
 
   return (
     <section className="stage">
+      {banner}
       <div className="panel inkp">
         <ol className="phases" aria-label={`Các bước của kỳ ${k}`}>
-          {['Nộp thăm kín', 'Mở thăm', 'Chốt kỳ'].map((label, i) => (
-            <li key={label} className={i === ph || (ph === 3 && i === 2) ? 'on' : i < ph ? 'past' : ''} aria-current={i === ph ? 'step' : undefined}>
-              <b>{i + 1} ·</b> {label}
+          {['Nộp thăm kín', 'Mở thăm', 'Khui kỳ'].map((stepLabel, i) => (
+            <li key={stepLabel} className={i === ph || (ph === 3 && i === 2) ? 'on' : i < ph ? 'past' : ''} aria-current={i === ph ? 'step' : undefined}>
+              <b>{i + 1} ·</b> {stepLabel}
             </li>
           ))}
         </ol>
         <div className="clockRow">
           <span className="label" style={{ color: 'var(--mute)' }}>
-            {run.settled ? `Kỳ ${k} đã chốt` : phase === 'commit' ? 'Còn thời gian nộp thăm' : phase === 'reveal' ? 'Còn thời gian mở thăm' : 'Chờ chốt kỳ'}
+            {run.settled ? `Kỳ ${k} đã chốt` : phase === 'commit' ? 'Còn thời gian nộp thăm' : phase === 'reveal' ? 'Còn thời gian mở thăm' : 'Tự động khui kỳ'}
           </span>
-          <span className={`clock${left < 60 && phase === 'commit' && !run.settled ? ' low' : ''}`} role="timer" aria-live="off">
+          <span className={`clock${left <= 15 && (phase === 'commit' || phase === 'reveal') && !run.settled ? ' low' : ''}`} role="timer" aria-live="off">
             {run.settled ? '00:00' : !live && phase !== 'commit' ? '—' : clock(left)}
           </span>
         </div>
-        <div className="slip">
-          <label className="label" htmlFor="bid">
-            Thăm của bạn (số tiền bớt cho mọi người)
-          </label>
-          <div className="bidIn">
-            <input id="bid" inputMode="decimal" autoComplete="off" value={bidText} disabled={locked} onChange={(e) => setBidText(e.target.value)} aria-describedby="bidHint" aria-invalid={!!err && !locked} />
-            <span>USDC</span>
+        {live && (phase === 'commit' || phase === 'reveal') && !run.settled && (
+          <div className={`clockBar${left <= 15 ? ' low' : ''}`} aria-hidden="true">
+            <i style={{ transform: `scaleX(${progress})` }} />
           </div>
-          <p className={`hint${err && !locked ? ' err' : ''}`} id="bidHint">
-            {err && !locked ? err : `Trần kỳ này ${f(maxBid)} USDC · thăm cao nhất thắng, bằng nhau thì ít trễ hơn`}
-          </p>
-          {live && mine?.committed && !mine.saltOnDevice && (
-            <p className="hint err" role="alert">
-              Máy này không còn mã bí mật của thăm. Nạp file sao lưu ở Cài đặt, nếu không sẽ không mở thăm được và mất cọc.
-            </p>
-          )}
-          {stampEl}
-        </div>
-        <div className="act">
-          <button type="button" className="peek" aria-haspopup="dialog" onClick={() => setSheet(true)}>
-            <span>
-              Nếu bạn thắng, nhận ngay<small>Xem cách tính ▴</small>
-            </span>
-            <b>{f(q.payout)}</b>
-          </button>
-          <div className="actions">{primary}</div>
-          <TxSteps t={t} />
-          <TxNote t={t} ok="Đã xác nhận trên Fuji." />
-        </div>
+        )}
+        {roleCenterpiece}
+        {(canUseBidSlip || primary) && (
+          <div className="act">
+            {canUseBidSlip && (
+              <button type="button" className="peek" aria-haspopup="dialog" onClick={() => setSheet(true)}>
+                <span>
+                  Nếu bạn thắng, nhận ngay<small>Xem cách tính ▴</small>
+                </span>
+                <b>{f(q.payout)}</b>
+              </button>
+            )}
+            {primary && <div className="actions">{primary}</div>}
+            <TxSteps t={t} />
+            <TxNote t={t} ok="Đã xác nhận trên Fuji." />
+          </div>
+        )}
         <p className="hint">{note}</p>
       </div>
       <div className="panel lite side">
@@ -702,34 +1102,184 @@ function BidNow({ c, k, phase, maxBid, bidText, setBidText, run, setRun, stamp, 
         {estimate}
         <Who rows={others} />
       </div>
-      <Sheet open={sheet} title={`Nếu bạn thắng kỳ ${k} với thăm ${err ? '—' : f(bid!)}`} onClose={closeSheet}>
-        <div className="panel" style={{ padding: 0 }}>
-          {estimate}
-          <Who rows={others} />
-        </div>
-      </Sheet>
+      {canUseBidSlip && (
+        <Sheet open={sheet} title={`Nếu bạn thắng kỳ ${k} với thăm ${err ? '—' : f(bid!)}`} onClose={closeSheet}>
+          <div className="panel" style={{ padding: 0 }}>
+            {estimate}
+            <Who rows={others} />
+          </div>
+        </Sheet>
+      )}
     </section>
   );
 }
 
-function FixedNow({ c, k }: { c: SampleCircleData; k: number }) {
+/** Final round (or sole remaining live member in a Bidding circle): bid is 0 by protocol rule (`commitBid` forbidden). */
+function FinalRoundNow({
+  c,
+  k,
+  chainNowSec,
+  banner,
+  onRefetch,
+}: {
+  c: SampleCircleData;
+  k: number;
+  chainNowSec: number;
+  banner?: ReactNode;
+  onRefetch?: () => void;
+}) {
+  const live = c.live!;
+  const rv = live.view.rounds.find((r) => r.k === k);
+  const t = useStepTx();
+  const soleIdx = c.seats.findIndex(
+    (s, i) => s.joined && !c.winnerByRound.includes(i) && !c.shortfalls.some((x) => x.member === i && x.status === 'defaulted'),
+  );
+  const taker = soleIdx >= 0 ? soleIdx : Math.max(0, Number(c.terms.n) - 1);
+  const youTake = taker === c.viewer;
+  const organizerWins = Boolean(c.seats[taker]?.address && c.seats[taker]!.address!.toLowerCase() === live.view.organizer.toLowerCase());
+  const split = roundSplit(c.terms, k, 0n, 0n, organizerWins);
+  const left = windowLeftSec(rv?.deadline, chainNowSec);
+  const total = rv ? Math.max(1, rv.deadline - rv.roundStart) : 120;
+  const progress = Math.min(1, Math.max(0, left / total));
+  const settleOpen = rv !== undefined && chainNowSec >= rv.deadline;
+  const keeperDelayed = rv !== undefined && chainNowSec > rv.deadline + 30;
+  const mineShort = c.shortfalls.find((s) => s.member === c.viewer && s.status === 'grace');
+
+  return (
+    <section className="stage" data-testid="final-round-stage">
+      {banner}
+      <div className="panel inkp">
+        <div className="clockRow">
+          <span className="label" style={{ color: 'var(--lime)' }}>
+            Kỳ cuối · Hốt trọn không đấu thăm
+          </span>
+          <span className={`clock${left <= 15 && left > 0 ? ' low' : ''}`} role="timer" aria-live="off">
+            {clock(left)}
+          </span>
+        </div>
+        {left > 0 && (
+          <div className={`clockBar${left <= 15 ? ' low' : ''}`} aria-hidden="true">
+            <i style={{ transform: `scaleX(${progress})` }} />
+          </div>
+        )}
+        <h2>{youTake ? 'Kỳ cuối: bạn là người duy nhất còn chưa hốt (thăm 0,00 USDC).' : `Kỳ cuối: ${av(taker)} nhận hũ chót với thăm 0,00 USDC.`}</h2>
+        <dl className="rc">
+          <div>
+            <dt>Mỗi thành viên còn lại góp đủ</dt>
+            <dd>{f(c.terms.c)} USDC</dd>
+          </div>
+          <div className="neg">
+            <dt>Hoa hồng và quỹ dự phòng</dt>
+            <dd>−{f(split.fee + split.premium)}</dd>
+          </div>
+          {split.holdback > 0n && (
+            <div className="neg">
+              <dt>Giữ lại</dt>
+              <dd>−{f(split.holdback)}</dd>
+            </div>
+          )}
+          <div className="big">
+            <dt>{youTake ? 'Bạn thực nhận' : `${av(taker)} thực nhận`}</dt>
+            <dd>{f(split.payout)}</dd>
+          </div>
+        </dl>
+        <div className="act">
+          <div className="actions">
+            {mineShort ? (
+              <Link className="btn lime" href={`/circles/${c.id}/thieu`}>
+                Trả khoản thiếu {f(mineShort.amount)} USDC
+              </Link>
+            ) : (
+              <>
+                <div className="autoSettle" role="status">
+                  <span className="spin" aria-hidden="true" />
+                  <span>{settleOpen ? `Đang tự động chi tiền kỳ cuối…` : `Tự động chi tiền sau ${clock(left)}…`}</span>
+                </div>
+                {c.viewerIsOrganizer && (
+                  <TxButton
+                    t={t}
+                    tone="ink"
+                    label={`Khui kỳ ${k} ngay`}
+                    retryLabel={`Gửi lại lệnh khui kỳ ${k}`}
+                    onRun={(r) => void t.run((a) => a.settleRound(live.address), { forceOk: r }).then((ok) => ok && onRefetch?.())}
+                    disabled={!settleOpen}
+                  />
+                )}
+                {!c.viewerIsOrganizer && keeperDelayed && (
+                  <TxButton
+                    t={t}
+                    tone="ink"
+                    label="Máy chủ khui chậm · Khui dự phòng"
+                    retryLabel={`Gửi lại lệnh khui kỳ ${k}`}
+                    onRun={(r) => void t.run((a) => a.settleRound(live.address), { forceOk: r }).then((ok) => ok && onRefetch?.())}
+                  />
+                )}
+              </>
+            )}
+          </div>
+          <TxSteps t={t} />
+          <TxNote t={t} ok="Đã chi kỳ cuối trên Fuji." />
+        </div>
+        <p className="hint">Chỉ còn một thành viên chưa hốt nên hợp đồng mặc định thăm bằng 0, không ai cần bỏ thăm hay mở thăm.</p>
+      </div>
+      <div className="panel lite side">
+        <h2>Trạng thái thành viên</h2>
+        <Who
+          rows={c.seats.flatMap((seat, i) => {
+            if (!seat.joined) return [];
+            const got = c.winnerByRound.indexOf(i);
+            return [
+              {
+                key: i,
+                av: av(i),
+                me: i === c.viewer,
+                name: i === c.viewer ? 'Bạn' : seat.name,
+                sub: got >= 0 ? `Đã hốt kỳ ${got + 1} · góp ${f(c.terms.c)}` : 'Người hốt chót kỳ này',
+                right: <span className={`tag ${i === taker ? 'lime' : 'ok'}`}>{i === taker ? 'Hốt chót' : `Đã hốt K${got + 1}`}</span>,
+              },
+            ];
+          })}
+        />
+      </div>
+    </section>
+  );
+}
+
+function FixedNow({
+  c,
+  k,
+  chainNowSec,
+  sampleLeft,
+  banner,
+  onRefetch,
+}: {
+  c: SampleCircleData;
+  k: number;
+  chainNowSec: number;
+  sampleLeft: number;
+  banner?: ReactNode;
+  onRefetch?: () => void;
+}) {
   const live = c.live;
   const rv = live?.view.rounds.find((r) => r.k === k);
   const t = useStepTx();
   const taker = fixedTaker(c, k);
   const split = roundSplit(c.terms, k, 0n);
-  const left = useSecondsLeft(live ? rv?.deadline : undefined, live?.nowMs, c.roundSecondsLeft ?? 0);
+  const left = live ? windowLeftSec(rv?.deadline, chainNowSec) : sampleLeft;
+  const settleOpen = Boolean(live && rv !== undefined && chainNowSec >= rv.deadline);
+  const keeperDelayed = Boolean(live && rv !== undefined && chainNowSec > rv.deadline + 30);
   const mine = c.shortfalls.find((s) => s.member === c.viewer && s.status === 'grace');
   const youTake = taker === c.viewer;
   return (
     <section className="stage">
+      {banner}
       <div className="panel inkp">
         <ol className="phases" aria-label={`Các bước của kỳ ${k}`}>
           <li className={left > 0 ? 'on' : 'past'}>
             <b>1 ·</b> Góp
           </li>
           <li className={left === 0 ? 'on' : ''}>
-            <b>2 ·</b> Chốt kỳ
+            <b>2 ·</b> Khui kỳ
           </li>
           <li>
             <b>3 ·</b> Nhận tiền
@@ -737,9 +1287,11 @@ function FixedNow({ c, k }: { c: SampleCircleData; k: number }) {
         </ol>
         <div className="clockRow">
           <span className="label" style={{ color: 'var(--mute)' }}>
-            Còn tới giờ chốt
+            Còn tới giờ tự động chi
           </span>
-          <span className="clock">{clock(left)}</span>
+          <span className="clock" role="timer" aria-live="off">
+            {clock(left)}
+          </span>
         </div>
         <h2>{youTake ? 'Kỳ này bạn hốt.' : `${av(taker)} hốt kỳ này theo thứ tự vào dây.`}</h2>
         <dl className="rc">
@@ -767,7 +1319,31 @@ function FixedNow({ c, k }: { c: SampleCircleData; k: number }) {
                 Trả khoản thiếu {f(mine.amount)} USDC
               </Link>
             ) : live ? (
-              <TxButton t={t} label={`Chốt kỳ ${k}`} retryLabel={`Gửi lại lệnh chốt kỳ ${k}`} onRun={(r) => void t.run((a) => a.settleRound(live.address), { forceOk: r })} disabled={left > 0} />
+              <>
+                <div className="autoSettle" role="status">
+                  <span className="spin" aria-hidden="true" />
+                  <span>{settleOpen ? `Đang tự động chi tiền kỳ ${k}…` : `Tự động chi kỳ ${k} sau ${clock(left)}…`}</span>
+                </div>
+                {c.viewerIsOrganizer && (
+                  <TxButton
+                    t={t}
+                    tone="ink"
+                    label={`Khui kỳ ${k} ngay`}
+                    retryLabel={`Gửi lại lệnh khui kỳ ${k}`}
+                    onRun={(r) => void t.run((a) => a.settleRound(live.address), { forceOk: r }).then((ok) => ok && onRefetch?.())}
+                    disabled={!settleOpen}
+                  />
+                )}
+                {!c.viewerIsOrganizer && keeperDelayed && (
+                  <TxButton
+                    t={t}
+                    tone="ink"
+                    label="Máy chủ khui chậm · Khui dự phòng"
+                    retryLabel={`Gửi lại lệnh khui kỳ ${k}`}
+                    onRun={(r) => void t.run((a) => a.settleRound(live.address), { forceOk: r }).then((ok) => ok && onRefetch?.())}
+                  />
+                )}
+              </>
             ) : null}
           </div>
           <TxSteps t={t} />
@@ -776,9 +1352,7 @@ function FixedNow({ c, k }: { c: SampleCircleData; k: number }) {
         <p className="hint">
           {mine
             ? `Bạn còn thiếu khoản góp kỳ ${mine.round}. Trả trong ân hạn thì không bị ghi vỡ nợ.`
-            : left > 0
-              ? 'Tiền góp được trích từ ví mọi người lúc chốt kỳ, trong cùng một giao dịch.'
-              : 'Đã tới giờ chốt: ai cũng bấm được, không cần chờ chủ hụi.'}
+            : 'Tiền góp được trích từ ví mọi người và chi tự động đúng giờ chốt, trong cùng một giao dịch.'}
         </p>
       </div>
       <div className="panel lite side">

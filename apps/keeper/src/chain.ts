@@ -85,6 +85,15 @@ export function createViemPort(cfg: KeeperConfig): { port: KeeperPort; keeper: A
       terminal.add(circle);
     },
     deadline: (circle, round) => read<bigint>(circle, 'deadline', [round]),
+    async finalizeDueAt(circle, lastRound) {
+      const [params, pausedTotal, info] = await Promise.all([
+        read<{ graceSeconds: number }>(circle, 'params'),
+        read<bigint>(circle, 'pausedTotal'),
+        read<{ settledAt: bigint }>(circle, 'roundInfo', [lastRound]),
+      ]);
+      if (info.settledAt === 0n) return undefined;
+      return BigInt(info.settledAt) + BigInt(params.graceSeconds) + BigInt(pausedTotal) + 1n;
+    },
     async owes(circle, member) {
       const info = await read<{ defaulted: boolean; debt: bigint }>(circle, 'memberInfo', [member]);
       return !info.defaulted && info.debt > 0n;

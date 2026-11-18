@@ -22,6 +22,10 @@ const NETWORK: TxFailure = {
   message: 'Không kết nối được tới máy chủ. Kiểm tra mạng rồi thử lại.',
 };
 
+const RETRY_DELAYS_MS = [0, 250, 600] as const;
+const TRANSIENT_HTTP = new Set([502, 503, 504]);
+const sleep = (ms: number): Promise<void> => new Promise((r) => setTimeout(r, ms));
+
 async function postJson(
   fetchFn: FetchLike,
   url: string,
@@ -30,12 +34,26 @@ async function postJson(
 ): Promise<{ status: number; json: unknown } | TxFailure> {
   const headers: Record<string, string> = { 'content-type': 'application/json' };
   if (token) headers.authorization = `Bearer ${token}`;
-  let res: Response;
-  try {
-    res = await fetchFn(url, { method: 'POST', headers, body: JSON.stringify(body) });
-  } catch {
-    return NETWORK;
+  const init = { method: 'POST', headers, body: JSON.stringify(body) };
+  let res: Response | undefined;
+  for (let i = 0; i < RETRY_DELAYS_MS.length; i++) {
+    const waitMs = RETRY_DELAYS_MS[i]!;
+    if (waitMs > 0) await sleep(waitMs);
+    try {
+      res = await fetchFn(url, init);
+    } catch {
+      res = undefined;
+      if (i + 1 < RETRY_DELAYS_MS.length) continue;
+      return NETWORK;
+    }
+    if (TRANSIENT_HTTP.has(res.status) && i + 1 < RETRY_DELAYS_MS.length) {
+      // Only retry bare gateway failures (e.g. reverse proxy / tunnel reset), not structured JSON app errors.
+      const ct = res.headers.get('content-type') ?? '';
+      if (!ct.includes('application/json')) continue;
+    }
+    break;
   }
+  if (!res) return NETWORK;
   let json: unknown;
   try {
     json = await res.json();

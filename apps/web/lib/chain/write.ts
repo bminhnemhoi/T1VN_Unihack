@@ -13,6 +13,7 @@ import {
   commitHash,
   decodeError,
   encodeJoin,
+  erc2771ForwarderAbi,
   formatUsdc,
   huiCircleFullAbi,
   huiFactoryAbi,
@@ -127,6 +128,19 @@ async function safely<T extends object>(job: () => Promise<TxResult<T>>): Promis
 export type TxStep = 'sign' | 'send' | 'confirm';
 const step = (ctx: TxContext, s: TxStep): void => ctx.onStep?.(s);
 
+const SIGNED_CACHE_TTL_MS = 90_000;
+interface CachedForwardRequest {
+  signed: Awaited<ReturnType<typeof signForwardRequest>>;
+  nonce: bigint;
+  expiresAt: number;
+}
+const pendingSignedCache = new Map<string, CachedForwardRequest>();
+
+/** Clear cached forward signatures (exposed for deterministic unit testing). */
+export function clearPendingSignedCache(): void {
+  pendingSignedCache.clear();
+}
+
 /** Sign a forward request for `data`, relay it, wait for the receipt. */
 function relayCall(
   ctx: TxContext,
@@ -149,19 +163,48 @@ async function relayOnce(
   if (bad) return bad;
   const token = opts.needToken ? await ctx.getAccessToken?.() : undefined;
   if (opts.needToken && !token) return fail('NotLoggedIn', 'Bạn cần đăng nhập trước.');
-  let signed;
-  step(ctx, 'sign');
-  try {
-    signed = await signForwardRequest(signCtx(ctx), ctx.chain.forwarder, to, data, {
-      gas,
-      deadlineSec: (await chainNow(ctx)) + REQUEST_TTL_SEC,
-    });
-  } catch {
-    return fail('SignRejected', 'Ví không ký được hoặc bạn đã huỷ. Chưa có giao dịch nào được gửi.');
+
+  const cacheKey = `${ctx.chain.chainId}:${ctx.wallet.address.toLowerCase()}:${to.toLowerCase()}:${data}`;
+  const nowSec = await chainNow(ctx);
+  const onchainNonce = (await ctx.chain.client.readContract({
+    address: ctx.chain.forwarder,
+    abi: erc2771ForwarderAbi,
+    functionName: 'nonces',
+    args: [ctx.wallet.address],
+  })) as bigint;
+
+  const cached = pendingSignedCache.get(cacheKey);
+  let signed: Awaited<ReturnType<typeof signForwardRequest>>;
+  if (
+    cached &&
+    cached.expiresAt > Date.now() &&
+    cached.nonce === onchainNonce &&
+    cached.signed.request.deadline - nowSec > 60
+  ) {
+    signed = cached.signed;
+  } else {
+    step(ctx, 'sign');
+    try {
+      signed = await signForwardRequest(signCtx(ctx), ctx.chain.forwarder, to, data, {
+        gas,
+        deadlineSec: nowSec + REQUEST_TTL_SEC,
+      });
+    } catch {
+      return fail('SignRejected', 'Ví không ký được hoặc bạn đã huỷ. Chưa có giao dịch nào được gửi.');
+    }
   }
+
   step(ctx, 'send');
   const sent = await postRelay(ctx.fetchFn ?? defaultFetch, ctx.relayUrl ?? '/api/relay', signed, token);
-  if (!sent.ok) return sent;
+  if (!sent.ok) {
+    if (sent.code === 'NetworkError') {
+      pendingSignedCache.set(cacheKey, { signed, nonce: onchainNonce, expiresAt: Date.now() + SIGNED_CACHE_TTL_MS });
+    } else {
+      pendingSignedCache.delete(cacheKey);
+    }
+    return sent;
+  }
+  pendingSignedCache.delete(cacheKey);
   step(ctx, 'confirm');
   let receipt;
   try {
@@ -274,6 +317,13 @@ export function join(ctx: TxContext, circle: Address, opts: { ageConfirmed: bool
 async function joinInner(ctx: TxContext, circle: Address, opts: { ageConfirmed: boolean }): Promise<TxResult> {
   const bad = guard(ctx);
   if (bad) return bad;
+  // If a prior join already landed on-chain while UI polling lagged, succeed cleanly instead of hitting 422 AttestationUsed.
+  const existing = await readCircleFn<{ joined: boolean }>(ctx, circle, 'memberInfo', [ctx.wallet.address]).catch(() => undefined);
+  if (existing?.joined) {
+    const ok: TxSuccess = { ok: true, txHash: `0x${'0'.repeat(64)}`, blockNumber: 0n, gasUsed: 0n };
+    await ctx.onMined?.(ok);
+    return ok;
+  }
   const att = await requestAttestation(
     ctx.fetchFn ?? defaultFetch,
     ctx.attestUrl ?? '/api/attest',
@@ -327,11 +377,14 @@ export function commitBid(ctx: TxContext, circle: Address, round: number, bid: b
         return fail('AlreadyCommitted', 'Thăm của bạn đã lên blockchain ở lần gửi trước, nên không gửi lại để giữ thứ tự nộp. Tải lại trang để thấy phong bì đã niêm phong.');
       }
     }
-    const [params, max, current, phase] = await Promise.all([
+    const [params, max, current, phase, balance] = await Promise.all([
       readCircleFn<{ contribution: bigint }>(ctx, circle, 'params'),
       readCircleFn<bigint>(ctx, circle, 'maxBid', [round]),
       readCircleFn<number>(ctx, circle, 'currentRound'),
       readCircleFn<number>(ctx, circle, 'phase'),
+      (ctx.chain.client
+        .readContract({ address: ctx.chain.usdc, abi: mockUsdcAbi, functionName: 'balanceOf', args: [member] })
+        .catch(() => undefined)) as Promise<bigint | undefined>,
     ]);
     if (round !== current) return fail('WrongRound', `Hiện là kỳ ${current}, không phải kỳ ${round}.`);
     if (phase !== 1) return fail('NotInCommitWindow', 'Chưa hoặc không còn trong thời gian nộp thăm kín.');
@@ -339,8 +392,15 @@ export function commitBid(ctx: TxContext, circle: Address, round: number, bid: b
       return fail('BidTooHigh', `Tiền thăm phải nhỏ hơn mức góp ${formatUsdc(params.contribution)}.`);
     }
     if (bid > max) return fail('BidTooHigh', `Tiền thăm vượt trần của kỳ này (tối đa ${formatUsdc(max)}).`);
+    if (balance !== undefined && balance < params.contribution) {
+      return fail(
+        'InsufficientBalance',
+        `Ví của bạn hiện có ${formatUsdc(balance)}, cần tối thiểu ${formatUsdc(params.contribution)} (1 phần góp) để bỏ thăm.`,
+      );
+    }
 
-    const salt = newSalt();
+    const prevSaved = opts.resume ? await loadSalt(circle, round, member, store) : undefined;
+    const salt = prevSaved && prevSaved.bid === bid ? prevSaved.salt : newSalt();
     const hash = commitHash(circle, round, member, bid, salt);
     const saved =
       (await saveSalt(circle, round, member, bid, salt, store)) &&

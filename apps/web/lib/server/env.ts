@@ -7,7 +7,7 @@
 import { createWalletClient, http, fallback, nonceManager, type Hex } from 'viem';
 import { privateKeyToAccount } from 'viem/accounts';
 import { NetworkError, resolveNetwork } from 'config/network';
-import { huiFactoryAbi, erc2771ForwarderAbi, mockUsdcAbi } from 'sdk';
+import { formatUsdc, huiCircleFullAbi, huiFactoryAbi, erc2771ForwarderAbi, iReputationRegistryAbi, mockUsdcAbi } from 'sdk';
 import { createAttestHandler, ATTEST_PER_HOUR, type AttestDeps } from './attest';
 import { chainFor, ConfigError, loadDeployment, makePublicClient } from './chain';
 import { consoleLogger, errorResponse, makeRequestIdGenerator, trustProxyFrom } from './http';
@@ -66,6 +66,42 @@ export async function buildAttestHandler(env: Env = process.env): Promise<Handle
     chainId: network.chainId,
     isCircle: (circle) =>
       publicClient.readContract({ address: deployment.factory, abi: huiFactoryAbi, functionName: 'isCircle', args: [circle] }),
+    checkEligibility: async (circle, wallet) => {
+      const [mi, params, balance, rep] = await Promise.all([
+        publicClient.readContract({ address: circle, abi: huiCircleFullAbi, functionName: 'memberInfo', args: [wallet] }) as Promise<{ joined: boolean }>,
+        publicClient.readContract({ address: circle, abi: huiCircleFullAbi, functionName: 'params' }) as Promise<{
+          mode: number;
+          contribution: bigint;
+          revealBondBps: number;
+        }>,
+        publicClient.readContract({ address: deployment.usdc, abi: mockUsdcAbi, functionName: 'balanceOf', args: [wallet] }) as Promise<bigint>,
+        publicClient
+          .readContract({ address: config.reputation, abi: iReputationRegistryAbi, functionName: 'reputationOf', args: [wallet] })
+          .catch(() => ({ defaults: 0, repaid: 0 })) as Promise<{ defaults: number; repaid: number }>,
+      ]);
+      if (mi.joined) {
+        return { ok: false, status: 409, code: 'AlreadyMember', message: 'Bạn đã ở trong dây này rồi.' };
+      }
+      if (Number(rep.defaults) > Number(rep.repaid)) {
+        return {
+          ok: false,
+          status: 422,
+          code: 'UnresolvedDefault',
+          message: 'Ví này đang có khoản vỡ nợ chưa hoàn trả ở dây trước nên chưa được vào dây mới. Hãy hoàn trả nợ cũ trước.',
+        };
+      }
+      const revealBond = Number(params.mode) === 1 ? (BigInt(params.contribution) * BigInt(params.revealBondBps)) / 10_000n : 0n;
+      const minNeeded = BigInt(params.contribution) + revealBond;
+      if (BigInt(balance) < minNeeded) {
+        return {
+          ok: false,
+          status: 422,
+          code: 'InsufficientBalance',
+          message: `Ví của bạn hiện có ${formatUsdc(BigInt(balance))}, cần tối thiểu ${formatUsdc(minNeeded)} cho kỳ đầu để vào dây. Hãy nhận USDC thử nghiệm trước.`,
+        };
+      }
+      return { ok: true };
+    },
     userLimiter: new SlidingWindowLimiter(ATTEST_PER_HOUR),
     ipLimiter: new SlidingWindowLimiter(120),
     trustProxy: trustProxyFrom(env),

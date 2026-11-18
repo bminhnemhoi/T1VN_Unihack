@@ -4,12 +4,12 @@ export const BPS = 10_000;
 export const USDC_DECIMALS = 6;
 export const ONE_USDC = 1_000_000n;
 
-/** Demo toggle timing (docs/03 section 3.3). Must be declared at the start of the pitch. */
+/** Demo toggle timing (docs/03 section 3.3): 75s commit + 45s reveal = 120s round (0s dead gap), 60s grace. */
 export const DEMO = {
-  roundDuration: 180,
-  commitWindow: 90,
-  revealWindow: 60,
-  graceSeconds: 120,
+  roundDuration: 120,
+  commitWindow: 75,
+  revealWindow: 45,
+  graceSeconds: 60,
   periodSeconds: 30 * 24 * 60 * 60,
 } as const;
 

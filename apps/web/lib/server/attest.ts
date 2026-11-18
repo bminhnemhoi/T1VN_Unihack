@@ -33,6 +33,10 @@ export interface AttesterSigner {
   }): Promise<Hex>;
 }
 
+export type EntryEligibility =
+  | { ok: true }
+  | { ok: false; status: number; code: string; message: string };
+
 export interface AttestDeps {
   verifier: PrivyVerifier;
   attester: AttesterSigner;
@@ -41,6 +45,8 @@ export interface AttestDeps {
   chainId: number;
   /** `factory.isCircle(circle)`. */
   isCircle(circle: Address): Promise<boolean>;
+  /** Optional on-chain entry guard: checks minimum round-1 USDC balance and unresolved prior defaults. */
+  checkEligibility?(circle: Address, wallet: Address): Promise<EntryEligibility>;
   userLimiter: SlidingWindowLimiter;
   ipLimiter: SlidingWindowLimiter;
   /** Read the client IP from proxy headers (`TRUST_PROXY=true`); default false = one shared bucket. */
@@ -148,6 +154,19 @@ export function createAttestHandler(deps: AttestDeps): (req: Request) => Promise
       return done(errorResponse(502, 'ChainUnavailable', 'Chưa đọc được dữ liệu từ mạng. Hãy thử lại.'), 'chain-error');
     }
     if (!known) return done(errorResponse(404, 'NotCircle', 'Địa chỉ này không phải một dây của HụiSafe.'), 'not-circle');
+
+    if (deps.checkEligibility) {
+      let elig: EntryEligibility;
+      try {
+        elig = await deps.checkEligibility(circle, wallet);
+      } catch {
+        deps.log('error', 'attest eligibility failure', { requestId });
+        return done(errorResponse(502, 'ChainUnavailable', 'Chưa đọc được dữ liệu từ mạng. Hãy thử lại.'), 'chain-error');
+      }
+      if (!elig.ok) {
+        return done(errorResponse(elig.status, elig.code, elig.message), `ineligible:${elig.code}`);
+      }
+    }
 
     const attestationId = computeAttestationId(deps.idSecret, userId, circle);
     const expiry = BigInt(Math.floor(deps.now() / 1000) + ATTESTATION_TTL_SECONDS);

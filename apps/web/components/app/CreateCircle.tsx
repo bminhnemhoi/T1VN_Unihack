@@ -9,10 +9,12 @@ import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react'
 import { DEFAULT_MIN_COVERAGE_BPS, formatUsdcNumber, parseUsdc, previewCircle } from 'sdk';
 import { TxButton, TxNote, TxSteps, useStepTx } from '@/components/app/tx';
 import { useChain } from '@/lib/chain/provider';
+import { useHuiWallet } from '@/lib/chain/walletProvider';
 import { DEFAULTS, termsOf, validateForm, type FormState } from '@/lib/circleForm';
 import { createThenDeposit } from '@/lib/create-flow';
 import { capOf } from '@/lib/hui-calc';
 import { buildCreateInput } from '@/lib/live/createInput';
+import { useWalletBalance } from '@/lib/live/useWalletBalance';
 
 const f = (u: bigint): string => {
   const s = formatUsdcNumber(u);
@@ -24,6 +26,8 @@ const DEMO_BUILD = process.env.NEXT_PUBLIC_HUISAFE_DEMO === 'true';
 
 export function CreateCircle() {
   const chain = useChain();
+  const { wallet } = useHuiWallet();
+  const walletBal = useWalletBalance(chain ? wallet?.address : undefined);
   const t = useStepTx();
   const [step, setStep] = useState(0);
   const [dir, setDir] = useState(0);
@@ -31,6 +35,7 @@ export function CreateCircle() {
   const [over18, setOver18] = useState(false);
   const [tried18, setTried18] = useState(false);
   const [made, setMade] = useState<{ address?: `0x${string}` } | null>(null);
+  const [pendingCircle, setPendingCircle] = useState<`0x${string}` | undefined>(undefined);
   const q = useRef<HTMLDivElement>(null);
   const n = Number(form.n);
   const cUnits = parseUsdc(form.c.trim().replace(/\./g, ''));
@@ -47,25 +52,38 @@ export function CreateCircle() {
   const revealBond = ((okC ? cUnits! : 0n) * 100n) / 10_000n;
   const allowance = BigInt(n - 1) * ((okC ? cUnits! : 0n) + revealBond);
 
+  /** The circle this screen already created on chain, kept across retries and page reloads (audit L-01 + B27). */
+  const createdRef = useRef<`0x${string}` | undefined>(undefined);
+
   // Keep what was typed on this device (and give the assistant the draft, `draftFromStorage`).
   const restored = useRef(false);
   useEffect(() => {
     if (restored.current) return;
     restored.current = true;
     try {
-      const raw = JSON.parse(sessionStorage.getItem(DRAFT_KEY) ?? 'null') as { f?: Partial<FormState> } | null;
+      const raw = JSON.parse(sessionStorage.getItem(DRAFT_KEY) ?? 'null') as { f?: Partial<FormState>; created?: string } | null;
       if (raw?.f && typeof raw.f === 'object') setForm((s) => ({ ...s, mode: raw.f!.mode === 'fixed' ? 'fixed' : 'bidding', n: String(raw.f!.n ?? s.n), c: String(raw.f!.c ?? s.c), periodDays: String(raw.f!.periodDays ?? s.periodDays) }));
+      if (raw?.created && /^0x[0-9a-fA-F]{40}$/.test(raw.created)) {
+        createdRef.current = raw.created as `0x${string}`;
+        setPendingCircle(raw.created as `0x${string}`);
+      }
     } catch {
       // storage blocked or broken: start from the defaults
     }
   }, []);
   useEffect(() => {
     try {
-      sessionStorage.setItem(DRAFT_KEY, JSON.stringify({ f: { ...form, bond: (Number(bond) / 1_000_000).toString() } }));
+      sessionStorage.setItem(
+        DRAFT_KEY,
+        JSON.stringify({
+          f: { ...form, bond: (Number(bond) / 1_000_000).toString() },
+          ...(pendingCircle ? { created: pendingCircle } : {}),
+        }),
+      );
     } catch {
       // storage blocked: nothing to keep
     }
-  }, [form, bond]);
+  }, [form, bond, pendingCircle]);
 
   // Focus the question after a step change (keyboard and screen readers land on it), not on the first paint.
   const moved = useRef(false);
@@ -82,16 +100,15 @@ export function CreateCircle() {
     setStep(to);
   };
   const set = (patch: Partial<FormState>) => setForm((s) => ({ ...s, ...patch }));
+  const insufficientBondUsdc = Boolean(chain && wallet?.address && walletBal.data && walletBal.data.usdc < bond);
 
-  /** The circle this screen already created on chain, kept across retries (audit L-01). */
-  const createdRef = useRef<`0x${string}` | undefined>(undefined);
   const create = async (retry: boolean) => {
     if (!over18) {
       setTried18(true);
       document.getElementById('over18')?.focus();
       return;
     }
-    if (!value) return;
+    if (!value || insufficientBondUsdc) return;
     // A retry after the bond deposit failed deposits into the circle already created, never a second one (audit L-01).
     const ok = await t.run(
       (a) =>
@@ -100,11 +117,19 @@ export function CreateCircle() {
           async () => buildCreateInput(full, value, { nowSec: Number((await chain!.client.getBlock()).timestamp), demo: DEMO_BUILD }),
           value.bond,
           createdRef.current,
-          (c) => (createdRef.current = c),
+          (c) => {
+            createdRef.current = c;
+            setPendingCircle(c);
+          },
         ),
       { forceOk: retry, failText: 'Gửi không được vì mạng lỗi. Dây chưa được tạo, bạn chưa mất gì.' },
     );
-    if (ok) setMade({ ...(createdRef.current ? { address: createdRef.current } : {}) });
+    if (ok) {
+      const doneAddr = createdRef.current;
+      createdRef.current = undefined;
+      setPendingCircle(undefined);
+      setMade({ ...(doneAddr ? { address: doneAddr } : {}) });
+    }
   };
 
   const bars = Array.from({ length: STEPS }, (_, i) => <i key={i} className={made || i < step ? 'd' : i === step ? 'n' : ''} />);
@@ -332,6 +357,23 @@ export function CreateCircle() {
         <p className={`sub${tried18 && !over18 ? ' err' : ''}`} id="over18Hint">
           {tried18 && !over18 ? 'Tích ô xác nhận đủ 18 tuổi để tạo dây.' : 'Tạo dây gồm hai lệnh: tạo dây rồi khóa ký quỹ. Bạn không cần AVAX.'}
         </p>
+        {insufficientBondUsdc && walletBal.data && (
+          <p className="sub err" role="status">
+            Ví hiện có {f(walletBal.data.usdc)} USDC, còn thiếu {f(bond - walletBal.data.usdc)} USDC để khóa ký quỹ. Hãy nhận thêm USDC thử nghiệm tại{' '}
+            <a href="https://faucet.circle.com" target="_blank" rel="noreferrer" style={{ color: 'inherit', textDecoration: 'underline' }}>
+              faucet.circle.com
+            </a>{' '}
+            rồi{' '}
+            <button
+              type="button"
+              onClick={() => void walletBal.refetch()}
+              style={{ background: 'none', border: 0, padding: 0, textDecoration: 'underline', fontWeight: 700, cursor: 'pointer' }}
+            >
+              kiểm tra lại số dư
+            </button>
+            .
+          </p>
+        )}
         <TxSteps t={t} />
         <TxNote t={t} />
       </>
@@ -349,7 +391,13 @@ export function CreateCircle() {
     );
   const next =
     step === 5 ? (
-      <TxButton t={t} label="Tạo dây" retryLabel={createdRef.current ? 'Nạp lại ký quỹ vào dây vừa tạo' : 'Gửi lại lệnh tạo dây'} onRun={(r) => void create(r)} />
+      <TxButton
+        t={t}
+        label={pendingCircle ? 'Nạp ký quỹ vào dây vừa tạo' : 'Tạo dây'}
+        retryLabel={pendingCircle ? 'Nạp lại ký quỹ vào dây vừa tạo' : 'Gửi lại lệnh tạo dây'}
+        disabled={insufficientBondUsdc}
+        onRun={(r) => void create(r)}
+      />
     ) : (
       <button className="btn ink" type="button" disabled={!canNext} onClick={() => go(step + 1)}>
         Tiếp tục ›

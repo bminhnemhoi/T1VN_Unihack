@@ -2,7 +2,7 @@
 
 import { Copy } from 'lucide-react';
 import Link from 'next/link';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { formatBps, formatUsdc, parseUsdc, previewCircle } from 'sdk';
 import { ActionButton } from '@/components/chain/ActionButton';
 import { Countdown } from '@/components/brand/Countdown';
@@ -16,6 +16,8 @@ import { useToast } from '@/components/shell/Toast';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
+import { useChainNowSec } from '@/lib/live/useChainClock';
+import { useMemberBalances } from '@/lib/live/useMemberBalances';
 import { useMinCoverageBps } from '@/lib/live/useMinCoverage';
 import { type SampleCircleData } from '@/lib/sample-circles';
 
@@ -33,15 +35,29 @@ export function FormingView({ c }: { c: SampleCircleData }) {
   useEffect(() => setOrigin(window.location.origin), []);
 
   const live = c.live;
-  const nowSec = Math.floor((live?.nowMs ?? 0) / 1000);
+  const nowSec = useChainNowSec(live?.nowMs);
   const [topUp, setTopUp] = useState('');
   const joined = c.seats.filter((s) => s.joined).length;
+  const joinedAddrs = useMemo(
+    () => c.seats.flatMap((s) => (s.joined && s.address ? [s.address] : [])),
+    [c.seats],
+  );
+  const memberBalances = useMemberBalances(joinedAddrs, Boolean(live && c.state === 'forming'));
+  const underfundedSeats = useMemo(() => {
+    if (!live || !memberBalances.data) return [];
+    return c.seats.flatMap((s, i) => {
+      if (!s.joined || !s.address) return [];
+      const bal = memberBalances.data[s.address.toLowerCase()];
+      return bal !== undefined && bal < t.c ? [`Thành viên ${i + 1}`] : [];
+    });
+  }, [live, memberBalances.data, c.seats, t.c]);
   const have = !live && pretendFull ? n : joined;
   const full = have >= n;
   const floor = useMinCoverageBps(live?.address);
   const preview = previewCircle({ n: t.n, c: t.c, periodDays: t.periodDays, alphaBps: t.alphaBps, bond: c.bond, capBps: t.capBps, minCoverageBps: floor });
   const ready = full && preview.canActivate;
   const pastDeadline = live ? nowSec > live.view.params.joinDeadline : false;
+  const joinLeftSec = live ? Math.max(0, live.view.params.joinDeadline - nowSec) : (c.joinSecondsLeft ?? 0);
   const topUpAmount = topUp.trim() === '' ? preview.bondMissing : parseUsdc(topUp);
   const reason = !full
     ? `Chưa bắt đầu được: dây mới có ${have} trên ${n} người. Cần đủ ${n} người, rồi mới bấm bắt đầu.`
@@ -92,22 +108,29 @@ export function FormingView({ c }: { c: SampleCircleData }) {
               Đang chờ đủ người: {have} trên {n}
             </h2>
             <p className="mt-3 text-lead text-[#e9e4da]">
-              Còn <Countdown seconds={c.joinSecondsLeft ?? 0} className="font-semibold text-white" /> để mời đủ người. Quá hạn mà chưa đủ thì dây tự hủy và bạn rút lại ký quỹ.
+              Còn <Countdown seconds={joinLeftSec} className="font-semibold text-white" /> để mời đủ người. Quá hạn mà chưa đủ thì dây tự hủy và bạn rút lại ký quỹ.
             </p>
             <div className="mt-6 flex flex-wrap gap-3">
               {live ? (
                 c.viewerIsOrganizer ? (
-                  <ActionButton
-                    size="lg"
-                    disabled={!ready}
-                    aria-describedby="ly-do-bat-dau"
-                    className={ready ? 'bg-action-ink text-muc-dem hover:bg-action-ink/90' : 'border border-[#c9c2b6] bg-transparent text-[#e9e4da] hover:bg-white/10'}
-                    run={(a) => a.activate(live.address)}
-                    success="Dây đã bắt đầu chạy kỳ 1."
-                    noticeClassName="text-white"
-                  >
-                    Bắt đầu dây
-                  </ActionButton>
+                  <>
+                    <ActionButton
+                      size="lg"
+                      disabled={!ready}
+                      aria-describedby="ly-do-bat-dau"
+                      className={ready ? 'bg-action-ink text-muc-dem hover:bg-action-ink/90' : 'border border-[#c9c2b6] bg-transparent text-[#e9e4da] hover:bg-white/10'}
+                      run={(a) => a.activate(live.address)}
+                      success="Dây đã bắt đầu chạy kỳ 1."
+                      noticeClassName="text-white"
+                    >
+                      Bắt đầu dây
+                    </ActionButton>
+                    {c.viewer < 0 && !full && !pastDeadline && (
+                      <Button asChild size="lg" variant="outline" className="border-[#c9c2b6] bg-transparent text-white hover:bg-white/10 hover:text-white">
+                        <Link href={invitePath}>Tham gia 1 chân trong dây này</Link>
+                      </Button>
+                    )}
+                  </>
                 ) : (
                   <Button asChild size="lg" className="bg-action-ink text-muc-dem hover:bg-action-ink/90">
                     <Link href={invitePath}>Vào dây này</Link>
@@ -122,6 +145,11 @@ export function FormingView({ c }: { c: SampleCircleData }) {
             <p id="ly-do-bat-dau" className="mt-3 text-[#e9e4da]">
               {reason}
             </p>
+            {underfundedSeats.length > 0 && c.viewerIsOrganizer && (
+              <p role="alert" className="mt-3 rounded-lg border border-[#ff6a5c] bg-white/10 p-3 text-sm font-semibold text-white">
+                Cảnh báo bảo vệ ký quỹ: {underfundedSeats.join(', ')} hiện chưa đủ {formatUsdc(t.c)} trong ví cho kỳ 1. Hãy nhắc nạp đủ trước khi bấm Bắt đầu dây.
+              </p>
+            )}
             {!live && (
               <label htmlFor="xem-du" className="mt-3 flex min-h-12 cursor-pointer items-center gap-3 text-[#c9c2b6]">
                 <Switch id="xem-du" checked={pretendFull} onCheckedChange={setPretendFull} />
@@ -216,13 +244,24 @@ export function FormingView({ c }: { c: SampleCircleData }) {
           <ol className="mt-2">
             {c.seats.map((s, i) => {
               const here = s.joined || (pretendFull && !s.joined);
+              const bal = s.joined && s.address && memberBalances.data ? memberBalances.data[s.address.toLowerCase()] : undefined;
+              const funded = bal === undefined ? undefined : bal >= t.c;
               return (
                 <li key={i} className="dong-ke flex flex-wrap items-center justify-between gap-x-3 gap-y-1 py-2.5 last:border-b-0">
                   <span className="min-w-0">
                     <span className={here ? 'font-semibold' : 'text-muted-foreground'}>{here && !s.joined ? `Thành viên ${i + 1}` : s.name}</span>
                     <span className="block text-muted-foreground">{here ? `vào thứ ${i + 1}` : 'chờ người mời'}</span>
                   </span>
-                  {here && <RepBadge rep={s.rep} who={s.organizer ? 'organizer' : 'member'} />}
+                  {here && (
+                    <span className="flex flex-wrap items-center gap-2">
+                      {funded !== undefined && (
+                        <Badge variant={funded ? 'secondary' : 'destructive'}>
+                          {funded ? 'Đủ kỳ 1' : 'Thiếu USDC kỳ 1'}
+                        </Badge>
+                      )}
+                      <RepBadge rep={s.rep} who={s.organizer ? 'organizer' : 'member'} />
+                    </span>
+                  )}
                 </li>
               );
             })}

@@ -80,7 +80,9 @@ export function ResultView({ c }: { c: SampleCircleData }) {
 
       {running && (
         <div role="status" className="mt-6 rounded-xl border border-border bg-card p-4 text-lead">
-          Kỳ {running} đang diễn ra nên chưa có kết quả. Quá giờ chốt mà chưa chi thì hiện &quot;Kỳ đang chờ chốt&quot; và ai cũng bấm chốt được.{' '}
+          {c.live
+            ? `Kỳ ${running} đang diễn ra nên chưa có kết quả. Hết giờ mở thăm hệ thống tự động khui thăm và chi tiền.`
+            : `Kỳ ${running} đang diễn ra nên chưa có kết quả. Quá giờ chốt mà chưa chi thì hiện "Kỳ đang chờ chốt".`}{' '}
           <SettleButton c={c} round={running} variant="outline" size="sm" className="ml-1 align-middle" />
         </div>
       )}

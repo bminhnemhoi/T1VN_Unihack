@@ -19,8 +19,10 @@ import { termsViewOf } from '@/lib/live/terms';
 import { capOf } from '@/lib/hui-calc';
 import { ErrorState } from '@/components/app/parts';
 import { Missing, PageSkeleton } from '@/components/circle/CircleScreen';
+import { useHuiWallet } from '@/lib/chain/walletProvider';
 import { useCircleData } from '@/lib/live/useCircleData';
 import { useMinCoverageBps } from '@/lib/live/useMinCoverage';
+import { useWalletBalance } from '@/lib/live/useWalletBalance';
 import type { SampleCircleData } from '@/lib/sample-circles';
 
 const REVEAL_BOND_BPS = 100n;
@@ -42,7 +44,9 @@ export function InviteScreen({ id }: { id: string }) {
 export function InviteView({ c: C }: { c: SampleCircleData }) {
   const router = useRouter();
   const tx = useTx();
+  const { wallet } = useHuiWallet();
   const live = C.live;
+  const walletBal = useWalletBalance(live ? wallet?.address : undefined);
   const terms = termsViewOf(C);
   const { show } = useToast();
   const [agreed, setAgreed] = useState(false);
@@ -55,6 +59,8 @@ export function InviteView({ c: C }: { c: SampleCircleData }) {
   const floor = useMinCoverageBps(live?.address);
   const preview = previewCircle({ n: t.n, c: t.c, periodDays: t.periodDays, alphaBps: t.alphaBps, bond: C.bond, capBps: t.capBps, minCoverageBps: floor });
   const allowance = live ? live.view.requiredAllowance : (t.n - 1n) * (t.c + (t.c * REVEAL_BOND_BPS) / 10_000n);
+  const minEntryUsdc = t.c + (t.mode === 'bidding' ? (t.c * REVEAL_BOND_BPS) / 10_000n : 0n);
+  const insufficientUsdc = Boolean(live && wallet?.address && walletBal.data && walletBal.data.usdc < minEntryUsdc);
   const open = !live || live.view.state === 'forming';
   const already = live ? C.viewer >= 0 : false;
 
@@ -182,7 +188,48 @@ export function InviteView({ c: C }: { c: SampleCircleData }) {
           </p>
         ) : (
           <>
-            <Button type="button" size="lg" className="mt-3" onClick={join} disabled={tx.pending || terms.check === 'mismatch'} aria-busy={tx.pending || undefined} aria-describedby={terms.check === 'mismatch' ? 'vao-khong-khop' : undefined}>
+            {insufficientUsdc && wallet?.address && walletBal.data && (
+              <div role="status" className="mt-4 rounded-xl border-2 border-state-bad/40 bg-secondary p-4">
+                <p className="font-semibold text-state-bad">
+                  Ví hiện có {formatUsdc(walletBal.data.usdc)} — cần tối thiểu {formatUsdc(minEntryUsdc)} cho kỳ đầu để vào dây.
+                </p>
+                <p className="mt-1 text-muted-foreground">
+                  HụiSafe không cho ví rỗng vào dây để bảo vệ các thành viên và ký quỹ chủ hụi. Hãy sao chép địa chỉ ví của bạn rồi nhận 20 USDC thử nghiệm miễn phí tại Faucet.
+                </p>
+                <div className="mt-3 flex flex-wrap gap-3">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      void navigator.clipboard.writeText(wallet.address).then(
+                        () => show('Đã sao chép địa chỉ ví. Dán vào Faucet để nhận USDC thử nghiệm.'),
+                        () => show(`Địa chỉ ví của bạn: ${wallet.address}`, 'error'),
+                      );
+                    }}
+                  >
+                    Sao chép địa chỉ ví
+                  </Button>
+                  <Button asChild variant="outline" size="sm">
+                    <a href="https://faucet.circle.com" target="_blank" rel="noreferrer">
+                      Mở Faucet nhận 20 USDC ↗
+                    </a>
+                  </Button>
+                  <Button type="button" variant="outline" size="sm" onClick={() => void walletBal.refetch()} disabled={walletBal.isFetching}>
+                    {walletBal.isFetching ? 'Đang kiểm tra…' : 'Kiểm tra lại số dư'}
+                  </Button>
+                </div>
+              </div>
+            )}
+            <Button
+              type="button"
+              size="lg"
+              className="mt-3"
+              onClick={join}
+              disabled={tx.pending || terms.check === 'mismatch' || insufficientUsdc}
+              aria-busy={tx.pending || undefined}
+              aria-describedby={terms.check === 'mismatch' ? 'vao-khong-khop' : undefined}
+            >
               {tx.pending ? (
                 <>
                   <span className="size-4 shrink-0 animate-spin rounded-full border-2 border-current border-r-transparent" aria-hidden="true" />

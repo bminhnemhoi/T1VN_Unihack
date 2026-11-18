@@ -83,7 +83,8 @@ test.describe('DEMO chip', () => {
       await chip.click();
       const pop = page.getByTestId('demo-banner');
       await expect(pop).toContainText('Bản chạy thử trên Avalanche Fuji (mạng thử nghiệm)');
-      await expect(pop).toContainText('1 kỳ = 3 phút, ân hạn 2 phút');
+      await expect(pop).toContainText('1 kỳ = 2 phút');
+      await expect(pop).toContainText('ân hạn 1 phút');
       await expect(chip).toHaveAttribute('aria-expanded', 'true');
       await page.keyboard.press('Escape');
       await expect(pop).toHaveCount(0);

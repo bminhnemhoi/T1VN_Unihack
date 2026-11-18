@@ -39,7 +39,7 @@ export function useCircles(opts: { organizer?: Address } = {}): UseQueryResult<C
   return useQuery({
     queryKey: chainKey(chain?.chainId ?? 0, 'circles', opts.organizer?.toLowerCase() ?? 'all'),
     enabled: Boolean(chain),
-    refetchInterval: chain?.pollMs,
+    refetchInterval: chain ? Math.max(chain.pollMs * 2, 10_000) : undefined,
     queryFn: async () => {
       const addrs = await listCircles(chain!.client, chain!.factory, opts);
       return Promise.all(

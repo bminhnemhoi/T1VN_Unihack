@@ -119,10 +119,11 @@ describe('keeper tick', () => {
     expect(small.logs.some((l) => l.includes('truncated'))).toBe(false);
   });
 
-  it('settles the current round only once its deadline has passed', async () => {
-    const wait = fakePort({ now: 3999, deadline: 4000n });
-    await tick(wait.port, wait.log);
+  it('settles the current round only once its deadline has passed and reports exact wakeup delay before deadline', async () => {
+    const wait = fakePort({ now: 3994, deadline: 4000n });
+    const w = await tick(wait.port, wait.log);
     expect(wait.calls).toEqual([]);
+    expect(w.nextDueInSec).toBe(7); // 4000 + 1 - 3994
     const due = fakePort({ now: 4000, deadline: 4000n });
     const s = await tick(due.port, due.log);
     expect(due.calls).toEqual([{ fn: 'settleRound', args: [] }]);

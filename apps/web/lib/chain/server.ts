@@ -22,7 +22,7 @@ export function loadChainConfig(vars: Record<string, string | undefined> = proce
     forwarder: a.forwarder,
     fromBlock: String(a.deployBlock ?? 0),
     vndPerUsdc: DEFAULT_VND_PER_USDC,
-    pollMs: vars.HUISAFE_DEMO === 'true' ? 10_000 : 30_000, // Fuji's public RPC throttles hard: ~2 requests per refresh at 10 s
+    pollMs: vars.NEXT_PUBLIC_HUISAFE_DEMO === 'true' || vars.HUISAFE_DEMO === 'true' ? 4_000 : 15_000,
     ...(rpcUrl ? { rpcUrl } : {}),
   };
 }

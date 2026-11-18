@@ -51,6 +51,10 @@ function client(): PublicClient {
     ev('ShortfallCovered', { round: 1, member: m1, source: 2, amount: 2_000_000n }, 3),
     ev('ShortfallCovered', { round: 1, member: m1, source: 3, amount: 1_000_000n }, 4),
     ev('PaymentDeferred', { to: stray, amount: 7_000_000n }, 5),
+    ev('BidCommitted', { round: 2, member: m2, commitHash: hash, commitIndex: 1 }, 6),
+    ev('BidCommitted', { round: 2, member: m1, commitHash: hash, commitIndex: 2 }, 7),
+    ev('BidCommitted', { round: 2, member: m2, commitHash: hash, commitIndex: 3 }, 8), // overwrite moves m2 to #3
+    ev('BidRevealed', { round: 2, member: m1, bid: 500_000n }, 9),
   ];
   const claimable: Record<string, bigint> = { [stray]: 7_000_000n, [viewer]: 2_000_000n };
   const read = (a: { functionName: string; args?: readonly unknown[] }): unknown => {
@@ -119,5 +123,13 @@ describe('readCircle: A14 extra data', () => {
     expect(v.claimable).toEqual({ [stray]: 7_000_000n, [viewer]: 2_000_000n });
     const without = await readCircle(client(), circle);
     expect(without.claimable).toEqual({ [stray]: 7_000_000n });
+  });
+
+  it('reconstructs round commits ordered by latest commitIndex and tracks revealed bids', async () => {
+    const v = await readCircle(client(), circle);
+    expect(v.rounds[1]!.commits).toEqual([
+      { member: m1, commitIndex: 2, revealed: true, bid: 500_000n },
+      { member: m2, commitIndex: 3, revealed: false },
+    ]);
   });
 });

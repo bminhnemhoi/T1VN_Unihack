@@ -24,7 +24,7 @@ describe('buildCreateInput', () => {
   it('demo timing is docs/03 section 3.3', () => {
     const { f, v } = valid();
     const p = buildCreateInput(f, v, { nowSec: 0, demo: true });
-    expect([p.roundDuration, p.commitWindow, p.revealWindow, p.graceSeconds, p.periodSeconds]).toEqual([180, 90, 60, 120, 30 * 86_400]);
+    expect([p.roundDuration, p.commitWindow, p.revealWindow, p.graceSeconds, p.periodSeconds]).toEqual([120, 75, 45, 60, 30 * 86_400]);
   });
   it('fixed circle has no windows, no cap, no reveal bond', () => {
     const { f, v } = valid({ mode: 'fixed', periodDays: '7' });

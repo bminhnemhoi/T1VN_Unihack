@@ -111,6 +111,33 @@
     & .clockRow { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; }
     & .clock { font: 500 34px/1 var(--mono); font-variant-numeric: tabular-nums; color: var(--ivory); }
     & .clock.low { color: var(--red-soft); }
+    & .clockBar { height: 4px; border-radius: 99px; background: #353131; overflow: hidden; margin-top: -8px; }
+    & .clockBar i { display: block; width: 100%; height: 100%; background: var(--lime); transform-origin: left center; transition: transform 950ms linear, background-color var(--dur-state); }
+    & .clockBar.low i { background: var(--red-soft); }
+
+    & .winBanner { grid-column: 1 / -1; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px 16px; padding: 12px 16px; border-radius: var(--r); background: var(--ink); color: var(--ivory); border-left: 4px solid var(--lime); }
+    & .winBanner p { margin: 0; font-size: 14px; line-height: 1.45; }
+    & .winBanner strong { color: var(--lime); font-weight: 600; }
+    & .winBanner .wbActs { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+    & .winBanner .wbBtn { min-height: 36px; padding: 0 12px; border-radius: 4px; border: 1px solid #6b645b; background: transparent; color: var(--ivory); font: 600 13px/1 var(--body); cursor: pointer; text-decoration: none; display: inline-flex; align-items: center; }
+    & .winBanner .wbBtn:hover { background: #2d2a2a; }
+
+    & .bidPresets { display: flex; flex-wrap: wrap; gap: 8px; padding-top: 4px; }
+    & .bidPresets button { min-height: 36px; padding: 0 12px; border-radius: 4px; border: 1px solid var(--ink); background: var(--ivory); color: var(--ink); font: 500 12px/1 var(--mono); font-variant-numeric: tabular-nums; cursor: pointer; transition: transform var(--dur-tap), background-color 140ms, color 140ms; }
+    & .bidPresets button:hover { background: var(--soft); }
+    & .bidPresets button[aria-pressed='true'] { background: var(--ink); color: var(--ivory); font-weight: 600; }
+    & .bidPresets button:active { transform: scale(0.97); }
+
+    & .roleBox { background: var(--paper); color: var(--ink); border-radius: var(--r-in); padding: 16px 24px; display: grid; gap: 8px; }
+    & .roleBox h3 { margin: 0; font: 700 18px/1.3 var(--display); color: var(--ink); }
+    & .roleBox p { margin: 0; font-size: 14px; line-height: 1.5; color: var(--ink-2); }
+
+    & .autoRev { display: flex; align-items: center; gap: 12px; min-height: 44px; padding: 8px 12px; border-radius: 4px; background: #2c2828; border: 1px solid #454040; color: var(--ivory); font-size: 13px; line-height: 1.4; cursor: pointer; }
+    & .autoRev input { width: 18px; height: 18px; accent-color: var(--lime); flex: none; cursor: pointer; }
+
+    & .autoSettle { display: flex; align-items: center; gap: 12px; padding: 12px 16px; border-radius: var(--r-in); background: #2c2828; border: 1px solid #454040; color: var(--ivory); font-size: 14px; line-height: 1.45; }
+    & .autoSettle .spin { width: 16px; height: 16px; border-radius: 50%; border: 2px solid var(--lime); border-right-color: transparent; animation: hsSpin 700ms linear infinite; flex: none; }
+    & .sideHead { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
 
     & .slip { position: relative; background: var(--paper); color: var(--ink); border-radius: var(--r-in); padding: 16px 24px; display: grid; gap: 8px; background-image: repeating-linear-gradient(to bottom, transparent 0 31px, #e6e0d4 31px 32px); }
     & .slip label { color: var(--ink-2); }
@@ -477,6 +504,8 @@
     .hs .rail { display: none; }
     .hs .storyNav { display: grid; grid-template-columns: 44px minmax(0, 1fr) 44px; align-items: center; gap: 12px; padding: 8px 0 12px; }
     .hs .stage { grid-template-columns: minmax(0, 1fr); gap: 12px; padding-bottom: 12px; }
+    .hs .bidPresets button, .hs .winBanner .wbBtn { min-height: 44px; padding: 0 16px; }
+    .hs .roleBox { padding: 16px; }
     .hs .panel { padding: 16px; gap: 12px; }
     .hs .panel.side { display: none; }
     .hs .clock { font-size: 26px; }
@@ -651,6 +680,10 @@ html[data-font='large'] .hs .view .label { font-size: 14.5px; }
 html[data-font='large'] .hs .view :is(.hint, .bub, .lgFoot, .opt small, .circles small, .stats small, .rc div, .who li, .lgList strong) { font-size: 15.5px; }
 html[data-font='large'] .hs .verdict p { font-size: 22px; }
 html[data-font='large'] .hs .circles h3 { font-size: 20px; }
+@media (prefers-reduced-motion: reduce) {
+  .hs .clockBar i { transition: none; }
+  .hs .autoSettle .spin { animation: none; }
+}
 @container app (max-width: 760px) {
   html[data-font='large'] .hs .pg h1 { font-size: 1.25rem; }
   html[data-font='large'] .hs .pg h2 { font-size: 1.08rem; }

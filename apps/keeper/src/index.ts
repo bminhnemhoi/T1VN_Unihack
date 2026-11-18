@@ -19,12 +19,30 @@ async function main(): Promise<void> {
   log('info', 'keeper started', { network: cfg.network.name, keeper, intervalSeconds: cfg.intervalSeconds });
 
   let running = false;
+  let wakeTimer: ReturnType<typeof setTimeout> | undefined;
+  const scheduleWake = (sec: number | undefined): void => {
+    if (wakeTimer) {
+      clearTimeout(wakeTimer);
+      wakeTimer = undefined;
+    }
+    if (sec !== undefined && sec > 0 && sec < cfg.intervalSeconds) {
+      wakeTimer = setTimeout(() => void scan(), sec * 1000);
+    }
+  };
   const scan = async (): Promise<void> => {
     if (running) return; // never overlap two scans
     running = true;
     try {
       const s = await tick(port, log);
-      log('info', 'scan done', { ...s });
+      log('info', 'scan done', {
+        circles: s.circles,
+        ignored: s.ignored,
+        sent: s.sent,
+        skipped: s.skipped,
+        failed: s.failed,
+        ...(s.nextDueInSec !== undefined ? { nextDueInSec: s.nextDueInSec } : {}),
+      });
+      scheduleWake(s.nextDueInSec);
     } catch (e) {
       log('error', 'scan failed', { reason: e instanceof Error ? e.name : 'unknown' });
     } finally {
@@ -36,6 +54,7 @@ async function main(): Promise<void> {
   const timer = setInterval(() => void scan(), cfg.intervalSeconds * 1000);
   const stop = (): void => {
     clearInterval(timer);
+    if (wakeTimer) clearTimeout(wakeTimer);
     log('info', 'keeper stopped');
     process.exit(0);
   };

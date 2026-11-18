@@ -1,8 +1,8 @@
-import { describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it } from 'vitest';
 import { commitHash, memorySaltStore, saltKey, type FetchLike, type SaltStore } from 'sdk';
 import type { ChainConfig } from './config';
 import { devWallet } from './wallet';
-import { commitBid, depositBond, revealBid, type TxContext } from './write';
+import { clearPendingSignedCache, commitBid, depositBond, join, revealBid, settleRound, type TxContext } from './write';
 
 const U = 1_000_000n;
 const CIRCLE = '0x00000000000000000000000000000000000000c1' as const;
@@ -13,7 +13,17 @@ type Sent = { url: string; body: { request: { data: string; gas: string; to: str
 
 const ZERO = `0x${'0'.repeat(64)}`;
 
-function setup(over: { fetchFn?: FetchLike; store?: SaltStore; maxBid?: bigint; onchainHash?: { hash: string }; allowance?: bigint } = {}) {
+function setup(
+  over: {
+    fetchFn?: FetchLike;
+    store?: SaltStore;
+    maxBid?: bigint;
+    onchainHash?: { hash: string };
+    allowance?: bigint;
+    balance?: bigint;
+    joined?: boolean;
+  } = {},
+) {
   const sent: Sent[] = [];
   const onchain = over.onchainHash ?? { hash: ZERO };
   const client = {
@@ -24,6 +34,8 @@ function setup(over: { fetchFn?: FetchLike; store?: SaltStore; maxBid?: bigint; 
       if (functionName === 'currentRound') return 1;
       if (functionName === 'phase') return 1;
       if (functionName === 'allowance') return over.allowance ?? 0n;
+      if (functionName === 'balanceOf') return over.balance ?? 100n * U;
+      if (functionName === 'memberInfo') return { joined: Boolean(over.joined) };
       if (functionName === 'name') return 'USDC';
       if (functionName === 'version') return '2';
       if (functionName === 'commitOf') return { hash: onchain.hash };
@@ -59,6 +71,10 @@ function setup(over: { fetchFn?: FetchLike; store?: SaltStore; maxBid?: bigint; 
   const ctx: TxContext = { chain, wallet, fetchFn, saltStore: store };
   return { ctx, sent, store, wallet, onchain };
 }
+
+beforeEach(() => {
+  clearPendingSignedCache();
+});
 
 describe('commitBid', () => {
   it('saves the salt before sending and commits exactly the hash of the saved bid', async () => {
@@ -218,5 +234,53 @@ describe('retrying a sealed bid (audit B22 I-01)', () => {
     const r = await commitBid(ctx, CIRCLE, 1, 100_000n);
     expect(r).toMatchObject({ ok: false, code: 'ReceiptTimeout' });
     expect((r as { message: string }).message).toContain('Đừng gửi lại');
+  });
+});
+
+describe('B27 signing resilience and zero-balance guards', () => {
+  it('reuses the cached EIP-712 signature on manual retry after NetworkError without prompting the wallet signer twice', async () => {
+    let signCalls = 0;
+    const offline: FetchLike = async () => {
+      throw new TypeError('offline');
+    };
+    const a = setup({ fetchFn: offline });
+    const origSign = a.ctx.wallet.signer.signTypedData.bind(a.ctx.wallet.signer);
+    a.ctx.wallet = {
+      ...a.ctx.wallet,
+      signer: {
+        address: a.ctx.wallet.signer.address,
+        signTypedData: async (args) => {
+          signCalls++;
+          return origSign(args);
+        },
+      },
+    };
+    expect(await settleRound(a.ctx, CIRCLE)).toMatchObject({ ok: false, code: 'NetworkError' });
+    expect(signCalls).toBe(1);
+
+    // Network comes back: retrying sends the already-signed payload without calling signTypedData a second time!
+    const recovered: Sent[] = [];
+    a.ctx.fetchFn = async (url, init) => {
+      recovered.push({ url, body: JSON.parse(init.body), headers: init.headers });
+      return new Response(JSON.stringify({ txHash: HASH }), { status: 200 });
+    };
+    expect((await settleRound(a.ctx, CIRCLE)).ok).toBe(true);
+    expect(signCalls).toBe(1);
+    expect(recovered).toHaveLength(1);
+  });
+
+  it('refuses commitBid when wallet holds less than 1 round contribution (anti-1%-bond pot sniping)', async () => {
+    const { ctx, sent } = setup({ balance: 100_000n }); // only 0.10 USDC reveal bond, needs 10 USDC
+    expect(await commitBid(ctx, CIRCLE, 1, 500_000n)).toMatchObject({ ok: false, code: 'InsufficientBalance' });
+    expect(sent).toHaveLength(0);
+  });
+
+  it('short-circuits join cleanly when memberInfo.joined is already true instead of hitting AttestationUsed', async () => {
+    const neverFetch: FetchLike = async () => {
+      throw new Error('must not request /api/attest when already joined');
+    };
+    const { ctx } = setup({ joined: true, fetchFn: neverFetch });
+    const r = await join(ctx, CIRCLE, { ageConfirmed: true });
+    expect(r.ok).toBe(true);
   });
 });
