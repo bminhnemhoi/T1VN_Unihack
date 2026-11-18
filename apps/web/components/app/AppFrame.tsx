@@ -1,6 +1,6 @@
 'use client';
 
-import { LogIn, LogOut, Settings } from 'lucide-react';
+import { Check, Copy, LogIn, LogOut, Settings } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
@@ -112,7 +112,6 @@ function TopBar({ pathname, sample }: { pathname: string; sample: boolean }) {
 
 function Account({ pathname }: { pathname: string }) {
   const chain = useChain();
-  const copyAddress = useCopyAddress();
   const { status, wallet, login, logout } = useHuiWallet();
   const signedIn = chain !== null && status === 'ready' && wallet !== undefined;
   const canLogin = chain !== null && (status === 'logged-out' || status === 'loading');
@@ -121,9 +120,7 @@ function Account({ pathname }: { pathname: string }) {
       <CopilotDrawer />
       {signedIn ? (
         <>
-          <button type="button" className="mono" onClick={() => void copyAddress(wallet.address)} data-testid="wallet-address" title={`${wallet.address} (bấm để sao chép)`} aria-label={`Sao chép địa chỉ ví ${shortAddress(wallet.address)}`}>
-            <span className="lbl">{shortAddress(wallet.address)}</span>
-          </button>
+          <WalletAddressChip address={wallet.address} />
           <WalletBalanceChip owner={wallet.address} />
           <button type="button" onClick={logout} aria-label="Đăng xuất">
             <LogOut aria-hidden />
@@ -145,6 +142,38 @@ function Account({ pathname }: { pathname: string }) {
         <Settings aria-hidden />
       </Link>
     </div>
+  );
+}
+
+/** Visible wallet pill with copy/check icon: never uses `.lbl` so tablet/laptop widths never collapse it into a blank button. */
+function WalletAddressChip({ address }: { address: string }) {
+  const copyAddress = useCopyAddress();
+  const [copied, setCopied] = useState(false);
+  const timer = useRef<number | null>(null);
+  useEffect(() => () => {
+    if (timer.current !== null) window.clearTimeout(timer.current);
+  }, []);
+  const onCopy = async () => {
+    const ok = await copyAddress(address);
+    if (!ok) return;
+    setCopied(true);
+    if (timer.current !== null) window.clearTimeout(timer.current);
+    timer.current = window.setTimeout(() => setCopied(false), 1800);
+  };
+  const short = shortAddress(address);
+  return (
+    <button
+      type="button"
+      className={copied ? 'addr mono copied' : 'addr mono'}
+      onClick={() => void onCopy()}
+      data-testid="wallet-address"
+      title={copied ? `Đã sao chép ${address}` : `Ví đang dùng: ${address} (bấm để sao chép)`}
+      aria-label={copied ? `Đã sao chép địa chỉ ví ${short}` : `Sao chép địa chỉ ví ${short}`}
+    >
+      <span className="addrDot" aria-hidden="true" />
+      <span className="addrTxt">{short}</span>
+      {copied ? <Check aria-hidden className="addrIco" /> : <Copy aria-hidden className="addrIco" />}
+    </button>
   );
 }
 

@@ -101,12 +101,21 @@ export async function POST(req: Request): Promise<Response> {
   const stream = new ReadableStream<Uint8Array>({
     async start(controller) {
       const send = (e: CopilotEvent) => controller.enqueue(encoder.encode(`${JSON.stringify(e)}\n`));
+      // Blank-line heartbeat keeps HTTP/2 and reverse-proxy streams active while the model thinks; `readNdjson` ignores empty lines.
+      const keepAlive = setInterval(() => {
+        try {
+          controller.enqueue(encoder.encode('\n'));
+        } catch {
+          clearInterval(keepAlive);
+        }
+      }, 4_000);
       try {
         send({ type: 'status', text: 'Đang xử lý câu hỏi...' });
         for await (const e of runCopilot({ request: parsed.data, model, requestId, log, signal: abort.signal })) send(e);
       } catch {
         send({ type: 'error', code: 'internal', message: 'Có lỗi xảy ra. Bạn thử lại sau.' });
       } finally {
+        clearInterval(keepAlive);
         controller.close();
       }
     },

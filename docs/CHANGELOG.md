@@ -4,7 +4,9 @@ Ghi những gì người dùng và giám khảo thấy được trên web (tính
 
 ## 18/11/2026
 
-### Sửa lỗi và tối ưu giao diện, chuyển động (B26)
+### Sửa lỗi và tối ưu giao diện, chuyển động, trợ lý AI (B26)
+- **Trợ lý AI nhanh và bền mạng hơn**: tối ưu lời gọi mô hình (`reasoning_effort: low` trên cổng OpenAI-compatible, giảm thời gian phản hồi từ ~20–28 giây xuống ~4 giây), sửa bộ kiểm tra đầu ra không từ chối nhầm `figures` kèm đơn vị (`%`, `USDC`) hay lời chào mở đầu, giữ nhịp kết nối stream và tự động thử lại khi mạng đổi nhịp (`ERR_NETWORK_CHANGED`), bổ sung nút **Thử lại** / **Mở Máy tính** ngay trên bong bóng lỗi cùng phím `Enter` để gửi nhanh.
+- **Nút địa chỉ ví trên thanh đỉnh**: thay nút trống không icon (bị ẩn chữ ở màn hình 761–1180px do dùng chung lớp `.lbl`) bằng pill địa chỉ ví rõ ràng (`0xa4DC…e1A8` + chấm trạng thái + icon sao chép đổi sang dấu tích xanh khi đã chép), hiển thị xuyên suốt mọi cỡ tablet và máy tính mà không tràn hàng.
 - **Mở lối xem dây thật khi chưa đăng nhập**: trên bản chạy Fuji, màn Tổng quan lúc chưa đăng nhập có nút mở xem ngay dây thật trên Fuji, hai tab **Dây** và **Sổ hụi** mở thẳng dây mẫu Fuji thay vì đứng yên, và đường dẫn "Xem dây mẫu" ở trang Đăng nhập không còn quay vòng về màn đòi đăng nhập.
 - **Ngăn kéo Trợ lý AI trên máy tính**: trượt ngang mượt từ cạnh phải thay vì bay chéo từ góc dưới-phải; trên điện thoại vẫn trượt từ dưới lên.
 - **Cài đặt "Chữ lớn"**: phóng chữ thực sự trên cả các trang phụ (`.pg`) lẫn 4 màn chính của app (từ 16 lên 22 điểm) mà không làm vỡ thanh trên trên điện thoại 360px.

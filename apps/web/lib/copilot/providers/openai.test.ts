@@ -75,6 +75,22 @@ describe('request shape', () => {
     expect(seen[0]!.body.tool_choice).toBe('none');
   });
 
+  it('sends reasoning_effort low by default for fast latency, and falls back cleanly if a router rejects it with 400', async () => {
+    const c = client();
+    reply = (n, res) =>
+      n === 1
+        ? json(res, { error: { message: 'Unknown parameter: reasoning_effort' } }, 400)
+        : json(res, completion({ content: 'ok' }));
+    const first = await c.complete({ system: 'SYS', messages: [{ role: 'user', content: 'xin chào' }] });
+    expect(first.content).toEqual([{ type: 'text', text: 'ok' }]);
+    expect(seen).toHaveLength(2);
+    expect(seen[0]!.body.reasoning_effort).toBe('low');
+    expect(seen[1]!.body.reasoning_effort).toBeUndefined();
+    // Subsequent calls on the same client remember the router does not accept reasoning_effort.
+    await c.complete({ system: 'SYS', messages: [{ role: 'user', content: 'lần 2' }] });
+    expect(seen[2]!.body.reasoning_effort).toBeUndefined();
+  });
+
   it('simplifySchema keeps types, enums, required and sane bounds, and drops the rest', () => {
     const out = simplifySchema({
       $schema: 'x',

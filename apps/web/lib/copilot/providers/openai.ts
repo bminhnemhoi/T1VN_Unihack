@@ -5,7 +5,7 @@
  * as string or object and never allowed to throw.
  */
 import OpenAI from 'openai';
-import { MAX_OUTPUT_TOKENS, MODEL_TIMEOUT_MS } from '../config';
+import { MODEL_TIMEOUT_MS, OPENAI_MAX_OUTPUT_TOKENS, OPENAI_REASONING_EFFORT } from '../config';
 import type { AssistantBlock, ModelClient, ModelTurn, ToolUseBlock, TurnMessage } from '../engine';
 import { toolDefinitions } from '../tools';
 import { ProviderError } from './error';
@@ -79,28 +79,42 @@ function textOf(content: unknown): string {
 export function createOpenAiCompatibleClient(cfg: { baseUrl: string; apiKey: string; model: string }): ModelClient {
   const client = new OpenAI({ baseURL: cfg.baseUrl, apiKey: cfg.apiKey, timeout: MODEL_TIMEOUT_MS, maxRetries: 2 }); // the router fails now and then (16/11: two ProviderError in a row); the SDK backs off between tries
   const tools = toolDefinitions().map(toOpenAiTool);
+  let useReasoningEffort = true;
 
   return {
     info: { provider: 'openai-compatible', model: cfg.model },
     async complete({ system, messages, toolChoice, signal }): Promise<ModelTurn> {
-      let res: OpenAI.Chat.Completions.ChatCompletion;
-      try {
-        res = await client.chat.completions.create(
+      const wireMessages = [{ role: 'system' as const, content: system }, ...messages.flatMap(toWire)];
+      const sendOnce = (withEffort: boolean) =>
+        client.chat.completions.create(
           {
             model: cfg.model,
             // Explicit: some OpenAI-compatible routers (9router Gemini routes) answer with SSE when `stream` is absent.
             stream: false,
-            messages: [{ role: 'system', content: system }, ...messages.flatMap(toWire)],
+            messages: wireMessages,
             // Sampling is pinned to the most repeatable setting; the product has no random choices (CLAUDE.md rule 3).
             temperature: 0,
-            max_tokens: MAX_OUTPUT_TOKENS,
+            max_tokens: OPENAI_MAX_OUTPUT_TOKENS,
+            ...(withEffort ? { reasoning_effort: OPENAI_REASONING_EFFORT } : {}),
             tools,
             tool_choice: toolChoice ?? 'auto',
           },
           signal ? { signal } : undefined,
         );
+      let res: OpenAI.Chat.Completions.ChatCompletion;
+      try {
+        res = await sendOnce(useReasoningEffort);
       } catch (e) {
-        throw ProviderError.from(e);
+        if (useReasoningEffort && typeof (e as { status?: unknown } | null)?.status === 'number' && (e as { status: number }).status === 400) {
+          useReasoningEffort = false;
+          try {
+            res = await sendOnce(false);
+          } catch (retryErr) {
+            throw ProviderError.from(retryErr);
+          }
+        } else {
+          throw ProviderError.from(e);
+        }
       }
 
       const choice = res.choices?.[0];

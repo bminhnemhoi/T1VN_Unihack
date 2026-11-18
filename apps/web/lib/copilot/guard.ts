@@ -116,7 +116,8 @@ export function checkAnswer(input: GuardInput): GuardResult {
   }
   if (foreign.size > 0) v.push(`Số không có trong kết quả tool hoặc dữ kiện: ${[...foreign].join(', ')}`);
   for (const f of answer.figures) {
-    const ok = numberValues(f.value.replace(/\s/g, '')).some((x) => allowed.has(x));
+    const nums = extractNumbers(f.value);
+    const ok = nums.length > 0 && nums.every((t) => t.values.some((x) => allowed.has(x)));
     if (!ok) v.push(`figures chứa số không có nguồn: ${f.value}`);
   }
 

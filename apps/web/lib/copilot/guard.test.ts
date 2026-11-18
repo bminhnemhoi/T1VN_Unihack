@@ -42,6 +42,19 @@ describe('checkAnswer', () => {
   });
   it('rejects a figures entry without a source', () => {
     expect(run(base('Là 600 USDC.', { figures: [{ value: '999', source: 'compute_exposure' }] })).ok).toBe(false);
+    expect(run(base('Là 600 USDC.', { figures: [{ value: '999 USDC', source: 'compute_exposure' }] })).ok).toBe(false);
+    expect(run(base('Là 600 USDC.', { figures: [{ value: 'không số', source: 'compute_exposure' }] })).ok).toBe(false);
+  });
+  it('accepts figures entries that carry units or percent signs when grounded in tools or user text', () => {
+    expect(
+      run(base('Rủi ro lớn nhất là 600 USDC ở kỳ 2, với dây 5 người góp 100 USDC.', {
+        figures: [
+          { value: '600 USDC', source: 'compute_exposure' },
+          { value: '100 USDC', source: 'nguoi_dung' },
+          { value: '5%', source: 'nguoi_dung' },
+        ],
+      })).ok,
+    ).toBe(true);
   });
   it('requires the disclaimer as the last sentence', () => {
     const r = run({ answer: 'Rủi ro là 600 USDC.', figures: [], citations: [], refused: false });
