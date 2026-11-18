@@ -55,9 +55,9 @@ Tất cả miễn phí, tự host qua `next/font` (không gọi Google Fonts lú
 
 | Mẫu | Cỡ | Line-height | Letter-spacing | Ghi chú |
 |---|---|---|---|---|
-| H1 | `clamp(54px, 9.6vw, 140px)`, 800 | 0.95 | -0.045em | `text-wrap: balance` |
-| H2 | `clamp(40px, 6.4vw, 92px)`, 800 | 0.95 | -0.045em | |
-| Tiêu đề thẻ | `clamp(30px, 3.4vw, 46px)` | 0.95 | -0.04em | |
+| H1 | `clamp(54px, 9.6vw, 140px)`, 800 | 1.02 | -0.045em | `text-wrap: balance`, thoáng dấu Việt |
+| H2 | `clamp(40px, 6.4vw, 92px)`, 800 | 1.08 | -0.045em | |
+| Tiêu đề thẻ | `clamp(30px, 3.4vw, 46px)` | 1.08 | -0.04em | |
 | Logo | 900 24px | 1 | -0.05em | chữ U có dấu nặng là đồng xu |
 | Thân | 400 16px | 1.6 | 0 | đoạn tối đa 56ch |
 | Thân lớn | 18px | 1.6 | 0 | đoạn mở đầu dải |
@@ -106,8 +106,7 @@ Mọi con số dùng mono và `font-variant-numeric: tabular-nums` để không 
 - **Thẻ thông tin** (`.kv`): hàng nhãn–giá trị, giá trị mono; hàng `big` là số tiền chanh 26px.
 - **Phân đoạn** (`.seg`): nút bo tròn cao 48px trong rãnh tối; nút đang chọn nền ngà.
 - **Sổ** (`.entry`): lưới 54px / 1fr / auto, kẻ chấm, cột kỳ mono xám, cột tiền mono căn phải.
-- **Dải demo**: một dòng nền mực cao 36px, nhãn chanh "CHẾ ĐỘ DEMO", câu ngắn, góc phải "ĐANG XEM DỮ LIỆU MẪU" (khi chưa
-  deploy). Không đóng được (docs/02 US-10), `role="status"`.
+- **Nhãn demo (`DemoChip`)**: viên thuốc chanh `DEMO · Fuji` cạnh logo (dưới 400px rút thành `DEMO`), bấm mở ghi chú mạng thử nghiệm và công cụ xem mẫu (B23, thay dải đen 36px cũ).
 
 ---
 
@@ -176,7 +175,7 @@ Sổ hụi giấy là một lưới: mỗi kỳ một hàng, mỗi thành viên 
 
 ## 8. Không làm
 Giữ danh sách cấm của v3, chỉnh theo landing đã chốt:
-- Không gradient (kể cả chữ gradient), kính mờ, ánh sáng phát quang, icon emoji.
+- Không gradient trang trí (kể cả chữ gradient), ánh sáng phát quang, icon emoji; kính mờ chỉ cho viên thuốc điều hướng dưới trên điện thoại (B23).
 - Không lưới thẻ giống hệt nhau làm khung trang; không một bo góc và một bóng cho mọi thứ.
 - Không viền 1px nằm dưới bóng đổ rộng; không chữ nhạt hơn `--ink-2` trên nền sáng (hay `--mute` trên nền tối).
 - Không hai nút chính cùng trọng lượng; không màu làm tín hiệu duy nhất; không số liệu tròn bịa ra.

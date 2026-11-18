@@ -155,7 +155,7 @@ export function CopilotDrawer() {
         <Dialog.Overlay className="fixed inset-0 z-50 bg-muc-dem/45 data-[state=open]:animate-in data-[state=open]:fade-in data-[state=open]:duration-240 data-[state=closed]:animate-out data-[state=closed]:fade-out data-[state=closed]:duration-180" />
         <Dialog.Content
           aria-describedby="tro-ly-mo-ta"
-          className="tro-ly fixed inset-x-0 bottom-0 z-50 flex h-[88vh] flex-col rounded-t-2xl shadow-2xl outline-none duration-240 ease-[cubic-bezier(0.16,1,0.3,1)] data-[state=open]:animate-in data-[state=open]:slide-in-from-bottom data-[state=closed]:animate-out data-[state=closed]:slide-out-to-bottom data-[state=closed]:duration-180 data-[state=closed]:ease-[cubic-bezier(0.4,0,1,1)] md:inset-y-0 md:right-0 md:left-auto md:h-auto md:w-[28rem] md:rounded-none md:data-[state=open]:slide-in-from-right md:data-[state=closed]:slide-out-to-right"
+          className="tro-ly fixed inset-x-0 bottom-0 z-50 flex h-[88vh] flex-col rounded-t-2xl shadow-2xl outline-none duration-240 ease-[cubic-bezier(0.16,1,0.3,1)] data-[state=open]:animate-in max-md:data-[state=open]:slide-in-from-bottom data-[state=closed]:animate-out max-md:data-[state=closed]:slide-out-to-bottom data-[state=closed]:duration-180 data-[state=closed]:ease-[cubic-bezier(0.4,0,1,1)] md:inset-y-0 md:right-0 md:left-auto md:h-auto md:w-[28rem] md:rounded-none md:data-[state=open]:slide-in-from-right md:data-[state=closed]:slide-out-to-right"
         >
           <header className="flex items-start justify-between gap-3 border-b border-border px-6 pt-6 pb-4">
             <div>

@@ -66,6 +66,7 @@ export function LandingMotion() {
     };
     const finishIntro = () => {
       introDone = true;
+      window.removeEventListener('keydown', onIntroKey);
       introEl?.setAttribute('data-done', '');
       showMark();
       onIntroDone?.();
@@ -80,15 +81,16 @@ export function LandingMotion() {
       if (!introEl || introDone || exiting) return;
       exiting = true;
       window.clearTimeout(introTimer);
+      window.removeEventListener('keydown', onIntroKey);
       const word = introEl.querySelector<HTMLElement>('[data-lp-intro-word]');
       const bg = introEl.querySelector<HTMLElement>('[data-lp-intro-bg]');
       const sub = introEl.querySelector<HTMLElement>('[data-lp-intro-sub]');
       introEl.setAttribute('data-exit', '');
-      const d = fast ? 650 : 1100;
+      const d = fast ? 550 : 950;
       const ease = 'cubic-bezier(0.65, 0, 0.35, 1)';
       const runs: Animation[] = [];
-      if (sub) runs.push(sub.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 260, easing: 'ease-out', fill: 'forwards' }));
-      if (bg) runs.push(bg.animate([{ opacity: 1 }, { opacity: 0 }], { duration: d * 0.7, delay: d * 0.18, easing: 'cubic-bezier(0.4, 0, 0.2, 1)', fill: 'forwards' }));
+      if (sub) runs.push(sub.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 220, easing: 'ease-out', fill: 'forwards' }));
+      if (bg) runs.push(bg.animate([{ opacity: 1 }, { opacity: 0 }], { duration: d * 0.7, delay: d * 0.16, easing: 'cubic-bezier(0.4, 0, 0.2, 1)', fill: 'forwards' }));
       if (word && mark) {
         // FLIP: measure both boxes once, then only transform. Centre the word on the logo, sized by width.
         const w = word.getBoundingClientRect();
@@ -109,19 +111,23 @@ export function LandingMotion() {
         runs.push(word.animate([{ opacity: 1 }, { opacity: 0 }], { duration: d * 0.6, fill: 'forwards' }));
       }
       // The hero begins while the dark layer is still lifting, so the two read as one motion.
-      window.setTimeout(playHero, d * 0.3);
+      window.setTimeout(playHero, d * 0.25);
       void Promise.all(runs.map((r) => r.finished))
         .then(() => {
           if (word && mark) {
             // Land: the real logo fades in under the word as the word fades out.
             showMark();
-            mark.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 160, easing: 'ease-out' });
-            return word.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 160, easing: 'ease-out', fill: 'forwards' }).finished;
+            mark.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 150, easing: 'ease-out' });
+            return word.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 150, easing: 'ease-out', fill: 'forwards' }).finished;
           }
           return undefined;
         })
         .catch(() => undefined)
         .finally(finishIntro);
+    };
+
+    const onIntroKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') exitIntro(true);
     };
 
     // Schedule the exit on the intro's own clock (it started at first paint, maybe before hydration).
@@ -131,7 +137,10 @@ export function LandingMotion() {
       const now = Number(document.timeline.currentTime ?? 0);
       const elapsed = phase1?.startTime != null ? now - Number(phase1.startTime) : 0;
       if (elapsed > 2900) finishIntro(); // very late hydration: the CSS fallback is already fading it out
-      else introTimer = window.setTimeout(() => exitIntro(false), Math.max(0, 1650 - elapsed));
+      else {
+        introTimer = window.setTimeout(() => exitIntro(false), Math.max(0, 1500 - elapsed));
+        window.addEventListener('keydown', onIntroKey);
+      }
       introEl.querySelector('[data-lp-skip]')?.addEventListener('click', () => exitIntro(true));
     }
     // Steps work even if the libraries never arrive.
@@ -206,16 +215,16 @@ export function LandingMotion() {
         // Built paused right away, so its start states apply under the intro curtain and nothing flashes.
         const hero = (() => {
           const tl = gsap.timeline({ paused: true, defaults: { ease: 'power3.out' } });
-          tl.from(q('[data-lp-line]'), { yPercent: 110, duration: 1, stagger: 0.09 })
-            .fromTo(q('[data-lp-strike]'), { '--s': 0 }, { '--s': 1, duration: 0.7, ease: 'power2.inOut' }, '-=0.2')
-            .from(q('[data-lp-badge]'), { opacity: 0, duration: 0.5, ease: 'power2.out' }, '-=0.9')
-            .from(q('[data-lp-badge-ring]'), { rotation: -50, duration: 1.4, ease: 'power3.out' }, '<')
-            .add(seal, '<0.1')
-            .fromTo(q('[data-lp-navitem]'), { y: -12, opacity: 0 }, { y: 0, opacity: 1, duration: 0.6, stagger: 0.06, clearProps: 'transform' }, 0)
-            .from(q('[data-lp-bubble]'), { x: -40, scale: 0.7, transformOrigin: '0% 50%', duration: 0.7, stagger: 0.14, ease: 'back.out(1.8)' }, '-=0.8')
-            .from(q('[data-lp-side]'), { y: 24, duration: 0.8, stagger: 0.08 }, '-=0.9')
-            .from(q('[data-lp-stage]'), { y: 80, rotationX: 12, transformPerspective: 1200, duration: 1.1 }, '-=0.6')
-            .from(q('[data-lp-tile]'), { y: 22, scale: 0.85, duration: 0.6, stagger: 0.08, ease: 'back.out(1.6)' }, '-=0.6');
+          tl.from(q('[data-lp-line]'), { yPercent: 110, duration: 0.9, stagger: 0.08, clearProps: 'transform' })
+            .fromTo(q('[data-lp-strike]'), { '--s': 0 }, { '--s': 1, duration: 0.6, ease: 'power2.inOut' }, '-=0.32')
+            .from(q('[data-lp-badge]'), { opacity: 0, duration: 0.45, ease: 'power2.out', clearProps: 'opacity' }, 0.25)
+            .from(q('[data-lp-badge-ring]'), { rotation: -50, duration: 1.2, ease: 'power3.out' }, '<')
+            .add(seal, '<0.06')
+            .fromTo(q('[data-lp-navitem]'), { y: -12, opacity: 0 }, { y: 0, opacity: 1, duration: 0.55, stagger: 0.05, clearProps: 'transform,opacity' }, 0)
+            .from(q('[data-lp-bubble]'), { x: -16, opacity: 0, scale: 0.88, transformOrigin: '0% 50%', duration: 0.65, stagger: 0.11, ease: 'back.out(1.7)', clearProps: 'transform,opacity' }, 0.3)
+            .from(q('[data-lp-side]'), { y: 20, opacity: 0, duration: 0.7, stagger: 0.07, clearProps: 'transform,opacity' }, 0.35)
+            .from(q('[data-lp-stage]'), { y: 64, rotationX: 10, transformPerspective: 1200, duration: 0.95, clearProps: 'transform' }, 0.45)
+            .from(q('[data-lp-tile]'), { y: 18, scale: 0.88, duration: 0.55, stagger: 0.07, ease: 'back.out(1.6)', clearProps: 'transform' }, 0.65);
           return tl;
         })();
 
@@ -284,6 +293,18 @@ export function LandingMotion() {
             },
           });
         }
+        const splitRows = q('[data-lp-split-row]');
+        if (splitRows.length) {
+          gsap.from(splitRows, {
+            scrollTrigger: { trigger: splitRows[0], start: 'top 88%', once: true },
+            x: -16,
+            opacity: 0,
+            duration: 0.5,
+            stagger: 0.07,
+            ease: 'power2.out',
+            clearProps: 'transform,opacity',
+          });
+        }
         q('[data-lp-sheet]').forEach((sh) => {
           gsap.from(sh.querySelectorAll('[data-lp-entry]'), { scrollTrigger: { trigger: sh, start: 'top 80%' }, x: -30, duration: 0.6, stagger: 0.1, ease: 'power2.out' });
         });
@@ -309,6 +330,7 @@ export function LandingMotion() {
       io.disconnect();
       loops.disconnect();
       document.removeEventListener('visibilitychange', onVisibility);
+      window.removeEventListener('keydown', onIntroKey);
       window.clearTimeout(introTimer);
       cleanup();
     };

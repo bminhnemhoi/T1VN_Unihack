@@ -4,7 +4,7 @@ import { useRouter } from 'next/navigation';
 import { useRef, useState } from 'react';
 import { formatBps, formatUsdc, previewCircle } from 'sdk';
 import { Countdown } from '@/components/brand/Countdown';
-import { TxNotice, useTx } from '@/components/chain/useTx';
+import { TX_STEP_TEXT, TxNotice, useTx } from '@/components/chain/useTx';
 import { RepBadge, RepDisclaimer } from '@/components/circle/RepBadge';
 import { RiskTable } from '@/components/circle/RiskTable';
 import { LedgerList } from '@/components/LedgerList';
@@ -182,8 +182,15 @@ export function InviteView({ c: C }: { c: SampleCircleData }) {
           </p>
         ) : (
           <>
-            <Button type="button" size="lg" className="mt-3" onClick={join} disabled={tx.pending || terms.check === 'mismatch'} aria-describedby={terms.check === 'mismatch' ? 'vao-khong-khop' : undefined}>
-              {tx.pending ? 'Đang gửi…' : 'Vào dây'}
+            <Button type="button" size="lg" className="mt-3" onClick={join} disabled={tx.pending || terms.check === 'mismatch'} aria-busy={tx.pending || undefined} aria-describedby={terms.check === 'mismatch' ? 'vao-khong-khop' : undefined}>
+              {tx.pending ? (
+                <>
+                  <span className="size-4 shrink-0 animate-spin rounded-full border-2 border-current border-r-transparent" aria-hidden="true" />
+                  {TX_STEP_TEXT[tx.step ?? 0]} · {(tx.step ?? 0) + 1}/3
+                </>
+              ) : (
+                'Vào dây'
+              )}
             </Button>
             {terms.check === 'mismatch' && (
               <p id="vao-khong-khop" className="mt-2 font-semibold text-state-bad">

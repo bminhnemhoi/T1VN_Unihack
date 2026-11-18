@@ -346,6 +346,10 @@ test.describe('S13 assistant drawer', () => {
     await dlg.getByRole('button', { name: 'Gửi câu hỏi' }).click();
     await expect(dlg.getByText('Không kết nối được trợ lý')).toBeVisible();
     await expect(dlg.getByRole('button', { name: 'Gửi câu hỏi' })).toBeDisabled(); // empty box again
+    if (!page.viewportSize() || page.viewportSize()!.width >= 768) {
+      const ty = await dlg.evaluate((el) => getComputedStyle(el).getPropertyValue('--tw-enter-translate-y').trim());
+      expect(ty === '' || ty === '0' || ty === '0px').toBe(true);
+    }
   });
 });
 
@@ -354,12 +358,15 @@ test.describe('S14 settings', () => {
     await page.goto('/cai-dat');
     await page.getByRole('radio', { name: 'Chữ lớn' }).click();
     await expect.poll(() => page.evaluate(() => document.documentElement.style.fontSize)).toBe('22px');
+    await expect(page.getByText(/Câu mẫu: thăm cao nhất/)).toHaveCSS('font-size', '22px');
     await page.reload();
     await expect.poll(() => page.evaluate(() => document.documentElement.style.fontSize)).toBe('22px');
+    await expect(page.getByText(/Câu mẫu: thăm cao nhất/)).toHaveCSS('font-size', '22px');
     await expect(page.getByRole('radio', { name: 'Chữ lớn' })).toBeChecked();
     await noHorizontalOverflow(page);
     await page.getByRole('radio', { name: 'Chữ thường' }).click();
     await expect.poll(() => page.evaluate(() => document.documentElement.style.fontSize)).toBe('');
+    await expect(page.getByText(/Câu mẫu: thăm cao nhất/)).toHaveCSS('font-size', '15px');
   });
 
   test('backup buttons and the reminder switch each answer', async ({ page }) => {

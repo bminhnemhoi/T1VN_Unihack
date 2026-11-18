@@ -185,6 +185,11 @@ test.describe('S01 / landing motion', () => {
 
     await page.reload();
     await expect(intro).toBeVisible(); // every visit plays it
+    await page.keyboard.press('Escape');
+    await expect(intro).toBeHidden();
+
+    await page.reload();
+    await expect(intro).toBeVisible();
     await expect(intro).toBeHidden({ timeout: 6000 }); // and it ends on its own
     // After the curtain the hero has entered: the headline is in place, not stuck below its mask.
     await expect(page.locator('[data-lp-line]').first()).toHaveCSS('transform', /none|matrix\(1, 0, 0, 1, 0, 0\)/, { timeout: 4000 });

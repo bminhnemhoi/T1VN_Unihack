@@ -1,7 +1,7 @@
 'use client';
 
 import type { ComponentProps, ReactNode } from 'react';
-import { TxNotice, useTx, type RunResult, type TxRun } from '@/components/chain/useTx';
+import { TX_STEP_TEXT, TxNotice, useTx, type RunResult, type TxRun } from '@/components/chain/useTx';
 import { Button } from '@/components/ui/button';
 
 type Props = Omit<ComponentProps<typeof Button>, 'onClick'> & {
@@ -23,20 +23,29 @@ type Props = Omit<ComponentProps<typeof Button>, 'onClick'> & {
  * A button that sends one transaction through `useHuiActions`. Sample mode answers right away (never a dead button),
  * logged-out mode opens the login, otherwise it shows pending, success and the Vietnamese error under the button.
  */
-export function ActionButton({ run, soon, success, pendingLabel = 'Đang gửi…', needed, onDone, noticeClassName, allowWhenPaused, children, disabled, ...props }: Props) {
+export function ActionButton({ run, soon, success, pendingLabel, needed, onDone, noticeClassName, allowWhenPaused, children, disabled, ...props }: Props) {
   const tx = useTx({ allowWhenPaused });
+  const step = tx.step ?? 0;
   return (
     <>
       <Button
         type="button"
         {...props}
+        aria-busy={tx.pending || undefined}
         disabled={disabled || tx.pending || tx.paused}
         onClick={async () => {
           const r = await tx.run(run, soon);
           if (r) onDone?.(r);
         }}
       >
-        {tx.pending ? pendingLabel : children}
+        {tx.pending ? (
+          <>
+            <span className="size-4 shrink-0 animate-spin rounded-full border-2 border-current border-r-transparent" aria-hidden="true" />
+            {pendingLabel ?? `${TX_STEP_TEXT[step]} · ${step + 1}/3`}
+          </>
+        ) : (
+          children
+        )}
       </Button>
       <TxNotice state={tx} chainId={tx.chainId} success={success} needed={needed} className={noticeClassName} />
     </>

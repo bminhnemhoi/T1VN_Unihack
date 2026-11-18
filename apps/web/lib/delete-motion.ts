@@ -6,6 +6,7 @@
  */
 import { flushSync } from 'react-dom';
 import { formatUsdc } from 'sdk';
+import { formatCents } from '@/lib/money';
 
 export interface DeleteMotion {
   /** The row (`li`) that leaves. */
@@ -70,19 +71,23 @@ export async function playDelete({ row, amount, commit }: DeleteMotion): Promise
         // Count-up: a copy of the chip text sits on the chip for a moment (the real chip is React's and is never touched).
         const before = target.matches(BALANCE) ? parseBalance(target.textContent ?? '') : null;
         if (before !== null) {
+          const shortEl = target.querySelector<HTMLElement>('.bShort');
+          const isShort = !!shortEl && getComputedStyle(shortEl).display !== 'none';
+          const fmtChip = (v: bigint) => (isShort ? formatUsdc(v - (v % 1_000_000n)) : formatCents(v));
           const over = document.createElement('span');
           over.setAttribute('aria-hidden', 'true');
           const cs = getComputedStyle(target);
           Object.assign(over.style, {
-            position: 'fixed', left: `${toBox.left}px`, top: `${toBox.top}px`, width: `${toBox.width}px`, height: `${toBox.height}px`, zIndex: '119', pointerEvents: 'none',
-            display: 'grid', placeItems: 'center', borderRadius: '999px', background: cs.backgroundColor, color: cs.color, font: cs.font, opacity: '0',
+            position: 'fixed', right: `${window.innerWidth - toBox.right}px`, top: `${toBox.top}px`, minWidth: `${toBox.width}px`, height: `${toBox.height}px`, zIndex: '119', pointerEvents: 'none',
+            display: 'inline-flex', alignItems: 'center', justifyContent: 'center', padding: cs.padding, boxSizing: 'border-box', whiteSpace: 'nowrap',
+            borderRadius: '999px', background: cs.backgroundColor, color: cs.color, font: cs.font, fontVariantNumeric: 'tabular-nums', opacity: '0',
           } satisfies Partial<CSSStyleDeclaration>);
-          over.textContent = formatUsdc(before);
+          over.textContent = fmtChip(before);
           document.body.appendChild(over);
           const n = { v: 0 };
           tl.to(over, { opacity: 1, duration: 0.05 }, 0.5)
             .to(n, { v: 1, duration: 0.35, ease: 'power1.out', onUpdate: () => {
-              over.textContent = formatUsdc(before + BigInt(Math.round(Number(amount) * n.v)));
+              over.textContent = fmtChip(before + BigInt(Math.round(Number(amount) * n.v)));
             } }, 0.5)
             .fromTo(target, { scale: 1 }, { scale: 1.1, duration: 0.12, yoyo: true, repeat: 1, ease: 'power1.inOut' }, 0.5)
             .to(over, { opacity: 0, duration: 0.15, onComplete: () => over.remove() }, 0.85);

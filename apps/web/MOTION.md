@@ -109,7 +109,7 @@ Mỗi màn tối đa **một** khoảnh khắc có chủ đích (v3 cũng giữ 
 
 ### B1. Không mang từ landing sang
 - Màn mở đầu, cuộn mượt Lenis, hiệu ứng theo cuộn (scrub), vật lơ lửng lặp vô hạn, chữ chạy, phóng cả trang bằng `zoom`.
-- GSAP và Lenis không tải trong app. Dùng CSS transition và, khi cần nối tiếp, Web Animations API (có sẵn, 0 KB).
+- GSAP và Lenis không nằm trong gói tải đầu của app. App dùng CSS transition / Web Animations API; riêng thao tác xóa dây hủy mới nạp động `import('gsap/Flip')` (`lib/delete-motion.ts`, B25).
 
 ### B2. Bộ thời lượng và easing
 

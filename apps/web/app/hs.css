@@ -615,3 +615,19 @@
   .hs .pg ul.to-giay > li, .hs .pg ol.to-giay > li, .hs .pg ul.o-phang > li, .hs .pg ol.o-phang > li { padding: 16px; }
   .hs .pgSkel .row { grid-template-columns: minmax(0, 1fr); }
 }
+
+/* "Chữ lớn" (Cài đặt): scales reading copy across `.pg` and the four main views while keeping top/bottom chrome compact so bars never wrap on 360px phones. */
+html[data-font='large'] .hs .pg { font-size: 1rem; line-height: 1.55; }
+html[data-font='large'] .hs .pg h1 { font-size: 1.45rem; }
+html[data-font='large'] .hs .pg h2 { font-size: 1.18rem; }
+html[data-font='large'] .hs .pg h3 { font-size: 1.05rem; }
+html[data-font='large'] .hs .pg .text-lead { font-size: 1rem; }
+html[data-font='large'] .hs .view > main:is(.ov, .room, .lg, .cr, .state) { font-size: 17px; }
+html[data-font='large'] .hs .view .label { font-size: 14.5px; }
+html[data-font='large'] .hs .view :is(.hint, .bub, .lgFoot, .opt small, .circles small, .stats small, .rc div, .who li, .lgList strong) { font-size: 15.5px; }
+html[data-font='large'] .hs .verdict p { font-size: 22px; }
+html[data-font='large'] .hs .circles h3 { font-size: 20px; }
+@container app (max-width: 760px) {
+  html[data-font='large'] .hs .pg h1 { font-size: 1.25rem; }
+  html[data-font='large'] .hs .pg h2 { font-size: 1.08rem; }
+}

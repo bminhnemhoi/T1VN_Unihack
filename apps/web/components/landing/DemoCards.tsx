@@ -1,9 +1,16 @@
 'use client';
 
-import { useEffect, useState, type CSSProperties } from 'react';
+import { useEffect, useRef, useState, type CSSProperties } from 'react';
 import { formatUsdcNumber } from 'sdk';
 import { cascadeRound2, coverage, quoteRound1, ROUND1_BID_CAP } from '@/lib/landing-demo';
 import s from './landing.module.css';
+
+function pulseEl(el: Element | null, scale = 0.96) {
+  if (!el || typeof window === 'undefined' || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  void import('gsap').then(({ gsap }) => {
+    gsap.fromTo(el, { scale, opacity: 0.82 }, { scale: 1, opacity: 1, duration: 0.28, ease: 'back.out(2.2)', overwrite: 'auto', clearProps: 'transform,opacity' });
+  });
+}
 
 const cap = formatUsdcNumber(ROUND1_BID_CAP);
 
@@ -42,6 +49,12 @@ export function BidCalc() {
 /** "M4 hốt rồi trốn!": toggle the default and watch the cascade split M4's 100 USDC. */
 export function CascadeDemo() {
   const [bad, setBad] = useState(false);
+  const noteRef = useRef<HTMLParagraphElement>(null);
+  const pick = (next: boolean) => {
+    if (next === bad) return;
+    setBad(next);
+    pulseEl(noteRef.current, 0.985);
+  };
   const r = cascadeRound2(bad);
   const pct = (part: bigint) => Number((part * 100n) / r.m4Due);
   // Bar segments move with transform only (B22g): each spans the bar, `--x` places it, `--w` scales it (0..1).
@@ -52,8 +65,8 @@ export function CascadeDemo() {
   return (
     <div className={s.mini}>
       <div className={s.seg} role="group" aria-label="Kịch bản kỳ 2">
-        <button type="button" aria-pressed={!bad} onClick={() => setBad(false)}>Mọi người đóng đủ</button>
-        <button type="button" aria-pressed={bad} onClick={() => setBad(true)}>M4 bỏ đóng</button>
+        <button type="button" aria-pressed={!bad} onClick={() => pick(false)}>Mọi người đóng đủ</button>
+        <button type="button" aria-pressed={bad} onClick={() => pick(true)}>M4 bỏ đóng</button>
       </div>
       <ul style={{ margin: '10px 0 0', padding: 0, listStyle: 'none' }} aria-label="Phần góp kỳ 2 của từng người">
         {['M2', 'M3', 'M4', 'M5'].map((m) => (
@@ -79,7 +92,7 @@ export function CascadeDemo() {
         <span><i className={s.pHold} />bù từ tiền giữ lại của M4</span>
         <span><i className={s.pBond} />bù từ ký quỹ</span>
       </p>
-      <p className={s.note} aria-live="polite" data-testid="lp-cascade">
+      <p ref={noteRef} className={s.note} aria-live="polite" data-testid="lp-cascade">
         {bad
           ? `M4 thiếu ${formatUsdcNumber(r.m4Due)}: bù ${formatUsdcNumber(r.fromHoldback)} từ tiền giữ lại của M4, ${formatUsdcNumber(r.fromBond)} từ ký quỹ (còn ${formatUsdcNumber(r.bondLeft)}). M1 vẫn nhận ${formatUsdcNumber(r.payout)} USDC.`
           : `Pot ${formatUsdcNumber(r.pot)} USDC. M1 nhận ngay ${formatUsdcNumber(r.payout)} USDC.`}
@@ -94,12 +107,20 @@ const CIRC = 2 * Math.PI * 50;
 export function CoverageDemo() {
   const [n, setN] = useState(5);
   const [bond, setBond] = useState(480);
+  const ringRef = useRef<SVGSVGElement>(null);
   const c = coverage(n, bond);
+  const prevOk = useRef(c.canStart);
+  useEffect(() => {
+    if (prevOk.current !== c.canStart) {
+      prevOk.current = c.canStart;
+      pulseEl(ringRef.current, 0.93);
+    }
+  }, [c.canStart]);
   const pct = Number(c.bps) / 100;
   return (
     <div className={s.mini}>
       <div className={s.ringWrap}>
-        <svg className={s.ringSvg} viewBox="0 0 120 120" aria-hidden>
+        <svg ref={ringRef} className={s.ringSvg} viewBox="0 0 120 120" aria-hidden>
           <circle className={s.ringBg} cx="60" cy="60" r="50" />
           <circle className={c.canStart ? s.ringFg : `${s.ringFg} ${s.low}`} cx="60" cy="60" r="50" strokeDasharray={CIRC} strokeDashoffset={CIRC * (1 - pct / 100)} />
           <text x="60" y="68" textAnchor="middle">{Math.floor(pct)}%</text>

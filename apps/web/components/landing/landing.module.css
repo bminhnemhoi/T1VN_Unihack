@@ -31,9 +31,9 @@
 .root :focus-visible { outline: 3px solid var(--violet); outline-offset: 3px; }
 .root a { color: inherit; }
 .root p { margin: 0; max-width: 56ch; }
-.root h1, .root h2, .root h3 { font-family: var(--display); font-weight: 800; letter-spacing: -0.045em; line-height: 0.95; margin: 0; text-wrap: balance; }
+.root h1, .root h2, .root h3 { font-family: var(--display); font-weight: 800; letter-spacing: -0.045em; line-height: 1.02; margin: 0; text-wrap: balance; }
 .root h1 { font-size: clamp(3.375rem, 9.6vw, 8.75rem); }
-.root h2 { font-size: clamp(2.5rem, 6.4vw, 5.75rem); }
+.root h2 { font-size: clamp(2.5rem, 6.4vw, 5.75rem); line-height: 1.08; }
 
 .wrap {
   max-width: 1240px;
@@ -124,7 +124,7 @@
 .heroTop { display: grid; grid-template-columns: 1fr; gap: 28px; align-items: end; }
 .eyebrow { color: var(--ink-2); display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-bottom: 22px; }
 .eyebrow b { background: var(--lime); color: var(--ink); padding: 4px 8px; border-radius: 3px; font-weight: 500; }
-.line { display: block; overflow: hidden; padding-bottom: 0.06em; padding-right: 0.1em; margin-bottom: -0.06em; } /* the negative letter-spacing lets the last glyph (the horn of ơ) poke out of its box: room on the right so it is never cut */
+.line { display: block; overflow: hidden; padding-bottom: 0.1em; padding-right: 0.1em; margin-bottom: -0.05em; } /* room below for Vietnamese underdots (ợ, ự, ộ) + g loop, and on the right so the horn of ơ is never cut */
 .line > span { display: inline-block; }
 .strike { position: relative; }
 .strike::after { content: ''; position: absolute; left: -1%; right: -1%; top: 54%; height: 0.1em; background: var(--red); border-radius: 99px; transform: scaleX(var(--s, 1)); transform-origin: left center; }
@@ -200,7 +200,7 @@
 .steps { display: grid; }
 .step { min-height: 62vh; padding-block: 30px; display: grid; align-content: center; gap: 14px; border-top: 1px solid #343030; }
 .step .label { color: var(--lime); }
-.step h3 { font-size: clamp(2.125rem, 4.4vw, 3.625rem); color: var(--dim); transition: color 0.6s; }
+.step h3 { font-size: clamp(2.125rem, 4.4vw, 3.625rem); line-height: 1.1; color: var(--dim); transition: color 0.6s; }
 .step p { color: var(--dim); font-size: 1.0625rem; transition: color 0.6s; }
 .story[data-state='1'] .step[data-step='1'] h3, .story[data-state='2'] .step[data-step='2'] h3, .story[data-state='3'] .step[data-step='3'] h3 { color: var(--ivory); }
 .story[data-state='1'] .step[data-step='1'] p, .story[data-state='2'] .step[data-step='2'] p, .story[data-state='3'] .step[data-step='3'] p { color: #d6cfc3; }
@@ -234,7 +234,7 @@
 .bento { background: var(--ink-deep); color: var(--ivory); padding-block: clamp(70px, 9vw, 130px); }
 .cards { display: grid; grid-template-columns: 1fr; gap: 14px; margin: 0; padding: 0; list-style: none; }
 .card { scroll-margin-top: 80px; border-radius: 22px; padding: clamp(20px, 3vw, 32px); display: grid; gap: 16px; align-content: start; min-width: 0; }
-.card h3 { font-size: clamp(1.875rem, 3.4vw, 2.875rem); letter-spacing: -0.04em; }
+.card h3 { font-size: clamp(1.875rem, 3.4vw, 2.875rem); line-height: 1.08; letter-spacing: -0.04em; }
 .card > p { font-size: 0.9375rem; }
 .mini { border-radius: 14px; padding: 16px; background: rgba(0, 0, 0, 0.18); min-width: 0; }
 .cLime { background: var(--lime); color: var(--ink); }

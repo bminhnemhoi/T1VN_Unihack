@@ -2,6 +2,14 @@
 
 Ghi những gì người dùng và giám khảo thấy được trên web (tính năng, sửa lỗi, bản chạy công khai). Mới nhất ở trên. Chi tiết kỹ thuật và số test nằm ở [TIEN-DO.md](TIEN-DO.md); lịch sử đầy đủ trong `git log`.
 
+## 18/11/2026
+
+### Sửa lỗi và tối ưu giao diện, chuyển động (B26)
+- **Mở lối xem dây thật khi chưa đăng nhập**: trên bản chạy Fuji, màn Tổng quan lúc chưa đăng nhập có nút mở xem ngay dây thật trên Fuji, hai tab **Dây** và **Sổ hụi** mở thẳng dây mẫu Fuji thay vì đứng yên, và đường dẫn "Xem dây mẫu" ở trang Đăng nhập không còn quay vòng về màn đòi đăng nhập.
+- **Ngăn kéo Trợ lý AI trên máy tính**: trượt ngang mượt từ cạnh phải thay vì bay chéo từ góc dưới-phải; trên điện thoại vẫn trượt từ dưới lên.
+- **Cài đặt "Chữ lớn"**: phóng chữ thực sự trên cả các trang phụ (`.pg`) lẫn 4 màn chính của app (từ 16 lên 22 điểm) mà không làm vỡ thanh trên trên điện thoại 360px.
+- **Landing và chuyển động GSAP**: nới khoảng cách dòng tiêu đề để các dấu chồng tiếng Việt (*ộ/ế*, *g/ự*) không chạm nhau ở mọi cỡ chữ; bong bóng tin nhắn trên điện thoại không còn lẹm mép trái lúc trượt vào; nhịp mở màn → niêm phong logo gọn hơn (~3,2 giây), bấm phím `Esc` bỏ qua được màn mở đầu; thêm hiệu ứng GSAP tinh gọn cho dải chia quỹ dự phòng và các thẻ tương tác; đồng bộ thanh tiến độ `1. Ký → 2. Gửi → 3. Xác nhận` kèm vòng xoay cho trang mời và các trang phụ.
+
 ## 15/11/2026
 
 ### Sửa lỗi

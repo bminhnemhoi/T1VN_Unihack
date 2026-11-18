@@ -30,6 +30,8 @@ export interface TxState {
   result?: RunResult;
 }
 
+export const TX_STEPS = ['Ký', 'Gửi', 'Xác nhận'] as const;
+export const TX_STEP_TEXT = ['Đang chờ bạn ký', 'Đang gửi qua relay', 'Chờ xác nhận trên Fuji'] as const;
 const STEP_INDEX: Record<TxStep, number> = { sign: 0, send: 1, confirm: 2 };
 
 /** Why nothing was sent, as a failure result the notice can print. */
@@ -117,10 +119,18 @@ export function TxNotice({
   className?: string;
 }) {
   if (state.pending) {
+    const cur = state.step ?? 0;
     return (
-      <p role="status" className={cn('mt-3 text-base', className)}>
-        Đang gửi giao dịch và chờ mạng xác nhận. Đừng đóng trang.
-      </p>
+      <div role="status" className={cn('mt-3 grid gap-2 text-base', className)}>
+        <ol className="grid grid-cols-3 gap-1 font-mono text-xs" aria-label="Tiến độ giao dịch">
+          {TX_STEPS.map((s, i) => (
+            <li key={s} className={cn('border-t-[3px] pt-2', i <= cur ? 'border-current font-semibold opacity-100' : 'border-current/25 opacity-60')}>
+              {i + 1}. {s}
+            </li>
+          ))}
+        </ol>
+        <p className="text-sm opacity-85">{TX_STEP_TEXT[cur]} · Đừng đóng trang.</p>
+      </div>
     );
   }
   const r = state.result;

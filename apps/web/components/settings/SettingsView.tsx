@@ -115,7 +115,7 @@ export function SettingsView() {
           Cỡ chữ
         </h2>
         <p id="co-chu-nhan" className="mt-1 text-muted-foreground">
-          Chữ lớn tăng toàn bộ chữ trong ứng dụng từ 18 lên 22 điểm.
+          Chữ lớn tăng toàn bộ chữ trong ứng dụng từ 16 lên 22 điểm.
         </p>
         <ToggleGroup type="single" variant="outline" value={size} onValueChange={(v) => v && change(v as FontSize)} aria-labelledby="co-chu-nhan" className="mt-2">
           <ToggleGroupItem value="normal" className={TOGGLE_ON}>Chữ thường</ToggleGroupItem>
