@@ -94,7 +94,7 @@ describe('getCircleEvents through an explorer API (Fuji public RPC throttles, A1
     it(`falls back to the chunked RPC scan when the explorer fails (${behaviour})`, async () => {
       const { client, rpc } = setup(250n, [], behaviour);
       await getCircleEvents(client, circle, { fromBlock: 0n, fromCreation: false });
-      expect(rpc.getLogs).toBe(3); // 100-block chunks over 0..250
+      expect(rpc.getLogs).toBe(1); // this node accepts large ranges: one adaptive call over 0..250 (#14)
     });
   }
 
