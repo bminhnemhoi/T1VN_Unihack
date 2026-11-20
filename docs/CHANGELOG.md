@@ -2,6 +2,17 @@
 
 Ghi những gì người dùng và giám khảo thấy được trên web (tính năng, sửa lỗi, bản chạy công khai). Mới nhất ở trên. Chi tiết kỹ thuật và số test nằm ở [TIEN-DO.md](TIEN-DO.md); lịch sử đầy đủ trong `git log`.
 
+## 20/11/2026
+
+### Chủ hụi cầm nhịp, sổ hụi đúng sau tất toán, ký gọn mà an toàn (B28)
+- **Sổ hụi đúng sau khi dây kết thúc**: dây vỡ nợ thật trên Fuji giờ hiện ký quỹ 48 → 46 → 36 → 26 → 16, kỳ 2 của M4 "bù 8 từ tiền giữ lại + 2 từ ký quỹ", bảo chứng lúc mở 100%; bỏ dòng "khoản đòi công khai" sai (không thành viên nào bị nhận thiếu), thay bằng "M4 còn nợ 32 USDC đã được ký quỹ chủ hụi bù". Trước đó trang đọc số "còn phải hoàn" nên hiện 32, 30, 20, 10, 0 và bảo chứng 20%.
+- **Chủ hụi cầm nhịp**: hết giờ mở thăm, dây dừng ở "Chờ chủ hụi khui". Chủ hụi có **bàn khui kỳ** (ai hốt, nhận bao nhiêu, ai đủ hay thiếu tiền), có thể chờ người thiếu nạp tiền rồi bấm "Khui kỳ k, mở kỳ k+1". Quá 5 phút (demo) hoặc 24 giờ (bản thật) mà chủ hụi chưa khui thì keeper hoặc thành viên khui thay, nên chủ hụi không giữ dây làm con tin được. Chủ hụi giữ một chân thì không có lượt ưu tiên.
+- **Bỏ thăm khi ví ít tiền**: không còn bị chặn (người kẹt tiền là người cần hốt nhất); chỉ cần đủ cọc mở thăm, kèm cảnh báo số tiền cần nếu không thắng. Thẻ **"Kỳ này của bạn"** cho thấy kỳ này cần đóng bao nhiêu, ví có bao nhiêu, quyền trích còn bao nhiêu.
+- **Trang mời rõ hơn**: 40,40 USDC là mức trích tối đa cho cả dây, không phải số bị trừ ngay; báo trước "Bạn sẽ là người thứ N" và ý nghĩa với dây cố định hay bỏ thăm.
+- **Ký gọn**: ví Privy ký không bật hộp riêng khi yêu cầu đúng là của HụiSafe (đúng hàm, đúng dây do factory tạo, hạn ngắn, quyền trích trong mức); lệch bất kỳ chỗ nào thì vẫn hiện hộp Privy. Đã qua kiểm toán bảo mật (0 Critical, 0 High; lỗi Medium và Low đã sửa).
+- **Cột "Ròng"** trong sổ hụi của dây đã kết thúc, cùng số với trang Tất toán.
+- **Máy dò số liệu** `pnpm --filter web probe:fuji`: mở sổ hụi các dây thật trên Fuji và so từng ô với chuỗi, chạy trước khi quay video.
+
 ## 18/11/2026
 
 ### Chuẩn hoá Runtime, Ký không rớt mạng, Khóa ví 0đ & Bàn đấu thăm trực tiếp (B27)
