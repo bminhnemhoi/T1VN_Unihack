@@ -6,7 +6,8 @@
  */
 import Link from 'next/link';
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react';
-import { DEFAULT_MIN_COVERAGE_BPS, formatUsdcNumber, parseUsdc, previewCircle } from 'sdk';
+import { DEFAULT_MIN_COVERAGE_BPS, formatUsdcNumber, previewCircle } from 'sdk';
+import { canonicalUsdc, parseMoneyInput } from '@/lib/money-input';
 import { TxButton, TxNote, TxSteps, useStepTx } from '@/components/app/tx';
 import { useChain } from '@/lib/chain/provider';
 import { useHuiWallet } from '@/lib/chain/walletProvider';
@@ -38,7 +39,7 @@ export function CreateCircle() {
   const [pendingCircle, setPendingCircle] = useState<`0x${string}` | undefined>(undefined);
   const q = useRef<HTMLDivElement>(null);
   const n = Number(form.n);
-  const cUnits = parseUsdc(form.c.trim().replace(/\./g, ''));
+  const cUnits = parseMoneyInput(form.c, 'amount');
   const okC = cUnits !== undefined && cUnits >= 1_000_000n && cUnits <= 10_000_000_000n;
   const preview = useMemo(
     () => previewCircle({ n: BigInt(n), c: okC ? cUnits! : 100_000_000n, periodDays: BigInt(form.periodDays), alphaBps: 2000n, bond: 0n, capBps: 2000n, minCoverageBps: DEFAULT_MIN_COVERAGE_BPS }),
@@ -46,7 +47,8 @@ export function CreateCircle() {
   );
   // The bond is always the minimum for 100% coverage.
   const bond = preview.bondFor100;
-  const full = { ...form, bond: (Number(bond) / 1_000_000).toString() };
+  // The preview and the created circle must read the same C (issue #10 follow-up: "1.000" was 1000 here, 1 on chain).
+  const full = { ...form, c: cUnits === undefined ? form.c : canonicalUsdc(cUnits), bond: (Number(bond) / 1_000_000).toString() };
   const { value } = validateForm(full);
   const cap1 = value ? capOf(termsOf(full, value), 1) : 0n;
   const revealBond = ((okC ? cUnits! : 0n) * 100n) / 10_000n;

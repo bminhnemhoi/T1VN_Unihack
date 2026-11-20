@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { MAX_CLEANUP_CANCELS, MAX_TRACKED_CIRCLES, STATE, tick, type AttemptResult, type CircleSnapshot, type KeeperFn, type KeeperPort } from '../src/keeper';
+import { MAX_CLEANUP_CANCELS, MAX_TRACKED_CIRCLES, SNAPSHOT_AHEAD, STATE, newKeeperMemory, tick, type AttemptResult, type CircleSnapshot, type KeeperFn, type KeeperPort } from '../src/keeper';
 import { GAS_HARD_CAP, KeeperConfigError, gasLimitFor, loadKeeperConfig } from '../src/config';
 
 const C1 = '0x1111111111111111111111111111111111111111' as const;
@@ -197,6 +197,115 @@ describe('keeper tick', () => {
       expect(t.calls).toEqual([]);
       expect(s.circles).toBe(0);
     }
+  });
+
+  // Issue #1: the newest-200 cut must never starve an older funded circle.
+  it('an old funded circle is served even when 200 newer unbonded circles with future deadlines fill the scan', async () => {
+    const OLD = M(1);
+    const spam = Array.from({ length: 200 }, (_, i) => M(1000 + i));
+    const t = fakePort({
+      now: 5000,
+      circleList: [OLD, ...spam],
+      deadline: 4000n,
+      snap: { state: STATE.Forming, bondRemaining: 0n, bondDeposited: 0n, joinDeadline: 10_000n },
+      snaps: { [OLD]: { state: STATE.Active, bondRemaining: 48_000_000n, bondDeposited: 48_000_000n } },
+    });
+    const mem = newKeeperMemory();
+    await tick(t.port, t.log, mem);
+    expect(t.reads).not.toContain(OLD); // first scan: the newest 200, as before
+    await tick(t.port, t.log, mem);
+    expect(t.reads).toContain(OLD); // second scan: least recently read first
+    expect(t.calls).toContainEqual({ fn: 'settleRound', args: [] });
+    // once seen funded it is read on every scan, however many unbonded circles keep arriving
+    const before = t.reads.filter((c) => c === OLD).length;
+    await tick(t.port, t.log, mem);
+    expect(t.reads.filter((c) => c === OLD).length).toBeGreaterThan(before); // (a settle also re-reads the snapshot)
+  });
+
+  it('every circle is read within ceil(n / 200) scans when nothing is funded', async () => {
+    const list = Array.from({ length: 450 }, (_, i) => M(2000 + i));
+    const t = fakePort({ now: 100, circleList: list, snap: { state: STATE.Forming, bondRemaining: 0n, bondDeposited: 0n, joinDeadline: 10_000n } });
+    const mem = newKeeperMemory();
+    for (let i = 0; i < 3; i++) await tick(t.port, t.log, mem);
+    expect(new Set(t.reads).size).toBe(450);
+    expect(t.reads.length).toBeLessThanOrEqual(3 * MAX_TRACKED_CIRCLES);
+  });
+
+  // Issue #2: a cleanup cancel that did not go through must not retire the circle.
+  it('a failed cleanup cancel keeps the circle eligible; it is retired only after a cancel that went through', async () => {
+    const snap = { now: 1001, snap: { state: STATE.Forming, bondRemaining: 0n, bondDeposited: 0n } } as const;
+    const sendFailed = fakePort({ ...snap, results: () => ({ sent: false, code: 'SendFailed', message: 'temporary' }) });
+    await tick(sendFailed.port, sendFailed.log);
+    expect(sendFailed.retired).toEqual([]);
+
+    const reverted = fakePort({ ...snap, results: () => ({ sent: true, txHash: `0x${'ef'.repeat(32)}`, gasUsed: 1n, ok: false }) });
+    await tick(reverted.port, reverted.log);
+    expect(reverted.retired).toEqual([]);
+
+    // retry on a second scan with the same memory: first attempt fails, second succeeds, then it is retired
+    let attempts = 0;
+    const retry = fakePort({
+      ...snap,
+      results: () => (++attempts === 1 ? { sent: false, code: 'SendFailed', message: 'temporary' } : undefined),
+    });
+    const mem = newKeeperMemory();
+    await tick(retry.port, retry.log, mem);
+    expect(retry.retired).toEqual([]);
+    await tick(retry.port, retry.log, mem);
+    expect(retry.calls.filter((c) => c.fn === 'cancel')).toHaveLength(2);
+    expect(retry.retired).toEqual([C1]);
+  });
+
+  // Fewer round trips: independent reads overlap, every transaction is still sent one at a time.
+  it('asks every member whether they owe at once, then marks only the debtors, in member order', async () => {
+    const t = fakePort({ now: 5000, deadline: 9000n, owes: new Set([M(2), M(4)]) });
+    let inFlight = 0;
+    let maxInFlight = 0;
+    const owes = t.port.owes;
+    t.port.owes = async (c, m) => {
+      inFlight++;
+      maxInFlight = Math.max(maxInFlight, inFlight);
+      await new Promise((r) => setTimeout(r, 2));
+      inFlight--;
+      return owes(c, m);
+    };
+    await tick(t.port, t.log);
+    expect(maxInFlight).toBe(members.length); // all five at the same time
+    expect(t.calls.filter((c) => c.fn === 'markDefault').map((c) => c.args[0])).toEqual([M(2), M(4)]);
+  });
+
+  it('reads a few circle snapshots ahead (bounded), and still processes the circles one after the other in order', async () => {
+    const list = Array.from({ length: 25 }, (_, i) => M(3000 + i));
+    const t = fakePort({ now: 100, circleList: list, deadline: 9000n });
+    let inFlight = 0;
+    let maxInFlight = 0;
+    const started: string[] = [];
+    const snapshot = t.port.snapshot;
+    t.port.snapshot = async (c) => {
+      started.push(c);
+      inFlight++;
+      maxInFlight = Math.max(maxInFlight, inFlight);
+      await new Promise((r) => setTimeout(r, 2));
+      inFlight--;
+      return snapshot(c);
+    };
+    const s = await tick(t.port, t.log);
+    expect(s.circles).toBe(25);
+    expect(maxInFlight).toBeGreaterThan(1);
+    expect(maxInFlight).toBeLessThanOrEqual(SNAPSHOT_AHEAD);
+    expect(started).toEqual([...list].reverse()); // newest first, each circle read exactly once
+  });
+
+  it('a failing snapshot ahead of the loop never becomes an unhandled rejection when an earlier one already failed the scan', async () => {
+    const list = Array.from({ length: 6 }, (_, i) => M(4000 + i)); // newest first: 4005, 4004, ...
+    const t = fakePort({ now: 100, circleList: list });
+    const snapshot = t.port.snapshot;
+    t.port.snapshot = async (c) => {
+      if (c === M(4004) || c === M(4001)) throw new Error('rpc down');
+      return snapshot(c);
+    };
+    await expect(tick(t.port, t.log)).rejects.toThrow('rpc down'); // the scan stops at the first failure, as before
+    await new Promise((r) => setTimeout(r, 25)); // let any stray rejection surface: vitest fails the run if one does
   });
 });
 

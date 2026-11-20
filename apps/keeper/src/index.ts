@@ -4,7 +4,7 @@
  */
 import { createViemPort } from './chain.js';
 import { KeeperConfigError, loadKeeperConfig } from './config.js';
-import { tick, type Log } from './keeper.js';
+import { newKeeperMemory, tick, type Log } from './keeper.js';
 import { formatLog } from './log.js';
 
 const log: Log = (level, message, fields) => {
@@ -18,6 +18,7 @@ async function main(): Promise<void> {
   const { port, keeper } = createViemPort(cfg);
   log('info', 'keeper started', { network: cfg.network.name, keeper, intervalSeconds: cfg.intervalSeconds });
 
+  const memory = newKeeperMemory(); // fair scan order and funded circles, kept across scans (issue #1)
   let running = false;
   let wakeTimer: ReturnType<typeof setTimeout> | undefined;
   const scheduleWake = (sec: number | undefined): void => {
@@ -33,7 +34,7 @@ async function main(): Promise<void> {
     if (running) return; // never overlap two scans
     running = true;
     try {
-      const s = await tick(port, log);
+      const s = await tick(port, log, memory);
       log('info', 'scan done', {
         circles: s.circles,
         ignored: s.ignored,

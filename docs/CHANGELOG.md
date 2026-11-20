@@ -4,6 +4,12 @@ Ghi những gì người dùng và giám khảo thấy được trên web (tính
 
 ## 20/11/2026
 
+### Sửa lỗi từ đợt kiểm thử của Hiếu (B29)
+- **Ô bỏ thăm không còn đọc sai dấu chấm** (issue #10): trước đây gõ `14.8` bị hiểu thành 148 USDC (dấu chấm bị xóa), có thể niêm phong thăm lớn gấp 10 lần ý định. Giờ dấu chấm là dấu thập phân, và dưới ô hiện dòng "Bạn sẽ niêm phong thăm: X USDC" để thấy đúng số trước khi bấm.
+- **Trang tạo dây**: gõ mức góp `1.000` trước đây phần xem trước hiểu 1.000 USDC nhưng lệnh tạo dây gửi 1 USDC; giờ hai bên dùng chung một con số.
+- **Khui kỳ ngay lúc 00:00 không còn báo "Chưa đến thời điểm"** (issue #11): đồng hồ trên màn hình có thể chạy trước giờ khối Fuji 2 đến 5 giây; app tự gửi lại đúng chữ ký đã ký sau vài giây, không bắt ký lại.
+- **Keeper công bằng hơn** (PR #3, issue #1, #2): dây đã có ký quỹ luôn được keeper xem, không bị dây rác mới hơn chen mất; dây dọn hụt không bị bỏ qua vĩnh viễn. Trang lời mời tải nhanh hơn (đọc uy tín song song).
+
 ### Chủ hụi cầm nhịp, sổ hụi đúng sau tất toán, ký gọn mà an toàn (B28)
 - **Sổ hụi đúng sau khi dây kết thúc**: dây vỡ nợ thật trên Fuji giờ hiện ký quỹ 48 → 46 → 36 → 26 → 16, kỳ 2 của M4 "bù 8 từ tiền giữ lại + 2 từ ký quỹ", bảo chứng lúc mở 100%; bỏ dòng "khoản đòi công khai" sai (không thành viên nào bị nhận thiếu), thay bằng "M4 còn nợ 32 USDC đã được ký quỹ chủ hụi bù". Trước đó trang đọc số "còn phải hoàn" nên hiện 32, 30, 20, 10, 0 và bảo chứng 20%.
 - **Chủ hụi cầm nhịp**: hết giờ mở thăm, dây dừng ở "Chờ chủ hụi khui". Chủ hụi có **bàn khui kỳ** (ai hốt, nhận bao nhiêu, ai đủ hay thiếu tiền), có thể chờ người thiếu nạp tiền rồi bấm "Khui kỳ k, mở kỳ k+1". Quá 5 phút (demo) hoặc 24 giờ (bản thật) mà chủ hụi chưa khui thì keeper hoặc thành viên khui thay, nên chủ hụi không giữ dây làm con tin được. Chủ hụi giữ một chân thì không có lượt ưu tiên.
