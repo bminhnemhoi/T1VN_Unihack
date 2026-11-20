@@ -224,8 +224,8 @@ function Room({ c, refreshing, stale, onRefetch }: { c: SampleCircleData; refres
           ? `${av(fixedTaker(c, k))} hốt`
           : soleLiveBidding
             ? 'Hốt chót'
-            : ['Đang thăm', 'Mở thăm', 'Đang khui', 'Đang khui'][PHASE_IDX[phase]]!;
-      return { cls: 'now', main, sub: phase === 'commit' || live ? `còn ${clock(railLeft)}` : 'đang chạy' };
+            : ['Đang thăm', 'Mở thăm', 'Chờ khui', 'Chờ khui'][PHASE_IDX[phase]]!;
+      return { cls: 'now', main, sub: live && phase === 'settle' ? 'chờ chủ hụi' : phase === 'commit' || live ? `còn ${clock(railLeft)}` : 'đang chạy' };
     }
     return { cls: 'later', main: r === n ? 'Kỳ cuối' : 'Kỳ sau', sub: c.terms.mode === 'fixed' ? `${av(fixedTaker(c, r))} hốt` : r === n ? 'không thăm' : `trần ${f(capOf(c.terms, r))}` };
   };
@@ -1074,7 +1074,7 @@ function BidNow({ c, k, phase, chainNowSec, sampleLeft, maxBid, bidText, setBidT
         </ol>
         <div className="clockRow">
           <span className="label" style={{ color: 'var(--mute)' }}>
-            {run.settled ? `Kỳ ${k} đã chốt` : phase === 'commit' ? 'Còn thời gian nộp thăm' : phase === 'reveal' ? 'Còn thời gian mở thăm' : 'Tự động khui kỳ'}
+            {run.settled ? `Kỳ ${k} đã chốt` : phase === 'commit' ? 'Còn thời gian nộp thăm' : phase === 'reveal' ? 'Còn thời gian mở thăm' : 'Chờ chủ hụi khui kỳ'}
           </span>
           <span className={`clock${left <= 15 && (phase === 'commit' || phase === 'reveal') && !run.settled ? ' low' : ''}`} role="timer" aria-live="off">
             {run.settled ? '00:00' : !live && phase !== 'commit' ? '—' : clock(left)}

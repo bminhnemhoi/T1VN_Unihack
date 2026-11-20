@@ -143,7 +143,7 @@ export function SettleDesk({
             {shortOnes.map((p) => p.name).join(', ')} chưa đủ tiền. Bạn có thể chờ họ nạp; khui lúc này thì phần thiếu được bù theo thác (tiền giữ lại, ký quỹ, quỹ dự phòng) và họ có ân hạn để trả.
           </p>
         )}
-        <TxButton t={t} tone="ink" label={label} retryLabel={`Gửi lại lệnh khui kỳ ${k}`} onRun={onSettle} />
+        <TxButton t={t} tone="lime" label={label} retryLabel={`Gửi lại lệnh khui kỳ ${k}`} onRun={onSettle} />
         <p className="muted">
           {fallbackOpen
             ? 'Đã quá lượt của bạn: keeper hoặc thành viên có thể khui thay bất cứ lúc nào.'
