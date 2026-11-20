@@ -30,10 +30,16 @@ export const withoutHidden = (list: HiddenCircle[], id: string): HiddenCircle[] 
 
 type Deletable = Pick<SampleCircle, 'state' | 'role' | 'expired' | 'bondUnits'>;
 
-/** Rows that get a "Xóa" button: circles that were cancelled or stopped, and (for the organizer) a gathering circle whose deadline passed. */
+/**
+ * Rows that get a button: circles that were cancelled or stopped, (for the organizer) a gathering circle whose deadline
+ * passed ("Xóa"), and finished circles ("Lưu trữ", the same hide: the book stays and "Hiện lại" brings it back).
+ */
 export function canDelete(c: Pick<SampleCircle, 'state' | 'role' | 'expired'>): boolean {
-  return c.state === 'cancelled' || c.state === 'unwound' || (c.state === 'forming' && c.expired === true && c.role === 'organizer');
+  return c.state === 'completed' || c.state === 'cancelled' || c.state === 'unwound' || (c.state === 'forming' && c.expired === true && c.role === 'organizer');
 }
+
+/** A finished circle is archived, not deleted: same hide, a word that does not sound like losing something. */
+export const deleteVerb = (c: Pick<SampleCircle, 'state'>): 'Lưu trữ' | 'Xóa' => (c.state === 'completed' ? 'Lưu trữ' : 'Xóa');
 
 export type DeleteKind =
   /** Organizer, cancelled circle with bond left: `withdrawBond()`, then hide. */

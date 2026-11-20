@@ -262,6 +262,21 @@
     & .delBtn:active { transform: scale(0.97); }
     & .delBtn:focus-visible { outline: 3px solid var(--ink); outline-offset: 2px; }
     & .swipeAct { display: none; }
+    /* Archive a finished circle: same button, neutral ink (not destructive) */
+    & .delBtn.arch { color: var(--ink-2); }
+    & .delBtn.arch:hover { border-color: var(--ink-2); }
+    /* "Đã kết thúc": finished circles folded at the bottom of the list, opened on demand */
+    & .circles li.ended summary { display: flex; align-items: center; gap: 12px; min-height: 48px; padding: 12px 16px; cursor: pointer; list-style: none; color: var(--ink-2); border-bottom-left-radius: calc(var(--r) - 1px); border-bottom-right-radius: calc(var(--r) - 1px); transition: background var(--dur-ui); }
+    & .circles li.ended summary::-webkit-details-marker { display: none; }
+    & .circles li.ended summary:hover { background: var(--ivory); }
+    & .circles li.ended summary:focus-visible { outline: 3px solid var(--ink); outline-offset: -3px; }
+    & .circles li.ended summary strong { font: 700 15px var(--display); color: var(--ink); }
+    & .circles li.ended summary .mono { margin-left: auto; }
+    & .circles li.ended summary svg { width: 18px; height: 18px; flex: none; transition: transform var(--dur-ui) var(--ease-out); }
+    & .circles li.ended details[open] summary { border-radius: 0; border-bottom: 1px solid var(--line); }
+    & .circles li.ended details[open] summary svg { transform: rotate(180deg); }
+    & .circles li.ended ul { list-style: none; margin: 0; padding: 0; }
+    & .circles li.ended ul li:first-child a { border-radius: 0; }
     & .circles a.add strong { font: 700 15px var(--display); color: var(--ink); }
     & .circles h3 { font-size: 18px; letter-spacing: -0.02em; }
     & .circles small { color: var(--ink-2); font: 400 13px/1.4 var(--body); letter-spacing: 0.012em; word-spacing: 0.04em; font-variant-numeric: tabular-nums; }
@@ -708,6 +723,7 @@ html[data-font='large'] .hs .circles h3 { font-size: 20px; }
 @media (prefers-reduced-motion: reduce) {
   .hs .clockBar i { transition: none; }
   .hs .autoSettle .spin { animation: none; }
+  .hs .circles li.ended summary svg { transition: none; }
 }
 @container app (max-width: 760px) {
   html[data-font='large'] .hs .pg h1 { font-size: 1.25rem; }

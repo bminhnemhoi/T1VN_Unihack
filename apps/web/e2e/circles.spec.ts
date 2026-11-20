@@ -7,7 +7,8 @@ test.describe('/circles (Tổng quan)', () => {
     const errs = watchErrors(page);
     await page.goto('/circles');
     const list = page.getByRole('list', { name: 'Các dây của bạn' });
-    await expect(list.getByRole('heading', { level: 3 })).toHaveText(['Hụi tổ dân phố 7', 'Hụi cố định gia đình', 'Hụi bạn đại học', 'Hụi chị em văn phòng', 'Hụi tổ dân phố 9']);
+    // What still needs you is on top; the finished circle is folded under "Đã kết thúc" (the cancelled one still has a bond to withdraw).
+    await expect(list.getByRole('heading', { level: 3 })).toHaveText(['Hụi tổ dân phố 7', 'Hụi cố định gia đình', 'Hụi bạn đại học', 'Hụi tổ dân phố 9']);
     for (const [label, path] of [
       ['Hụi tổ dân phố 7', 'demo'],
       ['Hụi cố định gia đình', 'co-dinh'],
@@ -16,6 +17,7 @@ test.describe('/circles (Tổng quan)', () => {
       ['Hụi tổ dân phố 9', 'da-huy'],
     ] as const) {
       await page.goto('/circles');
+      if (path === 'da-xong') await page.getByText('Đã kết thúc', { exact: true }).click();
       await list.getByRole('link', { name: new RegExp(label) }).click();
       await expect(page).toHaveURL(new RegExp(`/circles/${path}$`));
       await expect(page.getByRole('heading', { level: 1 })).toHaveText(label);
@@ -101,6 +103,22 @@ test.describe('other sample circles answer for themselves', () => {
     await expect(start).toHaveAttribute('aria-disabled', 'true'); // closed, but it still answers when pressed
     await start.click({ force: true });
     await expect(toast(page, 'mới có 3 trên 5 người')).toBeVisible();
+  });
+
+  test('"Đã kết thúc" folds finished circles at the bottom; it opens with the keyboard and offers "Lưu trữ", not a red "Xóa"', async ({ page }) => {
+    await page.goto('/circles');
+    const group = page.getByTestId('ended-group');
+    await expect(group).toContainText('Đã kết thúc');
+    await expect(group).toContainText('1 dây');
+    const finished = page.getByRole('link', { name: /Hụi chị em văn phòng/ });
+    await expect(finished).toBeHidden();
+    await group.locator('summary').focus();
+    await page.keyboard.press('Enter');
+    await expect(finished).toBeVisible();
+    const archive = page.getByRole('button', { name: 'Lưu trữ dây Hụi chị em văn phòng' });
+    await expect(archive).toBeVisible();
+    const box = (await archive.boundingBox())!;
+    expect(Math.min(box.width, box.height)).toBeGreaterThanOrEqual(44);
   });
 
   test('finished circle: both actions are real links', async ({ page }) => {

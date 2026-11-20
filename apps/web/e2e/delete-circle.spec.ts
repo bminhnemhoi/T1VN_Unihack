@@ -102,7 +102,7 @@ test.describe('delete a cancelled circle', () => {
     await expect(row(page)).toHaveCount(0, { timeout: 6000 });
     expect(JSON.parse((await page.evaluate(() => localStorage.getItem('huisafe.hidden.sample')))!)).toEqual([{ id: 'e', label: NAME }]);
     await page.reload();
-    await expect(list(page).getByRole('heading', { level: 3 })).toHaveCount(4);
+    await expect(list(page).getByRole('heading', { level: 3 })).toHaveCount(3); // the finished circle is folded under "Đã kết thúc"
     await expect(row(page)).toHaveCount(0);
   });
 
@@ -205,5 +205,38 @@ test.describe('Cài đặt: dây đã ẩn', () => {
     await expect(section).toContainText('Chưa ẩn dây nào.');
     await page.goto('/circles');
     await expect(list(page).getByRole('heading', { level: 3, name: NAME })).toBeVisible();
+  });
+});
+
+test.describe('archive a finished circle', () => {
+  test.beforeEach(async ({ page }) => {
+    await page.emulateMedia({ reducedMotion: 'reduce' });
+    await page.addInitScript(() => {
+      try {
+        if (!sessionStorage.getItem('seeded')) {
+          sessionStorage.setItem('seeded', '1');
+          localStorage.removeItem('huisafe.hidden.sample');
+        }
+      } catch {
+        /* no storage */
+      }
+    });
+  });
+
+  test('"Lưu trữ" hides it without any transaction, "Hoàn tác" brings it back, and the group disappears when empty', async ({ page }) => {
+    const errs = watchErrors(page);
+    await page.goto('/circles');
+    await page.getByText('Đã kết thúc', { exact: true }).click();
+    await page.getByRole('button', { name: 'Lưu trữ dây Hụi chị em văn phòng' }).click();
+    const dialog = page.getByTestId('delete-dialog');
+    await expect(dialog.getByRole('heading')).toHaveText('Lưu trữ dây "Hụi chị em văn phòng"?');
+    await expect(dialog).toContainText('đã xong');
+    await expect(dialog).toContainText('Cài đặt → Dây đã ẩn');
+    await expect(dialog).not.toContainText('Ký');
+    await dialog.getByRole('button', { name: 'Lưu trữ', exact: true }).click();
+    await expect(page.getByTestId('ended-group')).toHaveCount(0);
+    await toast(page, 'Đã lưu trữ dây "Hụi chị em văn phòng"').getByRole('button', { name: 'Hoàn tác' }).click();
+    await expect(page.getByTestId('ended-group')).toContainText('1 dây');
+    errs.expectClean();
   });
 });

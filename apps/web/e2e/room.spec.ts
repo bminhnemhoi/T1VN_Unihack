@@ -8,7 +8,7 @@ const round = (page: Page, k: number, isMobile: boolean | undefined) =>
   isMobile ? page.locator('.storyNav .bars').getByRole('button', { name: `Kỳ ${k}`, exact: true }) : page.locator('.rail button').nth(k - 1);
 
 test.describe('/circles/demo (Dây)', () => {
-  test('opens on the running kỳ 3: three phases, the clock, the slip with the ceiling 3,287671', async ({ page }) => {
+  test('opens on the running kỳ 3: three phases, the clock, the slip with the ceiling 3,28 (3,287671 rounded down to cents)', async ({ page }) => {
     const errs = watchErrors(page);
     await page.goto('/circles/demo');
     await expect(page.getByRole('heading', { level: 1 })).toHaveText('Hụi tổ dân phố 7');
@@ -16,7 +16,7 @@ test.describe('/circles/demo (Dây)', () => {
     await expect(phases.getByRole('listitem')).toHaveCount(3);
     await expect(phases.locator('li.on')).toContainText('Nộp thăm kín');
     await expect(page.getByRole('timer')).toBeVisible();
-    await expect(page.locator('#bidHint')).toContainText('Trần kỳ này 3,287671 USDC');
+    await expect(page.locator('#bidHint')).toContainText('Trần kỳ này 3,28 USDC');
     errs.expectClean();
   });
 
@@ -26,7 +26,7 @@ test.describe('/circles/demo (Dây)', () => {
     const seal = page.getByRole('button', { name: 'Niêm phong thăm' });
     await bid.fill('3,3');
     await expect(bid).toHaveAttribute('aria-invalid', 'true');
-    await expect(page.locator('#bidHint')).toContainText('Vượt trần kỳ này (3,287671 USDC)');
+    await expect(page.locator('#bidHint')).toContainText('Vượt trần kỳ này (3,28 USDC)');
     await expect(seal).toBeDisabled();
     await bid.fill('100');
     await expect(page.locator('#bidHint')).toContainText('nhỏ hơn 100,00 USDC');
@@ -46,10 +46,14 @@ test.describe('/circles/demo (Dây)', () => {
     await expect(page.getByTestId('bid-readback')).toContainText('2,50 USDC');
     await expect(seal).toBeEnabled();
     await bid.fill('3.3');
-    await expect(page.locator('#bidHint')).toContainText('Vượt trần kỳ này (3,287671 USDC)');
+    await expect(page.locator('#bidHint')).toContainText('Vượt trần kỳ này (3,28 USDC)');
     await expect(page.getByTestId('bid-readback')).toHaveCount(0);
     await bid.fill('0.3');
     await expect(page.getByTestId('bid-readback')).toContainText('0,30 USDC');
+    // Bids are in cents: a third decimal is refused with a clear hint, not rounded silently.
+    await bid.fill('3,285');
+    await expect(page.locator('#bidHint')).toContainText('Thăm lấy tối đa 2 số lẻ, ví dụ 3,28.');
+    await expect(seal).toBeDisabled();
   });
 
   test('if you win with 3,00 you get 346,12 (pot 2 x 97 + 2 x 100 = 394)', async ({ page, isMobile }) => {
@@ -126,14 +130,14 @@ test.describe('/circles/demo (Dây)', () => {
     await expect(receipt.locator('.stamp.on')).toContainText('M1 HỐT');
   });
 
-  test('kỳ 1 adds up (376 - 3,76 - 3,76 - 80 = 288,48); kỳ 4 shows its ceiling 1,643835; kỳ 5 has no bid', async ({ page, isMobile }) => {
+  test('kỳ 1 adds up (376 - 3,76 - 3,76 - 80 = 288,48); kỳ 4 shows its ceiling 1,64; kỳ 5 has no bid', async ({ page, isMobile }) => {
     await page.goto('/circles/demo');
     await round(page, 1, isMobile).click();
     await expect(page.locator('.receipt')).toContainText('M4 thắng với thăm 6,00 USDC');
     await expect(page.locator('.receipt')).toContainText('376,00');
     await expect(page.locator('.receipt .big dd')).toHaveText('288,48');
     await round(page, 4, isMobile).click();
-    await expect(page.getByText('1,643835 USDC')).toBeVisible();
+    await expect(page.getByText('1,64 USDC')).toBeVisible();
     await round(page, 5, isMobile).click();
     await expect(page.getByRole('heading', { name: 'Người còn lại hốt, không bỏ thăm' })).toBeVisible();
   });
@@ -166,10 +170,10 @@ test.describe('/circles/demo (Dây)', () => {
     await page.goto('/circles/demo');
     const presets = page.getByRole('group', { name: 'Mức thăm gợi ý nhanh' });
     await expect(presets).toBeVisible();
-    const maxBtn = presets.getByRole('button', { name: /Kịch trần · 3,287671/ });
+    const maxBtn = presets.getByRole('button', { name: /Kịch trần · 3,28/ });
     await maxBtn.click();
     await expect(maxBtn).toHaveAttribute('aria-pressed', 'true');
-    await expect(page.getByLabel('Thăm của bạn (số tiền bớt cho mọi người)')).toHaveValue('3,287671');
+    await expect(page.getByLabel('Thăm của bạn (số tiền bớt cho mọi người)')).toHaveValue('3,28');
     await expect(page.getByRole('button', { name: 'Niêm phong thăm' })).toBeEnabled();
     if (!isMobile) {
       await expect(page.locator('.panel.side')).toContainText('Phong bì #1');

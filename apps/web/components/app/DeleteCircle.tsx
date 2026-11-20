@@ -5,13 +5,13 @@
  * (and, for a gathering circle past its deadline, cancels it first) with the same Ký → Gửi → Xác nhận button as every other
  * transaction, and the circle is hidden only after the receipt. A failure hides nothing and says why.
  */
-import { Trash2 } from 'lucide-react';
+import { Archive, Trash2 } from 'lucide-react';
 import { useEffect, useId, useRef, useState, type KeyboardEvent, type TouchEvent } from 'react';
 import { createPortal } from 'react-dom';
 import { formatUsdcNumber, huiCircleFullAbi } from 'sdk';
 import { TxButton, TxNote, TxSteps, useStepTx } from '@/components/app/tx';
 import { useChain } from '@/lib/chain/provider';
-import { freshSteps, planDelete, type DeletePlan, type FreshDeleteState } from '@/lib/hidden-circles';
+import { deleteVerb, freshSteps, planDelete, type DeletePlan, type FreshDeleteState } from '@/lib/hidden-circles';
 import type { SampleCircle } from '@/lib/sample';
 import s from './DeleteDialog.module.css';
 
@@ -21,12 +21,14 @@ const usdc = (u: bigint): string => {
 };
 const SWIPE = 96;
 
-/** The "Xóa" button of a row: trash icon and word, 44px high. */
+/** The row's button, 44px high: "Xóa" (trash, red ink) for a cancelled circle, "Lưu trữ" (archive, neutral) for a finished one. */
 export function DeleteButton({ c, onOpen }: { c: SampleCircle; onOpen: (c: SampleCircle) => void }) {
+  const verb = deleteVerb(c);
+  const archive = verb === 'Lưu trữ';
   return (
-    <button type="button" className="delBtn" onClick={() => onOpen(c)} aria-label={`Xóa dây ${c.label}`} data-testid="delete-circle">
-      <Trash2 aria-hidden />
-      Xóa
+    <button type="button" className={`delBtn${archive ? ' arch' : ''}`} onClick={() => onOpen(c)} aria-label={`${verb} dây ${c.label}`} data-testid="delete-circle">
+      {archive ? <Archive aria-hidden /> : <Trash2 aria-hidden />}
+      {verb}
     </button>
   );
 }
@@ -81,8 +83,10 @@ export function useSwipeReveal() {
   };
 }
 
-function bodyOf(plan: DeletePlan, label: string) {
+function bodyOf(plan: DeletePlan, label: string, completed: boolean) {
   const amount = usdc(plan.bond);
+  if (completed)
+    return <p className={s.body}>Dây {label} đã xong. Lưu trữ chỉ ẩn dây khỏi Tổng quan trên máy này; sổ hụi và kết quả trên blockchain vẫn giữ.</p>;
   switch (plan.kind) {
     case 'withdraw':
       return (
@@ -208,28 +212,34 @@ export function DeleteDialog({ c, viewer, onClose, onDeleted }: { c: SampleCircl
 
   if (!host) return null;
   const money = plan.kind === 'withdraw' || plan.kind === 'cancel-withdraw';
-  const label = plan.kind === 'withdraw' ? `Rút ${usdc(plan.bond)} và xóa` : plan.kind === 'cancel-withdraw' ? `Hủy dây, rút ${usdc(plan.bond)} và xóa` : 'Xóa';
+  const verb = deleteVerb(c);
+  const completed = c.state === 'completed';
+  const label = plan.kind === 'withdraw' ? `Rút ${usdc(plan.bond)} và xóa` : plan.kind === 'cancel-withdraw' ? `Hủy dây, rút ${usdc(plan.bond)} và xóa` : verb;
   return createPortal(
     <div className={s.layer} onKeyDown={onKey}>
       <div className={s.scrim} onClick={() => !t.busy && onClose()} aria-hidden="true" />
       <div ref={card} className={s.card} role="dialog" aria-modal="true" aria-labelledby={titleId} data-testid="delete-dialog">
         <h2 id={titleId} ref={title} tabIndex={-1} className={s.title}>
-          Xóa dây &quot;{c.label}&quot;?
+          {verb} dây &quot;{c.label}&quot;?
         </h2>
         {owed > 0n ? (
           <p className={s.body} data-testid="delete-owed">
             Dây còn <span className={s.amount}>{usdc(owed)}</span> chờ bạn nhận (chuyển thẳng không được nên hợp đồng giữ lại). Nhận tiền về ví trước, rồi mới ẩn dây.
           </p>
         ) : (
-          bodyOf(plan, c.label)
+          bodyOf(plan, c.label, completed)
         )}
         {plan.signatures === 2 && t.busy && <p className={s.steps}>Lần ký {phase}/2</p>}
         <TxSteps t={t} />
         <TxNote t={t} />
-        <p className={s.sure}>Dây là smart contract trên blockchain nên không xóa hẳn được; &quot;xóa&quot; là ẩn khỏi danh sách của ví này.</p>
+        <p className={s.sure}>
+          {completed
+            ? 'Xem lại bất cứ lúc nào trong Cài đặt → Dây đã ẩn.'
+            : <>Dây là smart contract trên blockchain nên không xóa hẳn được; &quot;xóa&quot; là ẩn khỏi danh sách của ví này.</>}
+        </p>
         <div className={s.actions}>
           {owed > 0n ? (
-            <TxButton t={t} label={`Nhận ${usdc(owed)} rồi xóa`} retryLabel="Thử lại" tone="ink" onRun={() => void claimThenHide()} />
+            <TxButton t={t} label={`Nhận ${usdc(owed)} rồi ${verb.toLowerCase()}`} retryLabel="Thử lại" tone="ink" onRun={() => void claimThenHide()} />
           ) : money ? (
             <TxButton t={t} label={label} retryLabel="Thử lại" tone="ink" onRun={() => void confirm()} />
           ) : (

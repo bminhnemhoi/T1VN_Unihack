@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { canDelete, freshSteps, hiddenKey, parseHidden, planDelete, withHidden, withoutHidden } from './hidden-circles';
+import { canDelete, deleteVerb, freshSteps, hiddenKey, parseHidden, planDelete, withHidden, withoutHidden } from './hidden-circles';
 
 const U = 1_000_000n;
 
@@ -31,7 +31,8 @@ describe('which rows get "Xóa"', () => {
     expect(canDelete({ state: 'forming', role: 'member', expired: true })).toBe(false);
     expect(canDelete({ state: 'forming', role: 'organizer' })).toBe(false);
     expect(canDelete({ state: 'active', role: 'organizer' })).toBe(false);
-    expect(canDelete({ state: 'completed', role: 'organizer' })).toBe(false);
+    expect(canDelete({ state: 'completed', role: 'organizer' })).toBe(true); // archive a finished circle
+    expect(canDelete({ state: 'completed', role: 'member' })).toBe(true);
   });
 });
 
@@ -75,5 +76,18 @@ describe('freshSteps (audit B25 M-01, L-01): the chain decides, not the cached r
   it('a member is never asked to cancel or withdraw', () => {
     const member = planDelete({ state: 'cancelled', role: 'member' });
     expect(freshSteps(member, { state: 4, bondRemaining: 48n * U, isOrganizer: false, claimable: 0n })).toEqual({ cancel: false, withdraw: false, owed: 0n });
+  });
+});
+
+describe('deleteVerb: a finished circle is archived, a cancelled one is deleted', () => {
+  it('names the action by what it means', () => {
+    expect(deleteVerb({ state: 'completed' })).toBe('Lưu trữ');
+    expect(deleteVerb({ state: 'cancelled' })).toBe('Xóa');
+    expect(deleteVerb({ state: 'unwound' })).toBe('Xóa');
+    expect(deleteVerb({ state: 'forming' })).toBe('Xóa');
+  });
+
+  it('a finished circle is a plain hide: never a withdraw, whatever the cached bond says', () => {
+    expect(planDelete({ state: 'completed', role: 'organizer', bondUnits: 16_000_000n })).toEqual({ kind: 'hide-only', bond: 0n, signatures: 0 });
   });
 });
