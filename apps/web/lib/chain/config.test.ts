@@ -21,10 +21,13 @@ describe('createChainConfig', () => {
     expect(c.fromBlock).toBe(60_843_937n);
   });
 
-  it('reads from the configured browser RPC when one is set, else from the chain default (A19)', () => {
-    expect(createChainConfig(json).client.transport.url).toBe('https://api.avax-test.network/ext/bc/C/rpc');
+  it('reads from the configured browser RPC when one is set, else from the chain default (A19); a second keyless RPC takes over when the first throttles (issue #13)', () => {
+    const urls = (c: ReturnType<typeof createChainConfig>) =>
+      ((c.client.transport as unknown as { transports: { value: { url: string } }[] }).transports ?? []).map((t) => t.value.url);
+    expect(createChainConfig(json).client.transport.type).toBe('fallback');
+    expect(urls(createChainConfig(json))).toEqual(['https://api.avax-test.network/ext/bc/C/rpc', 'https://avalanche-fuji-c-chain-rpc.publicnode.com']);
     const own = createChainConfig({ ...json, rpcUrl: 'https://rpc.example/fuji' });
-    expect(own.client.transport.url).toBe('https://rpc.example/fuji');
+    expect(urls(own)).toEqual(['https://rpc.example/fuji', 'https://avalanche-fuji-c-chain-rpc.publicnode.com']);
     expect(own.client.batch?.multicall).toBeTruthy(); // still batched
     // anvil never takes the Fuji URL
     expect(createChainConfig({ ...json, network: 'anvil', chainId: 31337, rpcUrl: 'https://rpc.example/fuji' }).client.transport.url).toBe(
