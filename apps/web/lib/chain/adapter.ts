@@ -50,7 +50,8 @@ export function toLedger(v: CircleView): LedgerRound[] {
       if (same(m.address, r.winner!)) return { kind: 'won' };
       const sf = r.shortfalls.find((s) => same(s.member, m.address));
       if (sf) {
-        return { kind: 'short', amount: sf.amount, fromHoldback: sf.fromHoldback, fromBond: sf.fromBond, fromReserve: sf.fromReserve };
+        const cv = sf.covered ?? { holdback: sf.fromHoldback, bond: sf.fromBond, reserve: sf.fromReserve };
+        return { kind: 'short', amount: sf.amount, fromHoldback: cv.holdback, fromBond: cv.bond, fromReserve: cv.reserve };
       }
       const alreadyReceived = m.receivedRound !== undefined && m.receivedRound < r.k;
       return { kind: 'paid', amount: alreadyReceived ? C : C - bid };
@@ -69,7 +70,7 @@ export function toLedger(v: CircleView): LedgerRound[] {
 /** Chain state -> list state. A cancelled or unwound circle is NOT "completed": it never paid out (audit by Towfienes 15/11). */
 export const STATE_MAP = { forming: 'forming', active: 'active', paused: 'active', completed: 'completed', cancelled: 'cancelled', unwound: 'unwound' } as const;
 
-function nextStep(v: CircleView, isOrganizer: boolean): { todo: string; action: string; secondsLeft: (now: number) => number } {
+function nextStep(v: CircleView, isOrganizer: boolean, mine?: MemberView): { todo: string; action: string; secondsLeft: (now: number) => number } {
   const k = v.currentRound;
   const round = v.rounds.find((r) => r.k === k);
   if (v.state === 'forming') {
@@ -81,10 +82,53 @@ function nextStep(v: CircleView, isOrganizer: boolean): { todo: string; action: 
   }
   if (v.state === 'active' || v.state === 'paused') {
     if (v.state === 'paused') return { todo: 'Dây đang tạm dừng', action: 'Xem dây', secondsLeft: () => 0 };
+    if (v.settledRounds >= v.params.N) {
+      return { todo: 'Đã chi đủ các kỳ · Chờ tự động tất toán', action: 'Xem tất toán', secondsLeft: () => 0 };
+    }
     const phase = round?.phase ?? 'not-started';
     const until = phase === 'commit' ? round!.commitEndsAt : phase === 'reveal' ? round!.revealEndsAt : (round?.deadline ?? 0);
+    if (isOrganizer && !mine) {
+      const todo = phase === 'awaiting-settle' ? `Đang tự động khui kỳ ${k}` : `Giám sát kỳ ${k} đang chạy`;
+      return { todo, action: 'Xem bàn hụi', secondsLeft: (now) => Math.max(0, until - now) };
+    }
+    if (mine && mine.status !== 'live') {
+      const todo = mine.receivedRound
+        ? `Đã hốt kỳ ${mine.receivedRound} · Kỳ ${k} tự động trích góp`
+        : `Đang đóng băng · Theo dõi kỳ ${k}`;
+      return { todo, action: 'Xem dây', secondsLeft: (now) => Math.max(0, until - now) };
+    }
+    if (v.mode === 'bidding') {
+      const liveCount = v.members.filter((m) => m.status === 'live').length;
+      if (liveCount <= 1) {
+        return {
+          todo: `Kỳ cuối · Hốt trọn không cần bỏ thăm`,
+          action: 'Vào phòng hụi',
+          secondsLeft: (now) => Math.max(0, (round?.deadline ?? until) - now),
+        };
+      }
+    }
+    if (v.mode === 'fixed') {
+      return {
+        todo: `Kỳ ${k} đang chạy theo thứ tự cố định`,
+        action: 'Xem dây',
+        secondsLeft: (now) => Math.max(0, (round?.deadline ?? until) - now),
+      };
+    }
+    const myCommit = mine ? round?.commits?.find((c) => same(c.member, mine.address)) : undefined;
     const todo =
-      phase === 'commit' ? `Nộp thăm kín cho kỳ ${k}` : phase === 'reveal' ? `Mở thăm kỳ ${k}` : phase === 'awaiting-settle' ? `Chờ chốt kỳ ${k}` : `Chờ kỳ ${k} bắt đầu`;
+      phase === 'commit'
+        ? myCommit
+          ? `Đã niêm phong kỳ ${k} · Chờ tới giờ mở thăm`
+          : `Nộp thăm kín cho kỳ ${k}`
+        : phase === 'reveal'
+          ? myCommit && !myCommit.revealed
+            ? `Mở thăm kỳ ${k} ngay để không mất cọc`
+            : myCommit?.revealed
+              ? `Đã mở thăm kỳ ${k} · Chờ tự động khui`
+              : `Mở thăm kỳ ${k}`
+          : phase === 'awaiting-settle'
+            ? `Đang tự động khui kỳ ${k}`
+            : `Chờ kỳ ${k} bắt đầu`;
     return { todo, action: 'Vào phòng thăm', secondsLeft: (now) => Math.max(0, until - now) };
   }
   if (v.state === 'cancelled') {
@@ -102,8 +146,8 @@ function nextStep(v: CircleView, isOrganizer: boolean): { todo: string; action: 
 export function toSampleCircle(v: CircleView, viewer?: Address, nowSec: number = Math.floor(Date.now() / 1000), names: NameOf = defaultName): SampleCircle {
   const isOrganizer = viewer !== undefined && same(v.organizer, viewer);
   const sorted = [...v.members].sort((a, b) => a.joinIndex - b.joinIndex);
-  const step = nextStep(v, isOrganizer);
   const mine = viewer ? sorted.find((m) => same(m.address, viewer)) : undefined;
+  const step = nextStep(v, isOrganizer, mine);
   const settledRounds = v.rounds.filter((r) => r.phase === 'done' && r.winner);
   const winners = settledRounds.map((r) => {
     const w = sorted.find((m) => same(m.address, r.winner!));

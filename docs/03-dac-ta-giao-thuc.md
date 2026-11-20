@@ -149,9 +149,9 @@ fee_k       = 0 nếu người hốt kỳ k là chủ hụi (chân của chủ h
 | `memberCount` | 3..30 | 5 cho demo |
 | `contribution` | ≥ 1 USDC; testnet ≤ 10.000 USDC | 100 USDC |
 | `periodSeconds` | 1..31 ngày | 30 ngày |
-| `roundDuration` | ≥ 120 giây; bản thật = `periodSeconds` | demo 180 giây |
-| `commitWindow`, `revealWindow` | ≥ 30 giây mỗi cửa sổ; tổng ≤ `roundDuration` (Fixed: cả hai = 0) | demo 90 / 60 giây |
-| `graceSeconds` | ≥ 60 giây và < `roundDuration` (để khoản trả trễ của kỳ k luôn hết ân hạn trước khi kỳ k + 1 chi, giữ INV-06) | 172.800 (demo 120) |
+| `roundDuration` | ≥ 120 giây; bản thật = `periodSeconds` | demo 120 giây |
+| `commitWindow`, `revealWindow` | ≥ 30 giây mỗi cửa sổ; tổng ≤ `roundDuration` (Fixed: cả hai = 0) | demo 75 / 45 giây |
+| `graceSeconds` | ≥ 60 giây và < `roundDuration` (để khoản trả trễ của kỳ k luôn hết ân hạn trước khi kỳ k + 1 chi, giữ INV-06) | 172.800 (demo 60) |
 | `alphaBps` | 0..10_000 trong contract; giao diện và trợ lý giới hạn ≤ 5000 (α = 100% với ký quỹ 0 vẫn cho CI 100% nhưng holdback bị cắt theo pot nên bảo đảm mất nghĩa, audit A16 L-02; chặn ở contract là roadmap) | 2000 |
 | `commissionMode`, `feeBps` | `feeBps` ≤ 300; = 0 nếu không phải họ hưởng hoa hồng | true, 100 |
 | `commissionShareBps` (φ) | 0..5000; > 0 chỉ khi `Bidding`, `commissionMode` và `feeBps > 0` (mục 2.7); vi phạm: `InvalidParams(15)` | 0 (dây demo); 5000 (dây thật) |
@@ -181,7 +181,7 @@ Kỳ k chỉ được chi sau khi kỳ k − 1 đã chi. `startTime` = thời đ
 
 ### 3.3. Chế độ demo (dev toggle, phải khai báo đầu buổi pitch)
 
-`roundDuration = 180 s`, `commitWindow = 90 s`, `revealWindow = 60 s`, `graceSeconds = 120 s`, `periodSeconds` vẫn là 30 ngày. Nhờ vậy trần lãi và lãi chậm góp vẫn có nghĩa như hụi tháng, còn cả dây 5 người chạy xong trong khoảng 15 phút. Lãi trên ký quỹ nếu có hiển thị cũng là giả lập. Câu khai báo mẫu ở [12-pitch-demo-nop-bai.md](12-pitch-demo-nop-bai.md).
+`roundDuration = 120 s`, `commitWindow = 75 s`, `revealWindow = 45 s` (`75 + 45 = 120 s`, 0 giây chờ chết), `graceSeconds = 60 s`, `periodSeconds` vẫn là 30 ngày. Nhờ vậy trần lãi và lãi chậm góp vẫn có nghĩa như hụi tháng, còn cả dây 5 người chạy xong trong khoảng 10 phút. Lãi trên ký quỹ nếu có hiển thị cũng là giả lập. Câu khai báo mẫu ở [12-pitch-demo-nop-bai.md](12-pitch-demo-nop-bai.md).
 
 ---
 

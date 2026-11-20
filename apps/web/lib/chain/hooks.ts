@@ -5,6 +5,7 @@
  * invalidate them after a mined transaction.
  */
 import { useQuery, type UseQueryResult } from '@tanstack/react-query';
+import { getAddress } from 'viem';
 import {
   listCircles,
   readCircle,
@@ -19,17 +20,27 @@ import { useChain } from './provider';
 
 type Address = `0x${string}`;
 
+const normalizeAddress = (a: Address | undefined): Address | undefined => {
+  if (!a) return undefined;
+  try {
+    return getAddress(a.toLowerCase());
+  } catch {
+    return undefined;
+  }
+};
+
 export const chainKey = (chainId: number, ...rest: unknown[]) => ['huisafe', chainId, ...rest] as const;
 
 /** One circle as the docs/05 `CircleView`. */
 export function useCircle(address: Address | undefined): UseQueryResult<CircleView> {
   const chain = useChain();
+  const norm = normalizeAddress(address);
   return useQuery({
-    queryKey: chainKey(chain?.chainId ?? 0, 'circle', address?.toLowerCase()),
-    enabled: Boolean(chain && address),
+    queryKey: chainKey(chain?.chainId ?? 0, 'circle', norm?.toLowerCase()),
+    enabled: Boolean(chain && norm),
     refetchInterval: chain?.pollMs,
     queryFn: () =>
-      readCircle(chain!.client, address!, { fromBlock: chain!.fromBlock, factory: chain!.factory, vndPerUsdc: chain!.vndPerUsdc }),
+      readCircle(chain!.client, norm!, { fromBlock: chain!.fromBlock, factory: chain!.factory, vndPerUsdc: chain!.vndPerUsdc }),
   });
 }
 
@@ -39,7 +50,7 @@ export function useCircles(opts: { organizer?: Address } = {}): UseQueryResult<C
   return useQuery({
     queryKey: chainKey(chain?.chainId ?? 0, 'circles', opts.organizer?.toLowerCase() ?? 'all'),
     enabled: Boolean(chain),
-    refetchInterval: chain?.pollMs,
+    refetchInterval: chain ? Math.max(chain.pollMs * 2, 10_000) : undefined,
     queryFn: async () => {
       const addrs = await listCircles(chain!.client, chain!.factory, opts);
       return Promise.all(

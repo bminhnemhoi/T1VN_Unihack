@@ -409,17 +409,27 @@ html.lenis, html.lenis body { height: auto; }
   }
   .tro-ly ::selection { background: #3d5a26; color: #f4f0e8; }
   .tro-ly .chip-hoi {
-    min-height: 40px; padding: 8px 16px; border-radius: 999px; border: 1px solid var(--input);
+    min-height: 44px; padding: 8px 16px; border-radius: 999px; border: 1px solid var(--input);
     background: transparent; color: var(--foreground); font-size: 15px; line-height: 1.35; text-align: left;
     transition: background-color 120ms ease-out, border-color 120ms ease-out;
   }
   @media (hover: hover) { .tro-ly .chip-hoi:hover { background: var(--card); border-color: var(--muted-foreground); } }
   .tro-ly .chip-hoi:disabled { opacity: 0.5; cursor: not-allowed; }
+  .tro-ly .nut-thu-lai {
+    min-height: 44px; padding: 8px 16px; border-radius: 999px; border: 0;
+    background: var(--foreground); color: var(--background); font-size: 15px; font-weight: 600; line-height: 1.35;
+    display: inline-flex; align-items: center; gap: 8px;
+  }
   .tro-ly .gui {
     width: 48px; height: 48px; flex: none; border-radius: 12px; border: 0; display: grid; place-items: center;
     background: var(--nghe); color: #151313; transition: transform 120ms ease-out, opacity 120ms ease-out;
   }
   .tro-ly .gui:disabled { opacity: 0.4; cursor: not-allowed; }
+  .tro-ly .gui[aria-busy='true'] { opacity: 0.85; cursor: progress; }
+  .tro-ly .gui-quay {
+    width: 18px; height: 18px; border-radius: 50%; border: 2px solid currentColor; border-right-color: transparent;
+    animation: hsSpin 0.7s linear infinite;
+  }
   .tro-ly .nhan-so { font-family: var(--font-mono), ui-monospace, monospace; font-variant-numeric: tabular-nums; color: var(--nghe); }
 }
 

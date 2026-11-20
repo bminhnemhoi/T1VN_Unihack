@@ -36,6 +36,29 @@ describe('postRelay', () => {
     await postRelay(f, '/api/relay', payload, 'tok');
     expect(seen.authorization).toBe('Bearer tok');
   });
+  it('automatically retries transient network drops and non-JSON 502s with the same signed payload', async () => {
+    let calls = 0;
+    const flaky: FetchLike = async () => {
+      calls++;
+      if (calls === 1) throw new TypeError('ERR_NETWORK_CHANGED');
+      if (calls === 2) return new Response('<html>502</html>', { status: 502, headers: { 'content-type': 'text/html' } });
+      return new Response(JSON.stringify({ txHash: HASH }), { status: 200, headers: { 'content-type': 'application/json' } });
+    };
+    expect(await postRelay(flaky, '/api/relay', payload)).toEqual({ ok: true, txHash: HASH });
+    expect(calls).toBe(3);
+  });
+  it('does not retry structured 4xx/5xx application errors', async () => {
+    let calls = 0;
+    const appErr: FetchLike = async () => {
+      calls++;
+      return new Response(JSON.stringify({ error: { code: 'AuthUnavailable', message: 'Lỗi' } }), {
+        status: 502,
+        headers: { 'content-type': 'application/json' },
+      });
+    };
+    expect(await postRelay(appErr, '/api/relay', payload)).toMatchObject({ ok: false, code: 'AuthUnavailable' });
+    expect(calls).toBe(1);
+  });
 });
 
 describe('requestAttestation', () => {

@@ -12,6 +12,7 @@ import { LedgerList } from '@/components/LedgerList';
 import { useToast } from '@/components/shell/Toast';
 import { Button } from '@/components/ui/button';
 import { settleCleanCircle } from '@/lib/hui-calc';
+import { useChainNowSec } from '@/lib/live/useChainClock';
 import { formatCents } from '@/lib/money';
 import { type SampleCircleData } from '@/lib/sample-circles';
 
@@ -27,21 +28,28 @@ export function SettleView({ c }: { c: SampleCircleData }) {
     () => (done && !live && c.shortfalls.length === 0 && c.viewer >= 0 ? settleCleanCircle({ terms: c.terms, winnerByRound: c.winnerByRound, bids: c.bids, bond: c.bond }) : undefined),
     [c, done, live],
   );
-  const nowSec = Math.floor((live?.nowMs ?? 0) / 1000);
+  const nowSec = useChainNowSec(live?.nowMs);
   const lastSettled = live?.view.rounds.find((r) => r.k === Number(c.terms.n))?.settledAt;
-  const canFinalize = Boolean(live && live.view.state === 'active' && c.settled === Number(c.terms.n) && lastSettled !== undefined && nowSec > lastSettled + c.graceSeconds + live.view.pausedTotal);
+  const finalizeDueSec = lastSettled !== undefined ? lastSettled + c.graceSeconds + (live?.view.pausedTotal ?? 0) + 1 : undefined;
+  const canFinalize = Boolean(live && live.view.state === 'active' && c.settled === Number(c.terms.n) && finalizeDueSec !== undefined && nowSec >= finalizeDueSec);
+  const keeperDelayed = Boolean(canFinalize && finalizeDueSec !== undefined && nowSec > finalizeDueSec + 30);
 
   if (live && (live.view.state === 'active' || live.view.state === 'paused') && c.settled === Number(c.terms.n)) {
+    const leftGrace = finalizeDueSec !== undefined ? Math.max(0, finalizeDueSec - nowSec) : 0;
     return (
       <main id="noi-dung" className="pg">
         <CirclePageHead circle={c} title="Tất toán" />
-        <EmptyNote title="Kỳ cuối đã chi, chờ kết thúc dây">
-          {canFinalize ? 'Đã hết thời gian trả trễ. Ai cũng bấm kết thúc được: tiền giữ lại, ký quỹ và quỹ dự phòng được trả về đúng chủ trong một giao dịch.' : 'Còn trong thời gian trả trễ của kỳ cuối. Hết thời gian đó thì kết thúc dây được.'}
-          <div className="mt-4">
-            <ActionButton size="lg" disabled={!canFinalize} run={(a) => a.finalize(live.address)} success="Dây đã kết thúc, tiền đã trả về từng người.">
-              Kết thúc dây
-            </ActionButton>
-          </div>
+        <EmptyNote title="Kỳ cuối đã chi, đang tự động tất toán dây">
+          {canFinalize
+            ? 'Đã hết thời gian ân hạn kỳ cuối. Hệ thống Keeper đang tự động hoàn trả ký quỹ, tiền giữ lại và chia thưởng đúng hạn về ví từng người.'
+            : `Đang chờ hết thời gian ân hạn kỳ cuối (còn ${leftGrace} giây), sau đó hệ thống sẽ tự động tất toán sổ.`}
+          {(c.viewerIsOrganizer || keeperDelayed) && (
+            <div className="mt-4">
+              <ActionButton size="lg" variant="outline" disabled={!canFinalize} run={(a) => a.finalize(live.address)} success="Dây đã kết thúc, tiền đã trả về từng người.">
+                {c.viewerIsOrganizer ? 'Tất toán dây ngay' : 'Tất toán dự phòng'}
+              </ActionButton>
+            </div>
+          )}
         </EmptyNote>
       </main>
     );

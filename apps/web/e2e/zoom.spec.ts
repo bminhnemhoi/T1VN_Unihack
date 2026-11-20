@@ -79,9 +79,9 @@ test.describe('zoom and text size', () => {
         const login = [...acct.children].find((e) => e.getAttribute('aria-label') === 'Đăng nhập')!;
         const addr = document.createElement('button');
         addr.type = 'button';
-        addr.className = 'mono';
+        addr.className = 'addr mono';
         addr.setAttribute('data-testid', 'wallet-address');
-        addr.innerHTML = '<span class="lbl">0x6e55…5A63</span>';
+        addr.innerHTML = '<span class="addrDot" aria-hidden="true"></span><span class="addrTxt">0x6e55…5A63</span><svg class="addrIco" viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="2"/></svg>';
         const bal = document.createElement('a');
         bal.href = '/cai-dat#so-du';
         bal.className = 'bal mono';
@@ -105,6 +105,56 @@ test.describe('zoom and text size', () => {
       expect(m.height, 'the bar is one row tall').toBeLessThanOrEqual(64);
       expect(m.minTarget).toBeGreaterThanOrEqual(44);
       expect(m.right, 'nothing runs past the right gutter').toBeLessThanOrEqual(width - 15);
+    });
+  }
+
+  for (const width of [768, 960, 1024, 1100, 1440]) {
+    test(`tablet & desktop top bar (${width}px) always shows wallet short address + copy icon on one row without clipping`, async ({ page }) => {
+      await page.setViewportSize({ width, height: 860 });
+      await page.goto('/circles');
+      await page.waitForLoadState('networkidle');
+      await page.evaluate(() => {
+        const acct = document.querySelector('.acct')!;
+        const login = [...acct.children].find((e) => e.getAttribute('aria-label') === 'Đăng nhập')!;
+        const addr = document.createElement('button');
+        addr.type = 'button';
+        addr.className = 'addr mono';
+        addr.setAttribute('data-testid', 'wallet-address');
+        addr.setAttribute('aria-label', 'Sao chép địa chỉ ví 0xa4DC…e1A8');
+        addr.innerHTML = '<span class="addrDot" aria-hidden="true"></span><span class="addrTxt">0xa4DC…e1A8</span><svg class="addrIco" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>';
+        const bal = document.createElement('a');
+        bal.href = '/cai-dat#so-du';
+        bal.className = 'bal mono';
+        bal.innerHTML = '<span class="bFull">1.234,56 USDC</span><span class="bShort" aria-hidden="true">1.234 USDC</span>';
+        const out = document.createElement('button');
+        out.type = 'button';
+        out.setAttribute('aria-label', 'Đăng xuất');
+        out.innerHTML = login.innerHTML;
+        acct.replaceChild(out, login);
+        acct.insertBefore(bal, out);
+        acct.insertBefore(addr, bal);
+      });
+      const m = await page.evaluate(() => {
+        const top = document.querySelector('.top')!;
+        const addrBtn = document.querySelector<HTMLElement>('[data-testid="wallet-address"]')!;
+        const addrTxt = addrBtn.querySelector<HTMLElement>('.addrTxt')!;
+        const addrIco = addrBtn.querySelector<SVGElement>('svg.addrIco')!;
+        const items = [...top.querySelectorAll('.logo, [data-testid=demo-chip], .tabs, .acct > *')].filter((e) => e.getBoundingClientRect().width > 0);
+        const centres = items.map((e) => Math.round(e.getBoundingClientRect().top + e.getBoundingClientRect().height / 2));
+        return {
+          spread: Math.max(...centres) - Math.min(...centres),
+          btnRect: addrBtn.getBoundingClientRect(),
+          txtRect: addrTxt.getBoundingClientRect(),
+          icoRect: addrIco.getBoundingClientRect(),
+          scrollW: document.documentElement.scrollWidth,
+          viewW: window.innerWidth,
+        };
+      });
+      expect(m.spread, 'all top-bar items share one row').toBeLessThanOrEqual(2);
+      expect(m.btnRect.height).toBeGreaterThanOrEqual(44);
+      expect(m.txtRect.width, 'wallet short address is visible, never hidden').toBeGreaterThan(55);
+      expect(m.icoRect.width, 'copy icon is visible inside wallet button').toBeGreaterThanOrEqual(14);
+      expect(m.scrollW).toBeLessThanOrEqual(m.viewW + 1);
     });
   }
 

@@ -282,10 +282,10 @@ async function scenario(env: Env, state: StateFile, save: () => void, saltPath: 
       memberCount: 5,
       contribution: 10n * ONE,
       periodSeconds: 30 * 86_400,
-      roundDuration: 180,
-      commitWindow: 90,
-      revealWindow: 60,
-      graceSeconds: 120,
+      roundDuration: 120,
+      commitWindow: 75,
+      revealWindow: 45,
+      graceSeconds: 60,
       alphaBps: 2000,
       commissionMode: true,
       feeBps: 100,
@@ -435,10 +435,10 @@ async function scenario(env: Env, state: StateFile, save: () => void, saltPath: 
         memberCount: 5,
         contribution: 10n * ONE,
         periodSeconds: 30 * 86_400,
-        roundDuration: 180,
-        commitWindow: 90,
-        revealWindow: 60,
-        graceSeconds: 120,
+        roundDuration: 120,
+        commitWindow: 75,
+        revealWindow: 45,
+        graceSeconds: 60,
         alphaBps: 2000,
         commissionMode: true,
         feeBps: 100,
@@ -489,18 +489,19 @@ async function scenario(env: Env, state: StateFile, save: () => void, saltPath: 
   const roundStart = async (k: number): Promise<number> => Number(await rd<bigint>(circle!, 'roundStart', [k]));
   const deadline = async (k: number): Promise<number> => Number(await rd<bigint>(circle!, 'deadline', [k]));
 
-  /** Gives the keeper its turn, then does the call through the relay (M1) when it did not. */
+  /**
+   * Organizer-led rounds (B28): one keeper pass first (it marks overdue defaulters; it leaves the settle to the
+   * organizer during the organizer's turn), then the ORGANIZER settles through the relay, as the "Khui kỳ" button of the
+   * settle desk does. Already settled (by a keeper whose turn came) is fine.
+   */
   const settleWithKeeper = async (k: number): Promise<void> => {
-    for (let i = 0; i < env.polls; i++) {
-      await env.keeperRun();
-      if ((await settledOf()) >= k) return;
-      await env.sleep(5000);
-    }
-    out(`     the keeper did not settle round ${k} in time: settling through the relay with M1`);
+    await env.keeperRun();
+    if ((await settledOf()) >= k) return;
+    out(`     the organizer settles round ${k} (settle desk, through the relay)`);
     await ready();
-    const r = await settleFlow(mFlow(0), circle!);
-    if (r.ok) must(r, `settleRound ${k} (relay)`);
-    else if ((await settledOf()) < k) throw new Error(`settleRound ${k} (relay) failed: ${r.code}: ${r.message}`);
+    const r = await settleFlow(orgFlow, circle!);
+    if (r.ok) must(r, `settleRound ${k} (organizer, relay)`);
+    else if ((await settledOf()) < k) throw new Error(`settleRound ${k} (organizer) failed: ${r.code}: ${r.message}`);
   };
 
   const verifyRound = async (p: RoundPlan): Promise<void> => {

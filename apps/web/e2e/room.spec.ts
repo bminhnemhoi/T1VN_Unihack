@@ -146,6 +146,20 @@ test.describe('/circles/demo (Dây)', () => {
     await health.locator('a.chip').first().click();
     await expect(page).toHaveURL(/\/circles\/demo\/bao-chung$/);
   });
+
+  test('quick bid preset chips fill valid bids in one tap and update aria-pressed & net payout', async ({ page, isMobile }) => {
+    await page.goto('/circles/demo');
+    const presets = page.getByRole('group', { name: 'Mức thăm gợi ý nhanh' });
+    await expect(presets).toBeVisible();
+    const maxBtn = presets.getByRole('button', { name: /Kịch trần · 3,287671/ });
+    await maxBtn.click();
+    await expect(maxBtn).toHaveAttribute('aria-pressed', 'true');
+    await expect(page.getByLabel('Thăm của bạn (số tiền bớt cho mọi người)')).toHaveValue('3,287671');
+    await expect(page.getByRole('button', { name: 'Niêm phong thăm' })).toBeEnabled();
+    if (!isMobile) {
+      await expect(page.locator('.panel.side')).toContainText('Phong bì #1');
+    }
+  });
 });
 
 test.describe('/circles/co-dinh (Fixed)', () => {

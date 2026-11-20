@@ -8,9 +8,9 @@
 
 Đọc nguyên văn ở giây đầu tiên của pitch và của video; in ở góc slide 1. Luật BTC: "If a demo uses a dev toggle (simulated time, location or yield), declare it to the judges at the very start of the pitch" ([topics.json](https://team1vn.xyz/topics.json), truy cập 06/11/2026).
 
-> **Tiếng Việt:** "Trước khi bắt đầu, chúng em xin khai báo dev toggle: bản demo chạy ở chế độ demo trên Avalanche Fuji testnet. Thời gian được tua nhanh: mỗi kỳ hụi 3 phút thay vì 30 ngày, ân hạn 2 phút thay vì 48 giờ; trần lãi và lãi chậm góp vẫn tính như kỳ 30 ngày. Tiền trong demo là USDC thử nghiệm, không có giá trị, và sản phẩm không sinh lãi."
+> **Tiếng Việt:** "Trước khi bắt đầu, chúng em xin khai báo dev toggle: bản demo chạy ở chế độ demo trên Avalanche Fuji testnet. Thời gian được tua nhanh: mỗi kỳ hụi chỉ vài phút (2 đến 3 phút) thay vì 30 ngày, ân hạn 1 đến 2 phút thay vì 48 giờ; trần lãi và lãi chậm góp vẫn tính như kỳ 30 ngày. Tiền trong demo là USDC thử nghiệm, không có giá trị, và sản phẩm không sinh lãi."
 
-> **English:** "Before we start, we declare our dev toggle: the demo runs in demo mode on Avalanche Fuji testnet. Time is fast-forwarded: each hụi round is 3 minutes instead of 30 days, and the grace period is 2 minutes instead of 48 hours; the interest cap and late fee are still computed on a 30-day period. The money is testnet USDC with no value, and the product generates no yield."
+> **English:** "Before we start, we declare our dev toggle: the demo runs in demo mode on Avalanche Fuji testnet. Time is fast-forwarded: each hụi round lasts a few minutes (2 to 3) instead of 30 days, and the grace period is 1 to 2 minutes instead of 48 hours; the interest cap and late fee are still computed on a 30-day period. The money is testnet USDC with no value, and the product generates no yield."
 
 Chỉ khi bật bonus `MockYieldVault`, đọc thêm: "Lãi trên ký quỹ hiển thị là lãi giả lập; trên mainnet, lãi thật sẽ đến từ cho vay blue-chip Aave v3."
 

@@ -448,7 +448,7 @@ export function Landing({ sample, factory }: { sample: boolean; factory?: `0x${s
                   </h3>
                   <dl className={`${s.mini} ${s.split}`} aria-label="Chia quỹ dự phòng cuối dây theo đúng hạn, USDC">
                     {SPLIT.map((r) => (
-                      <div key={r.m} className={'late' in r ? s.late : undefined}>
+                      <div key={r.m} data-lp-split-row className={'late' in r ? s.late : undefined}>
                         <dt>{r.m}</dt>
                         <span className={s.bar} aria-hidden>
                           <i style={{ '--w': r.w / 100 } as CSSProperties} />

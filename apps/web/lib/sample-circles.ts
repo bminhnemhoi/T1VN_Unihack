@@ -39,6 +39,12 @@ export interface SampleShortfall {
   fromReserve: bigint;
   uncovered: bigint;
   status: ShortfallStatus;
+  /**
+   * Chain only: what was covered when the round settled, per source (`ShortfallCovered` events). The `from*` and
+   * `uncovered` fields above are what is STILL TO RESTORE and shrink on repayment or at finalize (a defaulter's
+   * holdback part is written off there), so history (ledger, receipts, cascade) reads this one through `coverOf`.
+   */
+  covered?: { holdback: bigint; bond: bigint; reserve: bigint; uncovered: bigint };
   /** Real seconds left before the grace period ends (only while `status === 'grace'`). */
   graceSecondsLeft?: number;
   /** Real seconds since the round settled: late interest runs on this. */
@@ -321,3 +327,11 @@ export function liveSeats(c: SampleCircleData): number[] {
   const frozen = new Set(c.shortfalls.filter((s) => s.status === 'defaulted' && !got.has(s.member)).map((s) => s.member));
   return c.seats.flatMap((_, i) => (c.seats[i]!.joined && !got.has(i) && !frozen.has(i) ? [i] : []));
 }
+
+/** What a shortfall was covered with when its round settled (history), whatever has been restored since. */
+export const coverOf = (s: SampleShortfall): { holdback: bigint; bond: bigint; reserve: bigint; uncovered: bigint } =>
+  s.covered ?? { holdback: s.fromHoldback, bond: s.fromBond, reserve: s.fromReserve, uncovered: s.uncovered };
+
+/** Bond taken by shortfalls up to round `r` and not given back: a shortfall paid late restored its bond part. */
+export const bondUsedThrough = (c: SampleCircleData, r: number): bigint =>
+  c.shortfalls.filter((x) => x.round <= r && x.status !== 'paid').reduce((a, x) => a + coverOf(x).bond, 0n);

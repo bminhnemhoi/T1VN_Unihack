@@ -1,7 +1,7 @@
 /**
  * Wizard form -> `factory.createCircle` parameters (docs/05 section 2, docs/03 section 3.1). Pure.
  * Real timing: one round = the nominal period, commit window 50% and reveal window 25% of it, grace 48 hours.
- * Demo timing (docs/03 section 3.3): 180 s rounds, 90 s / 60 s windows, 120 s grace, circle stays "30 days" for the interest rules.
+ * Demo timing (docs/03 section 3.3): 120 s rounds, 75 s / 45 s windows (0 s dead gap), 60 s grace, circle stays "30 days" for the interest rules.
  */
 import { stringToHex } from 'viem';
 import { buildTermsText, termsHashOf, type TermsInput } from 'sdk';

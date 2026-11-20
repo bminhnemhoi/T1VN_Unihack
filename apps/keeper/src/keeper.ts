@@ -9,6 +9,8 @@
  *     100% coverage floor unless alpha = 100%, so they are spam; track at most MAX_TRACKED_CIRCLES, newest first.
  * The chain is reached through a small port so the ordering can be unit tested without a node.
  */
+import { organizerSettleWaitSec } from 'config';
+
 type Address = `0x${string}`;
 type Hex = `0x${string}`;
 
@@ -27,6 +29,10 @@ export interface CircleSnapshot {
   bondRemaining: bigint;
   /** Total bond ever deposited. Zero means nobody backs the circle: the keeper does not spend gas on it. */
   bondDeposited: bigint;
+  /** Real seconds between two rounds; picks how long the organizer has to settle first (B28). Absent: settle at the deadline. */
+  roundDuration?: number;
+  /** Organizer of the circle; when they also hold a seat they get no settling turn (audit B28 L-01). */
+  organizer?: Address;
 }
 
 export type AttemptResult =
@@ -41,6 +47,8 @@ export interface KeeperPort {
   /** Optional: stop reading this circle for the rest of the process (it can never need the keeper again). */
   retire?(circle: Address): void;
   deadline(circle: Address, round: number): Promise<bigint>;
+  /** Optional: Unix timestamp when `finalize()` becomes callable after the last round (`settledAt(N) + grace + pausedTotal + 1`). */
+  finalizeDueAt?(circle: Address, lastRound: number): Promise<bigint | undefined>;
   /** True when the member is not marked defaulted but still owes a shortfall (`debt > 0`). */
   owes(circle: Address, member: Address): Promise<boolean>;
   /** Simulate, estimate gas (x1.2, capped), send and wait. Never throws for a revert or a network error. */
@@ -79,10 +87,18 @@ export interface TickSummary {
   sent: number;
   skipped: number;
   failed: number;
+  /** Earliest positive seconds until a tracked circle's next round settlement, cancel, or finalize becomes due. */
+  nextDueInSec?: number;
 }
 
 export async function tick(port: KeeperPort, log: Log): Promise<TickSummary> {
   const summary: TickSummary = { circles: 0, ignored: 0, sent: 0, skipped: 0, failed: 0 };
+  const noteDueAt = (dueSec: bigint, nowSec: number): void => {
+    const wait = dueSec > BigInt(nowSec) ? Number(dueSec - BigInt(nowSec)) : 1;
+    if (wait > 0 && (summary.nextDueInSec === undefined || wait < summary.nextDueInSec)) {
+      summary.nextDueInSec = wait;
+    }
+  };
   const now = await port.nowSec();
   const all = await port.circles();
   const circles = all.length > MAX_TRACKED_CIRCLES ? all.slice(-MAX_TRACKED_CIRCLES).reverse() : [...all].reverse();
@@ -147,6 +163,7 @@ export async function tick(port: KeeperPort, log: Log): Promise<TickSummary> {
     if (snap.state === STATE.Forming) {
       summary.circles++;
       if (BigInt(now) > snap.joinDeadline && snap.bondRemaining > 0n) await run(circle, 'cancel', [], {});
+      else if (snap.bondRemaining > 0n) noteDueAt(snap.joinDeadline + 1n, now);
       continue;
     }
     if (snap.state !== STATE.Active) continue; // Paused or terminal: nothing to do
@@ -159,15 +176,25 @@ export async function tick(port: KeeperPort, log: Log): Promise<TickSummary> {
     if (snap.settledRounds < snap.memberCount) {
       const round = snap.settledRounds + 1;
       const deadline = await port.deadline(circle, round);
-      if (BigInt(now) >= deadline) {
-        if (await run(circle, 'settleRound', [], { round })) snap = await port.snapshot(circle);
+      // Organizer-led rounds (B28): the organizer settles first; the keeper steps in only after the organizer's turn.
+      // An organizer who also holds a seat could pick the moment a rival is short: no turn for them (audit B28 L-01).
+      const orgSeated = snap.organizer !== undefined && snap.members.some((m) => m.toLowerCase() === snap.organizer!.toLowerCase());
+      const due = snap.roundDuration === undefined || orgSeated ? deadline : deadline + BigInt(organizerSettleWaitSec(snap.roundDuration));
+      if (BigInt(now) >= due) {
+        if (await run(circle, 'settleRound', [], { round, organizerLate: due > deadline ? 1 : 0 })) snap = await port.snapshot(circle);
+      } else {
+        noteDueAt(due + 1n, now);
       }
     }
 
     // 3. Finalize after the last round; the simulation says whether the grace period is over.
     if (snap.state === STATE.Active && snap.settledRounds >= snap.memberCount) {
       await markOverdue(circle, snap.members);
-      await run(circle, 'finalize', [], {});
+      const finalized = await run(circle, 'finalize', [], {});
+      if (!finalized && port.finalizeDueAt) {
+        const due = await port.finalizeDueAt(circle, snap.memberCount).catch(() => undefined);
+        if (due !== undefined) noteDueAt(due, now);
+      }
     }
   }
   return summary;

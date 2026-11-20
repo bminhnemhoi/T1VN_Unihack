@@ -24,6 +24,7 @@ import {
   type PublicClient,
 } from 'viem';
 import { mnemonicToAccount, type HDAccount } from 'viem/accounts';
+import { organizerSettleWaitSec } from 'config';
 import { resolveNetwork } from 'config/network';
 import { loadAddresses } from 'config/addresses';
 import {
@@ -339,7 +340,9 @@ async function scenario(): Promise<void> {
   const act = await activateFlow(flowCtx(-1), circle);
   check('activate flow', act.ok ? 'ok' : `${act.code}: ${act.message}`, 'ok');
   check('state is Active (1)', await rd<number>('state'), 1);
-  const params = await rd<{ commitWindow: number; revealWindow: number; graceSeconds: number }>('params');
+  const params = await rd<{ commitWindow: number; revealWindow: number; graceSeconds: number; roundDuration: number }>('params');
+  // Organizer-led rounds (B28): the keeper settles only after the organizer's turn.
+  const organizerWait = organizerSettleWaitSec(Number(params.roundDuration));
 
   // ------------------------------------------------------------ keeper (the real tick, real viem port)
   const { port } = createViemPort({ network, privateKey: keyOf(keeperAcct), intervalSeconds: 15 });
@@ -348,6 +351,7 @@ async function scenario(): Promise<void> {
 
   const roundStart = async (k: number) => Number(await rd<bigint>('roundStart', [k]));
   const deadline = async (k: number) => Number(await rd<bigint>('deadline', [k]));
+  const turnOver = async (k: number) => (await deadline(k)) + organizerWait;
   const memberAddrs = M.map((m) => m.address);
   async function commit(k: number, i: number, bid: bigint) {
     const r = await commitFlow(flowCtx(i), circle, k, bid);
@@ -373,6 +377,9 @@ async function scenario(): Promise<void> {
   await reveal(1, 3);
   const m4Before1 = await bal(M[3]!.address);
   await warpTo(await deadline(1));
+  const turn1 = await keeperTick();
+  check("keeper leaves the organizer's turn alone at the deadline (B28)", turn1.sent, 0);
+  await warpTo(await turnOver(1));
   const t1 = await keeperTick();
   check('keeper settled round 1 (1 tx)', t1.sent, 1);
   const r1 = await roundInfo(1);
@@ -399,7 +406,7 @@ async function scenario(): Promise<void> {
   await warpTo((await roundStart(2)) + params.commitWindow);
   await reveal(2, 0);
   await reveal(2, 1);
-  await warpTo(await deadline(2));
+  await warpTo(await turnOver(2));
   await keeperTick();
   const r2 = await roundInfo(2);
   check('round 2 winner is M1 (tie, committed first)', r2.winner, M[0]!.address);
@@ -449,7 +456,7 @@ async function scenario(): Promise<void> {
   await warpTo(settled2 + params.graceSeconds - 30);
   const early = await keeperTick();
   check('keeper does not mark M4 inside the grace period', early.sent, 0);
-  await warpTo(await deadline(3));
+  await warpTo(await turnOver(3));
   const before3 = await keeperTick();
   check('keeper sent markDefault + settleRound', before3.sent, 2);
   check('M4 is marked defaulted', (await rd<{ defaulted: boolean }>('memberInfo', [M[3]!.address])).defaulted, true);
@@ -461,7 +468,7 @@ async function scenario(): Promise<void> {
   check('bond after round 3', await rd<bigint>('bondRemaining'), 36n * ONE);
 
   for (const [k, bond] of [[4, 26n], [5, 16n]] as const) {
-    await warpTo(await deadline(k));
+    await warpTo(await turnOver(k));
     await keeperTick();
     check(`bond after round ${k}`, await rd<bigint>('bondRemaining'), bond * ONE);
   }

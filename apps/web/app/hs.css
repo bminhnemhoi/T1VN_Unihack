@@ -52,6 +52,13 @@
     & .acct svg { width: 20px; height: 20px; flex: none; }
     & .acct a.bal .bShort { display: none; }
     & .acct a.bal { padding: 0 12px; border-radius: 999px; background: var(--soft); font-family: var(--mono); font-size: 13px; font-weight: 500; font-variant-numeric: tabular-nums; white-space: nowrap; }
+    & .acct > button.addr { padding: 0 12px; gap: 8px; border-radius: 999px; background: var(--paper); border: 1px solid var(--line); font-family: var(--mono); font-size: 13px; font-weight: 500; font-variant-numeric: tabular-nums; white-space: nowrap; color: var(--ink); transition: transform var(--dur-tap), border-color var(--dur-ui), background-color var(--dur-ui), color var(--dur-ui); }
+    & .acct > button.addr:hover { background: var(--soft); border-color: var(--ink-2); }
+    & .acct > button.addr.copied { background: var(--forest-soft); border-color: var(--forest); color: var(--forest); }
+    & .acct > button.addr .addrDot { width: 7px; height: 7px; border-radius: 50%; background: var(--forest); flex: none; }
+    & .acct > button.addr svg.addrIco { width: 15px; height: 15px; flex: none; color: var(--ink-2); }
+    & .acct > button.addr:hover svg.addrIco { color: var(--ink); }
+    & .acct > button.addr.copied svg.addrIco { color: var(--forest); }
     & .chip { display: inline-flex; align-items: center; gap: 8px; padding: 8px 12px; border-radius: 999px; background: var(--paper); border: 1px solid var(--line); font-size: 12.5px; white-space: nowrap; color: var(--ink); text-decoration: none; }
     & a.chip:hover { border-color: var(--ink-2); }
     & .chip b { font: 500 12.5px var(--mono); }
@@ -104,6 +111,45 @@
     & .clockRow { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; }
     & .clock { font: 500 34px/1 var(--mono); font-variant-numeric: tabular-nums; color: var(--ivory); }
     & .clock.low { color: var(--red-soft); }
+    & .clockBar { height: 4px; border-radius: 99px; background: #353131; overflow: hidden; margin-top: -8px; }
+    & .clockBar i { display: block; width: 100%; height: 100%; background: var(--lime); transform-origin: left center; transition: transform 950ms linear, background-color var(--dur-state); }
+    & .clockBar.low i { background: var(--red-soft); }
+
+    & .winBanner { grid-column: 1 / -1; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px 16px; padding: 12px 16px; border-radius: var(--r); background: var(--ink); color: var(--ivory); border-left: 4px solid var(--lime); }
+    & .winBanner p { margin: 0; font-size: 14px; line-height: 1.45; }
+    & .winBanner strong { color: var(--lime); font-weight: 600; }
+    & .winBanner .wbActs { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+    & .winBanner .wbBtn { min-height: 36px; padding: 0 12px; border-radius: 4px; border: 1px solid #6b645b; background: transparent; color: var(--ivory); font: 600 13px/1 var(--body); cursor: pointer; text-decoration: none; display: inline-flex; align-items: center; }
+    & .winBanner .wbBtn:hover { background: #2d2a2a; }
+
+    & .bidPresets { display: flex; flex-wrap: wrap; gap: 8px; padding-top: 4px; }
+    & .bidPresets button { min-height: 36px; padding: 0 12px; border-radius: 4px; border: 1px solid var(--ink); background: var(--ivory); color: var(--ink); font: 500 12px/1 var(--mono); font-variant-numeric: tabular-nums; cursor: pointer; transition: transform var(--dur-tap), background-color 140ms, color 140ms; }
+    & .bidPresets button:hover { background: var(--soft); }
+    & .bidPresets button[aria-pressed='true'] { background: var(--ink); color: var(--ivory); font-weight: 600; }
+    & .bidPresets button:active { transform: scale(0.97); }
+
+    & .roleBox { background: var(--paper); color: var(--ink); border-radius: var(--r-in); padding: 16px 24px; display: grid; gap: 8px; }
+    & .roleBox h3 { margin: 0; font: 700 18px/1.3 var(--display); color: var(--ink); }
+    & .roleBox p { margin: 0; font-size: 14px; line-height: 1.5; color: var(--ink-2); }
+    & .myRound { margin-top: 12px; border: 1px solid var(--line); }
+    & .myRound.warn { border-color: var(--red); }
+    & .myRound .myRoundWarn { color: var(--red-ink); font-weight: 600; }
+
+    & .autoRev { display: flex; align-items: center; gap: 12px; min-height: 44px; padding: 8px 12px; border-radius: 4px; background: #2c2828; border: 1px solid #454040; color: var(--ivory); font-size: 13px; line-height: 1.4; cursor: pointer; }
+    & .autoRev input { width: 18px; height: 18px; accent-color: var(--lime); flex: none; cursor: pointer; }
+
+    & .autoSettle { display: flex; align-items: center; gap: 12px; padding: 12px 16px; border-radius: var(--r-in); background: #2c2828; border: 1px solid #454040; color: var(--ivory); font-size: 14px; line-height: 1.45; }
+    & .autoSettle .spin { width: 16px; height: 16px; border-radius: 50%; border: 2px solid var(--lime); border-right-color: transparent; animation: hsSpin 700ms linear infinite; flex: none; }
+    /* organizer-led settlement desk (B28): sits on the dark round panel */
+    & .settleDesk { width: 100%; display: grid; gap: 12px; padding: 16px; border-radius: var(--r-in); background: #2c2828; border: 1px solid #454040; color: var(--ivory); }
+    & .settleDesk h4 { margin: 0; font: 700 16px/1.3 var(--display); }
+    & .settleDesk p { margin: 0; font-size: 14px; line-height: 1.5; }
+    & .settleDesk .muted { color: #c9c3b8; font-size: 13px; }
+    & .settleDesk .readiness { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; }
+    & .settleDesk .readiness li { display: flex; justify-content: space-between; gap: 12px; padding: 8px 12px; border-radius: 4px; background: #363131; font-size: 14px; font-variant-numeric: tabular-nums; }
+    & .settleDesk .readiness li.short { background: #4a2a26; color: #ffd9d2; font-weight: 600; }
+    & .settleDesk .deskWarn { color: #ffd9d2; }
+    & .sideHead { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
 
     & .slip { position: relative; background: var(--paper); color: var(--ink); border-radius: var(--r-in); padding: 16px 24px; display: grid; gap: 8px; background-image: repeating-linear-gradient(to bottom, transparent 0 31px, #e6e0d4 31px 32px); }
     & .slip label { color: var(--ink-2); }
@@ -119,6 +165,7 @@
     /* Small explanatory sentences stay in Inter Tight; its narrow fit needs a little air at 12-13px (13/11). */
     & .hint, & .bub, & .lgFoot, & .opt small { letter-spacing: 0.012em; word-spacing: 0.04em; }
     & .hint.err { color: var(--red-ink); font-weight: 600; }
+    & .hint.warn { color: var(--ink); background: var(--soft); border-radius: 4px; padding: 8px 12px; }
     & .panel.inkp .hint { color: var(--mute); }
     & .panel.inkp .slip .hint { color: var(--ink-2); }
     & .slip .hint { font: 400 12px/1.5 var(--mono); }
@@ -417,15 +464,40 @@
     & .tabbar { display: none; }
   }
 
+  /* the circle chips use their short labels before the account strip gets crowded (a long chip cannot wrap away) */
+  @container app (max-width: 1360px) {
+    .hs .health .chip .long { display: none; }
+    .hs .health .chip .short { display: inline; }
+  }
   /* ---------- tablet: keep the top bar on one line ---------- */
   @container app (max-width: 1180px) {
     .hs .health .chip ~ .chip { display: none; }
     .hs .acct .lbl { display: none; }
   }
+  @container app (max-width: 1060px) {
+    .hs .top { flex-wrap: wrap; row-gap: 4px; column-gap: 8px; padding-inline: max(16px, env(safe-area-inset-left, 0px)); }
+    .hs .tabs { gap: 0; }
+    .hs .tabs a { padding: 0 8px; font-size: 13.5px; }
+    .hs .acct { margin-left: auto; gap: 4px; }
+    .hs .acct > button.addr { padding: 0 8px; gap: 4px; font-size: 12.5px; }
+    .hs .acct > button.addr .addrDot { display: none; }
+    .hs .health { order: 3; flex: 1 0 100%; margin-left: 0; padding-bottom: 4px; height: auto; overflow: visible; justify-content: flex-start; }
+    .hs .health:empty { display: none; }
+  }
   /* ---------- phone layout ---------- */
+  @container app (max-width: 960px) {
+    .hs .phases li b { display: none; }
+  }
   /* On a tablet or phone the mark alone carries the brand (the link keeps its aria-label), so the DEMO chip, the tabs and the account buttons fit one row. */
   @container app (max-width: 900px) {
     .hs .logo .wm { display: none; }
+    .hs .top { column-gap: 4px; }
+    .hs .tabs a { padding: 0 4px; font-size: 13px; }
+    .hs .acct { gap: 0; }
+    .hs .acct > button.addr { font-size: 12px; }
+    .hs .acct a.bal { padding: 0 8px; font-size: 12px; }
+    .hs .acct a.bal .bFull { display: none; }
+    .hs .acct a.bal .bShort { display: inline; }
   }
   @container app (max-width: 760px) {
     .hs > * { --gx: 16px; } /* a container query cannot restyle its own container: the gutter is set on the frame's children (it was 24px on phones before B24) */
@@ -453,6 +525,11 @@
     .hs .rail { display: none; }
     .hs .storyNav { display: grid; grid-template-columns: 44px minmax(0, 1fr) 44px; align-items: center; gap: 12px; padding: 8px 0 12px; }
     .hs .stage { grid-template-columns: minmax(0, 1fr); gap: 12px; padding-bottom: 12px; }
+    .hs .slip { padding: 16px; }
+    .hs .bidPresets button { min-height: 44px; padding: 0 12px; flex: 1 1 auto; }
+    .hs .bidPresets .pVal { display: none; }
+    .hs .winBanner .wbBtn { min-height: 44px; padding: 0 16px; }
+    .hs .roleBox { padding: 16px; }
     .hs .panel { padding: 16px; gap: 12px; }
     .hs .panel.side { display: none; }
     .hs .clock { font-size: 26px; }
@@ -462,6 +539,7 @@
     .hs .feed { display: none; }
     .hs .bidIn input { font-size: 38px; min-height: 50px; }
     .hs .act { position: sticky; bottom: var(--hs-nav); z-index: 1; display: grid; gap: 8px; background: var(--ivory); box-shadow: 0 -1px 0 var(--line); padding: 12px 0 0; }
+    .hs .room .act { bottom: 0; }
     .hs .act .btn { width: 100%; }
     .hs .peek { display: flex; }
     .hs .skSide { display: none; }
@@ -614,4 +692,24 @@
   .hs .pg .o-phang, .hs .pg .to-giay, .hs .pg .to-giay-nang, .hs .pg .nen-muc { padding: 16px; }
   .hs .pg ul.to-giay > li, .hs .pg ol.to-giay > li, .hs .pg ul.o-phang > li, .hs .pg ol.o-phang > li { padding: 16px; }
   .hs .pgSkel .row { grid-template-columns: minmax(0, 1fr); }
+}
+
+/* "Chữ lớn" (Cài đặt): scales reading copy across `.pg` and the four main views while keeping top/bottom chrome compact so bars never wrap on 360px phones. */
+html[data-font='large'] .hs .pg { font-size: 1rem; line-height: 1.55; }
+html[data-font='large'] .hs .pg h1 { font-size: 1.45rem; }
+html[data-font='large'] .hs .pg h2 { font-size: 1.18rem; }
+html[data-font='large'] .hs .pg h3 { font-size: 1.05rem; }
+html[data-font='large'] .hs .pg .text-lead { font-size: 1rem; }
+html[data-font='large'] .hs .view > main:is(.ov, .room, .lg, .cr, .state) { font-size: 17px; }
+html[data-font='large'] .hs .view .label { font-size: 14.5px; }
+html[data-font='large'] .hs .view :is(.hint, .bub, .lgFoot, .opt small, .circles small, .stats small, .rc div, .who li, .lgList strong) { font-size: 15.5px; }
+html[data-font='large'] .hs .verdict p { font-size: 22px; }
+html[data-font='large'] .hs .circles h3 { font-size: 20px; }
+@media (prefers-reduced-motion: reduce) {
+  .hs .clockBar i { transition: none; }
+  .hs .autoSettle .spin { animation: none; }
+}
+@container app (max-width: 760px) {
+  html[data-font='large'] .hs .pg h1 { font-size: 1.25rem; }
+  html[data-font='large'] .hs .pg h2 { font-size: 1.08rem; }
 }

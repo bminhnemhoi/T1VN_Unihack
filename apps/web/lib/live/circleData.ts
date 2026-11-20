@@ -74,6 +74,7 @@ export function viewToCircleData(v: CircleView, viewer: Address | undefined, now
         fromBond: s.fromBond,
         fromReserve: s.fromReserve,
         uncovered: s.uncovered,
+        ...(s.covered ? { covered: s.covered } : {}),
         status,
         ...(status === 'grace' ? { graceSecondsLeft: Math.max(0, s.graceEndsAt - nowSec) } : {}),
         sinceSeconds: Math.max(0, owedSeconds(v, s, nowSec)),
@@ -97,7 +98,8 @@ export function viewToCircleData(v: CircleView, viewer: Address | undefined, now
     viewerIsOrganizer,
     organizerAddr: shortAddress(v.organizer),
     organizerRep: withAddress(v.organizer),
-    bond: v.bondRemaining + openBondShare,
+    // What the organizer deposited: after finalize `bondRemaining` is 0 and the open `fromBond` parts no longer add up to it.
+    bond: v.bondDeposited ?? v.bondRemaining + openBondShare,
     bondRemaining: v.bondRemaining,
     reserve: v.reserve,
     settled: v.settledRounds,

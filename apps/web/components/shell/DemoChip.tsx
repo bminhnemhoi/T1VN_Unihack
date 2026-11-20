@@ -9,7 +9,7 @@ import s from './DemoChip.module.css';
 
 /** Sentence of the popover, fixed by the B23 brief. */
 export const DEMO_NOTE =
-  'Bản chạy thử trên Avalanche Fuji (mạng thử nghiệm). Tiền là USDC thử nghiệm, không có giá trị. Thời gian được tua nhanh: 1 kỳ = 3 phút, ân hạn 2 phút; trần lãi và lãi chậm góp vẫn tính như hụi tháng.';
+  'Bản chạy thử trên Avalanche Fuji (mạng thử nghiệm). Tiền là USDC thử nghiệm, không có giá trị. Thời gian được tua nhanh: 1 kỳ = 2 phút (75 giây nộp thăm, 45 giây mở thăm), ân hạn 1 phút; trần lãi và lãi chậm góp vẫn tính như hụi tháng.';
 
 /**
  * `DEMO · Fuji`: the one demo label of the site, next to the logo on the landing and in the app. It replaces the black

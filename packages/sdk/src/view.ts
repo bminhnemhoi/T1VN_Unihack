@@ -50,6 +50,13 @@ export interface ShortfallView {
 
 export type RoundPhaseName = 'not-started' | 'commit' | 'reveal' | 'awaiting-settle' | 'done';
 
+export interface RoundCommitView {
+  member: Address;
+  commitIndex: number;
+  revealed: boolean;
+  bid?: bigint;
+}
+
 export interface RoundView {
   k: number;
   phase: RoundPhaseName;
@@ -69,6 +76,8 @@ export interface RoundView {
   uncovered?: bigint;
   settledAt?: number;
   shortfalls: ShortfallView[];
+  /** Sealed and revealed bids observed in this round, ordered by `commitIndex` ascending (optional for fixtures). */
+  commits?: RoundCommitView[];
 }
 
 export type CircleStateName = 'forming' | 'active' | 'paused' | 'completed' | 'cancelled' | 'unwound';

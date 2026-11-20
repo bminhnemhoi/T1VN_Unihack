@@ -138,4 +138,34 @@ describe('POST /api/attest', () => {
     expect(all).not.toContain('0x'.padEnd(10, 'f'));
     expect(all).toContain('req-1');
   });
+
+  it('refuses a 0 USDC wallet or an unresolved defaulter when checkEligibility is enabled', async () => {
+    const broke = createAttestHandler(
+      makeDeps({
+        checkEligibility: async () => ({
+          ok: false,
+          status: 422,
+          code: 'InsufficientBalance',
+          message: 'Ví của bạn hiện có 0,00 USDC, cần tối thiểu 10,10 USDC cho kỳ đầu.',
+        }),
+      }),
+    );
+    const r1 = await call(broke, { circle, ageConfirmed: true });
+    expect(r1.status).toBe(422);
+    expect(((await r1.json()) as { error: { code: string } }).error.code).toBe('InsufficientBalance');
+
+    const defaulted = createAttestHandler(
+      makeDeps({
+        checkEligibility: async () => ({
+          ok: false,
+          status: 422,
+          code: 'UnresolvedDefault',
+          message: 'Ví này đang có khoản vỡ nợ chưa hoàn trả.',
+        }),
+      }),
+    );
+    const r2 = await call(defaulted, { circle, ageConfirmed: true });
+    expect(r2.status).toBe(422);
+    expect(((await r2.json()) as { error: { code: string } }).error.code).toBe('UnresolvedDefault');
+  });
 });

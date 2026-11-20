@@ -9,7 +9,12 @@ describe('config', () => {
     expect(FUJI.rpc).not.toContain('api.avax.network');
   });
 
-  it('keeps demo windows inside the demo round', () => {
-    expect(DEMO.commitWindow + DEMO.revealWindow).toBeLessThanOrEqual(DEMO.roundDuration);
+  it('keeps demo windows seamlessly filling the demo round with valid grace', () => {
+    expect(DEMO.roundDuration).toBeGreaterThanOrEqual(120);
+    expect(DEMO.commitWindow).toBeGreaterThanOrEqual(30);
+    expect(DEMO.revealWindow).toBeGreaterThanOrEqual(30);
+    expect(DEMO.commitWindow + DEMO.revealWindow).toBe(DEMO.roundDuration);
+    expect(DEMO.graceSeconds).toBeGreaterThanOrEqual(60);
+    expect(DEMO.graceSeconds).toBeLessThan(DEMO.roundDuration);
   });
 });

@@ -10,6 +10,9 @@
 export const COPILOT_EFFORT = 'medium' as const;
 /** Caps spend per call: the answer is about 550 tokens (docs/07 section 7); the rest is room for adaptive thinking. */
 export const MAX_OUTPUT_TOKENS = 8_000;
+/** OpenAI-compatible routers (e.g. Gemini Flash via gateway): low reasoning effort keeps latency ~4s instead of 20-30s. */
+export const OPENAI_REASONING_EFFORT = 'low' as const;
+export const OPENAI_MAX_OUTPUT_TOKENS = 2_048;
 export const MODEL_TIMEOUT_MS = 20_000;
 
 /** The mandatory last sentence of every answer (docs/07 3.7). */

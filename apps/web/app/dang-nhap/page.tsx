@@ -1,6 +1,8 @@
 import Link from 'next/link';
+import { FUJI_EVIDENCE } from 'config';
 import { Seal } from '@/components/brand/Seal';
 import { LoginActions } from '@/components/chain/LoginActions';
+import { loadChainConfig } from '@/lib/chain/server';
 
 export const metadata = { title: 'Đăng nhập' };
 
@@ -19,6 +21,8 @@ const PROMISES = [
 export default async function Login({ searchParams }: { searchParams: Promise<{ tiep?: string }> }) {
   const { tiep } = await searchParams;
   const back = tiep && /^\/moi\/(dang-gom|0x[0-9a-fA-F]{40})$/.test(tiep) ? tiep : undefined;
+  const chain = loadChainConfig();
+  const sampleHref = chain ? `/circles/${FUJI_EVIDENCE.defaultCircle}` : '/circles';
   return (
     <main id="noi-dung" className="pg login md:grid-cols-[3fr_2fr] md:items-center">
       <div className="grid gap-6">
@@ -52,7 +56,7 @@ export default async function Login({ searchParams }: { searchParams: Promise<{ 
         <LoginActions next={back} />
         <p className="mt-3 text-muted-foreground">
           Chưa đăng nhập vẫn xem được sổ hụi và các màn mẫu.{' '}
-          <Link href="/circles" className="font-semibold text-primary underline underline-offset-4">
+          <Link href={sampleHref} className="font-semibold text-primary underline underline-offset-4">
             Xem dây mẫu
           </Link>
           .

@@ -12,6 +12,7 @@ import type {
   MemberStatus,
   MemberView,
   ReputationRecord,
+  RoundCommitView,
   RoundPhaseName,
   RoundView,
   ShortfallView,
@@ -423,6 +424,27 @@ export async function readCircle(client: PublicClient, circle: Address, opts: Re
     .filter((e) => e.eventName === 'ContributionShortfall')
     .map((e) => ({ k: Number(e.args.round), member: e.args.member as Address }));
 
+  const commitsByRound = new Map<number, Map<string, RoundCommitView>>();
+  for (const e of events) {
+    if (e.eventName === 'BidCommitted') {
+      const rk = Number(e.args.round);
+      const m = e.args.member as Address;
+      const idx = Number(e.args.commitIndex);
+      const map = commitsByRound.get(rk) ?? new Map<string, RoundCommitView>();
+      commitsByRound.set(rk, map);
+      // Overwriting a sealed bid resets revealed=false and assigns a newer commitIndex.
+      map.set(m.toLowerCase(), { member: m, commitIndex: idx, revealed: false });
+    } else if (e.eventName === 'BidRevealed') {
+      const rk = Number(e.args.round);
+      const m = e.args.member as Address;
+      const b = e.args.bid as bigint;
+      const map = commitsByRound.get(rk) ?? new Map<string, RoundCommitView>();
+      commitsByRound.set(rk, map);
+      const prev = map.get(m.toLowerCase());
+      map.set(m.toLowerCase(), { member: prev?.member ?? m, commitIndex: prev?.commitIndex ?? 0, revealed: true, bid: b });
+    }
+  }
+
   const rounds: RoundView[] = await Promise.all(
     Array.from({ length: n }, (_, i) => i + 1).map(async (k): Promise<RoundView> => {
       const isSettled = k <= settled;
@@ -457,6 +479,7 @@ export async function readCircle(client: PublicClient, circle: Address, opts: Re
           }),
       );
       const phase: RoundPhaseName = isSettled ? 'done' : k === currentRound && started ? (PHASES[phaseIdx] ?? 'not-started') : 'not-started';
+      const commits = [...(commitsByRound.get(k)?.values() ?? [])].sort((a, b) => a.commitIndex - b.commitIndex);
       const v: RoundView = {
         k,
         phase,
@@ -466,6 +489,7 @@ export async function readCircle(client: PublicClient, circle: Address, opts: Re
         deadline: Number(dl),
         maxBid: mb,
         shortfalls,
+        commits,
       };
       if (info) {
         v.winner = info.winner;

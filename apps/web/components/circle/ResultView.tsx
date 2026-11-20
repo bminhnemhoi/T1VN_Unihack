@@ -15,7 +15,7 @@ import { useToast } from '@/components/shell/Toast';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
-import { formatVnTime, settledAtMs, settledRound, type SampleCircleData } from '@/lib/sample-circles';
+import { coverOf, formatVnTime, settledAtMs, settledRound, type SampleCircleData } from '@/lib/sample-circles';
 import { TOGGLE_ON } from '@/lib/utils';
 
 /** S07: what happened in one settled round. Sum line = INV-05. */
@@ -80,7 +80,9 @@ export function ResultView({ c }: { c: SampleCircleData }) {
 
       {running && (
         <div role="status" className="mt-6 rounded-xl border border-border bg-card p-4 text-lead">
-          Kỳ {running} đang diễn ra nên chưa có kết quả. Quá giờ chốt mà chưa chi thì hiện &quot;Kỳ đang chờ chốt&quot; và ai cũng bấm chốt được.{' '}
+          {c.live
+            ? `Kỳ ${running} đang diễn ra nên chưa có kết quả. Hết giờ mở thăm hệ thống tự động khui thăm và chi tiền.`
+            : `Kỳ ${running} đang diễn ra nên chưa có kết quả. Quá giờ chốt mà chưa chi thì hiện "Kỳ đang chờ chốt".`}{' '}
           <SettleButton c={c} round={running} variant="outline" size="sm" className="ml-1 align-middle" />
         </div>
       )}
@@ -160,7 +162,7 @@ export function ResultView({ c }: { c: SampleCircleData }) {
                       <span className="text-state-bad">
                         Thiếu {formatUsdc(sf.amount)}
                         <span className="block text-base text-muted-foreground">
-                          Bù: {[sf.fromHoldback > 0n && `${formatUsdc(sf.fromHoldback)} tiền giữ lại`, sf.fromBond > 0n && `${formatUsdc(sf.fromBond)} ký quỹ`, sf.fromReserve > 0n && `${formatUsdc(sf.fromReserve)} quỹ dự phòng`, sf.uncovered > 0n && `${formatUsdc(sf.uncovered)} chưa bù được`].filter(Boolean).join(', ')}
+                          Bù: {[coverOf(sf).holdback > 0n && `${formatUsdc(coverOf(sf).holdback)} tiền giữ lại`, coverOf(sf).bond > 0n && `${formatUsdc(coverOf(sf).bond)} ký quỹ`, coverOf(sf).reserve > 0n && `${formatUsdc(coverOf(sf).reserve)} quỹ dự phòng`, coverOf(sf).uncovered > 0n && `${formatUsdc(coverOf(sf).uncovered)} chưa bù được`].filter(Boolean).join(', ')}
                         </span>
                       </span>
                     ) : (

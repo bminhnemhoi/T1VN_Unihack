@@ -4,7 +4,7 @@ import { useRouter } from 'next/navigation';
 import { useRef, useState } from 'react';
 import { formatBps, formatUsdc, previewCircle } from 'sdk';
 import { Countdown } from '@/components/brand/Countdown';
-import { TxNotice, useTx } from '@/components/chain/useTx';
+import { TX_STEP_TEXT, TxNotice, useTx } from '@/components/chain/useTx';
 import { RepBadge, RepDisclaimer } from '@/components/circle/RepBadge';
 import { RiskTable } from '@/components/circle/RiskTable';
 import { LedgerList } from '@/components/LedgerList';
@@ -19,8 +19,10 @@ import { termsViewOf } from '@/lib/live/terms';
 import { capOf } from '@/lib/hui-calc';
 import { ErrorState } from '@/components/app/parts';
 import { Missing, PageSkeleton } from '@/components/circle/CircleScreen';
+import { useHuiWallet } from '@/lib/chain/walletProvider';
 import { useCircleData } from '@/lib/live/useCircleData';
 import { useMinCoverageBps } from '@/lib/live/useMinCoverage';
+import { useWalletBalance } from '@/lib/live/useWalletBalance';
 import type { SampleCircleData } from '@/lib/sample-circles';
 
 const REVEAL_BOND_BPS = 100n;
@@ -42,7 +44,9 @@ export function InviteScreen({ id }: { id: string }) {
 export function InviteView({ c: C }: { c: SampleCircleData }) {
   const router = useRouter();
   const tx = useTx();
+  const { wallet } = useHuiWallet();
   const live = C.live;
+  const walletBal = useWalletBalance(live ? wallet?.address : undefined);
   const terms = termsViewOf(C);
   const { show } = useToast();
   const [agreed, setAgreed] = useState(false);
@@ -55,6 +59,8 @@ export function InviteView({ c: C }: { c: SampleCircleData }) {
   const floor = useMinCoverageBps(live?.address);
   const preview = previewCircle({ n: t.n, c: t.c, periodDays: t.periodDays, alphaBps: t.alphaBps, bond: C.bond, capBps: t.capBps, minCoverageBps: floor });
   const allowance = live ? live.view.requiredAllowance : (t.n - 1n) * (t.c + (t.c * REVEAL_BOND_BPS) / 10_000n);
+  const minEntryUsdc = t.c + (t.mode === 'bidding' ? (t.c * REVEAL_BOND_BPS) / 10_000n : 0n);
+  const insufficientUsdc = Boolean(live && wallet?.address && walletBal.data && walletBal.data.usdc < minEntryUsdc);
   const open = !live || live.view.state === 'forming';
   const already = live ? C.viewer >= 0 : false;
 
@@ -165,8 +171,16 @@ export function InviteView({ c: C }: { c: SampleCircleData }) {
           Vào dây
         </h2>
         <p className="so-ke mt-2 text-lead">
-          Bạn ký một lần để cho phép dây trích tối đa {formatUsdc(allowance)} trong cả dây (mỗi kỳ chỉ trích phần góp). Không cần ví riêng, không cần AVAX.
+          Bạn ký một lần để cho phép dây trích <b>tối đa {formatUsdc(allowance)}</b> trong cả dây. Đây là trần, không phải số bị trừ ngay: mỗi kỳ hợp đồng chỉ trích đúng phần góp của kỳ đó, và bạn thu hồi quyền này được trong ví. Không cần ví riêng, không cần AVAX.
         </p>
+        {mySeat <= n && (
+          <p className="mt-2 font-semibold" data-testid="invite-seat">
+            Bạn sẽ là người thứ {mySeat} trong dây.{' '}
+            {t.mode === 'fixed'
+              ? `Dây cố định: bạn hốt kỳ ${mySeat}.`
+              : 'Dây bỏ thăm: ai bỏ thăm cao nhất thì hốt; kỳ không ai bỏ thăm thì người vào sớm nhất trong số chưa hốt sẽ hốt.'}
+          </p>
+        )}
         <Field orientation="horizontal" className="mt-3">
           <Checkbox id="dong-y" ref={box} checked={agreed} onCheckedChange={(v) => setAgreed(v === true)} />
           <FieldLabel htmlFor="dong-y" className="min-h-12 flex-1 items-center font-normal">
@@ -182,8 +196,56 @@ export function InviteView({ c: C }: { c: SampleCircleData }) {
           </p>
         ) : (
           <>
-            <Button type="button" size="lg" className="mt-3" onClick={join} disabled={tx.pending || terms.check === 'mismatch'} aria-describedby={terms.check === 'mismatch' ? 'vao-khong-khop' : undefined}>
-              {tx.pending ? 'Đang gửi…' : 'Vào dây'}
+            {insufficientUsdc && wallet?.address && walletBal.data && (
+              <div role="status" className="mt-4 rounded-xl border-2 border-state-bad/40 bg-secondary p-4">
+                <p className="font-semibold text-state-bad">
+                  Ví hiện có {formatUsdc(walletBal.data.usdc)} — cần tối thiểu {formatUsdc(minEntryUsdc)} cho kỳ đầu để vào dây.
+                </p>
+                <p className="mt-1 text-muted-foreground">
+                  HụiSafe không cho ví rỗng vào dây để bảo vệ các thành viên và ký quỹ chủ hụi. Hãy sao chép địa chỉ ví của bạn rồi nhận 20 USDC thử nghiệm miễn phí tại Faucet.
+                </p>
+                <div className="mt-3 flex flex-wrap gap-3">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      void navigator.clipboard.writeText(wallet.address).then(
+                        () => show('Đã sao chép địa chỉ ví. Dán vào Faucet để nhận USDC thử nghiệm.'),
+                        () => show(`Địa chỉ ví của bạn: ${wallet.address}`, 'error'),
+                      );
+                    }}
+                  >
+                    Sao chép địa chỉ ví
+                  </Button>
+                  <Button asChild variant="outline" size="sm">
+                    <a href="https://faucet.circle.com" target="_blank" rel="noreferrer">
+                      Mở Faucet nhận 20 USDC ↗
+                    </a>
+                  </Button>
+                  <Button type="button" variant="outline" size="sm" onClick={() => void walletBal.refetch()} disabled={walletBal.isFetching}>
+                    {walletBal.isFetching ? 'Đang kiểm tra…' : 'Kiểm tra lại số dư'}
+                  </Button>
+                </div>
+              </div>
+            )}
+            <Button
+              type="button"
+              size="lg"
+              className="mt-3"
+              onClick={join}
+              disabled={tx.pending || terms.check === 'mismatch' || insufficientUsdc}
+              aria-busy={tx.pending || undefined}
+              aria-describedby={terms.check === 'mismatch' ? 'vao-khong-khop' : undefined}
+            >
+              {tx.pending ? (
+                <>
+                  <span className="size-4 shrink-0 animate-spin rounded-full border-2 border-current border-r-transparent" aria-hidden="true" />
+                  {TX_STEP_TEXT[tx.step ?? 0]} · {(tx.step ?? 0) + 1}/3
+                </>
+              ) : (
+                'Vào dây'
+              )}
             </Button>
             {terms.check === 'mismatch' && (
               <p id="vao-khong-khop" className="mt-2 font-semibold text-state-bad">

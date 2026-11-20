@@ -62,29 +62,41 @@ export function createViemPort(cfg: KeeperConfig): { port: KeeperPort; keeper: A
       return all.filter((c) => !terminal.has(c));
     },
     async snapshot(circle): Promise<CircleSnapshot> {
-      const [state, params, settledRounds, members, bondRemaining, bondDeposited] = await Promise.all([
+      const [state, params, settledRounds, members, bondRemaining, bondDeposited, organizer] = await Promise.all([
         read<number>(circle, 'state'),
-        read<{ memberCount: number; joinDeadline: bigint }>(circle, 'params'),
+        read<{ memberCount: number; joinDeadline: bigint; roundDuration: number }>(circle, 'params'),
         read<number>(circle, 'settledRounds'),
         read<readonly Address[]>(circle, 'members'),
         read<bigint>(circle, 'bondRemaining'),
         read<bigint>(circle, 'bondDeposited'),
+        read<Address>(circle, 'organizer'),
       ]);
       if (state >= 3) terminal.add(circle);
       return {
         state: Number(state),
         memberCount: Number(params.memberCount),
         joinDeadline: BigInt(params.joinDeadline),
+        roundDuration: Number(params.roundDuration),
         settledRounds: Number(settledRounds),
         members,
         bondRemaining: BigInt(bondRemaining),
         bondDeposited: BigInt(bondDeposited),
+        organizer,
       };
     },
     retire(circle) {
       terminal.add(circle);
     },
     deadline: (circle, round) => read<bigint>(circle, 'deadline', [round]),
+    async finalizeDueAt(circle, lastRound) {
+      const [params, pausedTotal, info] = await Promise.all([
+        read<{ graceSeconds: number }>(circle, 'params'),
+        read<bigint>(circle, 'pausedTotal'),
+        read<{ settledAt: bigint }>(circle, 'roundInfo', [lastRound]),
+      ]);
+      if (info.settledAt === 0n) return undefined;
+      return BigInt(info.settledAt) + BigInt(params.graceSeconds) + BigInt(pausedTotal) + 1n;
+    },
     async owes(circle, member) {
       const info = await read<{ defaulted: boolean; debt: bigint }>(circle, 'memberInfo', [member]);
       return !info.defaulted && info.debt > 0n;

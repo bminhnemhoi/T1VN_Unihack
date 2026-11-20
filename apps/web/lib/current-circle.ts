@@ -4,6 +4,7 @@
  * else the sample room on sample data, else the viewer's first running circle on chain data.
  */
 import { useEffect, useState } from 'react';
+import { FUJI_EVIDENCE } from 'config';
 import { useChain } from '@/lib/chain/provider';
 import { useMyCircles } from '@/lib/live/useCircleData';
 
@@ -43,7 +44,9 @@ export function useCurrentCircle(pathname: string): string | null {
   if (here) return here;
   if (stored && fits(stored, onChain)) return stored;
   if (!onChain) return 'demo';
-  if (my.status !== 'ready') return null;
-  const first = my.circles.find((c) => c.state === 'active') ?? my.circles[0];
-  return first ? first.href.replace('/circles/', '') : null;
+  if (my.status === 'ready') {
+    const first = my.circles.find((c) => c.state === 'active') ?? my.circles[0];
+    if (first) return first.href.replace('/circles/', '');
+  }
+  return FUJI_EVIDENCE.defaultCircle;
 }

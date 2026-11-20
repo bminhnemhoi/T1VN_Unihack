@@ -1,9 +1,9 @@
 'use client';
 
-import { Bot, Send, X } from 'lucide-react';
+import { Bot, RotateCcw, Send, X } from 'lucide-react';
 import Link from 'next/link';
 import { Dialog } from 'radix-ui';
-import { useRef, useState, type ChangeEvent } from 'react';
+import { useRef, useState, type ChangeEvent, type KeyboardEvent } from 'react';
 import { CopilotCalc } from '@/components/copilot/CopilotCalc';
 import { draftFromStorage, readNdjson, type StreamEvent } from '@/components/copilot/stream';
 import { Button } from '@/components/ui/button';
@@ -94,49 +94,85 @@ export function CopilotDrawer() {
   const [status, setStatus] = useState('');
   const end = useRef<HTMLDivElement>(null);
 
-  const send = async (question: string) => {
+  const send = async (question: string, retryLast = false) => {
     const q = question.trim();
     if (!q || busy) return;
-    setText('');
+    if (!retryLast) setText('');
     setBusy(true);
     setStatus('Đang gửi câu hỏi...');
-    const history = [...turns, { role: 'user' as const, text: q }];
+    const history = retryLast ? turns.slice(0, -1) : [...turns, { role: 'user' as const, text: q }];
     setTurns([...history, { role: 'assistant', text: '' }]);
     const patch = (fn: (t: Turn) => Turn) => setTurns((all) => all.map((t, i) => (i === all.length - 1 ? fn(t) : t)));
     const failWith = (message: string) => {
       patch((t) => ({ ...t, text: message, failed: true }));
       setTab('ask');
     };
-    try {
+    const payload = () => {
       const draft = draftFromStorage();
-      const res = await fetch('/api/copilot', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({
-          messages: history.slice(-10).map((t) => ({ role: t.role, content: t.text.slice(0, 2000) })),
-          ...(draft ? { draft } : {}),
-        }),
+      return JSON.stringify({
+        messages: history.slice(-10).map((t) => ({ role: t.role, content: t.text.slice(0, 2000) })),
+        ...(draft ? { draft } : {}),
       });
-      if (!res.ok || !res.body) {
-        let message = 'Trợ lý tạm nghỉ. Bạn dùng tab Máy tính, tạo dây vẫn chạy bình thường.';
-        try {
-          const j: unknown = await res.json();
-          if (isObj(j) && isObj(j.error) && typeof j.error.message === 'string') message = j.error.message;
-        } catch {
-          /* keep the default message */
+    };
+    try {
+      const maxAttempts = 3;
+      for (let attempt = 0; attempt < maxAttempts; attempt++) {
+        if (attempt > 0) {
+          setStatus('Mạng vừa đổi nhịp, đang kết nối lại...');
+          patch((t) => ({ ...t, tools: undefined, failed: undefined, text: '' }));
+          await new Promise((r) => setTimeout(r, attempt === 1 ? 400 : 800));
         }
-        failWith(message);
-        return;
+        let terminal = false;
+        try {
+          const res = await fetch('/api/copilot', {
+            method: 'POST',
+            headers: { 'content-type': 'application/json' },
+            body: payload(),
+          });
+          if (!res.ok || !res.body) {
+            let code = '';
+            let message = 'Trợ lý tạm nghỉ. Bạn dùng tab Máy tính, tạo dây vẫn chạy bình thường.';
+            try {
+              const j: unknown = await res.json();
+              if (isObj(j) && isObj(j.error)) {
+                if (typeof j.error.code === 'string') code = j.error.code;
+                if (typeof j.error.message === 'string') message = j.error.message;
+              }
+            } catch {
+              /* keep the default message */
+            }
+            if ((res.status === 502 || res.status === 504) && code === '' && attempt < maxAttempts - 1) continue;
+            failWith(message);
+            break;
+          }
+          await readNdjson(res.body, (e: StreamEvent) => {
+            if (e.type === 'status') setStatus(e.text);
+            else if (e.type === 'tool') patch((t) => ({ ...t, tools: [...(t.tools ?? []), { name: e.name, result: e.result }] }));
+            else if (e.type === 'answer') {
+              terminal = true;
+              patch((t) => ({
+                ...t,
+                text: e.answer.answer,
+                failed: undefined,
+                label: e.label,
+                refused: e.answer.refused === true,
+                ...(e.answer.formSuggestion ? { suggestion: e.answer.formSuggestion } : {}),
+              }));
+            } else {
+              terminal = true;
+              failWith(e.message);
+            }
+          });
+          if (terminal) break;
+          if (attempt === maxAttempts - 1) {
+            failWith('Không kết nối được trợ lý. Kiểm tra mạng rồi thử lại, hoặc dùng tab Máy tính.');
+          }
+        } catch {
+          if (attempt === maxAttempts - 1) {
+            failWith('Không kết nối được trợ lý. Kiểm tra mạng rồi thử lại, hoặc dùng tab Máy tính.');
+          }
+        }
       }
-      await readNdjson(res.body, (e: StreamEvent) => {
-        if (e.type === 'status') setStatus(e.text);
-        else if (e.type === 'tool') patch((t) => ({ ...t, tools: [...(t.tools ?? []), { name: e.name, result: e.result }] }));
-        else if (e.type === 'answer')
-          patch((t) => ({ ...t, text: e.answer.answer, label: e.label, refused: e.answer.refused === true, ...(e.answer.formSuggestion ? { suggestion: e.answer.formSuggestion } : {}) }));
-        else failWith(e.message);
-      });
-    } catch {
-      failWith('Không kết nối được trợ lý. Kiểm tra mạng rồi thử lại, hoặc dùng tab Máy tính.');
     } finally {
       setBusy(false);
       setStatus('');
@@ -155,7 +191,7 @@ export function CopilotDrawer() {
         <Dialog.Overlay className="fixed inset-0 z-50 bg-muc-dem/45 data-[state=open]:animate-in data-[state=open]:fade-in data-[state=open]:duration-240 data-[state=closed]:animate-out data-[state=closed]:fade-out data-[state=closed]:duration-180" />
         <Dialog.Content
           aria-describedby="tro-ly-mo-ta"
-          className="tro-ly fixed inset-x-0 bottom-0 z-50 flex h-[88vh] flex-col rounded-t-2xl shadow-2xl outline-none duration-240 ease-[cubic-bezier(0.16,1,0.3,1)] data-[state=open]:animate-in data-[state=open]:slide-in-from-bottom data-[state=closed]:animate-out data-[state=closed]:slide-out-to-bottom data-[state=closed]:duration-180 data-[state=closed]:ease-[cubic-bezier(0.4,0,1,1)] md:inset-y-0 md:right-0 md:left-auto md:h-auto md:w-[28rem] md:rounded-none md:data-[state=open]:slide-in-from-right md:data-[state=closed]:slide-out-to-right"
+          className="tro-ly fixed inset-x-0 bottom-0 z-50 flex h-[88vh] flex-col rounded-t-2xl shadow-2xl outline-none duration-240 ease-[cubic-bezier(0.16,1,0.3,1)] data-[state=open]:animate-in max-md:data-[state=open]:slide-in-from-bottom data-[state=closed]:animate-out max-md:data-[state=closed]:slide-out-to-bottom data-[state=closed]:duration-180 data-[state=closed]:ease-[cubic-bezier(0.4,0,1,1)] md:inset-y-0 md:right-0 md:left-auto md:h-auto md:w-[28rem] md:rounded-none md:data-[state=open]:slide-in-from-right md:data-[state=closed]:slide-out-to-right"
         >
           <header className="flex items-start justify-between gap-3 border-b border-border px-6 pt-6 pb-4">
             <div>
@@ -207,6 +243,18 @@ export function CopilotDrawer() {
                         <p className={t.failed ? 'font-semibold text-destructive' : 'whitespace-pre-line'}>{t.text}</p>
                       )}
                       {t.tools?.map((x, j) => <ToolResult key={j} name={x.name} result={x.result} />)}
+                      {t.failed && i === turns.length - 1 && !busy && (
+                        <div className="mt-3 flex flex-wrap gap-2">
+                          {turns[i - 1]?.role === 'user' && (
+                            <button type="button" className="nut-thu-lai" onClick={() => void send(turns[i - 1]!.text, true)}>
+                              <RotateCcw aria-hidden className="size-4" /> Thử lại
+                            </button>
+                          )}
+                          <button type="button" className="chip-hoi" onClick={() => setTab('calc')}>
+                            Mở Máy tính
+                          </button>
+                        </div>
+                      )}
                       {t.label && <p className="mt-2 text-sm text-muted-foreground">{t.label}</p>}
                       {t.role === 'assistant' && t.text && !t.failed && !t.text.includes(DISCLAIMER) && <p className="mt-1 text-sm text-muted-foreground">{DISCLAIMER}</p>}
                     </li>
@@ -229,9 +277,23 @@ export function CopilotDrawer() {
                 Câu hỏi cho trợ lý
               </label>
               <div className="flex items-end gap-2">
-                <Textarea id="cau-hoi" value={text} onChange={(e: ChangeEvent<HTMLTextAreaElement>) => setText(e.target.value)} rows={1} maxLength={2000} placeholder="Gõ câu hỏi của bạn" className="min-h-12 flex-1 rounded-xl bg-card px-4 py-3 text-base" />
-                <button type="submit" className="gui" disabled={busy || text.trim() === ''} aria-label="Gửi câu hỏi">
-                  <Send aria-hidden className="size-5" />
+                <Textarea
+                  id="cau-hoi"
+                  value={text}
+                  onChange={(e: ChangeEvent<HTMLTextAreaElement>) => setText(e.target.value)}
+                  onKeyDown={(e: KeyboardEvent<HTMLTextAreaElement>) => {
+                    if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) {
+                      e.preventDefault();
+                      void send(text);
+                    }
+                  }}
+                  rows={1}
+                  maxLength={2000}
+                  placeholder="Gõ câu hỏi của bạn (Enter để gửi)"
+                  className="min-h-12 flex-1 rounded-xl bg-card px-4 py-3 text-base"
+                />
+                <button type="submit" className="gui" disabled={busy || text.trim() === ''} aria-busy={busy} aria-label="Gửi câu hỏi">
+                  {busy ? <span className="gui-quay" aria-hidden /> : <Send aria-hidden className="size-5" />}
                 </button>
               </div>
               <p className="mt-2 text-xs leading-normal text-muted-foreground">Đừng gõ họ tên, số điện thoại hay địa chỉ ví. {DISCLAIMER}</p>

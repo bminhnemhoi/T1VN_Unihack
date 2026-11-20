@@ -338,14 +338,42 @@ test.describe('S13 assistant drawer', () => {
     await expect(dlg.getByText('2.000 USDC').first()).toBeVisible(); // 10 x 100: peak risk 2.500, bond for 100% = 0,8 x 2.500
   });
 
-  test('no route at all (network down): says so instead of hanging', async ({ page }) => {
-    await page.route('**/api/copilot', (r) => r.abort());
+  test('no route at all (network down): says so instead of hanging, and offers inline retry + calculator', async ({ page }) => {
+    let attempts = 0;
+    await page.route('**/api/copilot', (r) => {
+      attempts++;
+      if (attempts <= 3) return r.abort();
+      return r.fulfill({ status: 200, contentType: 'application/x-ndjson', body: answer() });
+    });
     await page.goto('/circles');
     const dlg = await open(page);
     await dlg.getByLabel('Câu hỏi cho trợ lý').fill('Xin chào');
-    await dlg.getByRole('button', { name: 'Gửi câu hỏi' }).click();
-    await expect(dlg.getByText('Không kết nối được trợ lý')).toBeVisible();
+    await dlg.getByLabel('Câu hỏi cho trợ lý').press('Enter'); // Enter sends directly
+    await expect(dlg.getByText('Không kết nối được trợ lý')).toBeVisible({ timeout: 8000 });
+    expect(attempts).toBe(3); // 1 initial + 2 automatic retries
     await expect(dlg.getByRole('button', { name: 'Gửi câu hỏi' })).toBeDisabled(); // empty box again
+    if (!page.viewportSize() || page.viewportSize()!.width >= 768) {
+      const ty = await dlg.evaluate((el) => getComputedStyle(el).getPropertyValue('--tw-enter-translate-y').trim());
+      expect(ty === '' || ty === '0' || ty === '0px').toBe(true);
+    }
+    // Inline retry recovers without duplicating the user bubble.
+    await dlg.getByRole('button', { name: 'Thử lại' }).click();
+    await expect(dlg.getByText('Bạn cần ký quỹ 480 USDC để bảo chứng 100%.')).toBeVisible();
+    await expect(dlg.getByRole('list', { name: 'Cuộc trò chuyện' }).getByRole('listitem')).toHaveCount(2);
+  });
+
+  test('recovers transparently when a single transient network change aborts the first stream', async ({ page }) => {
+    let calls = 0;
+    await page.route('**/api/copilot', (r) => {
+      calls++;
+      return calls === 1 ? r.abort('internetdisconnected') : r.fulfill({ status: 200, contentType: 'application/x-ndjson', body: answer() });
+    });
+    await page.goto('/circles');
+    const dlg = await open(page);
+    await dlg.getByLabel('Câu hỏi cho trợ lý').fill('hello /');
+    await dlg.getByRole('button', { name: 'Gửi câu hỏi' }).click();
+    await expect(dlg.getByText('Bạn cần ký quỹ 480 USDC để bảo chứng 100%.')).toBeVisible();
+    expect(calls).toBe(2);
   });
 });
 
@@ -354,12 +382,15 @@ test.describe('S14 settings', () => {
     await page.goto('/cai-dat');
     await page.getByRole('radio', { name: 'Chữ lớn' }).click();
     await expect.poll(() => page.evaluate(() => document.documentElement.style.fontSize)).toBe('22px');
+    await expect(page.getByText(/Câu mẫu: thăm cao nhất/)).toHaveCSS('font-size', '22px');
     await page.reload();
     await expect.poll(() => page.evaluate(() => document.documentElement.style.fontSize)).toBe('22px');
+    await expect(page.getByText(/Câu mẫu: thăm cao nhất/)).toHaveCSS('font-size', '22px');
     await expect(page.getByRole('radio', { name: 'Chữ lớn' })).toBeChecked();
     await noHorizontalOverflow(page);
     await page.getByRole('radio', { name: 'Chữ thường' }).click();
     await expect.poll(() => page.evaluate(() => document.documentElement.style.fontSize)).toBe('');
+    await expect(page.getByText(/Câu mẫu: thăm cao nhất/)).toHaveCSS('font-size', '15px');
   });
 
   test('backup buttons and the reminder switch each answer', async ({ page }) => {

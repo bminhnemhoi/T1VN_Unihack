@@ -5,12 +5,15 @@
  * NĐ 19 book (header, members, every transaction, print, JSON) stays one tap away (`?ban=day-du`).
  */
 import Link from 'next/link';
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import { formatUsdcNumber } from 'sdk';
 import { CircleChips, ErrorState, EmptyState, Loading, Sheet, av } from '@/components/app/parts';
 import { CircleScreen } from '@/components/circle/CircleScreen';
 import { setDemoNet, useSampleLoad } from '@/lib/demo-store';
 import { useCircleData } from '@/lib/live/useCircleData';
+import { useCircleEvents } from '@/lib/live/useCircleEvents';
+import { settleFromEvents } from '@/lib/live/settleEvents';
+import { formatCents } from '@/lib/money';
 import { GLYPH, KIND, ledgerOf, type Cell } from '@/lib/app-data';
 import type { SampleCircleData } from '@/lib/sample-circles';
 
@@ -65,7 +68,22 @@ function LedgerBody({ c, refreshing, stale }: { c: SampleCircleData; refreshing:
   const state = (r: number) => (r < k ? 'done' : r === k ? 'now' : 'later');
   const name = (i: number) => (i === c.viewer ? `${av(i)} · Bạn` : av(i));
   const latest = [...bond].reverse().find((b) => b !== null) ?? c.bond;
-  const claims = c.shortfalls.filter((x) => x.status === 'defaulted');
+  // Net per member once the circle is closed (same numbers as Tất toán): stops "HỐT 19,60" reading as a loss when the
+  // holdback refund and the on-time reward come back at finalize.
+  const closed = Boolean(c.live && c.state === 'completed' && !c.ended);
+  const events = useCircleEvents(closed ? c.live!.address : undefined);
+  const nets = useMemo(() => {
+    if (!closed || !events.data) return undefined;
+    const sorted = [...c.live!.view.members].sort((a, b) => a.joinIndex - b.joinIndex);
+    return settleFromEvents(events.data, c.terms.c, sorted.map((m) => m.address)).members.map((m) => m.net);
+  }, [closed, events.data, c.live, c.terms.c]);
+  // Public claims are only what honest receivers were short-paid (`uncovered` still open). What a defaulter took from the
+  // organizer's bond or the reserve is a debt to those, not a loss of any member: shown apart, per member.
+  const claims = c.shortfalls.filter((x) => x.uncovered > 0n);
+  const owedBack = new Map<number, bigint>();
+  c.shortfalls
+    .filter((x) => x.status === 'defaulted' && x.fromBond + x.fromReserve > 0n)
+    .forEach((x) => owedBack.set(x.member, (owedBack.get(x.member) ?? 0n) + x.fromBond + x.fromReserve));
   const go = (r: number) => {
     const next = Math.min(Math.max(r, 1), n);
     if (next === round) return;
@@ -105,6 +123,7 @@ function LedgerBody({ c, refreshing, stale }: { c: SampleCircleData; refreshing:
                   Kỳ {j + 1}
                 </th>
               ))}
+              {nets && <th scope="col">Ròng</th>}
             </tr>
           </thead>
           <tbody>
@@ -117,6 +136,12 @@ function LedgerBody({ c, refreshing, stale }: { c: SampleCircleData; refreshing:
                     {x.kind !== 'later' && x.note !== 'góp đúng hạn' && <small>{x.note}</small>}
                   </td>
                 ))}
+                {nets && (
+                  <td className="mono" data-testid="ledger-net">
+                    <span className="v">{nets[i]! >= 0n ? `+${formatCents(nets[i]!)}` : `−${formatCents(-nets[i]!, 'up')}`}</span>
+                    <small>gồm hoàn giữ lại, thưởng đúng hạn</small>
+                  </td>
+                )}
               </tr>
             ))}
           </tbody>
@@ -128,6 +153,7 @@ function LedgerBody({ c, refreshing, stale }: { c: SampleCircleData; refreshing:
                   {b === null ? '—' : whole(b)}
                 </td>
               ))}
+              {nets && <td />}
             </tr>
           </tfoot>
         </table>
@@ -272,7 +298,12 @@ function LedgerBody({ c, refreshing, stale }: { c: SampleCircleData; refreshing:
         )}
         {claims.length > 0 && (
           <span>
-            Khoản đòi công khai: {claims.map((x) => `${av(x.member)} ${f(x.amount)} USDC`).join(', ')}.
+            Khoản đòi công khai (người hốt bị nhận thiếu): {claims.map((x) => `${av(x.member)} ${f(x.uncovered)} USDC`).join(', ')}.
+          </span>
+        )}
+        {owedBack.size > 0 && (
+          <span data-testid="ledger-owed-back">
+            {[...owedBack].map(([m, v]) => `${av(m)} còn nợ ${f(v)} USDC đã được ký quỹ chủ hụi và quỹ dự phòng bù`).join('; ')}.{claims.length === 0 ? ' Không thành viên nào bị nhận thiếu.' : ''}
           </span>
         )}
       </div>

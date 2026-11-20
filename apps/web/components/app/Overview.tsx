@@ -5,6 +5,7 @@
  */
 import Link from 'next/link';
 import { useEffect, useRef, useState } from 'react';
+import { FUJI_EVIDENCE } from 'config';
 import { formatUsdcNumber } from 'sdk';
 import { DeleteButton, DeleteDialog, useSwipeReveal } from '@/components/app/DeleteCircle';
 import { ErrorState, EmptyState, HealthChips, Loading, PasteInvite, Sheet } from '@/components/app/parts';
@@ -73,11 +74,14 @@ export function Overview() {
         <div className="stateBox">
           <span className="label">Chưa đăng nhập</span>
           <h1>Đăng nhập để xem các dây của bạn.</h1>
-          <p>Dây bạn làm chủ hụi hoặc đang tham gia hiện ở đây. Đăng nhập bằng email, không cần ví hay AVAX.</p>
+          <p>Dây bạn làm chủ hụi hoặc đang tham gia hiện ở đây. Đăng nhập bằng Google hoặc email, không cần ví hay AVAX — hoặc mở xem trước một dây thật trên Fuji.</p>
           <div className="actions">
             <button type="button" className="btn lime" onClick={login}>
               Đăng nhập
             </button>
+            <Link className="btn ghost" href={`/circles/${FUJI_EVIDENCE.defaultCircle}`}>
+              Xem dây thật trên Fuji ↗
+            </Link>
           </div>
         </div>
       </main>

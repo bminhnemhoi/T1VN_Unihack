@@ -3,7 +3,7 @@ export const vi = {
   appName: 'HụiSafe',
   sampleBanner: 'Màn hình mẫu để xem thử. Chưa nối với mạng, số liệu chỉ để minh họa.',
   demoBanner:
-    'Chế độ demo: 1 kỳ = 3 phút, lãi tính như hụi tháng. Ân hạn 2 phút. Tiền là USDC thử nghiệm trên Fuji, không có giá trị. Màn hình này dùng số liệu mẫu.',
+    'Chế độ demo: 1 kỳ = 2 phút (75 giây nộp thăm, 45 giây mở thăm), lãi tính như hụi tháng. Ân hạn 1 phút. Tiền là USDC thử nghiệm trên Fuji, không có giá trị. Màn hình này dùng số liệu mẫu.',
   tagline: 'Chủ hụi không cầm tiền, nhưng vẫn phải bảo lãnh.',
   nav: { home: 'Trang chủ', myCircles: 'Dây của tôi', create: 'Tạo dây', room: 'Phòng thăm' },
   help: {

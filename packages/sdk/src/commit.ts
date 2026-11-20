@@ -66,34 +66,93 @@ function openDb(): Promise<IDBDatabase> {
   });
 }
 
-/** Browser store: IndexedDB `huisafe` / `salts`. Callers must wrap use in try/catch (docs/05 section 13). */
+const LS_PREFIX = 'huisafe.salt.';
+
+function readLs(key: string): SaltRecord | undefined {
+  try {
+    const raw = globalThis.localStorage?.getItem(`${LS_PREFIX}${key}`);
+    if (!raw) return undefined;
+    const parsed = JSON.parse(raw) as Partial<SaltRecord> | null;
+    if (parsed && typeof parsed.bid === 'string' && typeof parsed.salt === 'string' && typeof parsed.createdAt === 'number') {
+      return { bid: parsed.bid, salt: parsed.salt as Hex, createdAt: parsed.createdAt };
+    }
+  } catch {
+    /* localStorage blocked or unavailable */
+  }
+  return undefined;
+}
+
+function writeLs(key: string, value: SaltRecord): boolean {
+  try {
+    if (!globalThis.localStorage) return false;
+    globalThis.localStorage.setItem(`${LS_PREFIX}${key}`, JSON.stringify(value));
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/** Browser store: IndexedDB `huisafe` / `salts` with same-origin `localStorage` fallback for WebViews. */
 export const indexedDbSaltStore: SaltStore = {
   async get(key) {
-    const db = await openDb();
-    return (await req(db.transaction(STORE).objectStore(STORE).get(key))) as SaltRecord | undefined;
+    try {
+      const db = await openDb();
+      const got = (await req(db.transaction(STORE).objectStore(STORE).get(key))) as SaltRecord | undefined;
+      db.close();
+      if (got) return got;
+    } catch {
+      /* fall back to localStorage mirror */
+    }
+    return readLs(key);
   },
   async set(key, value) {
-    const db = await openDb();
-    // Wait for the transaction itself (not just the request) with strict durability: a salt must be on disk before the
-    // commit is sent, or a tab closed right after sending could lose it.
-    await new Promise<void>((resolve, reject) => {
-      const tx = db.transaction(STORE, 'readwrite', { durability: 'strict' });
-      tx.objectStore(STORE).put(value, key);
-      tx.oncomplete = () => {
-        db.close();
-        resolve();
-      };
-      tx.onerror = tx.onabort = () => {
-        db.close();
-        reject(tx.error ?? new Error('IndexedDB write failed'));
-      };
-    });
+    const mirrored = writeLs(key, value);
+    try {
+      const db = await openDb();
+      // Wait for the transaction itself (not just the request) with strict durability: a salt must be on disk before the
+      // commit is sent, or a tab closed right after sending could lose it.
+      await new Promise<void>((resolve, reject) => {
+        const tx = db.transaction(STORE, 'readwrite', { durability: 'strict' });
+        tx.objectStore(STORE).put(value, key);
+        tx.oncomplete = () => {
+          db.close();
+          resolve();
+        };
+        tx.onerror = tx.onabort = () => {
+          db.close();
+          reject(tx.error ?? new Error('IndexedDB write failed'));
+        };
+      });
+    } catch (e) {
+      if (!mirrored) throw e;
+    }
   },
   async list() {
-    const db = await openDb();
-    const store = db.transaction(STORE).objectStore(STORE);
-    const [keys, values] = await Promise.all([req(store.getAllKeys()), req(store.getAll())]);
-    return keys.map((k, i) => [String(k), values[i] as SaltRecord]);
+    const merged = new Map<string, SaltRecord>();
+    try {
+      const ls = globalThis.localStorage;
+      if (ls) {
+        for (let i = 0; i < ls.length; i++) {
+          const full = ls.key(i);
+          if (!full || !full.startsWith(LS_PREFIX)) continue;
+          const k = full.slice(LS_PREFIX.length);
+          const v = readLs(k);
+          if (v) merged.set(k, v);
+        }
+      }
+    } catch {
+      /* ignore */
+    }
+    try {
+      const db = await openDb();
+      const store = db.transaction(STORE).objectStore(STORE);
+      const [keys, values] = await Promise.all([req(store.getAllKeys()), req(store.getAll())]);
+      db.close();
+      keys.forEach((k, i) => merged.set(String(k), values[i] as SaltRecord));
+    } catch {
+      if (merged.size === 0) throw new Error('Salt storage unavailable');
+    }
+    return [...merged.entries()];
   },
 };
 

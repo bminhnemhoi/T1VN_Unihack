@@ -91,4 +91,11 @@ describe('adapter', () => {
     expect(toSampleCircle(gathering, ORG, 400).expired).toBeUndefined(); // still inside the deadline
     expect(toSampleCircle(gathering, A(2), 1000)).toMatchObject({ expired: true, role: 'member' });
   });
+
+  it('tailors active round todo to viewer role (non-member organizer, already-won member, sole live final round)', () => {
+    const v = { ...view(), mode: 'bidding' } as CircleView;
+    expect(toSampleCircle(v, ORG, 1000).todo).toBe('Giám sát kỳ 3 đang chạy');
+    expect(toSampleCircle(v, A(1), 1000).todo).toBe('Đã hốt kỳ 2 · Kỳ 3 tự động trích góp');
+    expect(toSampleCircle(v, A(2), 1000).todo).toBe('Kỳ cuối · Hốt trọn không cần bỏ thăm');
+  });
 });
