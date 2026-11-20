@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { MAX_CLEANUP_CANCELS, MAX_TRACKED_CIRCLES, STATE, newKeeperMemory, tick, type AttemptResult, type CircleSnapshot, type KeeperFn, type KeeperPort } from '../src/keeper';
+import { MAX_CLEANUP_CANCELS, MAX_TRACKED_CIRCLES, SNAPSHOT_AHEAD, STATE, newKeeperMemory, tick, type AttemptResult, type CircleSnapshot, type KeeperFn, type KeeperPort } from '../src/keeper';
 import { GAS_HARD_CAP, KeeperConfigError, gasLimitFor, loadKeeperConfig } from '../src/config';
 
 const C1 = '0x1111111111111111111111111111111111111111' as const;
@@ -233,6 +233,58 @@ describe('keeper tick', () => {
     await tick(retry.port, retry.log, mem);
     expect(retry.calls.filter((c) => c.fn === 'cancel')).toHaveLength(2);
     expect(retry.retired).toEqual([C1]);
+  });
+
+  // Fewer round trips: independent reads overlap, every transaction is still sent one at a time.
+  it('asks every member whether they owe at once, then marks only the debtors, in member order', async () => {
+    const t = fakePort({ now: 5000, deadline: 9000n, owes: new Set([M(2), M(4)]) });
+    let inFlight = 0;
+    let maxInFlight = 0;
+    const owes = t.port.owes;
+    t.port.owes = async (c, m) => {
+      inFlight++;
+      maxInFlight = Math.max(maxInFlight, inFlight);
+      await new Promise((r) => setTimeout(r, 2));
+      inFlight--;
+      return owes(c, m);
+    };
+    await tick(t.port, t.log);
+    expect(maxInFlight).toBe(members.length); // all five at the same time
+    expect(t.calls.filter((c) => c.fn === 'markDefault').map((c) => c.args[0])).toEqual([M(2), M(4)]);
+  });
+
+  it('reads a few circle snapshots ahead (bounded), and still processes the circles one after the other in order', async () => {
+    const list = Array.from({ length: 25 }, (_, i) => M(3000 + i));
+    const t = fakePort({ now: 100, circleList: list, deadline: 9000n });
+    let inFlight = 0;
+    let maxInFlight = 0;
+    const started: string[] = [];
+    const snapshot = t.port.snapshot;
+    t.port.snapshot = async (c) => {
+      started.push(c);
+      inFlight++;
+      maxInFlight = Math.max(maxInFlight, inFlight);
+      await new Promise((r) => setTimeout(r, 2));
+      inFlight--;
+      return snapshot(c);
+    };
+    const s = await tick(t.port, t.log);
+    expect(s.circles).toBe(25);
+    expect(maxInFlight).toBeGreaterThan(1);
+    expect(maxInFlight).toBeLessThanOrEqual(SNAPSHOT_AHEAD);
+    expect(started).toEqual([...list].reverse()); // newest first, each circle read exactly once
+  });
+
+  it('a failing snapshot ahead of the loop never becomes an unhandled rejection when an earlier one already failed the scan', async () => {
+    const list = Array.from({ length: 6 }, (_, i) => M(4000 + i)); // newest first: 4005, 4004, ...
+    const t = fakePort({ now: 100, circleList: list });
+    const snapshot = t.port.snapshot;
+    t.port.snapshot = async (c) => {
+      if (c === M(4004) || c === M(4001)) throw new Error('rpc down');
+      return snapshot(c);
+    };
+    await expect(tick(t.port, t.log)).rejects.toThrow('rpc down'); // the scan stops at the first failure, as before
+    await new Promise((r) => setTimeout(r, 25)); // let any stray rejection surface: vitest fails the run if one does
   });
 });
 

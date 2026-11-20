@@ -514,7 +514,8 @@ async function scenario(): Promise<void> {
   });
   const seen = await new Promise<string>((resolve) => {
     let out = '';
-    const timer = setTimeout(() => resolve(out), 20_000);
+    // 60 s: the first start in a fresh checkout makes tsx compile the keeper (it timed out at 20 s once); it resolves as soon as "scan done" shows up.
+    const timer = setTimeout(() => resolve(out), 60_000);
     child.stdout.on('data', (d: Buffer) => {
       out += d.toString();
       if (out.includes('scan done')) {

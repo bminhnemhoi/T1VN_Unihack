@@ -56,6 +56,13 @@ export interface EventOptions {
   fromCreation?: boolean;
   /** Reuse and extend the events already read for this client and circle (default true; only for the live head). */
   cache?: boolean;
+  /**
+   * Reuse the cached events without asking the node or the explorer at all when the last scan of this circle ended less
+   * than this many milliseconds ago (default: always refresh). For display-only readers that ask about the same circle
+   * several times in a burst (one reputation badge per member on a page): the second and later callers cost nothing.
+   * Never use it for a read that must see the caller's own just-sent transaction.
+   */
+  maxAgeMs?: number;
   withTimestamps?: boolean;
 }
 
@@ -176,6 +183,8 @@ interface EventCacheEntry {
   start: bigint;
   /** Highest block whose logs are already in `events`. */
   scannedTo: bigint;
+  /** `Date.now()` when this entry was last refreshed (see `EventOptions.maxAgeMs`). */
+  scannedAt: number;
   events: CircleEvent[];
   timestamps: Map<bigint, number>;
 }
@@ -208,13 +217,23 @@ const scanLocks = new WeakMap<object, Map<string, Promise<unknown>>>();
 async function scanEvents(client: PublicClient, circle: Address, opts: EventOptions): Promise<CircleEvent[]> {
   const chunk = opts.chunk && opts.chunk > 0n ? opts.chunk : FUJI_GETLOGS_MAX_BLOCKS;
   const concurrency = Math.max(1, opts.concurrency ?? 1);
-  const latest = opts.toBlock ?? (await client.getBlockNumber({ cacheTime: 0 }));
   const useCache = opts.toBlock === undefined && opts.cache !== false;
   const perClient = eventCache.get(client) ?? new Map<string, EventCacheEntry>();
   eventCache.set(client, perClient);
   const key = circle.toLowerCase();
   let entry = useCache ? perClient.get(key) : undefined;
   const requestedFrom = opts.fromBlock ?? 0n;
+  // A burst of display-only readers: a fresh enough scan of this circle is reused as it is (no request at all).
+  if (
+    entry &&
+    opts.maxAgeMs !== undefined &&
+    !opts.withTimestamps &&
+    requestedFrom >= entry.requestedFrom &&
+    Date.now() - entry.scannedAt < opts.maxAgeMs
+  ) {
+    return entry.events.map((e) => ({ ...e }));
+  }
+  const latest = opts.toBlock ?? (await client.getBlockNumber({ cacheTime: 0 }));
   // The chain went backwards (a local node was reset) or the caller asks for an earlier start: forget what we know.
   if (entry && (latest < entry.scannedTo || requestedFrom < entry.requestedFrom)) {
     perClient.delete(key);
@@ -235,7 +254,7 @@ async function scanEvents(client: PublicClient, circle: Address, opts: EventOpti
       const out = [...kept, ...fresh];
       // The explorer may trail the node by a few blocks: only claim what is safely behind the head.
       const scannedTo = latest > EXPLORER_LAG_BLOCKS ? latest - EXPLORER_LAG_BLOCKS : 0n;
-      if (useCache) perClient.set(key, { requestedFrom: entry?.requestedFrom ?? requestedFrom, start: entry?.start ?? lo, scannedTo, events: out, timestamps: entry?.timestamps ?? new Map() });
+      if (useCache) perClient.set(key, { requestedFrom: entry?.requestedFrom ?? requestedFrom, start: entry?.start ?? lo, scannedTo, scannedAt: Date.now(), events: out, timestamps: entry?.timestamps ?? new Map() });
       return out.map((e) => ({ ...e }));
     } catch {
       // explorer down or throttled: fall through to the chunked RPC scan
@@ -289,7 +308,7 @@ async function scanEvents(client: PublicClient, circle: Address, opts: EventOpti
       e.timestamp = timestamps.get(e.blockNumber);
     }
   }
-  if (useCache) perClient.set(key, { requestedFrom: entry?.requestedFrom ?? requestedFrom, start: entry?.start ?? start, scannedTo: latest, events: out, timestamps });
+  if (useCache) perClient.set(key, { requestedFrom: entry?.requestedFrom ?? requestedFrom, start: entry?.start ?? start, scannedTo: latest, scannedAt: Date.now(), events: out, timestamps });
   return out.map((e) => ({ ...e }));
 }
 

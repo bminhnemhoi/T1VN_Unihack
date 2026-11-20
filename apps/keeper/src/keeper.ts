@@ -71,6 +71,8 @@ const EXPECTED = new Set([
 export const MAX_TRACKED_CIRCLES = 200;
 /** Cleanup `cancel` of unbonded Forming circles sent per scan; each such circle is cancelled once, then retired. */
 export const MAX_CLEANUP_CANCELS = 5;
+/** Circle snapshots read ahead of the processing loop (read-only, so safe to overlap). */
+export const SNAPSHOT_AHEAD = 10;
 
 export interface TickSummary {
   circles: number;
@@ -159,13 +161,30 @@ export async function tick(port: KeeperPort, log: Log, mem: KeeperMemory = newKe
   const markOverdue = async (circle: Address, members: readonly Address[]): Promise<void> => {
     // markDefault picks the oldest overdue shortfall itself and reverts with GraceNotOver / NoShortfall otherwise,
     // so the simulation inside `attempt` decides who is due.
-    for (const member of members) {
-      if (await port.owes(circle, member)) await run(circle, 'markDefault', [member], { member });
+    // The reads are independent and cheap: ask for all members at once (one batch), then send one by one.
+    const owing = await Promise.all(members.map((member) => port.owes(circle, member)));
+    for (const [i, member] of members.entries()) {
+      if (owing[i]) await run(circle, 'markDefault', [member], { member });
     }
   };
 
-  for (const circle of circles) {
-    let snap = await port.snapshot(circle);
+  // Snapshots are read-only: fetch them a few circles ahead of the loop below, which stays strictly sequential for
+  // everything that sends a transaction (one keeper wallet, one nonce sequence).
+  const pending = new Map<Address, Promise<CircleSnapshot>>();
+  const prefetch = (from: number): void => {
+    for (let j = from; j < Math.min(circles.length, from + SNAPSHOT_AHEAD); j++) {
+      const c = circles[j]!;
+      if (pending.has(c)) continue;
+      const p = port.snapshot(c);
+      p.catch(() => undefined); // an unread failure (the loop stopped earlier) must not become an unhandled rejection
+      pending.set(c, p);
+    }
+  };
+
+  for (const [index, circle] of circles.entries()) {
+    prefetch(index);
+    let snap = await pending.get(circle)!;
+    pending.delete(circle);
     mem.lastRead.set(circle, scan);
     if (snap.bondDeposited > 0n && snap.state <= STATE.Paused) mem.funded.add(circle);
     else mem.funded.delete(circle);

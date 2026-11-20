@@ -16,6 +16,12 @@ import {
 
 type Address = `0x${string}`;
 
+/**
+ * Badges are display-only and a page shows one per member, all asking about the same circles within a moment: events
+ * read less than this long ago are reused instead of asking the explorer again (the invite page made 30 getLogs for 10 circles).
+ */
+export const STANDING_EVENTS_MAX_AGE_MS = 5_000;
+
 export interface StandingOptions {
   factory: Address;
   registry: Address;
@@ -50,7 +56,7 @@ export async function readMemberStanding(
     const info = infos[i]!;
     if (!info.joined) continue;
     unpaidDebt += info.debt;
-    const joined = (await getCircleEvents(client, c, { fromBlock: o.fromBlock })).find(
+    const joined = (await getCircleEvents(client, c, { fromBlock: o.fromBlock, maxAgeMs: STANDING_EVENTS_MAX_AGE_MS })).find(
       (e) => e.eventName === 'MemberJoined' && String(e.args.member).toLowerCase() === member.toLowerCase(),
     );
     if (joined && (firstBlock === undefined || joined.blockNumber < firstBlock)) firstBlock = joined.blockNumber;
@@ -80,7 +86,7 @@ export async function readOrganizerStanding(
   let bondUsed = 0;
   let firstBlock: bigint | undefined;
   for (const c of circles) {
-    const events = await getCircleEvents(client, c, { fromBlock: o.fromBlock });
+    const events = await getCircleEvents(client, c, { fromBlock: o.fromBlock, maxAgeMs: STANDING_EVENTS_MAX_AGE_MS });
     const s = summarizeOrganizerCircle(events);
     if (s.finished) finished++;
     if (s.bondUsedForDefault) bondUsed++;
