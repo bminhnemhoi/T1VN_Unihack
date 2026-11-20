@@ -3,8 +3,10 @@
  * The only code in the copilot that reads the environment for the model (provider, base URL, key, model id):
  * it passes it to `provider.ts`. No relay/attest imports, no wallet keys (docs/07 3.2 item 5).
  */
+import { chainToolContextFromEnv } from '../../../lib/copilot/chainContext';
 import { LIMITS } from '../../../lib/copilot/config';
 import { runCopilot, type CopilotEvent, type ModelClient } from '../../../lib/copilot/engine';
+import type { ToolContext } from '../../../lib/copilot/tools';
 import { ConfigError, createModelClient, resolveProviderConfig } from '../../../lib/copilot/provider';
 import { RateLimiter } from '../../../lib/copilot/ratelimit';
 // Header parsing only (no relay or attest code, no keys): the same IP rule as the other API routes (audit A15 M-01).
@@ -16,6 +18,9 @@ export const dynamic = 'force-dynamic';
 
 let requestCounter = 0;
 const limiter = new RateLimiter(LIMITS.requestsPerHour, Number(process.env.COPILOT_DAILY_LIMIT) || LIMITS.dailyDefault);
+// `factory.isCircle` for draft_ubnd_notice (docs/07 3.3); resolved once, undefined without a deployment.
+let toolContext: ToolContext | undefined | null = null;
+const toolContextOnce = (): ToolContext | undefined => (toolContext === null ? (toolContext = chainToolContextFromEnv(process.env)) : toolContext);
 
 function json(status: number, code: string, message: string, extra: Record<string, string> = {}): Response {
   return new Response(JSON.stringify({ error: { code, message } }), {
@@ -64,14 +69,6 @@ export async function POST(req: Request): Promise<Response> {
   const declared = Number(req.headers.get('content-length') ?? '0');
   if (declared > LIMITS.maxBodyBytes) return json(413, 'too_large', 'Nội dung gửi lên quá dài.');
 
-  const taken = limiter.take(clientIp(req, trustProxyFrom(process.env)));
-  if (!taken.ok) {
-    log({ requestId, event: 'rate_limited', reason: taken.reason });
-    return json(429, 'rate_limited', 'Bạn hỏi nhiều quá, vui lòng thử lại sau ít phút.', {
-      'retry-after': String(taken.retryAfterSec),
-    });
-  }
-
   const text = await readLimited(req, LIMITS.maxBodyBytes);
   if (text === null) return json(413, 'too_large', 'Nội dung gửi lên quá dài.');
   let body: unknown;
@@ -96,6 +93,17 @@ export async function POST(req: Request): Promise<Response> {
     throw e;
   }
 
+  // Charged only now, for a request that will reach the model: junk (bad JSON, bad schema, too large) and a copilot
+  // that is not configured cost nothing, so an anonymous client cannot drain the shared daily cap with garbage
+  // (without TRUST_PROXY the daily cap is the only gate; same rule as the relay budget, audit H-01).
+  const taken = limiter.take(clientIp(req, trustProxyFrom(process.env)));
+  if (!taken.ok) {
+    log({ requestId, event: 'rate_limited', reason: taken.reason });
+    return json(429, 'rate_limited', 'Bạn hỏi nhiều quá, vui lòng thử lại sau ít phút.', {
+      'retry-after': String(taken.retryAfterSec),
+    });
+  }
+
   const encoder = new TextEncoder();
   const abort = new AbortController();
   const stream = new ReadableStream<Uint8Array>({
@@ -111,7 +119,7 @@ export async function POST(req: Request): Promise<Response> {
       }, 4_000);
       try {
         send({ type: 'status', text: 'Đang xử lý câu hỏi...' });
-        for await (const e of runCopilot({ request: parsed.data, model, requestId, log, signal: abort.signal })) send(e);
+        for await (const e of runCopilot({ request: parsed.data, model, toolContext: toolContextOnce(), requestId, log, signal: abort.signal })) send(e);
       } catch {
         send({ type: 'error', code: 'internal', message: 'Có lỗi xảy ra. Bạn thử lại sau.' });
       } finally {
