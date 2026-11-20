@@ -131,6 +131,50 @@ contract HuiCircleFinalizeTest is CircleScenario {
         _assertConserved();
     }
 
+    /// @dev Documents an open product gap (not a fix): after `finalize` the debt stays on the books as a public claim
+    /// (docs/03 sections 5.3 step 8 and 6.8), but `repayDebt` requires Active, so the defaulter can no longer repay it
+    /// on chain and `recordRepaid` can never happen. The /api/attest eligibility rule (defaults > repaid) then refuses
+    /// this wallet in every future circle. Changing this is a rule change for the maintainers (docs/03 first).
+    function test_Gap_DebtLeftAtFinalize_CannotBeRepaidOnChain_Documented() public {
+        _branchB();
+        vm.warp(_graceEnd(5) + 1);
+        c.finalize();
+        assertEq(uint8(c.state()), uint8(CircleState.Completed));
+        uint256 debt = c.memberInfo(_M(4)).debt;
+        assertEq(debt, 320 * U, "the public claim left after finalize");
+
+        _unblock(_M(4)); // M4 now wants to pay, has the USDC and the allowance
+        assertGe(usdc.balanceOf(_M(4)), debt, "M4 can afford the repayment");
+        vm.prank(_M(4));
+        vm.expectRevert(
+            abi.encodeWithSelector(IHuiCircle.WrongState.selector, CircleState.Active, CircleState.Completed)
+        );
+        c.repayDebt(debt);
+
+        // Nothing moved, and the registry keeps the default without any way to record a repayment.
+        assertEq(c.memberInfo(_M(4)).debt, debt);
+        assertEq(rep.reputationOf(_M(4)).defaults, 1);
+        assertEq(rep.reputationOf(_M(4)).repaid, 0);
+        assertEq(usdc.balanceOf(address(c)), 0);
+    }
+
+    /// @dev Documents a second gap: `recordRepaid` is written only by `repayDebt`. A frozen member whose own pot pays
+    /// off its whole debt (docs/03 section 6.6) ends with debt 0 but the registry still shows an unrepaid default,
+    /// so the /api/attest rule (defaults > repaid) refuses the wallet in every later circle although it owes nothing.
+    function test_Gap_FrozenPotClearsDebt_RegistryStillShowsUnrepaidDefault_Documented() public {
+        _settleRounds(1, 3); // M1, M2, M3 receive (nobody bids)
+        _block(_M(5));
+        _settle(); // round 4: M4 receives, M5 (live) cannot pay its 100
+        vm.warp(_graceEnd(4) + 1);
+        c.markDefault(_M(5)); // M5 is frozen
+        assertGt(c.memberInfo(_M(5)).debt, 0);
+        _settle(); // round 5: only the frozen M5 is left, its pot repays the debt first
+        assertTrue(c.memberInfo(_M(5)).received);
+        assertEq(c.memberInfo(_M(5)).debt, 0, "the pot paid the whole debt");
+        assertEq(rep.reputationOf(_M(5)).defaults, 1);
+        assertEq(rep.reputationOf(_M(5)).repaid, 0, "no recordRepaid although nothing is owed");
+    }
+
     function test_WorkedExample_BranchA_M4PaysLate_HoldbackBackAndFinalizePaysNoHoldback() public {
         _branchA();
         assertEq(c.bondRemaining(), 480 * U, "payLate refilled the bond");

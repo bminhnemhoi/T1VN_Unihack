@@ -77,6 +77,13 @@ const EXPECTED = new Set([
 
 /** Circles read per scan, newest first (audit A16 L-01: a flood of spam circles must not slow the scan down). */
 export const MAX_TRACKED_CIRCLES = 200;
+/**
+ * How many circles in a row may fail (RPC read or send step threw) before the scan gives up and rethrows: one unreadable
+ * circle must not stop the others from being served (a flaky or throttled RPC fails a share of the reads, and the oldest
+ * circles sit at the end of the order), but when every read fails the RPC is down and 200 more attempts are noise.
+ */
+export const MAX_CONSECUTIVE_FAILURES = 5;
+
 /** Cleanup `cancel` of unbonded Forming circles sent per scan; each such circle is cancelled once, then retired. */
 export const MAX_CLEANUP_CANCELS = 5;
 /** Circle snapshots read ahead of the processing loop (read-only, so safe to overlap). */
@@ -197,63 +204,75 @@ export async function tick(port: KeeperPort, log: Log, mem: KeeperMemory = newKe
     }
   };
 
+  let consecutiveFailures = 0;
   for (const [index, circle] of circles.entries()) {
     prefetch(index);
-    let snap = await pending.get(circle)!;
-    pending.delete(circle);
-    mem.lastRead.set(circle, scan);
-    if (snap.bondDeposited > 0n && snap.state <= STATE.Paused) mem.funded.add(circle);
-    else mem.funded.delete(circle);
-    if (snap.bondDeposited === 0n && snap.state <= STATE.Paused) {
-      summary.ignored++;
-      if (snap.state === STATE.Forming && BigInt(now) > snap.joinDeadline) {
-        // Nobody can still deposit: clean it up with one cancel (bounded per scan), then never read it again. Retire
-        // only after the cancel went through (issue #2): a failed attempt stays eligible for the next scan (the port
-        // backs off after an on-chain revert), and if someone else cancelled it the next read sees a terminal state.
-        if (cleanupCancels < MAX_CLEANUP_CANCELS) {
-          cleanupCancels++;
-          if (await run(circle, 'cancel', [], { reason: 'unbonded' })) port.retire?.(circle);
+    try {
+      let snap = await pending.get(circle)!;
+      pending.delete(circle);
+      consecutiveFailures = 0; // the RPC answered: only reads that fail back to back mean it is down
+      mem.lastRead.set(circle, scan);
+      if (snap.bondDeposited > 0n && snap.state <= STATE.Paused) mem.funded.add(circle);
+      else mem.funded.delete(circle);
+      if (snap.bondDeposited === 0n && snap.state <= STATE.Paused) {
+        summary.ignored++;
+        if (snap.state === STATE.Forming && BigInt(now) > snap.joinDeadline) {
+          // Nobody can still deposit: clean it up with one cancel (bounded per scan), then never read it again. Retire
+          // only after the cancel went through (issue #2): a failed attempt stays eligible for the next scan (the port
+          // backs off after an on-chain revert), and if someone else cancelled it the next read sees a terminal state.
+          if (cleanupCancels < MAX_CLEANUP_CANCELS) {
+            cleanupCancels++;
+            if (await run(circle, 'cancel', [], { reason: 'unbonded' })) port.retire?.(circle);
+          }
+        } else if (snap.state !== STATE.Forming) {
+          port.retire?.(circle); // Active or Paused without a bond can never get one
         }
-      } else if (snap.state !== STATE.Forming) {
-        port.retire?.(circle); // Active or Paused without a bond can never get one
+        continue;
       }
-      continue;
-    }
-    if (snap.state === STATE.Forming) {
+      if (snap.state === STATE.Forming) {
+        summary.circles++;
+        if (BigInt(now) > snap.joinDeadline && snap.bondRemaining > 0n) await run(circle, 'cancel', [], {});
+        else if (snap.bondRemaining > 0n) noteDueAt(snap.joinDeadline + 1n, now);
+        continue;
+      }
+      if (snap.state !== STATE.Active) continue; // Paused or terminal: nothing to do
       summary.circles++;
-      if (BigInt(now) > snap.joinDeadline && snap.bondRemaining > 0n) await run(circle, 'cancel', [], {});
-      else if (snap.bondRemaining > 0n) noteDueAt(snap.joinDeadline + 1n, now);
-      continue;
-    }
-    if (snap.state !== STATE.Active) continue; // Paused or terminal: nothing to do
-    summary.circles++;
 
-    // 1. Mark every overdue defaulter.
-    await markOverdue(circle, snap.members);
-
-    // 2. Settle the current round once its deadline has passed.
-    if (snap.settledRounds < snap.memberCount) {
-      const round = snap.settledRounds + 1;
-      const deadline = await port.deadline(circle, round);
-      // Organizer-led rounds (B28): the organizer settles first; the keeper steps in only after the organizer's turn.
-      // An organizer who also holds a seat could pick the moment a rival is short: no turn for them (audit B28 L-01).
-      const orgSeated = snap.organizer !== undefined && snap.members.some((m) => m.toLowerCase() === snap.organizer!.toLowerCase());
-      const due = snap.roundDuration === undefined || orgSeated ? deadline : deadline + BigInt(organizerSettleWaitSec(snap.roundDuration));
-      if (BigInt(now) >= due) {
-        if (await run(circle, 'settleRound', [], { round, organizerLate: due > deadline ? 1 : 0 })) snap = await port.snapshot(circle);
-      } else {
-        noteDueAt(due + 1n, now);
-      }
-    }
-
-    // 3. Finalize after the last round; the simulation says whether the grace period is over.
-    if (snap.state === STATE.Active && snap.settledRounds >= snap.memberCount) {
+      // 1. Mark every overdue defaulter.
       await markOverdue(circle, snap.members);
-      const finalized = await run(circle, 'finalize', [], {});
-      if (!finalized && port.finalizeDueAt) {
-        const due = await port.finalizeDueAt(circle, snap.memberCount).catch(() => undefined);
-        if (due !== undefined) noteDueAt(due, now);
+
+      // 2. Settle the current round once its deadline has passed.
+      if (snap.settledRounds < snap.memberCount) {
+        const round = snap.settledRounds + 1;
+        const deadline = await port.deadline(circle, round);
+        // Organizer-led rounds (B28): the organizer settles first; the keeper steps in only after the organizer's turn.
+        // An organizer who also holds a seat could pick the moment a rival is short: no turn for them (audit B28 L-01).
+        const orgSeated = snap.organizer !== undefined && snap.members.some((m) => m.toLowerCase() === snap.organizer!.toLowerCase());
+        const due = snap.roundDuration === undefined || orgSeated ? deadline : deadline + BigInt(organizerSettleWaitSec(snap.roundDuration));
+        if (BigInt(now) >= due) {
+          if (await run(circle, 'settleRound', [], { round, organizerLate: due > deadline ? 1 : 0 })) snap = await port.snapshot(circle);
+        } else {
+          noteDueAt(due + 1n, now);
+        }
       }
+
+      // 3. Finalize after the last round; the simulation says whether the grace period is over.
+      if (snap.state === STATE.Active && snap.settledRounds >= snap.memberCount) {
+        await markOverdue(circle, snap.members);
+        const finalized = await run(circle, 'finalize', [], {});
+        if (!finalized && port.finalizeDueAt) {
+          const due = await port.finalizeDueAt(circle, snap.memberCount).catch(() => undefined);
+          if (due !== undefined) noteDueAt(due, now);
+        }
+      }
+    } catch (e) {
+      // A read or a step of this one circle failed (typically a throttled RPC). Count it, move the circle to the back of
+      // the queue like a circle that was read, and go on with the others. The reason is the error NAME only: a viem error
+      // text carries the RPC URL, and with it any API key.
+      summary.failed++;
+      mem.lastRead.set(circle, scan);
+      log('warn', 'circle skipped', { circle, reason: e instanceof Error ? e.name : 'unknown' });
+      if (++consecutiveFailures >= MAX_CONSECUTIVE_FAILURES) throw e;
     }
   }
   return summary;

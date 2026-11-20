@@ -1,6 +1,6 @@
 import { HttpRequestError } from 'viem';
 import { describe, expect, it } from 'vitest';
-import { PERMIT_PER_HOUR, createRelayPermitHandler, type PermitArgs, type RelayPermitDeps } from './relayPermit';
+import { PERMIT_PER_HOUR, REMEMBER_PERMIT_MS, createRelayPermitHandler, type PermitArgs, type RelayPermitDeps } from './relayPermit';
 import { createMutex } from './relay';
 import { SlidingWindowLimiter } from './ratelimit';
 
@@ -100,6 +100,8 @@ function harness(): Harness {
   return { deps, sent, logs, state };
 }
 
+// Each call is a distinct signature (as a wallet would produce for a new nonce); a re-post reuses a captured body.
+let sigCounter = 0;
 const permitBody = (over: Partial<Record<'owner' | 'spender' | 'value' | 'deadline' | 'v', unknown>> = {}) => ({
   permit: {
     owner: member,
@@ -108,7 +110,7 @@ const permitBody = (over: Partial<Record<'owner' | 'spender' | 'value' | 'deadli
     deadline: Number(CHAIN_NOW) + 1800,
     v: 27,
     r: `0x${'ab'.repeat(32)}`,
-    s: `0x${'cd'.repeat(32)}`,
+    s: `0x${'cd'.repeat(28)}${(++sigCounter).toString(16).padStart(8, '0')}`,
     ...over,
   },
 });
@@ -279,5 +281,53 @@ describe('POST /api/relay/permit', () => {
     expect(all).not.toContain('abababab');
     expect(all).not.toContain('cdcdcdcd');
     expect(all).toContain('"outcome":"sent"');
+  });
+});
+
+describe('POST /api/relay/permit: the same signed permit posted again is answered, not sent twice', () => {
+  it('a re-post before the permit is mined returns the same tx hash and sends nothing new', async () => {
+    const t = harness();
+    const h = createRelayPermitHandler(t.deps);
+    const body = permitBody();
+    const first = (await (await post(h, body)).json()) as { txHash: string };
+    const again = await post(h, body); // the response was lost, the client retries: the simulation still passes
+    expect(again.status).toBe(200);
+    expect(((await again.json()) as { txHash: string }).txHash).toBe(first.txHash);
+    expect(t.sent).toHaveLength(1);
+  });
+
+  it('two identical posts at the same time send one permit', async () => {
+    const t = harness();
+    const h = createRelayPermitHandler(t.deps);
+    const body = permitBody();
+    const [a, b] = await Promise.all([post(h, body), post(h, body)]);
+    const ha = ((await a.json()) as { txHash: string }).txHash;
+    const hb = ((await b.json()) as { txHash: string }).txHash;
+    expect(ha).toBe(hb);
+    expect(t.sent).toHaveLength(1);
+  });
+
+  it('a new signature is sent, a failed send is not remembered, and the memory expires', async () => {
+    const t = harness();
+    let now = NOW;
+    t.deps.now = () => now;
+    const h = createRelayPermitHandler(t.deps);
+    expect((await post(h, permitBody())).status).toBe(200);
+    expect((await post(h, permitBody())).status).toBe(200);
+    expect(t.sent).toHaveLength(2);
+
+    const body = permitBody();
+    const send = t.deps.sender.permit;
+    t.deps.sender.permit = async () => {
+      throw new Error('nonce too low');
+    };
+    expect((await post(h, body)).status).toBe(503);
+    t.deps.sender.permit = send;
+    expect((await post(h, body)).status).toBe(200); // the retry after a failed send really sends
+    expect(t.sent).toHaveLength(3);
+
+    now += REMEMBER_PERMIT_MS + 1;
+    expect((await post(h, body)).status).toBe(200);
+    expect(t.sent).toHaveLength(4); // forgotten: it goes through the checks and the send again
   });
 });

@@ -120,6 +120,8 @@ const commit = encodeFunctionData({ abi: huiCircleAbi, functionName: 'commitBid'
 const settle = encodeFunctionData({ abi: huiCircleAbi, functionName: 'settleRound' });
 const pause = encodeFunctionData({ abi: huiCircleAbi, functionName: 'pause' });
 
+// Every real request has its own forwarder nonce, hence its own signature: only a true re-post is byte-identical.
+let sigCounter = 0;
 const body = (over: { to?: string; data?: string; value?: string; gas?: string; from?: string } = {}) => ({
   request: {
     from: over.from ?? member,
@@ -129,7 +131,7 @@ const body = (over: { to?: string; data?: string; value?: string; gas?: string; 
     deadline: NOW / 1000 + 600,
     data: over.data ?? commit,
   },
-  signature: `0x${'ab'.repeat(65)}`,
+  signature: `0x${(++sigCounter).toString(16).padStart(130, '0')}`,
 });
 
 const post = (h: (r: Request) => Promise<Response>, b: unknown, headers: Record<string, string> = {}) =>
@@ -439,5 +441,97 @@ describe('POST /api/relay', () => {
     expect(res.status).toBe(503);
     expect(await code(res)).toBe('RelayUnavailable');
     expect(t.sent).toHaveLength(0);
+  });
+});
+
+describe('POST /api/relay: the same signed request posted again is answered, not sent twice', () => {
+  const FIFTEEN_MIN = 15 * 60_000;
+  const txHashOf = async (res: Response) => ((await res.json()) as { txHash: string }).txHash;
+
+  it('a client that lost the response and re-posts before the first tx is mined gets the same txHash, and only one tx is sent', async () => {
+    const h = harness();
+    const handler = createRelayHandler(h.deps);
+    const b = body();
+    const first = await post(handler, b);
+    expect(first.status).toBe(200);
+    const second = await post(handler, b); // forwarder.verify is still true: the nonce is consumed only when the first tx is mined
+    expect(second.status).toBe(200);
+    expect(await txHashOf(second)).toBe(await txHashOf(first));
+    expect(h.sent).toHaveLength(1);
+  });
+
+  it('after the first tx is mined (forwarder.verify now false) the same request is still answered with its txHash, not "sign again"', async () => {
+    const h = harness();
+    const handler = createRelayHandler(h.deps);
+    const b = body();
+    const hash = await txHashOf(await post(handler, b));
+    h.state.verify = false; // the member's nonce moved on
+    const again = await post(handler, b);
+    expect(again.status).toBe(200);
+    expect(await txHashOf(again)).toBe(hash);
+    expect(h.sent).toHaveLength(1);
+  });
+
+  it('two identical requests arriving at the same moment send one tx', async () => {
+    const h = harness();
+    const handler = createRelayHandler(h.deps);
+    const b = body();
+    const [x, y] = await Promise.all([post(handler, b), post(handler, b)]);
+    expect([x.status, y.status]).toEqual([200, 200]);
+    expect(await txHashOf(x)).toBe(await txHashOf(y));
+    expect(h.sent).toHaveLength(1);
+  });
+
+  it('a re-signed request (different signature, same call) is a new request and is sent', async () => {
+    const h = harness();
+    const handler = createRelayHandler(h.deps);
+    expect((await post(handler, body())).status).toBe(200);
+    expect((await post(handler, body())).status).toBe(200);
+    expect(h.sent).toHaveLength(2);
+  });
+
+  it('a request that only reuses the signature (other calldata) is never answered from memory', async () => {
+    const h = harness();
+    const handler = createRelayHandler(h.deps);
+    const b = body();
+    await post(handler, b);
+    h.state.verify = false;
+    const tampered = { ...body({ data: settle }), signature: b.signature };
+    const res = await post(handler, tampered);
+    expect(res.status).toBe(400);
+    expect(await code(res)).toBe('InvalidSignature');
+    expect(h.sent).toHaveLength(1);
+  });
+
+  it('the memory is bounded in time: after 15 minutes a mined request is "invalid signature" again', async () => {
+    const h = harness();
+    let clock = NOW;
+    h.deps.now = () => clock;
+    const handler = createRelayHandler(h.deps);
+    const b = body();
+    await post(handler, b);
+    h.state.verify = false;
+    clock += FIFTEEN_MIN + 1;
+    const res = await post(handler, b);
+    expect(res.status).toBe(400);
+    expect(await code(res)).toBe('InvalidSignature');
+  });
+
+  it('a send that failed is not remembered: the retry sends again', async () => {
+    const h = harness();
+    let fail = true;
+    const realExecute = h.deps.sender.execute.bind(h.deps.sender);
+    h.deps.sender.execute = async (a) => {
+      if (fail) throw new Error('rpc down');
+      return realExecute(a);
+    };
+    const handler = createRelayHandler(h.deps);
+    const b = body();
+    const down = await post(handler, b);
+    expect(down.status).toBe(503);
+    fail = false;
+    const retry = await post(handler, b);
+    expect(retry.status).toBe(200);
+    expect(h.sent).toHaveLength(1);
   });
 });
