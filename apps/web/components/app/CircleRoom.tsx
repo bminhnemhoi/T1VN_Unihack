@@ -7,7 +7,8 @@
  */
 import Link from 'next/link';
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import { formatUsdcNumber, huiMath, parseUsdc, type RoundCommitView } from 'sdk';
+import { formatUsdcNumber, huiMath, type RoundCommitView } from 'sdk';
+import { parseMoneyInput } from '@/lib/money-input';
 import { CircleChips, Loading, ErrorState, EmptyState, Sheet, Who, av } from '@/components/app/parts';
 import { TxButton, TxNote, TxSteps, useStepTx } from '@/components/app/tx';
 import { PauseLockProvider, PausedBanner } from '@/components/chain/PauseLock';
@@ -153,7 +154,7 @@ function Room({ c, refreshing, stale, onRefetch }: { c: SampleCircleData; refres
     setRun((r) => {
       if (r.phase === 'commit') return { ...r, phase: 'reveal' };
       if (r.phase === 'reveal') {
-        const mine = r.sealed && r.revealed ? parseUsdc(bidText.replace(/\./g, '')) : undefined;
+        const mine = r.sealed && r.revealed ? parseMoneyInput(bidText, 'bid') : undefined;
         const youWin = mine !== undefined && mine > rivalBid && c.viewer >= 0;
         const winner = youWin ? c.viewer : rival;
         const bid = youWin ? mine! : rivalBid;
@@ -643,7 +644,7 @@ function BidNow({ c, k, phase, chainNowSec, sampleLeft, maxBid, bidText, setBidT
   const isGuestViewer = Boolean(live && !c.viewerIsOrganizer && c.viewer < 0);
   const canUseBidSlip = !isNonMemberOrganizer && !isSettledOrFrozenMember && !isGuestViewer;
 
-  const bid = parseUsdc(bidText.trim().replace(/\./g, ''));
+  const bid = parseMoneyInput(bidText, 'bid');
   // Bidding is not blocked on a low wallet: the round's share is pulled whether or not one bids, and winning means
   // paying nothing this round. Blocking would stop exactly the member who needs the pot. Only the reveal deposit, which
   // the commit itself pulls, is a hard requirement; a balance under one share is a warning (B28).
@@ -1031,6 +1032,11 @@ function BidNow({ c, k, phase, chainNowSec, sampleLeft, maxBid, bidText, setBidT
         <p className={`hint${err && !locked ? ' err' : ''}`} id="bidHint">
           {err && !locked ? err : `Trần kỳ này ${f(maxBid)} USDC · thăm cao nhất thắng, bằng nhau thì ít trễ hơn`}
         </p>
+        {!err && !locked && bid !== undefined && (
+          <p className="hint" data-testid="bid-readback">
+            Bạn sẽ niêm phong thăm: <b>{f(bid)} USDC</b>
+          </p>
+        )}
         {lowWalletBalance && !locked && (
           <p className="hint warn" data-testid="bid-low-balance" role="status">
             Ví đang có {f(walletBal.data!.usdc)} USDC. Nếu không thắng, kỳ này bạn cần tối đa {f(C)} USDC; nạp thêm trước khi chủ hụi khui để khỏi bị ghi thiếu. Thắng thì kỳ này bạn không phải góp.

@@ -62,6 +62,8 @@ export interface TxContext {
    * buttons on one page never show each other's steps (audit B22 L-02). Does not change what is signed or sent.
    */
   onStep?: (s: TxStep) => void;
+  /** Wait used between TooEarly resends (tests pass an instant one). */
+  sleepFn?: (ms: number) => Promise<void>;
 }
 
 export interface TxSuccess {
@@ -129,6 +131,8 @@ export type TxStep = 'sign' | 'send' | 'confirm';
 const step = (ctx: TxContext, s: TxStep): void => ctx.onStep?.(s);
 
 const SIGNED_CACHE_TTL_MS = 90_000;
+const TOO_EARLY_RETRIES = 5;
+const TOO_EARLY_RETRY_MS = 3_000;
 interface CachedForwardRequest {
   signed: Awaited<ReturnType<typeof signForwardRequest>>;
   nonce: bigint;
@@ -195,7 +199,15 @@ async function relayOnce(
   }
 
   step(ctx, 'send');
-  const sent = await postRelay(ctx.fetchFn ?? defaultFetch, ctx.relayUrl ?? '/api/relay', signed, token);
+  let sent = await postRelay(ctx.fetchFn ?? defaultFetch, ctx.relayUrl ?? '/api/relay', signed, token);
+  // Issue #11: the on-screen clock runs on between blocks, the relay simulates on the latest block, so a press right at
+  // 00:00 can be a few seconds early. Nothing was sent, so resend the very same signed request (same nonce, no second
+  // signature) until the block clock catches up, within the request's own deadline.
+  const sleep = ctx.sleepFn ?? ((ms: number) => new Promise<void>((r) => setTimeout(r, ms)));
+  for (let i = 0; i < TOO_EARLY_RETRIES && !sent.ok && sent.code === 'TooEarly'; i++) {
+    await sleep(TOO_EARLY_RETRY_MS);
+    sent = await postRelay(ctx.fetchFn ?? defaultFetch, ctx.relayUrl ?? '/api/relay', signed, token);
+  }
   if (!sent.ok) {
     if (sent.code === 'NetworkError') {
       pendingSignedCache.set(cacheKey, { signed, nonce: onchainNonce, expiresAt: Date.now() + SIGNED_CACHE_TTL_MS });

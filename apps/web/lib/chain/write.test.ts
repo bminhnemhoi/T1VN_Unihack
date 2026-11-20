@@ -269,6 +269,38 @@ describe('B27 signing resilience and zero-balance guards', () => {
     expect(recovered).toHaveLength(1);
   });
 
+  it('issue #11: a settle that hits TooEarly is resent with the same signature until the block clock catches up', async () => {
+    let signCalls = 0;
+    const posts: Sent[] = [];
+    const early = (n: number): FetchLike => async (url, init) => {
+      posts.push({ url, body: JSON.parse(init.body), headers: init.headers });
+      if (posts.length <= n) return new Response(JSON.stringify({ error: { code: 'TooEarly', message: 'Chưa đến thời điểm' } }), { status: 422 });
+      return new Response(JSON.stringify({ txHash: HASH }), { status: 200 });
+    };
+    const a = setup({ fetchFn: early(2) });
+    const origSign = a.ctx.wallet.signer.signTypedData.bind(a.ctx.wallet.signer);
+    a.ctx.wallet = { ...a.ctx.wallet, signer: { address: a.ctx.wallet.signer.address, signTypedData: async (args) => { signCalls++; return origSign(args); } } };
+    a.ctx.sleepFn = async () => {};
+    expect((await settleRound(a.ctx, CIRCLE)).ok).toBe(true);
+    expect(posts).toHaveLength(3);
+    expect(signCalls).toBe(1);
+    expect(posts[2]!.body).toEqual(posts[0]!.body);
+  });
+
+  it('issue #11: gives up after the retry budget and still reports TooEarly', async () => {
+    const posts: unknown[] = [];
+    const a = setup({
+      fetchFn: async (_url, init) => {
+        posts.push(init.body);
+        return new Response(JSON.stringify({ error: { code: 'TooEarly', message: 'Chưa đến thời điểm' } }), { status: 422 });
+      },
+    });
+    a.ctx.sleepFn = async () => {};
+    expect(await settleRound(a.ctx, CIRCLE)).toMatchObject({ ok: false, code: 'TooEarly' });
+    expect(posts.length).toBeGreaterThan(1);
+    expect(posts.length).toBeLessThanOrEqual(6);
+  });
+
   it('refuses commitBid only when the wallet cannot pay the reveal deposit (B28)', async () => {
     const { ctx, sent } = setup({ balance: 50_000n }); // 0.05 USDC, the commit pulls a 0.10 USDC deposit
     expect(await commitBid(ctx, CIRCLE, 1, 500_000n)).toMatchObject({ ok: false, code: 'InsufficientBalance' });

@@ -37,6 +37,21 @@ test.describe('/circles/demo (Dây)', () => {
     await expect(seal).toBeEnabled();
   });
 
+  test('issue #10: a dot is a decimal mark, never dropped (2.5 is 2,50, not 25), and the slip reads back the amount', async ({ page }) => {
+    await page.goto('/circles/demo');
+    const bid = page.getByLabel('Thăm của bạn (số tiền bớt cho mọi người)');
+    const seal = page.getByRole('button', { name: 'Niêm phong thăm' });
+    await bid.fill('2.5');
+    await expect(bid).toHaveAttribute('aria-invalid', 'false');
+    await expect(page.getByTestId('bid-readback')).toContainText('2,50 USDC');
+    await expect(seal).toBeEnabled();
+    await bid.fill('3.3');
+    await expect(page.locator('#bidHint')).toContainText('Vượt trần kỳ này (3,287671 USDC)');
+    await expect(page.getByTestId('bid-readback')).toHaveCount(0);
+    await bid.fill('0.3');
+    await expect(page.getByTestId('bid-readback')).toContainText('0,30 USDC');
+  });
+
   test('if you win with 3,00 you get 346,12 (pot 2 x 97 + 2 x 100 = 394)', async ({ page, isMobile }) => {
     await page.goto('/circles/demo');
     await page.getByLabel('Thăm của bạn (số tiền bớt cho mọi người)').fill('3');
