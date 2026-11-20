@@ -5,12 +5,15 @@
  * NĐ 19 book (header, members, every transaction, print, JSON) stays one tap away (`?ban=day-du`).
  */
 import Link from 'next/link';
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import { formatUsdcNumber } from 'sdk';
 import { CircleChips, ErrorState, EmptyState, Loading, Sheet, av } from '@/components/app/parts';
 import { CircleScreen } from '@/components/circle/CircleScreen';
 import { setDemoNet, useSampleLoad } from '@/lib/demo-store';
 import { useCircleData } from '@/lib/live/useCircleData';
+import { useCircleEvents } from '@/lib/live/useCircleEvents';
+import { settleFromEvents } from '@/lib/live/settleEvents';
+import { formatCents } from '@/lib/money';
 import { GLYPH, KIND, ledgerOf, type Cell } from '@/lib/app-data';
 import type { SampleCircleData } from '@/lib/sample-circles';
 
@@ -65,6 +68,15 @@ function LedgerBody({ c, refreshing, stale }: { c: SampleCircleData; refreshing:
   const state = (r: number) => (r < k ? 'done' : r === k ? 'now' : 'later');
   const name = (i: number) => (i === c.viewer ? `${av(i)} · Bạn` : av(i));
   const latest = [...bond].reverse().find((b) => b !== null) ?? c.bond;
+  // Net per member once the circle is closed (same numbers as Tất toán): stops "HỐT 19,60" reading as a loss when the
+  // holdback refund and the on-time reward come back at finalize.
+  const closed = Boolean(c.live && c.state === 'completed' && !c.ended);
+  const events = useCircleEvents(closed ? c.live!.address : undefined);
+  const nets = useMemo(() => {
+    if (!closed || !events.data) return undefined;
+    const sorted = [...c.live!.view.members].sort((a, b) => a.joinIndex - b.joinIndex);
+    return settleFromEvents(events.data, c.terms.c, sorted.map((m) => m.address)).members.map((m) => m.net);
+  }, [closed, events.data, c.live, c.terms.c]);
   // Public claims are only what honest receivers were short-paid (`uncovered` still open). What a defaulter took from the
   // organizer's bond or the reserve is a debt to those, not a loss of any member: shown apart, per member.
   const claims = c.shortfalls.filter((x) => x.uncovered > 0n);
@@ -111,6 +123,7 @@ function LedgerBody({ c, refreshing, stale }: { c: SampleCircleData; refreshing:
                   Kỳ {j + 1}
                 </th>
               ))}
+              {nets && <th scope="col">Ròng</th>}
             </tr>
           </thead>
           <tbody>
@@ -123,6 +136,12 @@ function LedgerBody({ c, refreshing, stale }: { c: SampleCircleData; refreshing:
                     {x.kind !== 'later' && x.note !== 'góp đúng hạn' && <small>{x.note}</small>}
                   </td>
                 ))}
+                {nets && (
+                  <td className="mono" data-testid="ledger-net">
+                    <span className="v">{nets[i]! >= 0n ? `+${formatCents(nets[i]!)}` : `−${formatCents(-nets[i]!, 'up')}`}</span>
+                    <small>gồm hoàn giữ lại, thưởng đúng hạn</small>
+                  </td>
+                )}
               </tr>
             ))}
           </tbody>
@@ -134,6 +153,7 @@ function LedgerBody({ c, refreshing, stale }: { c: SampleCircleData; refreshing:
                   {b === null ? '—' : whole(b)}
                 </td>
               ))}
+              {nets && <td />}
             </tr>
           </tfoot>
         </table>
