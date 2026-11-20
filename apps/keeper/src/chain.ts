@@ -38,9 +38,12 @@ export function createViemPort(cfg: KeeperConfig): { port: KeeperPort; keeper: A
   }
   const factory = deployment.factory;
   const chain = network.name === 'anvil' ? anvil : avalancheFuji;
-  const transports = network.rpcUrls.map((u) => http(u));
+  // JSON-RPC batching and Multicall3: the 6 reads of one circle snapshot become one request instead of six, which
+  // matters on Fuji's public RPC (it throttles bursts). Same setup as the web client; viem skips Multicall3 where the
+  // chain has none (anvil), and calls that carry an account (simulate, estimate) are never batched.
+  const transports = network.rpcUrls.map((u) => http(u, { batch: true }));
   const transport = transports.length > 1 ? fallback(transports) : transports[0]!;
-  const publicClient = createPublicClient({ chain, transport }) as PublicClient;
+  const publicClient = createPublicClient({ chain, transport, batch: { multicall: true } }) as PublicClient;
   const account = privateKeyToAccount(cfg.privateKey);
   const wallet = createWalletClient({ account, chain, transport });
 

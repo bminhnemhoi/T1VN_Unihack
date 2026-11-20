@@ -1,3 +1,4 @@
+import { join, resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { NetworkError, resolveBrowserRpc, resolveNetwork } from '../src/network';
 import { parseDeployment } from '../src/addresses';
@@ -8,7 +9,7 @@ describe('resolveNetwork', () => {
     expect(n.name).toBe('fuji');
     expect(n.chainId).toBe(43113);
     expect(n.rpcUrls).toEqual(['https://api.avax-test.network/ext/bc/C/rpc']);
-    expect(n.deploymentFile.endsWith('contracts/deployments/fuji.json')).toBe(true);
+    expect(n.deploymentFile.endsWith(join('contracts', 'deployments', 'fuji.json'))).toBe(true);
   });
 
   it('adds the fallback RPC and refuses a mainnet URL', () => {
@@ -83,7 +84,7 @@ describe('parseDeployment with allowed chains', () => {
 describe('deploymentsDir', () => {
   it('honours HUISAFE_DEPLOYMENTS_DIR and otherwise finds contracts/deployments upwards', async () => {
     const { deploymentsDir } = await import('../src/paths');
-    expect(deploymentsDir('/x', { HUISAFE_DEPLOYMENTS_DIR: '/tmp/d' })).toBe('/tmp/d');
-    expect(deploymentsDir(process.cwd(), {}).endsWith('contracts/deployments')).toBe(true);
+    expect(deploymentsDir('/x', { HUISAFE_DEPLOYMENTS_DIR: '/tmp/d' })).toBe(resolve('/tmp/d'));
+    expect(deploymentsDir(process.cwd(), {}).endsWith(join('contracts', 'deployments'))).toBe(true);
   });
 });
