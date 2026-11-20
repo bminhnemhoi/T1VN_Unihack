@@ -21,6 +21,7 @@ import { useCircleData } from '@/lib/live/useCircleData';
 import { useMyCommit } from '@/lib/live/useMyCommit';
 import { useRoundCommits } from '@/lib/live/useRoundCommits';
 import { useWalletBalance } from '@/lib/live/useWalletBalance';
+import { MyRoundCard } from '@/components/app/MyRoundCard';
 import { bondUsedThrough, coverOf, formatVnTime, settledAtMs, settledRound, type SampleCircleData } from '@/lib/sample-circles';
 import { usdc } from '@/lib/sample';
 
@@ -328,6 +329,7 @@ function Room({ c, refreshing, stale, onRefetch }: { c: SampleCircleData; refres
             ) : (
               <BidNow c={c} k={k} phase={phase} chainNowSec={chainNowSec} sampleLeft={sampleLeft} maxBid={maxBid} bidText={bidText} setBidText={setBidText} run={run} setRun={setRun} stamp={stamp} setStamp={setStamp} rival={rival} rivalBid={rivalBid} banner={settledBanner} onRefetch={onRefetch} />
             ))}
+          {sel === k && !roundDone(k) && c.live && <MyRoundCard c={c} k={k} />}
           {sel > k && <Later c={c} r={sel} k={k} settledNow={!!run.settled} />}
         </div>
       </div>
@@ -636,9 +638,13 @@ function BidNow({ c, k, phase, chainNowSec, sampleLeft, maxBid, bidText, setBidT
   const canUseBidSlip = !isNonMemberOrganizer && !isSettledOrFrozenMember && !isGuestViewer;
 
   const bid = parseUsdc(bidText.trim().replace(/\./g, ''));
-  const lowWalletBalance = Boolean(
-    live && canUseBidSlip && phase === 'commit' && walletBal.data && walletBal.data.usdc < C,
-  );
+  // Bidding is not blocked on a low wallet: the round's share is pulled whether or not one bids, and winning means
+  // paying nothing this round. Blocking would stop exactly the member who needs the pot. Only the reveal deposit, which
+  // the commit itself pulls, is a hard requirement; a balance under one share is a warning (B28).
+  const revealDeposit = (C * BigInt(live?.view.params.revealBondBps ?? 0)) / 10_000n;
+  const balanceKnown = Boolean(live && canUseBidSlip && phase === 'commit' && walletBal.data);
+  const cannotPayDeposit = balanceKnown && walletBal.data!.usdc < revealDeposit;
+  const lowWalletBalance = balanceKnown && !cannotPayDeposit && walletBal.data!.usdc < C;
   const err =
     bid === undefined
       ? 'Nhập số tiền, ví dụ 2,5'
@@ -646,8 +652,8 @@ function BidNow({ c, k, phase, chainNowSec, sampleLeft, maxBid, bidText, setBidT
         ? `Thăm phải nhỏ hơn ${f(C)} USDC.`
         : bid > maxBid
           ? `Vượt trần kỳ này (${f(maxBid)} USDC). Thăm này sẽ không mở được.`
-          : lowWalletBalance
-            ? `Ví hiện có ${f(walletBal.data!.usdc)} USDC — cần tối thiểu ${f(C)} USDC (1 phần góp) để bỏ thăm.`
+          : cannotPayDeposit
+            ? `Bỏ thăm cần ${f(revealDeposit)} USDC tiền cọc mở thăm (trả lại khi mở thăm); ví đang có ${f(walletBal.data!.usdc)} USDC.`
             : '';
   const organizerSeat = c.viewerIsOrganizer && c.viewer >= 0;
   const q = bidQuote(c.terms, k, bid === undefined || bid >= C || bid > maxBid ? 0n : bid, organizerSeat);
@@ -1032,7 +1038,12 @@ function BidNow({ c, k, phase, chainNowSec, sampleLeft, maxBid, bidText, setBidT
           {err && !locked ? err : `Trần kỳ này ${f(maxBid)} USDC · thăm cao nhất thắng, bằng nhau thì ít trễ hơn`}
         </p>
         {lowWalletBalance && !locked && (
-          <p className="hint err">
+          <p className="hint warn" data-testid="bid-low-balance" role="status">
+            Ví đang có {f(walletBal.data!.usdc)} USDC. Nếu không thắng, kỳ này bạn cần tối đa {f(C)} USDC; nạp thêm trước khi chủ hụi khui để khỏi bị ghi thiếu. Thắng thì kỳ này bạn không phải góp.
+          </p>
+        )}
+        {lowWalletBalance && !locked && (
+          <p className="hint">
             Nhận USDC thử nghiệm tại{' '}
             <a href="https://faucet.circle.com" target="_blank" rel="noreferrer" style={{ color: 'inherit', textDecoration: 'underline' }}>
               faucet.circle.com

@@ -28,7 +28,7 @@ function setup(
   const onchain = over.onchainHash ?? { hash: ZERO };
   const client = {
     async readContract({ functionName }: { functionName: string }) {
-      if (functionName === 'params') return { contribution: 10n * U };
+      if (functionName === 'params') return { contribution: 10n * U, revealBondBps: 100 };
       if (functionName === 'maxBid') return over.maxBid ?? 600_000n;
       if (functionName === 'nonces') return 0n;
       if (functionName === 'currentRound') return 1;
@@ -269,10 +269,16 @@ describe('B27 signing resilience and zero-balance guards', () => {
     expect(recovered).toHaveLength(1);
   });
 
-  it('refuses commitBid when wallet holds less than 1 round contribution (anti-1%-bond pot sniping)', async () => {
-    const { ctx, sent } = setup({ balance: 100_000n }); // only 0.10 USDC reveal bond, needs 10 USDC
+  it('refuses commitBid only when the wallet cannot pay the reveal deposit (B28)', async () => {
+    const { ctx, sent } = setup({ balance: 50_000n }); // 0.05 USDC, the commit pulls a 0.10 USDC deposit
     expect(await commitBid(ctx, CIRCLE, 1, 500_000n)).toMatchObject({ ok: false, code: 'InsufficientBalance' });
     expect(sent).toHaveLength(0);
+  });
+
+  it('lets a wallet under one share bid: the share is pulled anyway and the winner pays nothing this round (B28)', async () => {
+    const { ctx } = setup({ balance: 2_000_000n }); // 2 USDC < 10 USDC share, > 0.10 deposit
+    const r = await commitBid(ctx, CIRCLE, 1, 500_000n);
+    expect(r).not.toMatchObject({ code: 'InsufficientBalance' });
   });
 
   it('short-circuits join cleanly when memberInfo.joined is already true instead of hitting AttestationUsed', async () => {

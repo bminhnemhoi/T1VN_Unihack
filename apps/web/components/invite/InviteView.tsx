@@ -171,8 +171,16 @@ export function InviteView({ c: C }: { c: SampleCircleData }) {
           Vào dây
         </h2>
         <p className="so-ke mt-2 text-lead">
-          Bạn ký một lần để cho phép dây trích tối đa {formatUsdc(allowance)} trong cả dây (mỗi kỳ chỉ trích phần góp). Không cần ví riêng, không cần AVAX.
+          Bạn ký một lần để cho phép dây trích <b>tối đa {formatUsdc(allowance)}</b> trong cả dây. Đây là trần, không phải số bị trừ ngay: mỗi kỳ hợp đồng chỉ trích đúng phần góp của kỳ đó, và bạn thu hồi quyền này được trong ví. Không cần ví riêng, không cần AVAX.
         </p>
+        {mySeat <= n && (
+          <p className="mt-2 font-semibold" data-testid="invite-seat">
+            Bạn sẽ là người thứ {mySeat} trong dây.{' '}
+            {t.mode === 'fixed'
+              ? `Dây cố định: bạn hốt kỳ ${mySeat}.`
+              : 'Dây bỏ thăm: ai bỏ thăm cao nhất thì hốt; kỳ không ai bỏ thăm thì người vào sớm nhất trong số chưa hốt sẽ hốt.'}
+          </p>
+        )}
         <Field orientation="horizontal" className="mt-3">
           <Checkbox id="dong-y" ref={box} checked={agreed} onCheckedChange={(v) => setAgreed(v === true)} />
           <FieldLabel htmlFor="dong-y" className="min-h-12 flex-1 items-center font-normal">

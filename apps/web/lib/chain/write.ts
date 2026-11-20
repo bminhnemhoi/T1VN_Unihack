@@ -378,7 +378,7 @@ export function commitBid(ctx: TxContext, circle: Address, round: number, bid: b
       }
     }
     const [params, max, current, phase, balance] = await Promise.all([
-      readCircleFn<{ contribution: bigint }>(ctx, circle, 'params'),
+      readCircleFn<{ contribution: bigint; revealBondBps: number }>(ctx, circle, 'params'),
       readCircleFn<bigint>(ctx, circle, 'maxBid', [round]),
       readCircleFn<number>(ctx, circle, 'currentRound'),
       readCircleFn<number>(ctx, circle, 'phase'),
@@ -392,11 +392,11 @@ export function commitBid(ctx: TxContext, circle: Address, round: number, bid: b
       return fail('BidTooHigh', `Tiền thăm phải nhỏ hơn mức góp ${formatUsdc(params.contribution)}.`);
     }
     if (bid > max) return fail('BidTooHigh', `Tiền thăm vượt trần của kỳ này (tối đa ${formatUsdc(max)}).`);
-    if (balance !== undefined && balance < params.contribution) {
-      return fail(
-        'InsufficientBalance',
-        `Ví của bạn hiện có ${formatUsdc(balance)}, cần tối thiểu ${formatUsdc(params.contribution)} (1 phần góp) để bỏ thăm.`,
-      );
+    // Only the reveal deposit, pulled by the commit itself, is required. A wallet under one share may still bid: the
+    // share is pulled whether or not one bids, and the winner pays nothing this round (B28; the room shows a warning).
+    const deposit = (params.contribution * BigInt(params.revealBondBps)) / 10_000n;
+    if (balance !== undefined && balance < deposit) {
+      return fail('InsufficientBalance', `Bỏ thăm cần ${formatUsdc(deposit)} tiền cọc mở thăm (trả lại khi mở thăm); ví của bạn hiện có ${formatUsdc(balance)}.`);
     }
 
     const prevSaved = opts.resume ? await loadSalt(circle, round, member, store) : undefined;

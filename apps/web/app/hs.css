@@ -131,6 +131,9 @@
     & .roleBox { background: var(--paper); color: var(--ink); border-radius: var(--r-in); padding: 16px 24px; display: grid; gap: 8px; }
     & .roleBox h3 { margin: 0; font: 700 18px/1.3 var(--display); color: var(--ink); }
     & .roleBox p { margin: 0; font-size: 14px; line-height: 1.5; color: var(--ink-2); }
+    & .myRound { margin-top: 12px; border: 1px solid var(--line); }
+    & .myRound.warn { border-color: var(--red); }
+    & .myRound .myRoundWarn { color: var(--red-ink); font-weight: 600; }
 
     & .autoRev { display: flex; align-items: center; gap: 12px; min-height: 44px; padding: 8px 12px; border-radius: 4px; background: #2c2828; border: 1px solid #454040; color: var(--ivory); font-size: 13px; line-height: 1.4; cursor: pointer; }
     & .autoRev input { width: 18px; height: 18px; accent-color: var(--lime); flex: none; cursor: pointer; }
@@ -153,6 +156,7 @@
     /* Small explanatory sentences stay in Inter Tight; its narrow fit needs a little air at 12-13px (13/11). */
     & .hint, & .bub, & .lgFoot, & .opt small { letter-spacing: 0.012em; word-spacing: 0.04em; }
     & .hint.err { color: var(--red-ink); font-weight: 600; }
+    & .hint.warn { color: var(--ink); background: var(--soft); border-radius: 4px; padding: 8px 12px; }
     & .panel.inkp .hint { color: var(--mute); }
     & .panel.inkp .slip .hint { color: var(--ink-2); }
     & .slip .hint { font: 400 12px/1.5 var(--mono); }
