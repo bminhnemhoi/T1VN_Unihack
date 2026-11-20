@@ -75,9 +75,11 @@ export async function buildAttestHandler(env: Env = process.env): Promise<Handle
           revealBondBps: number;
         }>,
         publicClient.readContract({ address: deployment.usdc, abi: mockUsdcAbi, functionName: 'balanceOf', args: [wallet] }) as Promise<bigint>,
-        publicClient
-          .readContract({ address: config.reputation, abi: iReputationRegistryAbi, functionName: 'reputationOf', args: [wallet] })
-          .catch(() => ({ defaults: 0, repaid: 0 })) as Promise<{ defaults: number; repaid: number }>,
+        // Fails closed (audit B28 L-02): an unreadable registry is a chain error, never "no defaults".
+        publicClient.readContract({ address: config.reputation, abi: iReputationRegistryAbi, functionName: 'reputationOf', args: [wallet] }) as Promise<{
+          defaults: number;
+          repaid: number;
+        }>,
       ]);
       if (mi.joined) {
         return { ok: false, status: 409, code: 'AlreadyMember', message: 'Bạn đã ở trong dây này rồi.' };

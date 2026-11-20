@@ -48,7 +48,7 @@ Giờ ghi theo "T = lúc bắt đầu trình bày". Mỗi việc có người ch
 
 ### T-30 phút
 
-1. Tạo dây Fixed mới nếu dây "đã hoàn tất" chưa có hoặc đã mất: chạy lệnh ở T-1 ngày. Một dây Fixed N = 3 xong sau khoảng 3 × 180 giây + 120 giây ân hạn, khoảng 11 phút sau khi kích hoạt, nên T-30 là hạn chót an toàn; muộn hơn thì dùng dây `0xABA8...2461` đã Completed.
+1. Tạo dây Fixed mới nếu dây "đã hoàn tất" chưa có hoặc đã mất: chạy lệnh ở T-1 ngày. Một dây Fixed N = 3 xong sau khoảng 3 × 180 giây + 120 giây ân hạn (dây tạo từ 20/11: 3 × 120 giây cộng thời gian chủ hụi khui mỗi kỳ, keeper khui thay nếu chủ hụi chậm quá 5 phút, + 60 giây ân hạn), khoảng 11 phút sau khi kích hoạt, nên T-30 là hạn chót an toàn; muộn hơn thì dùng dây `0xABA8...2461` đã Completed.
 2. Mở sẵn các tab (mỗi máy một cửa sổ riêng): danh sách dây, dây "đã hoàn tất" (Tổng quan, Sổ hụi, Bảo chứng), dây sẽ bắt đầu trong demo (Phòng bỏ thăm), Snowtrace của dây Fixed (`https://testnet.snowtrace.io/address/0xABA89dFfA4e157927710419b01C32bD307bF2461`), trang Phòng mô phỏng.
 3. Hỏi sẵn trợ lý các câu của kịch bản để câu trả lời nằm trên màn (câu hỏi ở docs/12 mục 3.2, 40 đến 65 giây).
 4. Đặt "Sao lưu thăm" sẵn cho tài khoản sẽ nộp thăm; kiểm IndexedDB không bị trình duyệt xóa (không dùng cửa sổ ẩn danh cho tài khoản nộp thăm).

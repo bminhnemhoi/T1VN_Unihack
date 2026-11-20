@@ -7,10 +7,11 @@
  * children tree keeps its place (no remount, no lost form state) when this chunk arrives.
  */
 import { memo, useEffect, useMemo, useRef } from 'react';
-import { createWalletClient, custom } from 'viem';
+import { createWalletClient, custom, verifyTypedData } from 'viem';
 import { avalancheFuji } from 'viem/chains';
-import { PrivyProvider, usePrivy, useWallets, type PrivyClientConfig } from '@privy-io/react-auth';
-import type { TypedDataSigner } from 'sdk';
+import { PrivyProvider, usePrivy, useSignTypedData, useWallets, type PrivyClientConfig } from '@privy-io/react-auth';
+import { huiCircleFullAbi, huiFactoryAbi, type TypedDataSigner } from 'sdk';
+import { quietSignAllowed } from './quietSign';
 import { useChain } from './provider';
 import type { HuiWallet } from './wallet';
 import type { HuiWalletValue } from './walletContext';
@@ -21,13 +22,22 @@ import type { HuiWalletValue } from './walletContext';
  * `setLive` re-renders Privy, which hands out new objects again, and React stops with "Maximum update depth exceeded"
  * (error #185) the moment Privy loads. Functions read the latest Privy objects through a ref when they are called.
  */
+/** Typed data with every bigint as a decimal string: the Privy hook serialises to JSON, EIP-712 reads them the same. */
+function jsonSafe(v: unknown): unknown {
+  if (typeof v === 'bigint') return v.toString();
+  if (Array.isArray(v)) return v.map(jsonSafe);
+  if (v && typeof v === 'object') return Object.fromEntries(Object.entries(v).map(([k, x]) => [k, jsonSafe(x)]));
+  return v;
+}
+
 function usePrivyValue(): HuiWalletValue {
   const chain = useChain();
   const privy = usePrivy();
   const { wallets } = useWallets();
   const embedded = wallets.find((w) => w.walletClientType === 'privy');
-  const latest = useRef({ privy, embedded });
-  latest.current = { privy, embedded };
+  const { signTypedData: privySign } = useSignTypedData();
+  const latest = useRef({ privy, embedded, privySign, chain });
+  latest.current = { privy, embedded, privySign, chain };
 
   const address = embedded?.address as `0x${string}` | undefined;
   const chainId = chain?.chainId;
@@ -39,6 +49,32 @@ function usePrivyValue(): HuiWalletValue {
         const w = latest.current.embedded;
         if (!w || w.address.toLowerCase() !== address.toLowerCase()) throw new Error('Privy wallet changed');
         await w.switchChain(chainId);
+        // B28: HụiSafe's own forward requests and circle permits are signed without Privy's pop-up (the app's button
+        // and step indicator are the confirmation); anything else keeps the pop-up. See lib/chain/quietSign.ts.
+        const ch = latest.current.chain;
+        // Freeze the request before checking it: what is checked is exactly what gets signed (audit B28 L-03).
+        args = structuredClone(args);
+        const quiet =
+          ch !== null &&
+          (await quietSignAllowed(args as never, {
+            address,
+            chainId,
+            forwarder: ch.forwarder,
+            usdc: ch.usdc,
+            factory: ch.factory,
+            isCircle: async (a) => (await ch.client.readContract({ address: ch.factory, abi: huiFactoryAbi, functionName: 'isCircle', args: [a] })) as boolean,
+            requiredAllowance: async (a) => (await ch.client.readContract({ address: a, abi: huiCircleFullAbi, functionName: 'requiredAllowance' })) as bigint,
+            nowSec: () => Math.floor(Date.now() / 1000),
+          }));
+        if (quiet) {
+          try {
+            const { signature } = await latest.current.privySign(jsonSafe(args) as never, { address, uiOptions: { showWalletUIs: false } });
+            // Never hand out a signature that does not verify locally: on any mismatch, fall back to the pop-up path.
+            if (await verifyTypedData({ address, ...(args as object), signature: signature as `0x${string}` } as never)) return signature as `0x${string}`;
+          } catch {
+            /* fall through to the Privy pop-up */
+          }
+        }
         const provider = await w.getEthereumProvider();
         const client = createWalletClient({ account: address, transport: custom(provider) });
         return client.signTypedData(args as never);

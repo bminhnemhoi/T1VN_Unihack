@@ -31,6 +31,8 @@ export interface CircleSnapshot {
   bondDeposited: bigint;
   /** Real seconds between two rounds; picks how long the organizer has to settle first (B28). Absent: settle at the deadline. */
   roundDuration?: number;
+  /** Organizer of the circle; when they also hold a seat they get no settling turn (audit B28 L-01). */
+  organizer?: Address;
 }
 
 export type AttemptResult =
@@ -175,7 +177,9 @@ export async function tick(port: KeeperPort, log: Log): Promise<TickSummary> {
       const round = snap.settledRounds + 1;
       const deadline = await port.deadline(circle, round);
       // Organizer-led rounds (B28): the organizer settles first; the keeper steps in only after the organizer's turn.
-      const due = snap.roundDuration === undefined ? deadline : deadline + BigInt(organizerSettleWaitSec(snap.roundDuration));
+      // An organizer who also holds a seat could pick the moment a rival is short: no turn for them (audit B28 L-01).
+      const orgSeated = snap.organizer !== undefined && snap.members.some((m) => m.toLowerCase() === snap.organizer!.toLowerCase());
+      const due = snap.roundDuration === undefined || orgSeated ? deadline : deadline + BigInt(organizerSettleWaitSec(snap.roundDuration));
       if (BigInt(now) >= due) {
         if (await run(circle, 'settleRound', [], { round, organizerLate: due > deadline ? 1 : 0 })) snap = await port.snapshot(circle);
       } else {

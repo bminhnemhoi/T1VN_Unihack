@@ -133,6 +133,10 @@ describe('keeper tick', () => {
     const realLate = fakePort({ now: 4000 + 86_400, deadline: 4000n, snap: { roundDuration: 30 * 86_400 } });
     await tick(realLate.port, realLate.log);
     expect(realLate.calls).toEqual([{ fn: 'settleRound', args: [] }]);
+    // An organizer who holds a seat gets no turn: settled at the deadline (audit B28 L-01).
+    const seated = fakePort({ now: 4000, deadline: 4000n, snap: { roundDuration: 120, organizer: members[0] } });
+    await tick(seated.port, seated.log);
+    expect(seated.calls).toEqual([{ fn: 'settleRound', args: [] }]);
   });
 
   it('settles the current round only once its deadline has passed and reports exact wakeup delay before deadline', async () => {

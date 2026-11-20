@@ -97,7 +97,9 @@ export function SettleDesk({
   const live = c.live!;
   const n = Number(c.terms.n);
   const settleOpen = chainNowSec >= rv.deadline;
-  const fallbackAt = rv.deadline + organizerSettleWaitSec(live.view.params.roundDuration);
+  // An organizer who also holds a seat gets no settling turn: they could pick the moment a rival is short (audit B28 L-01).
+  const orgSeated = live.view.members.some((m) => m.address.toLowerCase() === live.view.organizer.toLowerCase());
+  const fallbackAt = rv.deadline + (orgSeated ? 0 : organizerSettleWaitSec(live.view.params.roundDuration));
   const fallbackOpen = chainNowSec >= fallbackAt;
   const organizer = c.viewerIsOrganizer;
   const payers = payersOf(c, winner, bid);

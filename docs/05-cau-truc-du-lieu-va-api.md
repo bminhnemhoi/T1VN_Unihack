@@ -684,6 +684,7 @@ Tất cả nhận và trả JSON; số tiền gửi dưới dạng chuỗi (bigi
 ### 8.1. `POST /api/attest`
 
 - Header: `Authorization: Bearer <Privy access token>`.
+- Điều kiện vào dây (B27/B28, kiểm trên chuỗi trước khi ký): ví chưa ở trong dây (409 `AlreadyMember`); ví không có vỡ nợ chưa hoàn trả trong ReputationRegistry, tức `defaults ≤ repaid` (422 `UnresolvedDefault`; chủ hụi không loại được thành viên nên đây là cổng duy nhất); số dư USDC ≥ C + cọc mở thăm, tức đủ một kỳ (422 `InsufficientBalance`). Đây là bước kiểm cho tiện, không phải lớp bảo mật: người cố ý vẫn có thể có đủ tiền lúc vào rồi rút ra; lớp bảo vệ thật là tiền giữ lại và ký quỹ. Đọc chuỗi lỗi thì 502 `ChainUnavailable`.
 - Body: `{ "circle": "0x...", "ageConfirmed": true }`. `ageConfirmed` là ô tự xác nhận đủ 18 tuổi trên giao diện; khác `true` thì trả `AgeNotConfirmed`. Địa chỉ thành viên KHÔNG nằm trong body: server lấy từ ví nhúng Ethereum của chính user ở Privy, nên không xin được xác nhận cho ví khác.
 - Kiểm: token Privy hợp lệ (SDK server `@privy-io/node`, qua một interface để test giả lập); địa chỉ embedded wallet của user; user đã tick xác nhận đủ 18 tuổi; giới hạn một ví mỗi người và 20 yêu cầu mỗi giờ; `factory.isCircle(circle)`.
 - `attestationId = keccak256(serverSecret ‖ privyUserId ‖ circle)` (không đảo ngược được, không lưu dữ liệu cá nhân).
@@ -744,7 +745,7 @@ Trả nguyên file JSON kết quả mô phỏng đã sinh sẵn `sim/outputs/<id
 
 | Việc | Điều kiện | Gọi |
 |---|---|---|
-| Chi kỳ | dây Active, `now ≥ deadline(currentRound)`, kỳ chưa chi | `settleRound()` |
+| Chi kỳ | dây Active, kỳ chưa chi, và đã hết lượt của chủ hụi: `now ≥ deadline(currentRound) + organizerSettleWaitSec(roundDuration)` (B28: 86.400 giây với kỳ từ 1 ngày trở lên, 300 giây với dây demo; `packages/config`). Trước đó chủ hụi khui trên web (bàn khui kỳ); hợp đồng vẫn cho bất kỳ ai gọi từ `deadline`, nên đây chỉ là chính sách của keeper và web, chủ hụi vắng mặt chỉ làm chậm, không giữ được hũ. Chủ hụi giữ một chân trong dây thì KHÔNG có lượt ưu tiên (khui từ `deadline`), vì bàn khui kỳ cho thấy ai đang thiếu tiền và họ có thể chọn đúng lúc đối thủ thiếu (audit B28 L-01) | `settleRound()` |
 | Đánh dấu vỡ nợ | có `Shortfall` chưa `resolved` và `now > since + grace` | `markDefault(member)` |
 | Kết thúc | kỳ N đã chi, qua ân hạn, không còn khoản thiếu đang trong ân hạn, và MỌI khoản thiếu quá hạn đã được `markDefault` ở dòng trên | `finalize()` |
 | Hủy | Forming, `now > joinDeadline` và có ký quỹ (`bondRemaining > 0`); dây Forming quá hạn mà chưa từng có ký quỹ chỉ bị `cancel` đúng một lần để dọn (tối đa 5 dây mỗi vòng quét) rồi bỏ khỏi danh sách theo dõi | `cancel()` |
