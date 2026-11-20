@@ -3,6 +3,7 @@
  * "Tổng quan" (prototype `viewOverview`): the one thing to do now (verdict), four numbers, every circle as a row with
  * its round strip, and what just happened in the most urgent circle. Sample data or the connected wallet's circles.
  */
+import { ChevronDown } from 'lucide-react';
 import Link from 'next/link';
 import { useEffect, useRef, useState } from 'react';
 import { FUJI_EVIDENCE } from 'config';
@@ -15,8 +16,9 @@ import { setDemoNet, useSampleLoad } from '@/lib/demo-store';
 import { useCircleData, useMyCircles } from '@/lib/live/useCircleData';
 import { feedOf } from '@/lib/app-data';
 import { playDelete } from '@/lib/delete-motion';
-import { canDelete, type DeletePlan } from '@/lib/hidden-circles';
+import { canDelete, deleteVerb, type DeletePlan } from '@/lib/hidden-circles';
 import { useHiddenCircles } from '@/lib/hidden-store';
+import { splitEnded } from '@/lib/overview-list';
 import { getSampleCircle } from '@/lib/sample-circles';
 import type { SampleCircle } from '@/lib/sample';
 
@@ -25,8 +27,6 @@ const f = (u: bigint): string => {
   return s.includes(',') ? s : `${s},00`;
 };
 const URGENCY: Record<string, number> = { active: 0, forming: 1, completed: 2, cancelled: 3, unwound: 3 };
-/** Circles with nothing left to do. A cancelled circle is closed too, but it is NOT "done". */
-const isClosed = (c: SampleCircle): boolean => c.state === 'completed' || c.state === 'cancelled' || c.state === 'unwound';
 
 function useTicking(seconds: number): number {
   const [left, setLeft] = useState(seconds);
@@ -99,7 +99,7 @@ export function Overview() {
     );
   const onHide = (c: SampleCircle) => {
     hide({ id: c.id, label: c.label });
-    toast.show(`Đã xóa dây "${c.label}"`, 'info', { ms: 6000, action: { label: 'Hoàn tác', onClick: () => unhide(c.id) } });
+    toast.show(`Đã ${deleteVerb(c).toLowerCase()} dây "${c.label}"`, 'info', { ms: 6000, action: { label: 'Hoàn tác', onClick: () => unhide(c.id) } });
   };
   return <Board list={list} my={my} refreshing={sample.refreshing} stale={sample.stale} onHide={onHide} />;
 }
@@ -126,11 +126,12 @@ function Board({ list, my, refreshing, stale, onHide }: { list: SampleCircle[]; 
   /** After the receipts (or at once when none is needed): motion, then hide. Reduced motion hides straight away. */
   const finishDelete = (c: SampleCircle, plan: DeletePlan) => {
     setDeleting(null);
-    const row = [...(listEl.current?.children ?? [])].find((el) => el.getAttribute('data-row') === c.id);
+    const row = [...(listEl.current?.querySelectorAll('li[data-row]') ?? [])].find((el) => el.getAttribute('data-row') === c.id);
     if (row instanceof HTMLElement) void playDelete({ row, amount: plan.bond > 0n ? plan.bond : undefined, commit: () => onHide(c) });
     else onHide(c);
   };
-  const open = list.filter((c) => !isClosed(c) || (c.bondLeft && c.role === 'organizer'));
+  // What still needs the viewer stays on top; finished circles fold under "Đã kết thúc" so they never push it down.
+  const { top: open, ended } = splitEnded(list);
   const first = open[0];
   const left = useTicking(first?.secondsLeft ?? 0);
   const running = list.filter((c) => c.state === 'active').length;
@@ -204,7 +205,7 @@ function Board({ list, my, refreshing, stale, onHide }: { list: SampleCircle[]; 
         </div>
       </div>
       <ul className="circles" aria-label="Các dây của bạn" ref={listEl}>
-        {list.map((c) => (
+        {open.map((c) => (
           <CircleRow key={c.id} c={c} onDelete={canDelete(c) ? setDeleting : undefined} />
         ))}
         <li data-row="add">
@@ -213,6 +214,22 @@ function Board({ list, my, refreshing, stale, onHide }: { list: SampleCircle[]; 
             <span className="mono">6 câu hỏi ›</span>
           </Link>
         </li>
+        {ended.length > 0 && (
+          <li className="ended" data-testid="ended-group">
+            <details onToggle={(e) => e.currentTarget.open && e.currentTarget.scrollIntoView({ block: 'nearest', behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' })}>
+              <summary>
+                <strong>Đã kết thúc</strong>
+                <span className="mono">{ended.length} dây</span>
+                <ChevronDown aria-hidden />
+              </summary>
+              <ul aria-label="Dây đã kết thúc">
+                {ended.map((c) => (
+                  <CircleRow key={c.id} c={c} onDelete={canDelete(c) ? setDeleting : undefined} />
+                ))}
+              </ul>
+            </details>
+          </li>
+        )}
       </ul>
       {firstId && <Feed id={firstId} label={first!.label} />}
       {deleting && <DeleteDialog c={deleting} viewer={wallet?.address as `0x${string}` | undefined} onClose={() => setDeleting(null)} onDeleted={(plan) => finishDelete(deleting, plan)} />}
@@ -252,6 +269,16 @@ function CircleRow({ c, onDelete }: { c: SampleCircle; onDelete?: (c: SampleCirc
     </Link>
   );
   if (!onDelete) return <li data-row={c.id}>{link}</li>;
+  // Archiving a finished circle is not destructive: no red swipe panel, just the neutral button.
+  if (c.state === 'completed')
+    return (
+      <li className="hasDel" data-row={c.id}>
+        <div className="swipeIn">
+          {link}
+          <DeleteButton c={c} onOpen={onDelete} />
+        </div>
+      </li>
+    );
   return (
     <li className="hasDel" data-row={c.id}>
       <div className="swipeIn" ref={swipe.layer} data-open={swipe.open || undefined} {...swipe.props}>

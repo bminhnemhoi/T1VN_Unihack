@@ -249,7 +249,7 @@ function HiddenCircles({ owner }: { owner?: `0x${string}` }) {
       <h2 id="da-an" className="font-display text-h2 font-bold">
         Dây đã ẩn
       </h2>
-      <p className="mt-1 text-muted-foreground">Dây bạn đã xóa khỏi danh sách trên máy này. Sổ trên blockchain vẫn giữ nguyên; hiện lại là dây quay về danh sách.</p>
+      <p className="mt-1 text-muted-foreground">Dây bạn đã xóa hoặc lưu trữ trên máy này. Sổ trên blockchain vẫn giữ nguyên; hiện lại là dây quay về Tổng quan.</p>
       {hidden.length === 0 ? (
         <p className="mt-3 text-muted-foreground">Chưa ẩn dây nào.</p>
       ) : (

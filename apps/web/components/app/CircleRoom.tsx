@@ -8,7 +8,7 @@
 import Link from 'next/link';
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { formatUsdcNumber, huiMath, type RoundCommitView } from 'sdk';
-import { parseMoneyInput } from '@/lib/money-input';
+import { bidCents, parseMoneyInput, tooManyBidDecimals } from '@/lib/money-input';
 import { CircleChips, Loading, ErrorState, EmptyState, Sheet, Who, av } from '@/components/app/parts';
 import { TxButton, TxNote, TxSteps, useStepTx } from '@/components/app/tx';
 import { PauseLockProvider, PausedBanner } from '@/components/chain/PauseLock';
@@ -228,7 +228,7 @@ function Room({ c, refreshing, stale, onRefetch }: { c: SampleCircleData; refres
             : ['Đang thăm', 'Mở thăm', 'Chờ khui', 'Chờ khui'][PHASE_IDX[phase]]!;
       return { cls: 'now', main, sub: live && phase === 'settle' ? 'chờ chủ hụi' : phase === 'commit' || live ? `còn ${clock(railLeft)}` : 'đang chạy' };
     }
-    return { cls: 'later', main: r === n ? 'Kỳ cuối' : 'Kỳ sau', sub: c.terms.mode === 'fixed' ? `${av(fixedTaker(c, r))} hốt` : r === n ? 'không thăm' : `trần ${f(capOf(c.terms, r))}` };
+    return { cls: 'later', main: r === n ? 'Kỳ cuối' : 'Kỳ sau', sub: c.terms.mode === 'fixed' ? `${av(fixedTaker(c, r))} hốt` : r === n ? 'không thăm' : `trần ${f(bidCents(capOf(c.terms, r)))}` };
   };
   const sub = (r: number) => {
     const it = railItem(r);
@@ -501,7 +501,7 @@ function Later({ c, r, k, settledNow }: { c: SampleCircleData; r: number; k: num
           {!fixed && (
             <div>
               <dt>Trần thăm theo NĐ 19 Điều 21</dt>
-              <dd>{f(r === n ? 0n : cap)} USDC</dd>
+              <dd>{f(r === n ? 0n : bidCents(cap))} USDC</dd>
             </div>
           )}
           <div>
@@ -565,7 +565,8 @@ function readAutoRevealPref(): boolean {
 }
 
 function buildPresetChips(maxBid: bigint, cUnits: bigint): Array<{ short: string; label: string; value: bigint; text: string }> {
-  const cap = maxBid < cUnits ? maxBid : cUnits > 1n ? cUnits - 1n : 0n;
+  // Cents only, rounded down: "Kịch trần" is the highest bid in cents that the contract still accepts.
+  const cap = bidCents(maxBid < cUnits ? maxBid : cUnits > 1n ? cUnits - 1n : 0n);
   if (cap <= 0n) return [];
   const items: Array<{ label: string; pct: bigint; exact?: boolean }> = [
     { label: '25%', pct: 25n },
@@ -577,7 +578,7 @@ function buildPresetChips(maxBid: bigint, cUnits: bigint): Array<{ short: string
   const out: Array<{ short: string; label: string; value: bigint; text: string }> = [];
   for (const it of items) {
     const raw = it.exact ? cap : (cap * it.pct) / 100n;
-    const rounded = !it.exact && raw >= 10_000n ? (raw / 10_000n) * 10_000n : raw;
+    const rounded = bidCents(raw);
     if (rounded <= 0n) continue;
     const text = formatUsdcNumber(rounded);
     if (seen.has(text)) continue;
@@ -654,11 +655,13 @@ function BidNow({ c, k, phase, chainNowSec, sampleLeft, maxBid, bidText, setBidT
   const lowWalletBalance = balanceKnown && !cannotPayDeposit && walletBal.data!.usdc < C;
   const err =
     bid === undefined
-      ? 'Nhập số tiền, ví dụ 2,5'
+      ? tooManyBidDecimals(bidText)
+        ? `Thăm lấy tối đa 2 số lẻ, ví dụ ${f(bidCents(maxBid))}.`
+        : 'Nhập số tiền, ví dụ 2,5'
       : bid >= C
         ? `Thăm phải nhỏ hơn ${f(C)} USDC.`
         : bid > maxBid
-          ? `Vượt trần kỳ này (${f(maxBid)} USDC). Thăm này sẽ không mở được.`
+          ? `Vượt trần kỳ này (${f(bidCents(maxBid))} USDC). Thăm này sẽ không mở được.`
           : cannotPayDeposit
             ? `Bỏ thăm cần ${f(revealDeposit)} USDC tiền cọc mở thăm (trả lại khi mở thăm); ví đang có ${f(walletBal.data!.usdc)} USDC.`
             : '';
@@ -977,7 +980,7 @@ function BidNow({ c, k, phase, chainNowSec, sampleLeft, maxBid, bidText, setBidT
         </div>
         <div>
           <dt>Trần thăm kỳ này</dt>
-          <dd>{f(maxBid)} USDC</dd>
+          <dd>{f(bidCents(maxBid))} USDC</dd>
         </div>
         <div>
           <dt>Ký quỹ bảo lãnh còn</dt>
@@ -1006,7 +1009,7 @@ function BidNow({ c, k, phase, chainNowSec, sampleLeft, maxBid, bidText, setBidT
     <div className="roleBox" data-testid="guest-observer-role">
       <h3>Đang xem trực tiếp bàn hụi</h3>
       <p>
-        Kỳ {k} có trần thăm {f(maxBid)} USDC · Hiện có {committedCount}/{eligibleLiveCount} thành viên đã nộp phong bì kín.
+        Kỳ {k} có trần thăm {f(bidCents(maxBid))} USDC · Hiện có {committedCount}/{eligibleLiveCount} thành viên đã nộp phong bì kín.
       </p>
     </div>
   ) : (
@@ -1030,7 +1033,7 @@ function BidNow({ c, k, phase, chainNowSec, sampleLeft, maxBid, bidText, setBidT
           </div>
         )}
         <p className={`hint${err && !locked ? ' err' : ''}`} id="bidHint">
-          {err && !locked ? err : `Trần kỳ này ${f(maxBid)} USDC · thăm cao nhất thắng, bằng nhau thì ít trễ hơn`}
+          {err && !locked ? err : `Trần kỳ này ${f(bidCents(maxBid))} USDC · thăm cao nhất thắng, bằng nhau thì ít trễ hơn`}
         </p>
         {!err && !locked && bid !== undefined && (
           <p className="hint" data-testid="bid-readback">
