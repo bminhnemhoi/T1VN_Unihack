@@ -21,3 +21,14 @@ export const ND19_ARTICLE14_THRESHOLD_VND = 100_000_000;
 
 /** Fuji only (CLAUDE.md hard rule 1). */
 export const FUJI_CHAIN_ID = 43113;
+
+/**
+ * Organizer-led rounds (B28). Once a round's reveal window closes, the organizer settles it (that also opens the next
+ * round); the keeper and the members may settle in the organizer's place only this long after `deadline(k)`. The
+ * contract still lets anyone settle at the deadline (docs/03 section 6.5): this is off-chain policy, so a missing
+ * organizer can delay a round but never hold the pot. Real circles (a round of a day or more): 24 hours; demo circles: 5 minutes.
+ */
+export const ORGANIZER_SETTLE_WAIT_REAL_SEC = 86_400;
+export const ORGANIZER_SETTLE_WAIT_DEMO_SEC = 300;
+export const organizerSettleWaitSec = (roundDurationSec: number): number =>
+  roundDurationSec >= 86_400 ? ORGANIZER_SETTLE_WAIT_REAL_SEC : ORGANIZER_SETTLE_WAIT_DEMO_SEC;

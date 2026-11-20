@@ -119,6 +119,22 @@ describe('keeper tick', () => {
     expect(small.logs.some((l) => l.includes('truncated'))).toBe(false);
   });
 
+  it('organizer-led rounds (B28): a demo circle waits 5 minutes after the deadline, a real one 24 hours, before the keeper settles', async () => {
+    const turn = fakePort({ now: 4299, deadline: 4000n, snap: { roundDuration: 120 } });
+    const t1 = await tick(turn.port, turn.log);
+    expect(turn.calls).toEqual([]); // still the organizer's turn
+    expect(t1.nextDueInSec).toBe(2); // 4000 + 300 + 1 - 4299
+    const late = fakePort({ now: 4300, deadline: 4000n, snap: { roundDuration: 120 } });
+    await tick(late.port, late.log);
+    expect(late.calls).toEqual([{ fn: 'settleRound', args: [] }]);
+    const real = fakePort({ now: 4000 + 86_399, deadline: 4000n, snap: { roundDuration: 30 * 86_400 } });
+    await tick(real.port, real.log);
+    expect(real.calls).toEqual([]);
+    const realLate = fakePort({ now: 4000 + 86_400, deadline: 4000n, snap: { roundDuration: 30 * 86_400 } });
+    await tick(realLate.port, realLate.log);
+    expect(realLate.calls).toEqual([{ fn: 'settleRound', args: [] }]);
+  });
+
   it('settles the current round only once its deadline has passed and reports exact wakeup delay before deadline', async () => {
     const wait = fakePort({ now: 3994, deadline: 4000n });
     const w = await tick(wait.port, wait.log);

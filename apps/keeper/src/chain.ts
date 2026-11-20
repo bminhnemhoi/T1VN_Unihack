@@ -64,7 +64,7 @@ export function createViemPort(cfg: KeeperConfig): { port: KeeperPort; keeper: A
     async snapshot(circle): Promise<CircleSnapshot> {
       const [state, params, settledRounds, members, bondRemaining, bondDeposited] = await Promise.all([
         read<number>(circle, 'state'),
-        read<{ memberCount: number; joinDeadline: bigint }>(circle, 'params'),
+        read<{ memberCount: number; joinDeadline: bigint; roundDuration: number }>(circle, 'params'),
         read<number>(circle, 'settledRounds'),
         read<readonly Address[]>(circle, 'members'),
         read<bigint>(circle, 'bondRemaining'),
@@ -75,6 +75,7 @@ export function createViemPort(cfg: KeeperConfig): { port: KeeperPort; keeper: A
         state: Number(state),
         memberCount: Number(params.memberCount),
         joinDeadline: BigInt(params.joinDeadline),
+        roundDuration: Number(params.roundDuration),
         settledRounds: Number(settledRounds),
         members,
         bondRemaining: BigInt(bondRemaining),

@@ -22,6 +22,7 @@ import { useMyCommit } from '@/lib/live/useMyCommit';
 import { useRoundCommits } from '@/lib/live/useRoundCommits';
 import { useWalletBalance } from '@/lib/live/useWalletBalance';
 import { MyRoundCard } from '@/components/app/MyRoundCard';
+import { defaultWinner, SettleDesk } from '@/components/app/SettleDesk';
 import { bondUsedThrough, coverOf, formatVnTime, settledAtMs, settledRound, type SampleCircleData } from '@/lib/sample-circles';
 import { usdc } from '@/lib/sample';
 
@@ -31,6 +32,10 @@ const f = (u: bigint): string => {
   return s.includes(',') ? s : `${s},00`;
 };
 const whole = (u: bigint): string => formatUsdcNumber(u);
+/** Seat name of a wallet, for the settle desk. */
+const seatName = (c: SampleCircleData, addr: string | undefined): string =>
+  (addr && c.seats.find((s) => s.address?.toLowerCase() === addr.toLowerCase())?.name) || 'Người hốt';
+
 const clock = (s: number) => {
   const t = Math.max(0, Math.floor(s));
   const h = Math.floor(t / 3600);
@@ -179,7 +184,7 @@ function Room({ c, refreshing, stale, onRefetch }: { c: SampleCircleData; refres
   const rvUntil = rv ? (phase === 'commit' ? rv.commitEndsAt : phase === 'reveal' ? rv.revealEndsAt : rv.deadline) : undefined;
   const railLeft = live ? windowLeftSec(rvUntil, chainNowSec) : sampleLeft;
 
-  // Immediately refresh circle state on phase boundary crossings and poll rapidly (2.5s) while waiting for Keeper auto-settlement.
+  // Refresh on phase boundaries and poll every 4 s while the round waits to be settled, so all screens show the result together.
   const prevPhaseRef = useRef<Phase>(phase);
   useEffect(() => {
     if (!live || !onRefetch) return;
@@ -188,7 +193,8 @@ function Room({ c, refreshing, stale, onRefetch }: { c: SampleCircleData; refres
       onRefetch();
     }
     if (phase !== 'settle') return;
-    const fast = setInterval(() => onRefetch(), 2500);
+    // Waiting for the organizer can last minutes (demo) or a day: 4 s keeps every screen in step without hammering the RPC.
+    const fast = setInterval(() => onRefetch(), 4000);
     return () => clearInterval(fast);
   }, [live, phase, onRefetch]);
 
@@ -676,8 +682,6 @@ function BidNow({ c, k, phase, chainNowSec, sampleLeft, maxBid, bidText, setBidT
         : 1
     : 78;
   const progress = phase === 'commit' || phase === 'reveal' ? Math.min(1, Math.max(0, left / windowTotal)) : 0;
-  const settleOpen = Boolean(live && rv !== undefined && chainNowSec >= rv.deadline);
-  const keeperDelayed = Boolean(live && rv !== undefined && chainNowSec > rv.deadline + 30);
   const locked = !canUseBidSlip || sealed || phase !== 'commit' || !!run.settled || t.busy || (live !== undefined && left === 0);
   const ph = PHASE_IDX[phase];
   const presets = useMemo(() => buildPresetChips(maxBid, C), [maxBid, C]);
@@ -708,6 +712,9 @@ function BidNow({ c, k, phase, chainNowSec, sampleLeft, maxBid, bidText, setBidT
     }
     return best?.addr;
   }, [live, mergedCommits]);
+  // Settle desk: the revealed leader wins; nobody revealed means the live member with the lowest join index, bid 0.
+  const leaderBid = leadingAddr ? (mergedCommits.get(leadingAddr)?.bid ?? 0n) : 0n;
+  const settleWinner = leadingAddr ?? defaultWinner(c);
 
   const eligibleLiveCount = live
     ? live.view.members.filter((m) => m.status === 'live' && m.debt === 0n).length
@@ -813,48 +820,35 @@ function BidNow({ c, k, phase, chainNowSec, sampleLeft, maxBid, bidText, setBidT
       </button>
     );
     note = !canUseBidSlip
-      ? `Đang mở thăm công khai (${revealedCount}/${committedCount} phong bì đã mở). Hết giờ hệ thống tự động khui kỳ.`
+      ? `Đang mở thăm công khai (${revealedCount}/${committedCount} phong bì đã mở). Hết giờ mở thăm, chủ hụi khui kỳ.`
       : hasSealed && !revealed
         ? 'Mở đúng số đã niêm phong ngay trước khi hết giờ để nhận lại cọc mở thăm.'
         : live
-          ? 'Hết giờ mở thăm hệ thống sẽ tự động khui thăm và chi tiền kỳ này.'
+          ? 'Hết giờ mở thăm, chủ hụi khui kỳ và hợp đồng chi tiền kỳ này.'
           : 'Bấm "Tua nhanh" để chốt kỳ.';
   } else {
     if (live) {
       primary = (
         <>
-          <div className="autoSettle" role="status">
-            <span className="spin" aria-hidden="true" />
-            <span>
-              {settleOpen
-                ? `Đang tự động khui thăm & chi tiền kỳ ${k}…`
-                : `Chuẩn bị tự động khui kỳ ${k} sau ${clock(left)}…`}
-            </span>
-          </div>
-          {c.viewerIsOrganizer && (
-            <TxButton
+          {rv && (
+            <SettleDesk
+              c={c}
+              k={k}
+              rv={rv}
+              chainNowSec={chainNowSec}
               t={t}
-              tone="ink"
-              label={`Khui kỳ ${k} ngay`}
-              retryLabel={`Gửi lại lệnh khui kỳ ${k}`}
-              onRun={(r) => void settle(r)}
-              disabled={!settleOpen}
-            />
-          )}
-          {!c.viewerIsOrganizer && keeperDelayed && (
-            <TxButton
-              t={t}
-              tone="ink"
-              label="Máy chủ khui chậm · Khui dự phòng"
-              retryLabel={`Gửi lại lệnh khui kỳ ${k}`}
-              onRun={(r) => void settle(r)}
+              onSettle={(r) => void settle(r)}
+              winner={settleWinner}
+              winnerName={seatName(c, settleWinner)}
+              bid={leaderBid}
+              payout={roundSplit(c.terms, k, leaderBid, 0n, settleWinner?.toLowerCase() === live.view.organizer.toLowerCase()).payout}
             />
           )}
         </>
       );
       note = c.viewerIsOrganizer
-        ? 'Keeper tự động khui trong vài giây; với vai trò Chủ hụi, bạn cũng có thể bấm Khui kỳ ngay.'
-        : 'Bạn không cần thao tác thêm — hệ thống tự động công bố người hốt và mở kỳ kế tiếp.';
+        ? 'Bạn cầm nhịp dây: xem ai đủ tiền rồi khui kỳ. Khui xong kỳ sau mở ngay.'
+        : 'Bạn không cần thao tác thêm: chủ hụi khui kỳ, mọi người thấy kết quả cùng lúc.';
     } else {
       primary = null;
       note = 'Chờ khui kỳ.';
@@ -1153,8 +1147,6 @@ function FinalRoundNow({
   const left = windowLeftSec(rv?.deadline, chainNowSec);
   const total = rv ? Math.max(1, rv.deadline - rv.roundStart) : 120;
   const progress = Math.min(1, Math.max(0, left / total));
-  const settleOpen = rv !== undefined && chainNowSec >= rv.deadline;
-  const keeperDelayed = rv !== undefined && chainNowSec > rv.deadline + 30;
   const mineShort = c.shortfalls.find((s) => s.member === c.viewer && s.status === 'grace');
 
   return (
@@ -1203,27 +1195,18 @@ function FinalRoundNow({
               </Link>
             ) : (
               <>
-                <div className="autoSettle" role="status">
-                  <span className="spin" aria-hidden="true" />
-                  <span>{settleOpen ? `Đang tự động chi tiền kỳ cuối…` : `Tự động chi tiền sau ${clock(left)}…`}</span>
-                </div>
-                {c.viewerIsOrganizer && (
-                  <TxButton
+                {rv && (
+                  <SettleDesk
+                    c={c}
+                    k={k}
+                    rv={rv}
+                    chainNowSec={chainNowSec}
                     t={t}
-                    tone="ink"
-                    label={`Khui kỳ ${k} ngay`}
-                    retryLabel={`Gửi lại lệnh khui kỳ ${k}`}
-                    onRun={(r) => void t.run((a) => a.settleRound(live.address), { forceOk: r }).then((ok) => ok && onRefetch?.())}
-                    disabled={!settleOpen}
-                  />
-                )}
-                {!c.viewerIsOrganizer && keeperDelayed && (
-                  <TxButton
-                    t={t}
-                    tone="ink"
-                    label="Máy chủ khui chậm · Khui dự phòng"
-                    retryLabel={`Gửi lại lệnh khui kỳ ${k}`}
-                    onRun={(r) => void t.run((a) => a.settleRound(live.address), { forceOk: r }).then((ok) => ok && onRefetch?.())}
+                    onSettle={(r) => void t.run((a) => a.settleRound(live.address), { forceOk: r }).then((ok) => ok && onRefetch?.())}
+                    winner={c.seats[taker]?.address}
+                    winnerName={c.seats[taker]?.name ?? 'Người hốt'}
+                    bid={0n}
+                    payout={split.payout}
                   />
                 )}
               </>
@@ -1278,8 +1261,6 @@ function FixedNow({
   const taker = fixedTaker(c, k);
   const split = roundSplit(c.terms, k, 0n);
   const left = live ? windowLeftSec(rv?.deadline, chainNowSec) : sampleLeft;
-  const settleOpen = Boolean(live && rv !== undefined && chainNowSec >= rv.deadline);
-  const keeperDelayed = Boolean(live && rv !== undefined && chainNowSec > rv.deadline + 30);
   const mine = c.shortfalls.find((s) => s.member === c.viewer && s.status === 'grace');
   const youTake = taker === c.viewer;
   return (
@@ -1332,27 +1313,18 @@ function FixedNow({
               </Link>
             ) : live ? (
               <>
-                <div className="autoSettle" role="status">
-                  <span className="spin" aria-hidden="true" />
-                  <span>{settleOpen ? `Đang tự động chi tiền kỳ ${k}…` : `Tự động chi kỳ ${k} sau ${clock(left)}…`}</span>
-                </div>
-                {c.viewerIsOrganizer && (
-                  <TxButton
+                {rv && (
+                  <SettleDesk
+                    c={c}
+                    k={k}
+                    rv={rv}
+                    chainNowSec={chainNowSec}
                     t={t}
-                    tone="ink"
-                    label={`Khui kỳ ${k} ngay`}
-                    retryLabel={`Gửi lại lệnh khui kỳ ${k}`}
-                    onRun={(r) => void t.run((a) => a.settleRound(live.address), { forceOk: r }).then((ok) => ok && onRefetch?.())}
-                    disabled={!settleOpen}
-                  />
-                )}
-                {!c.viewerIsOrganizer && keeperDelayed && (
-                  <TxButton
-                    t={t}
-                    tone="ink"
-                    label="Máy chủ khui chậm · Khui dự phòng"
-                    retryLabel={`Gửi lại lệnh khui kỳ ${k}`}
-                    onRun={(r) => void t.run((a) => a.settleRound(live.address), { forceOk: r }).then((ok) => ok && onRefetch?.())}
+                    onSettle={(r) => void t.run((a) => a.settleRound(live.address), { forceOk: r }).then((ok) => ok && onRefetch?.())}
+                    winner={c.seats[taker]?.address}
+                    winnerName={c.seats[taker]?.name ?? 'Người hốt'}
+                    bid={0n}
+                    payout={split.payout}
                   />
                 )}
               </>

@@ -9,6 +9,8 @@
  *     100% coverage floor unless alpha = 100%, so they are spam; track at most MAX_TRACKED_CIRCLES, newest first.
  * The chain is reached through a small port so the ordering can be unit tested without a node.
  */
+import { organizerSettleWaitSec } from 'config';
+
 type Address = `0x${string}`;
 type Hex = `0x${string}`;
 
@@ -27,6 +29,8 @@ export interface CircleSnapshot {
   bondRemaining: bigint;
   /** Total bond ever deposited. Zero means nobody backs the circle: the keeper does not spend gas on it. */
   bondDeposited: bigint;
+  /** Real seconds between two rounds; picks how long the organizer has to settle first (B28). Absent: settle at the deadline. */
+  roundDuration?: number;
 }
 
 export type AttemptResult =
@@ -170,10 +174,12 @@ export async function tick(port: KeeperPort, log: Log): Promise<TickSummary> {
     if (snap.settledRounds < snap.memberCount) {
       const round = snap.settledRounds + 1;
       const deadline = await port.deadline(circle, round);
-      if (BigInt(now) >= deadline) {
-        if (await run(circle, 'settleRound', [], { round })) snap = await port.snapshot(circle);
+      // Organizer-led rounds (B28): the organizer settles first; the keeper steps in only after the organizer's turn.
+      const due = snap.roundDuration === undefined ? deadline : deadline + BigInt(organizerSettleWaitSec(snap.roundDuration));
+      if (BigInt(now) >= due) {
+        if (await run(circle, 'settleRound', [], { round, organizerLate: due > deadline ? 1 : 0 })) snap = await port.snapshot(circle);
       } else {
-        noteDueAt(deadline + 1n, now);
+        noteDueAt(due + 1n, now);
       }
     }
 
