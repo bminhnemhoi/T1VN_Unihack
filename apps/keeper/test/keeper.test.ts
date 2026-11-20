@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { MAX_CLEANUP_CANCELS, MAX_TRACKED_CIRCLES, STATE, tick, type AttemptResult, type CircleSnapshot, type KeeperFn, type KeeperPort } from '../src/keeper';
+import { MAX_CLEANUP_CANCELS, MAX_TRACKED_CIRCLES, STATE, newKeeperMemory, tick, type AttemptResult, type CircleSnapshot, type KeeperFn, type KeeperPort } from '../src/keeper';
 import { GAS_HARD_CAP, KeeperConfigError, gasLimitFor, loadKeeperConfig } from '../src/config';
 
 const C1 = '0x1111111111111111111111111111111111111111' as const;
@@ -176,6 +176,63 @@ describe('keeper tick', () => {
       expect(t.calls).toEqual([]);
       expect(s.circles).toBe(0);
     }
+  });
+
+  // Issue #1: the newest-200 cut must never starve an older funded circle.
+  it('an old funded circle is served even when 200 newer unbonded circles with future deadlines fill the scan', async () => {
+    const OLD = M(1);
+    const spam = Array.from({ length: 200 }, (_, i) => M(1000 + i));
+    const t = fakePort({
+      now: 5000,
+      circleList: [OLD, ...spam],
+      deadline: 4000n,
+      snap: { state: STATE.Forming, bondRemaining: 0n, bondDeposited: 0n, joinDeadline: 10_000n },
+      snaps: { [OLD]: { state: STATE.Active, bondRemaining: 48_000_000n, bondDeposited: 48_000_000n } },
+    });
+    const mem = newKeeperMemory();
+    await tick(t.port, t.log, mem);
+    expect(t.reads).not.toContain(OLD); // first scan: the newest 200, as before
+    await tick(t.port, t.log, mem);
+    expect(t.reads).toContain(OLD); // second scan: least recently read first
+    expect(t.calls).toContainEqual({ fn: 'settleRound', args: [] });
+    // once seen funded it is read on every scan, however many unbonded circles keep arriving
+    const before = t.reads.filter((c) => c === OLD).length;
+    await tick(t.port, t.log, mem);
+    expect(t.reads.filter((c) => c === OLD).length).toBeGreaterThan(before); // (a settle also re-reads the snapshot)
+  });
+
+  it('every circle is read within ceil(n / 200) scans when nothing is funded', async () => {
+    const list = Array.from({ length: 450 }, (_, i) => M(2000 + i));
+    const t = fakePort({ now: 100, circleList: list, snap: { state: STATE.Forming, bondRemaining: 0n, bondDeposited: 0n, joinDeadline: 10_000n } });
+    const mem = newKeeperMemory();
+    for (let i = 0; i < 3; i++) await tick(t.port, t.log, mem);
+    expect(new Set(t.reads).size).toBe(450);
+    expect(t.reads.length).toBeLessThanOrEqual(3 * MAX_TRACKED_CIRCLES);
+  });
+
+  // Issue #2: a cleanup cancel that did not go through must not retire the circle.
+  it('a failed cleanup cancel keeps the circle eligible; it is retired only after a cancel that went through', async () => {
+    const snap = { now: 1001, snap: { state: STATE.Forming, bondRemaining: 0n, bondDeposited: 0n } } as const;
+    const sendFailed = fakePort({ ...snap, results: () => ({ sent: false, code: 'SendFailed', message: 'temporary' }) });
+    await tick(sendFailed.port, sendFailed.log);
+    expect(sendFailed.retired).toEqual([]);
+
+    const reverted = fakePort({ ...snap, results: () => ({ sent: true, txHash: `0x${'ef'.repeat(32)}`, gasUsed: 1n, ok: false }) });
+    await tick(reverted.port, reverted.log);
+    expect(reverted.retired).toEqual([]);
+
+    // retry on a second scan with the same memory: first attempt fails, second succeeds, then it is retired
+    let attempts = 0;
+    const retry = fakePort({
+      ...snap,
+      results: () => (++attempts === 1 ? { sent: false, code: 'SendFailed', message: 'temporary' } : undefined),
+    });
+    const mem = newKeeperMemory();
+    await tick(retry.port, retry.log, mem);
+    expect(retry.retired).toEqual([]);
+    await tick(retry.port, retry.log, mem);
+    expect(retry.calls.filter((c) => c.fn === 'cancel')).toHaveLength(2);
+    expect(retry.retired).toEqual([C1]);
   });
 });
 

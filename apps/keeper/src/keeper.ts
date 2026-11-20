@@ -81,13 +81,49 @@ export interface TickSummary {
   failed: number;
 }
 
-export async function tick(port: KeeperPort, log: Log): Promise<TickSummary> {
+/**
+ * What the keeper remembers between scans (issue #1): when each circle was last read and which circles were seen
+ * with a bond. Create one with `newKeeperMemory()` per process and pass it to every `tick`.
+ */
+export interface KeeperMemory {
+  scans: number;
+  /** Scan number at which each circle was last read. */
+  lastRead: Map<Address, number>;
+  /** Circles seen with `bondDeposited > 0` that are not terminal: read on every scan. */
+  funded: Set<Address>;
+}
+
+export function newKeeperMemory(): KeeperMemory {
+  return { scans: 0, lastRead: new Map(), funded: new Set() };
+}
+
+/**
+ * The circles to read this scan. Funded circles always (a bond costs real USDC, so they cannot be spammed); of the
+ * others at most MAX_TRACKED_CIRCLES, least recently read first and newest first on ties. The first scan is therefore
+ * the newest 200 as before, and every circle is read within ceil(n / 200) scans however many newer circles appear,
+ * so a flood of unbonded circles can slow discovery down but never starve a funded circle (issue #1).
+ */
+function pickCircles(all: readonly Address[], mem: KeeperMemory): { circles: Address[]; truncated: boolean } {
+  const newestFirst = [...all].reverse();
+  const known = new Set(all);
+  for (const c of mem.funded) if (!known.has(c)) mem.funded.delete(c); // retired or terminal since
+  const funded = newestFirst.filter((c) => mem.funded.has(c));
+  const rest = newestFirst
+    .map((c, i) => ({ c, i, last: mem.lastRead.get(c) ?? -1 }))
+    .filter((x) => !mem.funded.has(x.c))
+    .sort((a, b) => a.last - b.last || a.i - b.i)
+    .map((x) => x.c);
+  return { circles: [...funded, ...rest.slice(0, MAX_TRACKED_CIRCLES)], truncated: rest.length > MAX_TRACKED_CIRCLES };
+}
+
+export async function tick(port: KeeperPort, log: Log, mem: KeeperMemory = newKeeperMemory()): Promise<TickSummary> {
   const summary: TickSummary = { circles: 0, ignored: 0, sent: 0, skipped: 0, failed: 0 };
   const now = await port.nowSec();
   const all = await port.circles();
-  const circles = all.length > MAX_TRACKED_CIRCLES ? all.slice(-MAX_TRACKED_CIRCLES).reverse() : [...all].reverse();
-  if (all.length > MAX_TRACKED_CIRCLES) {
-    log('warn', 'circle list truncated', { total: all.length, tracked: MAX_TRACKED_CIRCLES });
+  const scan = mem.scans++;
+  const { circles, truncated } = pickCircles(all, mem);
+  if (truncated) {
+    log('warn', 'circle list truncated', { total: all.length, tracked: circles.length, funded: mem.funded.size });
   }
   let cleanupCancels = 0;
 
@@ -130,14 +166,18 @@ export async function tick(port: KeeperPort, log: Log): Promise<TickSummary> {
 
   for (const circle of circles) {
     let snap = await port.snapshot(circle);
+    mem.lastRead.set(circle, scan);
+    if (snap.bondDeposited > 0n && snap.state <= STATE.Paused) mem.funded.add(circle);
+    else mem.funded.delete(circle);
     if (snap.bondDeposited === 0n && snap.state <= STATE.Paused) {
       summary.ignored++;
       if (snap.state === STATE.Forming && BigInt(now) > snap.joinDeadline) {
-        // Nobody can still deposit: clean it up with one cancel (bounded per scan), then never read it again.
+        // Nobody can still deposit: clean it up with one cancel (bounded per scan), then never read it again. Retire
+        // only after the cancel went through (issue #2): a failed attempt stays eligible for the next scan (the port
+        // backs off after an on-chain revert), and if someone else cancelled it the next read sees a terminal state.
         if (cleanupCancels < MAX_CLEANUP_CANCELS) {
           cleanupCancels++;
-          await run(circle, 'cancel', [], { reason: 'unbonded' });
-          port.retire?.(circle);
+          if (await run(circle, 'cancel', [], { reason: 'unbonded' })) port.retire?.(circle);
         }
       } else if (snap.state !== STATE.Forming) {
         port.retire?.(circle); // Active or Paused without a bond can never get one

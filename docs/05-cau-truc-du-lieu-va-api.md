@@ -747,13 +747,13 @@ Trả nguyên file JSON kết quả mô phỏng đã sinh sẵn `sim/outputs/<id
 | Chi kỳ | dây Active, `now ≥ deadline(currentRound)`, kỳ chưa chi | `settleRound()` |
 | Đánh dấu vỡ nợ | có `Shortfall` chưa `resolved` và `now > since + grace` | `markDefault(member)` |
 | Kết thúc | kỳ N đã chi, qua ân hạn, không còn khoản thiếu đang trong ân hạn, và MỌI khoản thiếu quá hạn đã được `markDefault` ở dòng trên | `finalize()` |
-| Hủy | Forming, `now > joinDeadline` và có ký quỹ (`bondRemaining > 0`); dây Forming quá hạn mà chưa từng có ký quỹ chỉ bị `cancel` đúng một lần để dọn (tối đa 5 dây mỗi vòng quét) rồi bỏ khỏi danh sách theo dõi | `cancel()` |
+| Hủy | Forming, `now > joinDeadline` và có ký quỹ (`bondRemaining > 0`); dây Forming quá hạn mà chưa từng có ký quỹ chỉ bị `cancel` để dọn (tối đa 5 dây mỗi vòng quét) và chỉ bỏ khỏi danh sách theo dõi SAU KHI `cancel` đã thành công; gửi lỗi hay bị revert thì dây vẫn được thử lại ở vòng sau (issue #2) | `cancel()` |
 | Nhắc hụi (bonus) | 24 giờ (demo: 60 giây) trước cửa sổ commit đóng; 6 giờ trước `deadline` nếu ví không đủ số dư | gửi Telegram cho người đã đăng ký |
 
 - Chu kỳ quét: 15 giây ở chế độ demo, 5 phút ở bản thật.
 - Mọi lệnh đều idempotent: mô phỏng bằng `eth_call` trước, bỏ qua khi revert vì "đã làm".
 - Thứ tự bắt buộc: `markDefault` cho mọi khoản thiếu quá hạn TRƯỚC `finalize`. `finalize` tự đánh dấu người chưa bị đánh dấu nhưng với nhiều người (N = 30, 29 người) có thể tốn hơn 5.000.000 gas và vượt trần relayer/keeper; đường thường khoảng 1,2 đến 2,0 triệu gas (04, mục 7.1).
-- Dây rác (A17, đóng audit A16 M-01 và L-01): keeper bỏ qua dây có `bondDeposited() == 0` (Active hay Paused mà chưa từng có ký quỹ thì không bao giờ có nữa nên bị loại hẳn; Forming chưa quá hạn thì xem lại vòng sau vì chủ hụi còn nạp được). Mỗi vòng chỉ theo dõi tối đa 200 dây, mới nhất trước, và ghi log `circle list truncated` khi bị cắt; dây cũ hơn nằm ngoài 200 dây mới nhất sẽ không được keeper chi hộ nữa (ai cũng vẫn gọi được thủ công).
+- Dây rác (A17, đóng audit A16 M-01 và L-01): keeper bỏ qua dây có `bondDeposited() == 0` (Active hay Paused mà chưa từng có ký quỹ thì không bao giờ có nữa nên bị loại hẳn; Forming chưa quá hạn thì xem lại vòng sau vì chủ hụi còn nạp được). Dây đã từng thấy có ký quỹ (`bondDeposited() > 0`, chưa kết thúc) luôn được đọc ở mọi vòng, vì ký quỹ tốn USDC thật nên không thể bị spam chen chỗ. Phần còn lại (chưa thấy ký quỹ) mỗi vòng đọc tối đa 200 dây, dây lâu chưa được đọc nhất trước và mới nhất trước khi bằng nhau, nên vòng đầu là 200 dây mới nhất và mọi dây đều được đọc trong tối đa ⌈n/200⌉ vòng dù có bao nhiêu dây rác mới xuất hiện (issue #1); ghi log `circle list truncated` khi phải cắt. Bộ nhớ này (`KeeperMemory`) sống trong một tiến trình keeper; khởi động lại thì quét lại từ đầu.
 - Keeper chỉ là tiện ích: ai cũng gọi được các hàm trên.
 
 ---
