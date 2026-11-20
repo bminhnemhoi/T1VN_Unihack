@@ -16,13 +16,13 @@ Viết ngày 11/11/2026 (B14, pitch). Nền: `docs/12-pitch-demo-nop-bai.md` m�
 - Tiêu đề: "HụiSafe: hụi bỏ thăm on-chain trên Avalanche"
 - Câu chốt: "Chủ hụi không cầm tiền, nhưng vẫn phải bảo lãnh."
 - Track Social finance, đề #01 (Hụi on-chain) nâng cấp. Tên đội và 3 vai: `[CHƯA CÓ: tên đội và tên ba thành viên]`
-- Hộp khai báo dev toggle (góc dưới, chữ đọc được): "Chế độ demo trên Avalanche Fuji testnet. 1 kỳ = 3 phút (thật: 30 ngày). Ân hạn 2 phút (thật: 48 giờ). Trần lãi, lãi chậm góp vẫn tính như kỳ 30 ngày. USDC thử nghiệm, không có giá trị. Phí mạng do relayer HụiSafe trả. Ký quỹ không sinh lãi."
+- Hộp khai báo dev toggle (góc dưới, chữ đọc được): "Chế độ demo trên Avalanche Fuji testnet. 1 kỳ = 2 đến 3 phút (thật: 30 ngày). Ân hạn 1 đến 2 phút (thật: 48 giờ). Trần lãi, lãi chậm góp vẫn tính như kỳ 30 ngày. USDC thử nghiệm, không có giá trị. Phí mạng do relayer HụiSafe trả. Ký quỹ không sinh lãi."
 
-**Lời nói.** Đọc nguyên văn docs/12 mục 1: "Trước khi bắt đầu, chúng em xin khai báo dev toggle: bản demo chạy ở chế độ demo trên Avalanche Fuji testnet. Thời gian được tua nhanh: mỗi kỳ hụi 3 phút thay vì 30 ngày, ân hạn 2 phút thay vì 48 giờ; trần lãi và lãi chậm góp vẫn tính như kỳ 30 ngày. Tiền trong demo là USDC thử nghiệm, không có giá trị, và sản phẩm không sinh lãi." Rồi đọc câu chốt. Nếu demo thu nhỏ: thêm "Demo thu nhỏ 10 lần vì giới hạn faucet."
+**Lời nói.** Đọc nguyên văn docs/12 mục 1: "Trước khi bắt đầu, chúng em xin khai báo dev toggle: bản demo chạy ở chế độ demo trên Avalanche Fuji testnet. Thời gian được tua nhanh: mỗi kỳ hụi chỉ vài phút (2 đến 3 phút) thay vì 30 ngày, ân hạn 1 đến 2 phút thay vì 48 giờ; trần lãi và lãi chậm góp vẫn tính như kỳ 30 ngày. Tiền trong demo là USDC thử nghiệm, không có giá trị, và sản phẩm không sinh lãi." Rồi đọc câu chốt. Nếu demo thu nhỏ: thêm "Demo thu nhỏ 10 lần vì giới hạn faucet."
 
 **Hình.** Logo, dải băng chế độ demo màu nổi (chữ khớp `docs/02` US-10 AC-10.1).
 
-**Nguồn số.** 3 phút, 30 ngày, 2 phút, 48 giờ: docs/12 mục 1, docs/03 mục 3.3.
+**Nguồn số.** 2 đến 3 phút, 30 ngày, 1 đến 2 phút, 48 giờ: docs/12 mục 1, docs/03 mục 3.3 (dây mới 120 giây, ân hạn 60 giây; hai dây bằng chứng 11/11 dùng 180/120).
 
 ## Slide 2. Vỡ hụi là chuyện có thật (0:25)
 

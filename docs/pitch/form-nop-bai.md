@@ -45,13 +45,13 @@ Có trong khối: khai báo dev toggle, chỉ USDC testnet, vì sao Avalanche, b
 Tiếng Việt, 783 ký tự (với placeholder 19 ký tự):
 
 ```text
-Dev toggle: demo chạy chế độ tua nhanh (1 kỳ = 3 phút, ân hạn 2 phút, trần lãi tính như kỳ 30 ngày); phí mạng do relayer trả; ký quỹ không sinh lãi. Chỉ USDC testnet trên Fuji: không tiền thật, không token, không dữ liệu cá nhân on-chain. Vì sao Avalanche: USDC native có permit (ký một lần), phí thấp để relayer trả thay, giao dịch chốt dưới 1 giây. Luật Việt Nam: tiền mã hóa không phải phương tiện thanh toán hợp pháp (NQ 05/2025 Điều 4.7) nên chỉ chạy testnet; HụiSafe không trả lương (BLLĐ 2019 Điều 95.2); trợ lý miễn phí, không phải tư vấn tài chính hay pháp lý; không có cổ phiếu token hóa. HuiFactory (Fuji): https://testnet.snowtrace.io/address/0x5004477143F8Db65f80992A0BD79c1DAb75C8b21. Xem video, app, README (có dây vỡ nợ thật trên Fuji). Hỏi nhanh: [CHƯA CÓ: Telegram]
+Dev toggle: demo chạy chế độ tua nhanh (1 kỳ = 2 phút, ân hạn 1 phút, trần lãi tính như kỳ 30 ngày); phí mạng do relayer trả; ký quỹ không sinh lãi. Chỉ USDC testnet trên Fuji: không tiền thật, không token, không dữ liệu cá nhân on-chain. Vì sao Avalanche: USDC native có permit (ký một lần), phí thấp để relayer trả thay, giao dịch chốt dưới 1 giây. Luật Việt Nam: tiền mã hóa không phải phương tiện thanh toán hợp pháp (NQ 05/2025 Điều 4.7) nên chỉ chạy testnet; HụiSafe không trả lương (BLLĐ 2019 Điều 95.2); trợ lý miễn phí, không phải tư vấn tài chính hay pháp lý; không có cổ phiếu token hóa. HuiFactory (Fuji): https://testnet.snowtrace.io/address/0x5004477143F8Db65f80992A0BD79c1DAb75C8b21. Xem video, app, README (có dây vỡ nợ thật trên Fuji). Hỏi nhanh: [CHƯA CÓ: Telegram]
 ```
 
 Tiếng Anh, 790 ký tự (với placeholder 19 ký tự):
 
 ```text
-Dev toggle: the demo runs in fast-forward mode (1 round = 3 minutes, grace = 2 minutes, bid cap computed on a 30-day period); network fees are paid by our relayer; the bond earns no yield. Fuji testnet USDC only: no real money, no token, no personal data on-chain. Why Avalanche: native USDC with permit (sign once), fees low enough for a relayer to pay, finality under 1 second. Vietnam law: crypto is not legal tender (Resolution 05/2025 Art. 4.7), so testnet only; HụiSafe pays no salaries (Labour Code 2019 Art. 95.2); the assistant is free and is not legal or financial advice; no tokenized stocks. HuiFactory (Fuji): https://testnet.snowtrace.io/address/0x5004477143F8Db65f80992A0BD79c1DAb75C8b21. Watch the video, app, README (real default case on Fuji). Contact: [CHƯA CÓ: Telegram]
+Dev toggle: the demo runs in fast-forward mode (1 round = 2 minutes, grace = 1 minute, bid cap computed on a 30-day period); network fees are paid by our relayer; the bond earns no yield. Fuji testnet USDC only: no real money, no token, no personal data on-chain. Why Avalanche: native USDC with permit (sign once), fees low enough for a relayer to pay, finality under 1 second. Vietnam law: crypto is not legal tender (Resolution 05/2025 Art. 4.7), so testnet only; HụiSafe pays no salaries (Labour Code 2019 Art. 95.2); the assistant is free and is not legal or financial advice; no tokenized stocks. HuiFactory (Fuji): https://testnet.snowtrace.io/address/0x5004477143F8Db65f80992A0BD79c1DAb75C8b21. Watch the video, app, README (real default case on Fuji). Contact: [CHƯA CÓ: Telegram]
 ```
 
 ## 4. Các trường còn lại
@@ -61,8 +61,18 @@ Dev toggle: the demo runs in fast-forward mode (1 round = 3 minutes, grace = 2 m
 | GitHub repository | `github.com/bminhnemhoi/T1VN_Unihack` (docs/12 mục 6; docs/11 mục 12 ghi repo public hoặc đã mời `tuantqse90`; cần xác nhận lúc nộp) |
 | Pitch slides | `[CHƯA CÓ: link Canva hoặc Google Slides, quyền xem cho mọi người]` |
 | Demo video | `[CHƯA CÓ: link YouTube hoặc Loom, mở không cần đăng nhập]` |
-| Live app | `[CHƯA CÓ: link app đã triển khai]` |
+| Live app | https://lamng.tail3abf4e.ts.net:8443 (vào thẳng app: `/circles`) |
 | Contract address | `HuiFactory` trên Fuji: `0x5004477143F8Db65f80992A0BD79c1DAb75C8b21`. Link: https://testnet.snowtrace.io/address/0x5004477143F8Db65f80992A0BD79c1DAb75C8b21 |
+
+### Thành viên (3 người)
+
+| Họ tên | GitHub | Vai trò |
+|---|---|---|
+| Ngô Bình Minh (trưởng nhóm) | `bminhnemhoi` | Trưởng nhóm; thiết kế sản phẩm và giao thức (luật dây hụi, tham số v1.2: hoa hồng trong trần lãi, quỹ dự phòng chia theo đúng hạn); pitch |
+| Ngô Lâm Tiến | `Towfienes` | Frontend và tích hợp: web app, trải nghiệm người dùng, ví Privy và relayer, triển khai web |
+| Ngô Đặng Trọng Hiếu | `yuutosolonely` | Backend và kiểm thử: keeper, SDK, rà soát và viết test |
+
+Bản tiếng Anh (nếu form cần): Ngô Bình Minh (team lead): product and protocol design, pitch · Ngô Lâm Tiến: frontend and integration (web app, UX, Privy wallet and relayer, deployment) · Ngô Đặng Trọng Hiếu: backend and testing (keeper, SDK, test reviews).
 
 Địa chỉ lấy nguyên từ `contracts/deployments/fuji.json` (chainId 43113, deployedAt 2026-11-10T16:49:03Z, gitCommit 494e923). Các hợp đồng khác trong cùng file, nếu form cần liệt kê: `forwarder` `0x789621cFD56Cc79ec47eF6C449B6C53c40516b2C`, `reputation` `0xf8F05aa2804144F5aC71485614480f801927E5c3`, `circleImplementation` `0x3A72591e0d451802F051789497eD5f2B2256673d`, `circleLens` `0xb4Ebda56d43db9e629C1FD6b226ac828BE0637a6`. `docs/TIEN-DO.md` ghi 5/5 hợp đồng đã xác minh trên Routescan: phải mở link Snowtrace ở trên bằng tab ẩn danh để chắc trang hiện mã nguồn đã xác minh, trước khi viết "đã verify" ra ngoài.
 
@@ -72,7 +82,7 @@ Dev toggle: the demo runs in fast-forward mode (1 round = 3 minutes, grace = 2 m
 |---|---|---|
 | Project name | 84 / 100 | 97 / 100 |
 | What it does | 783 / 800 | 791 / 800 |
-| Anything else (với placeholder) | 783 / 800 | 790 / 800 |
+| Anything else (với placeholder) | 783 / 800 | 789 / 800 |
 | Đã ở dạng NFC | Có | Có |
 
 - Dev toggle: có (Anything else, câu đầu).
