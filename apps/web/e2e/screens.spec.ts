@@ -85,6 +85,9 @@ test.describe('S04 forming circle', () => {
     await expect(start).toHaveAttribute('aria-disabled', 'true');
     await page.getByRole('switch', { name: /Xem thử khi đã đủ 5 người/ }).click();
     await expect(page.getByRole('heading', { name: 'Đang chờ đủ người: 5 trên 5' })).toBeVisible();
+    // full circle: no longer tells the organizer to keep inviting (issue found 20/11 on Fuji)
+    await expect(page.getByText(/để mời đủ người/)).toHaveCount(0);
+    await expect(page.getByText(/Đã đủ 5 người\. Còn .* để bấm "Bắt đầu dây"/)).toBeVisible();
     await expect(start).toHaveAttribute('aria-disabled', 'false');
     await start.click();
     await expect(toast(page, 'Bắt đầu dây cần đăng nhập')).toBeVisible();

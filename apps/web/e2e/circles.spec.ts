@@ -97,6 +97,7 @@ test.describe('other sample circles answer for themselves', () => {
     await context.grantPermissions(['clipboard-read', 'clipboard-write']).catch(() => {});
     await page.goto('/circles/dang-gom');
     await expect(page.getByRole('heading', { name: 'Đang chờ đủ người: 3 trên 5' })).toBeVisible();
+    await expect(page.getByText(/để mời đủ người/)).toBeVisible();
     await page.getByRole('button', { name: 'Sao chép đường dẫn mời' }).click();
     await expect(toast(page, /đường dẫn mời|sao chép/i)).toBeVisible();
     const start = page.getByRole('button', { name: 'Bắt đầu dây' });

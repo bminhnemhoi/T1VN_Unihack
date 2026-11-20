@@ -108,7 +108,15 @@ export function FormingView({ c }: { c: SampleCircleData }) {
               Đang chờ đủ người: {have} trên {n}
             </h2>
             <p className="mt-3 text-lead text-[#e9e4da]">
-              Còn <Countdown seconds={joinLeftSec} className="font-semibold text-white" /> để mời đủ người. Quá hạn mà chưa đủ thì dây tự hủy và bạn rút lại ký quỹ.
+              {full ? (
+                <>
+                  Đã đủ {n} người. Còn <Countdown seconds={joinLeftSec} className="font-semibold text-white" /> để bấm &quot;Bắt đầu dây&quot;; quá hạn mà chưa bắt đầu thì dây tự hủy và ký quỹ được rút lại.
+                </>
+              ) : (
+                <>
+                  Còn <Countdown seconds={joinLeftSec} className="font-semibold text-white" /> để mời đủ người. Quá hạn mà chưa đủ thì dây tự hủy và ký quỹ được rút lại.
+                </>
+              )}
             </p>
             <div className="mt-6 flex flex-wrap gap-3">
               {live ? (
