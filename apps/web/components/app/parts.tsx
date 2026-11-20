@@ -5,7 +5,7 @@ import { useEffect, useRef, type ReactNode } from 'react';
 import { FrameSlot } from '@/components/app/AppFrame';
 import { formatUsdcNumber, huiMath } from 'sdk';
 import { setDemoNet, useShowAfter } from '@/lib/demo-store';
-import type { SampleCircleData } from '@/lib/sample-circles';
+import { bondUsedThrough, type SampleCircleData } from '@/lib/sample-circles';
 
 export const av = (i: number) => `M${i + 1}`;
 
@@ -204,7 +204,8 @@ export function PasteInvite() {
 
 /** Coverage at activation (reserve 0), the first chip of the prototype. */
 function coveragePct(c: SampleCircleData): number {
-  const bps = c.live?.view.guaranteedCoverageBps ?? Number(huiMath.coverageIndexBps(c.terms.alphaBps, c.bond, 0n, c.terms.n, c.terms.c));
+  // From the deposited bond, never `bondRemaining`: after finalize the bond is paid back and "at opening" would read 20%.
+  const bps = Number(huiMath.coverageIndexBps(c.terms.alphaBps, c.bond, 0n, c.terms.n, c.terms.c));
   return Math.floor(bps / 100);
 }
 
@@ -221,9 +222,9 @@ export function CircleChips({ c, bondSpent = 0n, refreshing, stale }: { c: Sampl
         <span className="short">Bảo chứng</span> <b>{coveragePct(c)}%</b>
       </Link>
       <Link className="chip" href={`/circles/${c.id}/bao-chung`}>
-        Ký quỹ còn{' '}
+        {c.state === 'completed' ? 'Ký quỹ trả lại' : 'Ký quỹ còn'}{' '}
         <b>
-          {w(c.bondRemaining - bondSpent)}/{w(c.bond)}
+          {w(c.state === 'completed' ? c.bond - bondUsedThrough(c, Number(c.terms.n)) : c.bondRemaining - bondSpent)}/{w(c.bond)}
         </b>
       </Link>
       <Link className="chip" href={`/circles/${c.id}/giu-lai`}>

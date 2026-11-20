@@ -65,7 +65,13 @@ function LedgerBody({ c, refreshing, stale }: { c: SampleCircleData; refreshing:
   const state = (r: number) => (r < k ? 'done' : r === k ? 'now' : 'later');
   const name = (i: number) => (i === c.viewer ? `${av(i)} · Bạn` : av(i));
   const latest = [...bond].reverse().find((b) => b !== null) ?? c.bond;
-  const claims = c.shortfalls.filter((x) => x.status === 'defaulted');
+  // Public claims are only what honest receivers were short-paid (`uncovered` still open). What a defaulter took from the
+  // organizer's bond or the reserve is a debt to those, not a loss of any member: shown apart, per member.
+  const claims = c.shortfalls.filter((x) => x.uncovered > 0n);
+  const owedBack = new Map<number, bigint>();
+  c.shortfalls
+    .filter((x) => x.status === 'defaulted' && x.fromBond + x.fromReserve > 0n)
+    .forEach((x) => owedBack.set(x.member, (owedBack.get(x.member) ?? 0n) + x.fromBond + x.fromReserve));
   const go = (r: number) => {
     const next = Math.min(Math.max(r, 1), n);
     if (next === round) return;
@@ -272,7 +278,12 @@ function LedgerBody({ c, refreshing, stale }: { c: SampleCircleData; refreshing:
         )}
         {claims.length > 0 && (
           <span>
-            Khoản đòi công khai: {claims.map((x) => `${av(x.member)} ${f(x.amount)} USDC`).join(', ')}.
+            Khoản đòi công khai (người hốt bị nhận thiếu): {claims.map((x) => `${av(x.member)} ${f(x.uncovered)} USDC`).join(', ')}.
+          </span>
+        )}
+        {owedBack.size > 0 && (
+          <span data-testid="ledger-owed-back">
+            {[...owedBack].map(([m, v]) => `${av(m)} còn nợ ${f(v)} USDC đã được ký quỹ chủ hụi và quỹ dự phòng bù`).join('; ')}.{claims.length === 0 ? ' Không thành viên nào bị nhận thiếu.' : ''}
           </span>
         )}
       </div>

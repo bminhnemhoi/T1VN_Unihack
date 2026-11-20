@@ -18,7 +18,7 @@ import { QrCode } from '@/components/circle/QrCode';
 import { useToast } from '@/components/shell/Toast';
 import { Button } from '@/components/ui/button';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
-import { formatVnTime, settledAtMs, settledRound, type SampleCircleData } from '@/lib/sample-circles';
+import { coverOf, formatVnTime, settledAtMs, settledRound, type SampleCircleData } from '@/lib/sample-circles';
 import { shortAddress } from '@/lib/live/circleData';
 import { TOGGLE_ON } from '@/lib/utils';
 
@@ -68,7 +68,8 @@ function buildLines(c: SampleCircleData): Line[] {
       const key = `${r}:${i}`;
       if (sf) {
         out.push({ ms, round: r, member: seat.name, kind: 'Thiếu', amount: sf.amount, tx: txOf(c.id, `${key}:thieu`) });
-        const cover: [string, bigint][] = [['tiền giữ lại', sf.fromHoldback], ['ký quỹ', sf.fromBond], ['quỹ dự phòng', sf.fromReserve], ['chưa bù được', sf.uncovered]];
+        const cv = coverOf(sf);
+        const cover: [string, bigint][] = [['tiền giữ lại', cv.holdback], ['ký quỹ', cv.bond], ['quỹ dự phòng', cv.reserve], ['chưa bù được', cv.uncovered]];
         cover.forEach(([name, amount]) => amount > 0n && out.push({ ms, round: r, member: seat.name, kind: 'Bù', detail: name, amount, tx: txOf(c.id, `${key}:bu:${name}`) }));
         if (sf.status === 'defaulted') {
           out.push({ ms: ms + c.graceSeconds * 1000, round: r, member: seat.name, kind: 'Vỡ nợ', amount: sf.amount, tx: txOf(c.id, `${key}:vo`) });

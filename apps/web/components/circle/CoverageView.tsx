@@ -4,17 +4,23 @@ import { CascadeBar } from '@/components/circle/CascadeBar';
 import { CirclePageHead } from '@/components/circle/CirclePageHead';
 import { RiskTable } from '@/components/circle/RiskTable';
 import { simulateDefaults } from '@/lib/hui-calc';
-import { settledRound, type SampleCircleData } from '@/lib/sample-circles';
+import { bondUsedThrough, coverOf, settledRound, type SampleCircleData } from '@/lib/sample-circles';
 
 /** S09: the cascade holdback, bond, reserve, uncovered, for every shortfall so far, plus what happens next if the defaulter never pays. */
 export function CoverageView({ c }: { c: SampleCircleData }) {
   const id = c.id;
   const t = c.terms;
   const total = c.shortfalls.reduce(
-    (a, s) => ({ holdback: a.holdback + s.fromHoldback, bond: a.bond + s.fromBond, reserve: a.reserve + s.fromReserve, uncovered: a.uncovered + s.uncovered }),
+    (a, s) => {
+      const cv = coverOf(s);
+      return { holdback: a.holdback + cv.holdback, bond: a.bond + cv.bond, reserve: a.reserve + cv.reserve, uncovered: a.uncovered + cv.uncovered };
+    },
     { holdback: 0n, bond: 0n, reserve: 0n, uncovered: 0n },
   );
-  const index = huiMath.coverageIndexBps(t.alphaBps, c.bondRemaining, c.reserve, t.n, t.c);
+  // A finished circle has paid its bond and reserve out: show the coverage it opened with and the bond it gave back.
+  const ended = c.state === 'completed';
+  const index = ended ? huiMath.coverageIndexBps(t.alphaBps, c.bond, 0n, t.n, t.c) : huiMath.coverageIndexBps(t.alphaBps, c.bondRemaining, c.reserve, t.n, t.c);
+  const bondShown = ended ? c.bond - bondUsedThrough(c, Number(t.n)) : c.bondRemaining;
   const defaulted = c.shortfalls.filter((s) => s.status === 'defaulted');
   const claims = c.shortfalls.filter((s) => s.uncovered > 0n);
 
@@ -36,10 +42,18 @@ export function CoverageView({ c }: { c: SampleCircleData }) {
       <div className="mt-8 grid gap-6 lg:grid-cols-[2fr_3fr] lg:items-start [&>*]:min-w-0">
         <section aria-labelledby="tom-tat-bc" className="nen-muc rounded-xl p-6 md:p-8">
           <h2 id="tom-tat-bc" className="font-display text-h2 font-bold">
-            Ký quỹ còn {formatUsdc(c.bondRemaining)} trên {formatUsdc(c.bond)}
+            {ended ? 'Ký quỹ trả lại chủ hụi' : 'Ký quỹ còn'} {formatUsdc(bondShown)} trên {formatUsdc(c.bond)}
           </h2>
           <p className="so-ke mt-3 text-lead text-[#e9e4da]">
-            Chỉ số bảo chứng hiện tại <strong className="text-white">{formatBps(index)}</strong>, tính cả quỹ dự phòng {formatUsdc(c.reserve)}.
+            {ended ? (
+              <>
+                Chỉ số bảo chứng lúc mở dây <strong className="text-white">{formatBps(index)}</strong>.
+              </>
+            ) : (
+              <>
+                Chỉ số bảo chứng hiện tại <strong className="text-white">{formatBps(index)}</strong>, tính cả quỹ dự phòng {formatUsdc(c.reserve)}.
+              </>
+            )}
           </p>
           <p className="mt-2 text-[#c9c2b6]">
             Chỉ số 100% nghĩa là ký quỹ chịu được cú sốc lớn nhất: mọi người đã hốt cùng bỏ đóng một lúc. Bỏ đóng lần lượt qua nhiều kỳ có thể vượt ký quỹ.
@@ -58,7 +72,7 @@ export function CoverageView({ c }: { c: SampleCircleData }) {
                 <CascadeBar
                   key={`${s.round}-${s.member}`}
                   title={`Kỳ ${s.round}: ${c.seats[s.member]!.name} thiếu ${formatUsdc(s.amount)}`}
-                  parts={{ holdback: s.fromHoldback, bond: s.fromBond, reserve: s.fromReserve, uncovered: s.uncovered }}
+                  parts={coverOf(s)}
                 />
               ))}
               {c.shortfalls.length > 1 && <CascadeBar title="Tổng cộng" parts={total} />}
@@ -70,10 +84,10 @@ export function CoverageView({ c }: { c: SampleCircleData }) {
       {defaulted.length > 0 && (
         <section aria-labelledby="ky-sau" className="o-phang mt-8 p-6">
           <h2 id="ky-sau" className="font-display text-h2 font-bold">
-            Các kỳ còn lại nếu {c.seats[defaulted[0]!.member]!.name} không trả nữa
+            {ended ? `Ký quỹ sau từng kỳ khi ${c.seats[defaulted[0]!.member]!.name} không trả` : `Các kỳ còn lại nếu ${c.seats[defaulted[0]!.member]!.name} không trả nữa`}
           </h2>
           <p className="mt-1 max-w-prose text-muted-foreground">
-            Phần góp của người vỡ nợ tiếp tục được thử trích mỗi kỳ; thiếu thì lấy từ ký quỹ. Người hốt các kỳ sau vẫn nhận đủ.
+            {ended ? 'Dây đã kết thúc: phần góp của người vỡ nợ được thử trích mỗi kỳ, thiếu thì lấy từ ký quỹ, và người hốt các kỳ sau đều nhận đủ.' : 'Phần góp của người vỡ nợ tiếp tục được thử trích mỗi kỳ; thiếu thì lấy từ ký quỹ. Người hốt các kỳ sau vẫn nhận đủ.'}
           </p>
           <div className="mt-3 overflow-x-auto" tabIndex={0} role="region" aria-label="Bảng ký quỹ còn lại sau từng kỳ, kéo ngang để xem hết">
             <table className="w-full min-w-[24rem] text-base">

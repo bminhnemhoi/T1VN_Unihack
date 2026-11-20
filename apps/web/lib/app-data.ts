@@ -3,7 +3,7 @@
  * the same `SampleCircleData` as the receipts, so sample and chain data give the same lines.
  */
 import { formatUsdcNumber } from 'sdk';
-import { settledRound, type SampleCircleData } from '@/lib/sample-circles';
+import { bondUsedThrough, coverOf, settledRound, type SampleCircleData } from '@/lib/sample-circles';
 
 /** USDC with at least two decimals, like the approved prototype: "396,00", "3,287671". */
 export const usdc2 = (u: bigint): string => {
@@ -24,9 +24,9 @@ export interface Cell {
 export const KIND: Record<Kind, string> = { pay: 'Góp', win: 'Hốt', miss: 'Thiếu', now: 'Đang chạy', later: 'Chưa tới' };
 export const GLYPH: Record<Kind, string> = { pay: '', win: 'H', miss: '✕', now: '•', later: '' };
 const SRC = [
-  ['fromHoldback', 'từ tiền giữ lại'],
-  ['fromBond', 'từ ký quỹ'],
-  ['fromReserve', 'từ quỹ dự phòng'],
+  ['holdback', 'từ tiền giữ lại'],
+  ['bond', 'từ ký quỹ'],
+  ['reserve', 'từ quỹ dự phòng'],
   ['uncovered', 'chưa ai bù'],
 ] as const;
 
@@ -47,7 +47,8 @@ export function ledgerOf(c: SampleCircleData): { cells: Cell[][]; bond: (bigint 
         if (s.winner === i) return { kind: 'win', v: `+${f(s.payout)}`, note: `hốt với thăm ${f(s.bid)}` };
         const sf = c.shortfalls.find((x) => x.round === r && x.member === i);
         if (sf) {
-          const from = SRC.filter(([key]) => sf[key] > 0n).map(([key, word]) => `${f(sf[key])} ${word}`);
+          const cv = coverOf(sf);
+          const from = SRC.filter(([key]) => cv[key] > 0n).map(([key, word]) => `${f(cv[key])} ${word}`);
           return { kind: 'miss', v: `−${f(sf.amount)}`, note: `không đóng${from.length ? ` · bù ${from.join(' + ')}` : ''}${sf.status === 'paid' ? ' · đã trả trễ' : ''}` };
         }
         return { kind: 'pay', v: `−${f(received ? C : C - s.bid)}`, note: received ? 'đã hốt, góp đủ' : 'góp đúng hạn' };
@@ -59,7 +60,7 @@ export function ledgerOf(c: SampleCircleData): { cells: Cell[][]; bond: (bigint 
       return { kind: 'later', v: '—', note: c.ended === 'cancelled' ? 'dây đã hủy trước khi chạy' : c.state === 'forming' ? 'dây chưa bắt đầu' : 'chưa tới kỳ này' };
     }),
   );
-  const bond = Array.from({ length: n }, (_, j) => (j + 1 <= c.settled ? c.bond - c.shortfalls.filter((x) => x.round <= j + 1).reduce((a, x) => a + x.fromBond, 0n) : null));
+  const bond = Array.from({ length: n }, (_, j) => (j + 1 <= c.settled ? c.bond - bondUsedThrough(c, j + 1) : null));
   return { cells, bond, k };
 }
 
@@ -83,7 +84,7 @@ export function feedOf(c: SampleCircleData): Bubble[] {
     if (c.viewer >= 0 && c.viewer !== s.winner && !short.some((x) => x.member === c.viewer))
       out.push({ av: av(c.viewer), me: true, k: r, text: 'Bạn góp đúng hạn', v: `−${f(received.has(c.viewer) ? c.terms.c : c.terms.c - s.bid)}` });
     for (const x of short) {
-      if (x.fromBond > 0n) out.push({ av: 'CH', me: false, k: r, text: `Ký quỹ bù ${f(x.fromBond)} cho ${av(x.member)}`, v: f(x.fromBond) });
+      if (coverOf(x).bond > 0n) out.push({ av: 'CH', me: false, k: r, text: `Ký quỹ bù ${f(coverOf(x).bond)} cho ${av(x.member)}`, v: f(coverOf(x).bond) });
       if (x.status === 'defaulted') out.push({ av: av(x.member), me: x.member === c.viewer, k: r, text: 'Quá ân hạn, ghi vỡ nợ', v: `−${f(x.amount)}` });
       else out.push({ av: av(x.member), me: x.member === c.viewer, k: r, text: x.status === 'paid' ? 'Trả trễ trong ân hạn' : 'Chưa đóng, còn trong ân hạn', v: `−${f(x.amount)}` });
     }

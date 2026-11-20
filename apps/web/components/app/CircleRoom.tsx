@@ -21,7 +21,7 @@ import { useCircleData } from '@/lib/live/useCircleData';
 import { useMyCommit } from '@/lib/live/useMyCommit';
 import { useRoundCommits } from '@/lib/live/useRoundCommits';
 import { useWalletBalance } from '@/lib/live/useWalletBalance';
-import { formatVnTime, settledAtMs, settledRound, type SampleCircleData } from '@/lib/sample-circles';
+import { bondUsedThrough, coverOf, formatVnTime, settledAtMs, settledRound, type SampleCircleData } from '@/lib/sample-circles';
 import { usdc } from '@/lib/sample';
 
 /** USDC with at least two decimals, like the prototype ("396,00", "3,287671"). */
@@ -347,9 +347,9 @@ function fixedTaker(c: SampleCircleData, r: number): number {
 }
 
 const SOURCES = [
-  ['fromHoldback', 'tiền giữ lại của chính', 'var(--ink-2)'],
-  ['fromBond', 'ký quỹ chủ hụi', 'var(--ink)'],
-  ['fromReserve', 'quỹ dự phòng', 'var(--forest)'],
+  ['holdback', 'tiền giữ lại của chính', 'var(--ink-2)'],
+  ['bond', 'ký quỹ chủ hụi', 'var(--ink)'],
+  ['reserve', 'quỹ dự phòng', 'var(--forest)'],
   ['uncovered', 'chưa ai bù (khoản đòi công khai)', 'var(--red)'],
 ] as const;
 
@@ -364,7 +364,7 @@ function Receipt({ c, r, stamp }: { c: SampleCircleData; r: number; stamp: boole
   const w = av(s.winner);
   const defaulted = short.filter((x) => x.status === 'defaulted');
   const total = short.reduce((a, x) => a + x.amount, 0n);
-  const bondBefore = c.bond - c.shortfalls.filter((x) => x.round < r).reduce((a, x) => a + x.fromBond, 0n);
+  const bondBefore = c.bond - bondUsedThrough(c, r - 1);
   return (
     <section className="stage">
       <article className="panel receipt" aria-labelledby={`bl-${r}`}>
@@ -381,21 +381,21 @@ function Receipt({ c, r, stamp }: { c: SampleCircleData; r: number; stamp: boole
         </h2>
         {short.length > 0 && (
           <div className="cascade">
-            <div className="bar" role="img" aria-label={`Khoản thiếu ${f(total)} USDC: ${short.map((x) => SOURCES.filter(([key]) => x[key] > 0n).map(([key, word]) => `${f(x[key])} từ ${word}${key === 'fromHoldback' ? ' ' + av(x.member) : ''}`).join(', ')).join('; ')}`}>
+            <div className="bar" role="img" aria-label={`Khoản thiếu ${f(total)} USDC: ${short.map((x) => SOURCES.filter(([key]) => coverOf(x)[key] > 0n).map(([key, word]) => `${f(coverOf(x)[key])} từ ${word}${key === 'holdback' ? ' ' + av(x.member) : ''}`).join(', ')).join('; ')}`}>
               {short.flatMap((x) =>
-                SOURCES.filter(([key]) => x[key] > 0n).map(([key, , color], j) => (
-                  <i key={`${x.member}-${key}`} style={{ width: `${Number((x[key] * 10_000n) / (total || 1n)) / 100}%`, background: color, animationDelay: `${j * 120}ms` }} />
+                SOURCES.filter(([key]) => coverOf(x)[key] > 0n).map(([key, , color], j) => (
+                  <i key={`${x.member}-${key}`} style={{ width: `${Number((coverOf(x)[key] * 10_000n) / (total || 1n)) / 100}%`, background: color, animationDelay: `${j * 120}ms` }} />
                 )),
               )}
             </div>
             <div className="legend">
               {short.flatMap((x) =>
-                SOURCES.filter(([key]) => x[key] > 0n).map(([key, word, color]) => (
+                SOURCES.filter(([key]) => coverOf(x)[key] > 0n).map(([key, word, color]) => (
                   <span key={`${x.member}-${key}`}>
                     <i style={{ background: color }} />
-                    {f(x[key])} từ {word}
-                    {key === 'fromHoldback' ? ` ${av(x.member)}` : ''}
-                    {key === 'fromBond' ? ` (${f(bondBefore)} → ${f(bondBefore - x.fromBond)})` : ''}
+                    {f(coverOf(x)[key])} từ {word}
+                    {key === 'holdback' ? ` ${av(x.member)}` : ''}
+                    {key === 'bond' ? ` (${f(bondBefore)} → ${f(bondBefore - coverOf(x).bond)})` : ''}
                   </span>
                 )),
               )}

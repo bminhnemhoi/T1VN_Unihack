@@ -50,7 +50,8 @@ export function toLedger(v: CircleView): LedgerRound[] {
       if (same(m.address, r.winner!)) return { kind: 'won' };
       const sf = r.shortfalls.find((s) => same(s.member, m.address));
       if (sf) {
-        return { kind: 'short', amount: sf.amount, fromHoldback: sf.fromHoldback, fromBond: sf.fromBond, fromReserve: sf.fromReserve };
+        const cv = sf.covered ?? { holdback: sf.fromHoldback, bond: sf.fromBond, reserve: sf.fromReserve };
+        return { kind: 'short', amount: sf.amount, fromHoldback: cv.holdback, fromBond: cv.bond, fromReserve: cv.reserve };
       }
       const alreadyReceived = m.receivedRound !== undefined && m.receivedRound < r.k;
       return { kind: 'paid', amount: alreadyReceived ? C : C - bid };
