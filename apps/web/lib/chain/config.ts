@@ -3,8 +3,9 @@
  * (which may hold an API key) never reach the client. The server layout builds the JSON with `loadChainConfig()`
  * (`./server.ts`) and hands it to `<ChainProvider>`.
  */
-import { createPublicClient, defineChain, http, type PublicClient } from 'viem';
+import { createPublicClient, defineChain, fallback, http, type PublicClient } from 'viem';
 import { avalancheFuji } from 'viem/chains';
+import { FUJI_BROWSER_RPC_FALLBACK } from 'config';
 import { FUJI_EXPLORER_API, registerExplorerApi } from 'sdk';
 
 type Address = `0x${string}`;
@@ -48,9 +49,15 @@ export function createChainConfig(json: ChainConfigJson): ChainConfig {
   // Fuji's public RPC answers a page that fires ~80 separate requests per refresh with throttling that reaches the
   // browser as a CORS error (A18, measured 11/11/2026), and the page then never loads. Anvil has no Multicall3: viem
   // skips it for chains without one.
+  // Fuji: a second keyless RPC takes over when the first throttles or drops (issue #13), so a member never gets stuck on
+  // one provider's per-IP limit. Each read still goes out batched.
+  const transport =
+    json.network === 'fuji'
+      ? fallback([http(json.rpcUrl, { batch: true, retryCount: 1 }), http(FUJI_BROWSER_RPC_FALLBACK, { batch: true, retryCount: 1 })])
+      : http(undefined, { batch: true });
   const client = createPublicClient({
     chain,
-    transport: http(json.network === 'fuji' ? json.rpcUrl : undefined, { batch: true }),
+    transport,
     batch: { multicall: true },
   }) as PublicClient;
   // Events come from the explorer in one request; the chunked RPC scan is only the fallback (see `registerExplorerApi`).

@@ -1,4 +1,4 @@
-export { FUJI } from './chains';
+export { FUJI, FUJI_BROWSER_RPC_FALLBACK } from './chains';
 export { FUJI_EVIDENCE, fujiAddressUrl } from './evidence';
 export {
   BPS,

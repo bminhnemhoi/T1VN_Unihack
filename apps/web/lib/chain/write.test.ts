@@ -301,6 +301,34 @@ describe('B27 signing resilience and zero-balance guards', () => {
     expect(posts.length).toBeLessThanOrEqual(6);
   });
 
+  it('issue #13: a failed chain read while preparing a permit is a network error, not "you cancelled"', async () => {
+    const { ctx, sent } = setup();
+    const read = ctx.chain.client.readContract.bind(ctx.chain.client);
+    (ctx.chain.client as unknown as { readContract: (a: { functionName: string }) => Promise<unknown> }).readContract = async (a) => {
+      if (a.functionName === 'name') throw new TypeError('Failed to fetch'); // RPC throttled, CORS-less 429
+      return read(a as never);
+    };
+    const r = await depositBond(ctx, CIRCLE, 48n * U);
+    expect(r).toMatchObject({ ok: false, code: 'NetworkError' });
+    expect((r as { message: string }).message).toContain('Bấm lại');
+    expect(sent).toHaveLength(0);
+  });
+
+  it('issue #13: a wallet that really refuses (EIP-1193 code 4001) is still "you cancelled"', async () => {
+    const { ctx, sent } = setup();
+    ctx.wallet = {
+      ...ctx.wallet,
+      signer: {
+        address: ctx.wallet.signer.address,
+        signTypedData: async () => {
+          throw Object.assign(new Error('User rejected the request.'), { code: 4001 });
+        },
+      },
+    };
+    expect(await depositBond(ctx, CIRCLE, 48n * U)).toMatchObject({ ok: false, code: 'SignRejected' });
+    expect(sent).toHaveLength(0);
+  });
+
   it('refuses commitBid only when the wallet cannot pay the reveal deposit (B28)', async () => {
     const { ctx, sent } = setup({ balance: 50_000n }); // 0.05 USDC, the commit pulls a 0.10 USDC deposit
     expect(await commitBid(ctx, CIRCLE, 1, 500_000n)).toMatchObject({ ok: false, code: 'InsufficientBalance' });

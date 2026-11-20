@@ -81,6 +81,25 @@ const PERMIT_TTL_SEC = 3600;
 const REPAY_PERMIT_TTL_SEC = 1800;
 
 const fail = (code: string, message: string): TxFailure => ({ ok: false, code, message });
+
+/** EIP-1193 4001 or a wallet's own "rejected/cancelled" wording, anywhere along the `cause` chain. */
+function isUserRejection(e: unknown): boolean {
+  for (let x: unknown = e, i = 0; x && typeof x === 'object' && i < 6; x = (x as { cause?: unknown }).cause, i++) {
+    const o = x as { code?: unknown; name?: unknown; message?: unknown; shortMessage?: unknown };
+    if (o.code === 4001 || o.name === 'UserRejectedRequestError') return true;
+    if (/reject|denied|cancel|exited|closed by user/i.test(`${String(o.shortMessage ?? '')} ${String(o.message ?? '')}`)) return true;
+  }
+  return false;
+}
+
+/**
+ * A step that reads the chain AND asks the wallet to sign failed (issue #13). Only a real refusal is "you cancelled";
+ * anything else (RPC throttled, CORS-less 429, offline) is a network error the person can retry, and nothing was sent.
+ */
+const signFailure = (e: unknown): TxFailure =>
+  isUserRejection(e)
+    ? fail('SignRejected', 'Ví không ký được hoặc bạn đã huỷ. Chưa có giao dịch nào được gửi.')
+    : fail('NetworkError', 'Chưa đọc được dữ liệu từ mạng nên chưa ký hay gửi gì. Bấm lại sau vài giây.');
 const defaultFetch: FetchLike = (url, init) => globalThis.fetch(url, init);
 
 const sameAddr = (a: string, b: string): boolean => a.toLowerCase() === b.toLowerCase();
@@ -193,8 +212,8 @@ async function relayOnce(
         gas,
         deadlineSec: nowSec + REQUEST_TTL_SEC,
       });
-    } catch {
-      return fail('SignRejected', 'Ví không ký được hoặc bạn đã huỷ. Chưa có giao dịch nào được gửi.');
+    } catch (e) {
+      return signFailure(e);
     }
   }
 
@@ -309,8 +328,8 @@ export function depositBond(ctx: TxContext, circle: Address, amount: bigint): Pr
     let permit: PermitArg;
     try {
       permit = await permitFor(ctx, circle, amount + current);
-    } catch {
-      return fail('SignRejected', 'Ví không ký được hoặc bạn đã huỷ. Chưa có giao dịch nào được gửi.');
+    } catch (e) {
+      return signFailure(e);
     }
     return circleCall(ctx, circle, 'depositBond', [amount, permit]);
   });
@@ -351,8 +370,8 @@ async function joinInner(ctx: TxContext, circle: Address, opts: { ageConfirmed: 
   try {
     const permit = await permitFor(ctx, circle, await readCircleFn<bigint>(ctx, circle, 'requiredAllowance'));
     data = encodeJoin(att.value.attestation, att.value.signature, permit);
-  } catch {
-    return fail('SignRejected', 'Ví không ký được hoặc bạn đã huỷ. Chưa có giao dịch nào được gửi.');
+  } catch (e) {
+    return signFailure(e);
   }
   return relayCall(ctx, circle, data, GAS.join);
 }
@@ -492,8 +511,8 @@ async function ensureRepayAllowance(
   let signed;
   try {
     signed = await signRepayPermit(signCtx(ctx), ctx.chain.usdc, view, nowWithMargin, opts, BigInt((await chainNow(ctx)) + REPAY_PERMIT_TTL_SEC));
-  } catch {
-    return fail('SignRejected', 'Ví không ký được hoặc bạn đã huỷ. Chưa có giao dịch nào được gửi.');
+  } catch (e) {
+    return signFailure(e);
   }
   const sent = await relayPermit(ctx.fetchFn ?? defaultFetch, ctx.permitUrl ?? '/api/relay/permit', ctx.wallet.address, circle, signed.permit);
   let problem: TxFailure | undefined = sent.ok ? undefined : sent;
