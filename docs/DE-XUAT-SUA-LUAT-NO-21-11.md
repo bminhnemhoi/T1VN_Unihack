@@ -1,6 +1,6 @@
 # Đề xuất sửa luật nợ sau vỡ nợ (21/11/2026)
 
-**Trạng thái:** CHỜ nhóm quyết định. Chưa sửa contract, chưa sửa docs/03 và docs/05.
+**Trạng thái:** hướng A ĐÃ LÀM 21/11 (Hiếu duyệt): docs/05 mục 8.1, docs/03 mục 6.8, `apps/web/lib/server/entryGuard.ts` + test, `env.ts`. Hướng B (contract) vẫn CHỜ nhóm quyết định.
 **Người viết:** Hiếu (cùng Claude Code), rà soát backend lần 2, PR #16.
 **Cần duyệt:** Towfienes (giữ `contracts/` và `/api/attest`), leader.
 
