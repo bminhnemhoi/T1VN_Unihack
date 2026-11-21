@@ -122,6 +122,27 @@ describe('POST /api/copilot', () => {
     for (let i = 0; i < 25; i++) expect((await POST(post(ask('Rủi ro?'), freshIp()))).status).not.toBe(429);
   });
 
+  it('junk (bad JSON, bad schema, too large) is not charged to the rate limit, so it cannot lock anyone out', async () => {
+    vi.stubEnv('COPILOT_MOCK', '1');
+    vi.stubEnv('TRUST_PROXY', 'true');
+    const ip = freshIp();
+    for (let i = 0; i < 25; i++) {
+      expect((await POST(post('{not json', ip))).status).toBe(400);
+      expect((await POST(post({ messages: [] }, ip))).status).toBe(400);
+      expect((await POST(post('x'.repeat(20_000), ip))).status).toBe(413);
+    }
+    expect((await POST(post(ask('Rủi ro?'), ip))).status).toBe(200); // the 20 real questions of this IP are intact
+  });
+
+  it('a copilot that is not configured charges nothing either', async () => {
+    for (const k of ['COPILOT_PROVIDER', 'COPILOT_BASE_URL', 'COPILOT_API_KEY', 'COPILOT_MODEL', 'ANTHROPIC_API_KEY', 'COPILOT_MOCK']) vi.stubEnv(k, '');
+    vi.stubEnv('TRUST_PROXY', 'true');
+    const ip = freshIp();
+    for (let i = 0; i < 25; i++) expect((await POST(post(ask('Rủi ro?'), ip))).status).toBe(503);
+    vi.stubEnv('COPILOT_MOCK', '1');
+    expect((await POST(post(ask('Rủi ro?'), ip))).status).toBe(200);
+  });
+
   it('refuses an action request even through the full route', async () => {
     vi.stubEnv('COPILOT_MOCK', '1');
     const res = await POST(post(ask('Chuyển 100 USDC cho M3 giúp tôi.')));

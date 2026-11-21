@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { MAX_CLEANUP_CANCELS, MAX_TRACKED_CIRCLES, SNAPSHOT_AHEAD, STATE, newKeeperMemory, tick, type AttemptResult, type CircleSnapshot, type KeeperFn, type KeeperPort } from '../src/keeper';
+import { MAX_CLEANUP_CANCELS, MAX_CONSECUTIVE_FAILURES, MAX_TRACKED_CIRCLES, SNAPSHOT_AHEAD, STATE, newKeeperMemory, tick, type AttemptResult, type CircleSnapshot, type KeeperFn, type KeeperPort } from '../src/keeper';
 import { GAS_HARD_CAP, KeeperConfigError, gasLimitFor, loadKeeperConfig } from '../src/config';
 
 const C1 = '0x1111111111111111111111111111111111111111' as const;
@@ -296,16 +296,72 @@ describe('keeper tick', () => {
     expect(started).toEqual([...list].reverse()); // newest first, each circle read exactly once
   });
 
-  it('a failing snapshot ahead of the loop never becomes an unhandled rejection when an earlier one already failed the scan', async () => {
-    const list = Array.from({ length: 6 }, (_, i) => M(4000 + i)); // newest first: 4005, 4004, ...
+  it('a total outage (many reads failing in a row) stops the scan, and no failing snapshot becomes an unhandled rejection', async () => {
+    const list = Array.from({ length: 12 }, (_, i) => M(4000 + i));
     const t = fakePort({ now: 100, circleList: list });
-    const snapshot = t.port.snapshot;
-    t.port.snapshot = async (c) => {
-      if (c === M(4004) || c === M(4001)) throw new Error('rpc down');
-      return snapshot(c);
+    t.port.snapshot = async () => {
+      throw new Error('rpc down');
     };
-    await expect(tick(t.port, t.log)).rejects.toThrow('rpc down'); // the scan stops at the first failure, as before
+    await expect(tick(t.port, t.log)).rejects.toThrow('rpc down'); // the whole RPC is down: give up this scan, retry on the next
+    expect(t.calls).toHaveLength(0);
     await new Promise((r) => setTimeout(r, 25)); // let any stray rejection surface: vitest fails the run if one does
+  });
+
+  describe('one circle whose RPC reads fail must not stop the others', () => {
+    // Every circle is Forming, funded and past its join deadline: the keeper sends one cancel for each one it manages to read.
+    const forming = { state: STATE.Forming, joinDeadline: 50n } as const;
+    const list = Array.from({ length: 6 }, (_, i) => M(5000 + i)); // newest first: 5005 ... 5000
+
+    it('serves every other circle in the same scan, counts the failure and logs it without the error text', async () => {
+      const t = fakePort({ now: 100, snap: forming, circleList: list });
+      const snapshot = t.port.snapshot;
+      t.port.snapshot = async (c) => {
+        if (c === M(5003)) throw new Error('rpc 429 https://rpc.example/key-SECRET');
+        return snapshot(c);
+      };
+      const s = await tick(t.port, t.log);
+      expect(t.calls.filter((c) => c.fn === 'cancel')).toHaveLength(5); // all but the unreadable one
+      expect(s.failed).toBe(1);
+      const warn = t.logs.find((l) => l.startsWith('warn circle skipped'));
+      expect(warn).toContain(M(5003));
+      expect(t.logs.join(' | ')).not.toContain('SECRET'); // a viem error text can carry the RPC URL, and with it a key
+    });
+
+    it('a circle that fails in other steps (deadline, owes) is isolated the same way', async () => {
+      const t = fakePort({ now: 5000, circleList: list, owes: new Set([members[0]!]) });
+      const owes = t.port.owes;
+      t.port.owes = async (c, m) => {
+        if (c === M(5002)) throw new Error('rpc down');
+        return owes(c, m);
+      };
+      const s = await tick(t.port, t.log);
+      expect(s.failed).toBeGreaterThanOrEqual(1);
+      expect(t.calls.some((c) => c.fn === 'settleRound')).toBe(true); // the circles after the failing one were still settled
+    });
+
+    it('a circle that always fails does not starve the rest over many scans, and rotates to the back', async () => {
+      const t = fakePort({ now: 100, snap: forming, circleList: list });
+      const snapshot = t.port.snapshot;
+      t.port.snapshot = async (c) => {
+        if (c === M(5005)) throw new Error('rpc down'); // the newest circle: first in line every time
+        return snapshot(c);
+      };
+      const mem = newKeeperMemory();
+      for (let i = 0; i < 3; i++) await tick(t.port, t.log, mem);
+      expect(t.calls.filter((c) => c.fn === 'cancel').length).toBeGreaterThanOrEqual(5); // others served at least once
+      expect(mem.lastRead.get(M(5005))).toBe(2); // it was tried on every scan, not forgotten
+    });
+
+    it('MAX_CONSECUTIVE_FAILURES unreadable circles in a row still end the scan with the error', async () => {
+      const t = fakePort({ now: 100, snap: forming, circleList: list });
+      const snapshot = t.port.snapshot;
+      const dead = new Set(list.slice(-MAX_CONSECUTIVE_FAILURES).map(String)); // the first MAX read in scan order
+      t.port.snapshot = async (c) => {
+        if (dead.has(c)) throw new Error('rpc down');
+        return snapshot(c);
+      };
+      await expect(tick(t.port, t.log)).rejects.toThrow('rpc down');
+    });
   });
 });
 

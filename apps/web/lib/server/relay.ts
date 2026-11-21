@@ -123,8 +123,34 @@ export function createMutex(): <T>(fn: () => Promise<T>) => Promise<T> {
   };
 }
 
+/**
+ * How long a request that was sent is remembered. A client that lost the response (or double-clicked) posts the very same
+ * signed bytes again: it must get the same `txHash` back, not a second transaction and not "sign again" once the first
+ * one was mined and the forwarder nonce moved on. Memory only (this route is one Node process, see docs/05 8.2); after a
+ * restart or this long, the forwarder's own nonce still keeps the call at-most-once.
+ */
+export const REMEMBER_SENT_MS = 15 * 60_000;
+const REMEMBER_SENT_MAX = 2_000;
+
 export function createRelayHandler(deps: RelayDeps): (req: Request) => Promise<Response> {
   const sendLock = deps.sendLock ?? createMutex();
+  const sentRecently = new Map<string, { hash: Hex; at: number }>();
+  const recall = (key: string): Hex | undefined => {
+    const hit = sentRecently.get(key);
+    if (!hit) return undefined;
+    if (deps.now() - hit.at > REMEMBER_SENT_MS) {
+      sentRecently.delete(key);
+      return undefined;
+    }
+    return hit.hash;
+  };
+  const remember = (key: string, hash: Hex): void => {
+    sentRecently.set(key, { hash, at: deps.now() });
+    if (sentRecently.size > REMEMBER_SENT_MAX) {
+      const oldest = sentRecently.keys().next().value;
+      if (oldest !== undefined) sentRecently.delete(oldest);
+    }
+  };
 
   return async function POST(req: Request): Promise<Response> {
     const requestId = deps.requestId();
@@ -219,6 +245,18 @@ export function createRelayHandler(deps: RelayDeps): (req: Request) => Promise<R
       }
       if (amount === undefined) return done(errorResponse(400, 'BadRequest', 'Yêu cầu không hợp lệ.'), 'bad-body');
       if (amount === 0n) return done(errorResponse(400, 'ZeroAmount', 'Số tiền ký quỹ phải lớn hơn 0.'), 'zero-deposit');
+    }
+
+    // 3d. The very same signed request as one already sent: answer with that transaction, send nothing (see REMEMBER_SENT_MS).
+    // Every field is part of the key, so a request that merely reuses a signature is never answered from memory.
+    const memoKey = [request.from, request.to, request.value, request.gas, request.deadline, request.data, request.signature]
+      .map(String)
+      .join('|')
+      .toLowerCase();
+    const already = recall(memoKey);
+    if (already) {
+      fields.txHash = already;
+      return done(jsonResponse(200, { txHash: already }), 'duplicate');
     }
 
     // 3c. Anyone-can-call functions: the keeper serves everybody, so the free relay only serves members and the organizer
@@ -357,7 +395,14 @@ export function createRelayHandler(deps: RelayDeps): (req: Request) => Promise<R
       return done(errorResponse(502, 'ChainUnavailable', 'Chưa đọc được dữ liệu từ mạng. Hãy thử lại.'), 'chain-error');
     }
     try {
-      const hash = await sendLock(() => deps.sender.execute({ forwarder: deps.forwarder, request, gas: gasLimit }));
+      const hash = await sendLock(async () => {
+        // A twin of this request may have been sent while this one waited for the lock (two identical posts at once).
+        const twin = recall(memoKey);
+        if (twin) return twin;
+        const sentHash = await deps.sender.execute({ forwarder: deps.forwarder, request, gas: gasLimit });
+        remember(memoKey, sentHash);
+        return sentHash;
+      });
       fields.txHash = hash;
       void deps.publicClient
         .getBalance({ address: deps.sender.address })

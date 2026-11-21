@@ -28,6 +28,13 @@ export const PERMIT_MAX_TTL_SEC = 3600;
 /** The cap on `value`, in multiples of the circle's `requiredAllowance`. */
 export const PERMIT_VALUE_FACTOR = 2n;
 const PERMIT_GAS = 150_000n;
+/**
+ * A permit this process already sent is answered with the same tx hash for this long, without a second send: a lost
+ * response or a double click re-posts the same signature, and before it is mined the simulation still passes, so the
+ * relayer would send a twin that can only revert (nonce used) and burn gas and budget. Same rule as /api/relay.
+ */
+export const REMEMBER_PERMIT_MS = 15 * 60_000;
+const REMEMBER_PERMIT_MAX = 2_000;
 const MAX_BODY_BYTES = 4_096;
 
 const ACTIVE = 1;
@@ -87,6 +94,21 @@ function isTransportError(e: unknown): boolean {
 }
 
 export function createRelayPermitHandler(deps: RelayPermitDeps): (req: Request) => Promise<Response> {
+  const sentRecently = new Map<string, { hash: Hex; at: number }>();
+  const recall = (key: string): Hex | undefined => {
+    const hit = sentRecently.get(key);
+    if (!hit) return undefined;
+    if (deps.now() - hit.at > REMEMBER_PERMIT_MS) {
+      sentRecently.delete(key);
+      return undefined;
+    }
+    return hit.hash;
+  };
+  const remember = (key: string, hash: Hex): void => {
+    sentRecently.set(key, { hash, at: deps.now() });
+    if (sentRecently.size > REMEMBER_PERMIT_MAX) sentRecently.delete(sentRecently.keys().next().value!);
+  };
+
   return async function POST(req: Request): Promise<Response> {
     const requestId = deps.requestId();
     const started = deps.now();
@@ -131,6 +153,17 @@ export function createRelayPermitHandler(deps: RelayPermitDeps): (req: Request) 
     };
     fields.owner = permit.owner;
     fields.spender = permit.spender;
+
+    // The same signed permit again: answer with the hash already sent (no reads, no quota, no second send).
+    const memoKey = [permit.owner, permit.spender, permit.value, permit.deadline, permit.v, permit.r, permit.s]
+      .map(String)
+      .join('|')
+      .toLowerCase();
+    const already = recall(memoKey);
+    if (already) {
+      fields.txHash = already;
+      return done(jsonResponse(200, { txHash: already }), 'duplicate');
+    }
 
     const read = <T,>(address: Address, abi: unknown, functionName: string, args: readonly unknown[] = []): Promise<T> =>
       deps.publicClient.readContract({ address, abi, functionName, args } as never) as Promise<T>;
@@ -231,7 +264,13 @@ export function createRelayPermitHandler(deps: RelayPermitDeps): (req: Request) 
       return chainDown();
     }
     try {
-      const hash = await deps.sendLock(() => deps.sender.permit({ usdc: deps.usdc, permit, gas: PERMIT_GAS }));
+      const hash = await deps.sendLock(async () => {
+        const twin = recall(memoKey); // a concurrent identical post got here first
+        if (twin) return twin;
+        const sentHash = await deps.sender.permit({ usdc: deps.usdc, permit, gas: PERMIT_GAS });
+        remember(memoKey, sentHash);
+        return sentHash;
+      });
       fields.txHash = hash;
       void deps.publicClient
         .getBalance({ address: deps.sender.address })

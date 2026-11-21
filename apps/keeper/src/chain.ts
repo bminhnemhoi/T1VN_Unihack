@@ -15,9 +15,10 @@ import {
 import { privateKeyToAccount } from 'viem/accounts';
 import { avalancheFuji } from 'viem/chains';
 import { loadAddresses } from 'config/addresses';
-import { decodeError, huiCircleFullAbi, huiFactoryAbi } from 'sdk';
-import { REVERT_BACKOFF_SECONDS, gasLimitFor, type KeeperConfig } from './config.js';
-import type { AttemptResult, CircleSnapshot, KeeperFn, KeeperPort } from './keeper.js';
+import { huiCircleFullAbi, huiFactoryAbi } from 'sdk';
+import { createAttempt } from './attempt.js';
+import type { KeeperConfig } from './config.js';
+import type { CircleSnapshot, KeeperPort } from './keeper.js';
 
 type Address = `0x${string}`;
 
@@ -52,8 +53,7 @@ export function createViemPort(cfg: KeeperConfig): { port: KeeperPort; keeper: A
 
   // Terminal circles never come back; remember them to skip their reads.
   const terminal = new Set<Address>();
-  // (circle, action) pairs whose transaction was mined but reverted: do not burn gas on them every scan.
-  const revertedUntil = new Map<string, number>();
+  const attempt = createAttempt({ publicClient, wallet, account });
 
   const port: KeeperPort = {
     async nowSec() {
@@ -104,41 +104,7 @@ export function createViemPort(cfg: KeeperConfig): { port: KeeperPort; keeper: A
       const info = await read<{ defaulted: boolean; debt: bigint }>(circle, 'memberInfo', [member]);
       return !info.defaulted && info.debt > 0n;
     },
-    async attempt(circle, fn: KeeperFn, args): Promise<AttemptResult> {
-      const backoffKey = `${circle}:${fn}:${String(args[0] ?? '')}`;
-      const until = revertedUntil.get(backoffKey);
-      if (until !== undefined && Date.now() < until) {
-        return { sent: false, code: 'BackingOff', message: 'a previous attempt reverted on-chain; waiting to retry' };
-      }
-      const call = { address: circle, abi: huiCircleFullAbi, functionName: fn, args, account } as never;
-      let gas: bigint;
-      try {
-        await publicClient.simulateContract(call);
-        const estimate = await publicClient.estimateContractGas(call);
-        const limit = gasLimitFor(estimate);
-        if (limit === undefined) {
-          return {
-            sent: false,
-            code: 'GasAboveCap',
-            message: `estimate ${estimate} exceeds the 5,000,000 cap; mark defaulters first`,
-          };
-        }
-        gas = limit;
-      } catch (e) {
-        const d = decodeError(e);
-        return { sent: false, code: d.code, message: d.message };
-      }
-      try {
-        const txHash = await wallet.writeContract({ ...(call as object), gas } as never);
-        const receipt = await publicClient.waitForTransactionReceipt({ hash: txHash });
-        const ok = receipt.status === 'success';
-        if (!ok) revertedUntil.set(backoffKey, Date.now() + REVERT_BACKOFF_SECONDS * 1000);
-        return { sent: true, txHash, gasUsed: receipt.gasUsed, ok };
-      } catch (e) {
-        const d = decodeError(e);
-        return { sent: false, code: d.code === 'Unknown' ? 'SendFailed' : d.code, message: d.message };
-      }
-    },
+    attempt,
   };
   return { port, keeper: account.address };
 }

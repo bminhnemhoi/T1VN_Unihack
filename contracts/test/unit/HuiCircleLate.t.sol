@@ -639,6 +639,28 @@ contract HuiCircleLateTest is CircleScenario {
         _assertLedger();
     }
 
+    /// @dev Documents a third gap: a frozen member's debt grows again every round (virtual shortfall), so repaying it
+    /// to zero twice in ONE circle writes `recordRepaid` twice for a single `recordDefault`. `repaid > defaults` then
+    /// hides a later unrepaid default in another circle from the /api/attest rule (defaults <= repaid).
+    function test_Gap_RepaidRecordedTwiceInOneCircle_Documented() public {
+        _block(_M(5));
+        _settle(); // r1: M5 (live) cannot pay
+        vm.warp(_graceEnd(1) + 1);
+        c.markDefault(_M(5)); // frozen
+        _unblock(_M(5));
+        uint256 d1 = _debt(_M(5));
+        vm.prank(_M(5));
+        c.repayDebt(d1); // debt 0: recordRepaid #1
+        assertEq(_debt(_M(5)), 0);
+        _settle(); // r2: frozen M5 is not pulled, a virtual shortfall makes the debt grow again
+        uint256 d2 = _debt(_M(5));
+        assertGt(d2, 0, "debt is back");
+        vm.prank(_M(5));
+        c.repayDebt(d2); // debt 0 again: recordRepaid #2
+        assertEq(rep.reputationOf(_M(5)).defaults, 1);
+        assertEq(rep.reputationOf(_M(5)).repaid, 2, "two repaid marks for one default");
+    }
+
     function test_RepayDebt_FrozenMemberRepaysThenWinsLastRoundWithFullPot() public {
         _block(_M(5));
         _settle(); // r1: M5 live, fails, bond covers
