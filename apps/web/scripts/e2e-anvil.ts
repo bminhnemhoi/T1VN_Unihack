@@ -58,6 +58,7 @@ import {
   type TxContext,
 } from '../lib/chain/write';
 import { createAttestHandler } from '../lib/server/attest';
+import { markDefaultWouldSucceed } from '../lib/server/markDefaultProbe';
 import { anvilChain } from '../lib/server/chain';
 import { createMutex, createRelayHandler } from '../lib/server/relay';
 import { createRelayPermitHandler } from '../lib/server/relayPermit';
@@ -464,12 +465,16 @@ async function scenario(): Promise<void> {
   step('7. branch B: M4 never pays. Keeper waits out the grace period, then marks him BEFORE settling round 3');
   const settled2 = Number(r2.settledAt);
   await warpTo(settled2 + params.graceSeconds - 30);
+  check('attest overdue probe: M4 inside the grace period is not overdue (GraceNotOver)', await markDefaultWouldSucceed(pub, circle, M[3]!.address), false);
   const early = await keeperTick();
   check('keeper does not mark M4 inside the grace period', early.sent, 0);
   await warpTo(await turnOver(3));
+  check('attest overdue probe: M4 past the grace period, not marked yet, is overdue (L-02)', await markDefaultWouldSucceed(pub, circle, M[3]!.address), true);
+  check('attest overdue probe: M2 who paid on time is not overdue (NoShortfall)', await markDefaultWouldSucceed(pub, circle, M[1]!.address), false);
   const before3 = await keeperTick();
   check('keeper sent markDefault + settleRound', before3.sent, 2);
   check('M4 is marked defaulted', (await rd<{ defaulted: boolean }>('memberInfo', [M[3]!.address])).defaulted, true);
+  check('attest overdue probe: once marked, M4 is no longer "overdue unmarked" (AlreadyDefaulted)', await markDefaultWouldSucceed(pub, circle, M[3]!.address), false);
   const v3 = await view();
   check('readCircle: M4 is defaultedDead, 3 rounds done', `${v3.members[3]!.status}/${v3.settledRounds}`, 'defaultedDead/3');
   check('readCircle: M4 reputation has 1 default', v3.members[3]!.reputation.defaults, 1);
