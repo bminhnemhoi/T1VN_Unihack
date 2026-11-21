@@ -7,6 +7,7 @@
 import { useQuery, type UseQueryResult } from '@tanstack/react-query';
 import { getAddress } from 'viem';
 import {
+  huiFactoryAbi,
   listCircles,
   readCircle,
   readMemberStanding,
@@ -31,6 +32,14 @@ const normalizeAddress = (a: Address | undefined): Address | undefined => {
 
 export const chainKey = (chainId: number, ...rest: unknown[]) => ['huisafe', chainId, ...rest] as const;
 
+/** Thrown when an address is well formed but the factory does not know it: the screen shows "not found", not a network error (issue #5). */
+export class NotACircleError extends Error {
+  constructor(address: string) {
+    super(`Not a HuiSafe circle: ${address}`);
+    this.name = 'NotACircleError';
+  }
+}
+
 /** One circle as the docs/05 `CircleView`. */
 export function useCircle(address: Address | undefined): UseQueryResult<CircleView> {
   const chain = useChain();
@@ -38,9 +47,14 @@ export function useCircle(address: Address | undefined): UseQueryResult<CircleVi
   return useQuery({
     queryKey: chainKey(chain?.chainId ?? 0, 'circle', norm?.toLowerCase()),
     enabled: Boolean(chain && norm),
-    refetchInterval: chain?.pollMs,
-    queryFn: () =>
-      readCircle(chain!.client, norm!, { fromBlock: chain!.fromBlock, factory: chain!.factory, vndPerUsdc: chain!.vndPerUsdc }),
+    // A wrong or stale link is not a transient failure: do not retry it and do not keep polling it.
+    retry: (count, err) => !(err instanceof NotACircleError) && count < 3,
+    refetchInterval: (q) => (q.state.error instanceof NotACircleError ? false : (chain?.pollMs ?? false)),
+    queryFn: async () => {
+      const known = await chain!.client.readContract({ address: chain!.factory, abi: huiFactoryAbi, functionName: 'isCircle', args: [norm!] });
+      if (!known) throw new NotACircleError(norm!);
+      return readCircle(chain!.client, norm!, { fromBlock: chain!.fromBlock, factory: chain!.factory, vndPerUsdc: chain!.vndPerUsdc });
+    },
   });
 }
 

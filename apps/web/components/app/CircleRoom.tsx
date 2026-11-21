@@ -12,7 +12,7 @@ import { bidCents, parseMoneyInput, tooManyBidDecimals } from '@/lib/money-input
 import { CircleChips, Loading, ErrorState, EmptyState, Sheet, Who, av } from '@/components/app/parts';
 import { TxButton, TxNote, TxSteps, useStepTx } from '@/components/app/tx';
 import { PauseLockProvider, PausedBanner } from '@/components/chain/PauseLock';
-import { CircleScreen } from '@/components/circle/CircleScreen';
+import { CircleScreen, Missing } from '@/components/circle/CircleScreen';
 import { TierText } from '@/components/circle/RepBadge';
 import { bidQuote, capOf, roundSplit, startingBid } from '@/lib/hui-calc';
 import { setDemoNet, useDemo, useSampleLoad } from '@/lib/demo-store';
@@ -54,7 +54,9 @@ export function CircleRoom({ id }: { id: string }) {
   const sample = useSampleLoad(d.status === 'ready' && d.source === 'sample');
   if (d.status === 'loading' || (d.status === 'ready' && sample.status === 'loading')) return <RoomSkeleton />;
   if (d.status === 'error' || (d.status === 'ready' && sample.status === 'error')) return <ErrorState onRetry={d.status === 'error' ? () => window.location.reload() : () => setDemoNet('ok')} />;
-  if (d.status === 'missing' || sample.status === 'empty')
+  // A wrong or stale circle link: say so (the account-is-empty note below is for the demo's empty network state).
+  if (d.status === 'missing') return <Missing />;
+  if (sample.status === 'empty')
     return <EmptyState title="Chưa có dây nào để xem." text="Khi bạn vào một dây, các kỳ của dây hiện ở đây." />;
   const c = d.data;
   const isRoom = (c.state === 'active' || c.live?.view.state === 'paused') && c.settled < Number(c.terms.n) && !(c.live && (c.live.view.state === 'cancelled' || c.live.view.state === 'unwound'));
