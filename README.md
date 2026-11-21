@@ -14,6 +14,7 @@
 </p>
 
 <p align="center">
+  <a href="https://github.com/bminhnemhoi/T1VN_Unihack/actions/workflows/ci.yml"><img alt="CI on main" src="https://github.com/bminhnemhoi/T1VN_Unihack/actions/workflows/ci.yml/badge.svg?branch=main" /></a>
   <img alt="Avalanche Fuji 43113" src="https://img.shields.io/badge/Avalanche-Fuji%2043113-E84142?style=flat-square" />
   <img alt="Solidity 0.8.28" src="https://img.shields.io/badge/Solidity-0.8.28-363636?style=flat-square" />
   <img alt="Foundry" src="https://img.shields.io/badge/Built%20with-Foundry-1f1f1f?style=flat-square" />
@@ -280,7 +281,7 @@ Key design decisions (full list of ADRs in [docs/04, section 6](docs/04-kien-tru
 
 ### Tests
 
-Results are local runs on the dates shown. The Vitest and pytest rows were re-run on the submission commit; the other rows are the latest figures recorded in [docs/TIEN-DO.md](docs/TIEN-DO.md) and the deck's source appendix.
+CI on `main` runs six jobs on every push: contracts (format, build, tests, gas snapshot, coverage), invariants, Slither, web (SDK, lint, typecheck, tests, build), simulation and a privacy check; all six pass as of 21/11/2026. The figures below are local runs on the dates shown. The Vitest and pytest rows were re-run on the submission commit; the other rows are the latest figures recorded in [docs/TIEN-DO.md](docs/TIEN-DO.md) and the deck's source appendix.
 
 | Command | Covers | Latest result |
 |---|---|---|
@@ -316,7 +317,7 @@ Each has its own invariant function ([docs/03, section 7.2](docs/03-dac-ta-giao-
 ### Security posture
 
 - **Internal review only.** 0 Critical and 0 High open after the team's own review of contracts, relay, attest and keeper ([docs/09](docs/09-kiem-thu-va-bao-mat.md)). There has been no independent audit.
-- **Static analysis.** Slither 0.11.6 with `lib/`, `test/` and `script/` filtered: 0 High (11/11/2026); Medium findings are triaged in docs/09, section 7.1.
+- **Static analysis.** Slither 0.11.6 with `lib/`, `test/` and `script/` filtered: 0 High (11/11/2026); the CI gate `fail-on: high` passes on `main` (21/11/2026). Medium findings are triaged in docs/09, section 7.1.
 - **Admin cannot take funds.** The admin is a 2-of-3 Safe that can only act through the factory: pause, unpause and, after 48 hours of continuous pause, `emergencyUnwind`, which returns money according to the ledger. While paused, only `claim()` works.
 - **Separated keys.** Deployer, relayer, attester and keeper each use their own key; the relayer and keeper hold only AVAX for gas and have no on-chain privileges (ADR-21).
 - **Relayer guard.** Target and selector allowlist, `value = 0`, gas caps, rate limit, signature `verify` and simulation before sending (ADR-19).
