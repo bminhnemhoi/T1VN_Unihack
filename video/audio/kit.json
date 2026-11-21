@@ -1,0 +1,139 @@
+{
+  "kit": 1,
+  "name": "huisafe",
+  "sr": 48000,
+  "note": "HụiSafe demo film: a voice-led product film with a lo-fi music bed in A# major (85 BPM). Effects stay under the voice: the seal stamp is the one recurring hero sound; coins, taps, clicks and pops are short and quiet; whooshes only on camera moves and scene seams; one reverse swell into the product reveal. Sounds chosen with earshot rank on rendered candidates (stamp knock/wood z +3.39, coin pro_click/tink z +3.30, crack click/snap z +2.65; no bank sound read as breaking pottery, so the jar break is a plain short hit).",
+  "roles": {
+    "tock": {
+      "sound": "knock/wood",
+      "takes": 3,
+      "align": "onset",
+      "level_db": -9.0,
+      "note": "the seal stamp (S01, S04, S08, the VỠ NỢ tag, the end card): a mid-band wooden knock"
+    },
+    "hit": {
+      "sound": "cut_hit/punch",
+      "takes": 2,
+      "align": "onset",
+      "level_db": -11.0,
+      "note": "the jar breaking, and weight under the end-card stamp"
+    },
+    "snap": {
+      "sound": "click/snap",
+      "takes": 1,
+      "align": "onset",
+      "level_db": -12.0,
+      "note": "the crack running down the jar"
+    },
+    "tick.crisp": {
+      "sound": "pro_click/tink",
+      "takes": 4,
+      "align": "onset",
+      "level_db": -18.0,
+      "note": "coins landing in the pot, in wallets, on the phone"
+    },
+    "tick": {
+      "sound": "fit/tick/domino",
+      "takes": 3,
+      "align": "onset",
+      "level_db": -15.0,
+      "note": "rounds filling on the status pill, answer lines arriving"
+    },
+    "land": {
+      "sound": "pro_pop_in/round",
+      "takes": 3,
+      "align": "onset",
+      "level_db": -12.0,
+      "note": "heavier arrivals: the pot, the case headlines"
+    },
+    "land.light": {
+      "sound": "fit/land.light/finger_phone",
+      "takes": 3,
+      "align": "onset",
+      "level_db": -13.0,
+      "note": "a finger on the phone screen"
+    },
+    "pop": {
+      "sound": "ui_pop/soft",
+      "takes": 4,
+      "align": "onset",
+      "level_db": -16.0,
+      "note": "cards, chips, rows and toasts arriving"
+    },
+    "whoosh.short": {
+      "sound": "whoosh_fast/tight",
+      "takes": 3,
+      "align": "peak",
+      "level_db": -15.0,
+      "note": "camera moves, the phone in and out, cards sliding"
+    },
+    "whoosh.long": {
+      "sound": "whoosh_big/swell",
+      "takes": 1,
+      "align": "peak",
+      "level_db": -12.0,
+      "note": "the zoom-through into the explorer"
+    },
+    "swell": {
+      "sound": "reverse_swell/dark",
+      "takes": 1,
+      "align": "peak",
+      "level_db": -12.0,
+      "note": "the one reverse swell: into the ivory flood, where the music's beat drops"
+    },
+    "drop": {
+      "sound": "pro_sub_drop/soft",
+      "takes": 1,
+      "align": "onset",
+      "edits": {
+        "pitch": "A#1"
+      },
+      "level_db": -10.0,
+      "note": "Member 4 comes up short (the red moment), tuned to the music's A#"
+    },
+    "click": {
+      "sound": "fit/click/floss_lid",
+      "takes": 2,
+      "align": "onset",
+      "level_db": -14.0,
+      "note": "the cursor's clicks on the laptop"
+    },
+    "click.confirm": {
+      "sound": "notify/mid_tine",
+      "takes": 1,
+      "align": "onset",
+      "level_db": -17.0,
+      "note": "a member joins the circle"
+    },
+    "key": {
+      "sound": "fit/key/medium",
+      "takes": 8,
+      "align": "onset",
+      "level_db": -20.0,
+      "note": "typing into the form and the bid field"
+    },
+    "bell": {
+      "sound": "mallet/glock",
+      "takes": 1,
+      "align": "onset",
+      "edits": {
+        "pitch": "A#5"
+      },
+      "level_db": -15.0,
+      "note": "good outcomes: coverage reaches 100%, the payouts land, zero left in the contract"
+    },
+    "text": {
+      "sound": "swipe/paper",
+      "takes": 2,
+      "align": "onset",
+      "level_db": -17.0,
+      "note": "paper: the envelope flap folding, the struck job card"
+    }
+  },
+  "off": {
+    "suck": "not used: the seams are camera moves, not cuts",
+    "riser": "not used: the music's own build carries the reveal",
+    "key.space": "no space bar in the typing",
+    "key.return": "no return in the typing"
+  }
+}

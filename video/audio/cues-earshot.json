@@ -1,0 +1,620 @@
+{
+ "fps": 60,
+ "events": [
+  {
+   "f": 27,
+   "kind": "whoosh.short",
+   "id": "S01 envelope drops in"
+  },
+  {
+   "f": 59,
+   "kind": "text",
+   "id": "S01 flap folds (closeP)"
+  },
+  {
+   "f": 64,
+   "kind": "tock",
+   "id": "S01 seal stamps (stamp)"
+  },
+  {
+   "f": 380,
+   "kind": "whoosh.short",
+   "id": "S01->S02 envelope recedes into the ring (toRing)"
+  },
+  {
+   "f": 390,
+   "kind": "pop",
+   "id": "S02 ring envelopes arrive (ringIn) 1/4"
+  },
+  {
+   "f": 392,
+   "kind": "land",
+   "id": "S02 the pot lands (jarIn)"
+  },
+  {
+   "f": 397,
+   "kind": "pop",
+   "id": "S02 ring envelopes arrive (ringIn) 2/4"
+  },
+  {
+   "f": 404,
+   "kind": "pop",
+   "id": "S02 ring envelopes arrive (ringIn) 3/4"
+  },
+  {
+   "f": 410,
+   "kind": "pop",
+   "id": "S02 ring envelopes arrive (ringIn) 4/4"
+  },
+  {
+   "f": 566,
+   "kind": "tick.crisp",
+   "id": "S02 round-1 coins into the pot (coinsIn1) 1/5"
+  },
+  {
+   "f": 571,
+   "kind": "tick.crisp",
+   "id": "S02 round-1 coins into the pot (coinsIn1) 2/5"
+  },
+  {
+   "f": 577,
+   "kind": "tick.crisp",
+   "id": "S02 round-1 coins into the pot (coinsIn1) 3/5"
+  },
+  {
+   "f": 582,
+   "kind": "tick.crisp",
+   "id": "S02 round-1 coins into the pot (coinsIn1) 4/5"
+  },
+  {
+   "f": 588,
+   "kind": "tick.crisp",
+   "id": "S02 round-1 coins into the pot (coinsIn1) 5/5"
+  },
+  {
+   "f": 657,
+   "kind": "tick.crisp",
+   "id": "S02 the pot to M1 (potToM1) 1/2"
+  },
+  {
+   "f": 662,
+   "kind": "tick.crisp",
+   "id": "S02 the pot to M1 (potToM1) 2/2"
+  },
+  {
+   "f": 766,
+   "kind": "tick.crisp",
+   "id": "S02 round-2 coins into the pot (coinsIn2) 1/4"
+  },
+  {
+   "f": 771,
+   "kind": "tick.crisp",
+   "id": "S02 round-2 coins into the pot (coinsIn2) 2/4"
+  },
+  {
+   "f": 777,
+   "kind": "tick.crisp",
+   "id": "S02 round-2 coins into the pot (coinsIn2) 3/4"
+  },
+  {
+   "f": 782,
+   "kind": "tick.crisp",
+   "id": "S02 round-2 coins into the pot (coinsIn2) 4/4"
+  },
+  {
+   "f": 847,
+   "kind": "pop",
+   "id": "S02 ORGANIZER tag (orgTag)"
+  },
+  {
+   "f": 901,
+   "kind": "snap",
+   "id": "S02 the pot cracks (crack)"
+  },
+  {
+   "f": 917,
+   "kind": "hit",
+   "id": "S02 the pot breaks (jar state 2); music M1 stops here"
+  },
+  {
+   "f": 1251,
+   "kind": "land",
+   "id": "S03 case 2 headline"
+  },
+  {
+   "f": 1544,
+   "kind": "land",
+   "id": "S03 case 3 headline"
+  },
+  {
+   "f": 1806,
+   "kind": "whoosh.short",
+   "id": "S03->S04 cases fold away (s3Out)"
+  },
+  {
+   "f": 1822,
+   "kind": "pop",
+   "id": "S04 the two job cards"
+  },
+  {
+   "f": 2081,
+   "kind": "text",
+   "id": "S04 job 1 struck through (strike)"
+  },
+  {
+   "f": 2095,
+   "kind": "tock",
+   "id": "S04 seal stamps on job 2 (sealOn)"
+  },
+  {
+   "f": 2190,
+   "kind": "pop",
+   "id": "S04 five wallets arrive (wallets)"
+  },
+  {
+   "f": 2252,
+   "kind": "tick.crisp",
+   "id": "S04 coins land in the wallets (coinsOut) 1/5"
+  },
+  {
+   "f": 2257,
+   "kind": "tick.crisp",
+   "id": "S04 coins land in the wallets (coinsOut) 2/5"
+  },
+  {
+   "f": 2263,
+   "kind": "tick.crisp",
+   "id": "S04 coins land in the wallets (coinsOut) 3/5"
+  },
+  {
+   "f": 2268,
+   "kind": "tick.crisp",
+   "id": "S04 coins land in the wallets (coinsOut) 4/5"
+  },
+  {
+   "f": 2274,
+   "kind": "tick.crisp",
+   "id": "S04 coins land in the wallets (coinsOut) 5/5"
+  },
+  {
+   "f": 2538,
+   "kind": "swell",
+   "id": "S04->S05 seal floods the frame ivory (flood); the music's beat drops here"
+  },
+  {
+   "f": 2538,
+   "kind": "drop",
+   "id": "S05 sub under the product reveal"
+  },
+  {
+   "f": 2580,
+   "kind": "pop",
+   "id": "S05 status pill (hudIn)"
+  },
+  {
+   "f": 2618,
+   "kind": "click",
+   "id": "S05 click Chơi hụi ngay (cLanding)"
+  },
+  {
+   "f": 2642,
+   "kind": "whoosh.short",
+   "id": "S05 the phone slides in, camera follows (phIn)"
+  },
+  {
+   "f": 2667,
+   "kind": "land.light",
+   "id": "S05 tap Tiếp tục với Google (tGoogle)"
+  },
+  {
+   "f": 2690,
+   "kind": "pop",
+   "id": "S05 wallet card (0 AVAX)"
+  },
+  {
+   "f": 2824,
+   "kind": "whoosh.short",
+   "id": "S05->S06 phone drops, camera to the form (phDown)"
+  },
+  {
+   "f": 2857,
+   "kind": "click",
+   "id": "S06 Kiểu dây (cMode)"
+  },
+  {
+   "f": 3027,
+   "kind": "click",
+   "id": "S06 Số phần (cN)"
+  },
+  {
+   "f": 3034,
+   "kind": "key",
+   "id": "S06 types 5"
+  },
+  {
+   "f": 3054,
+   "kind": "click",
+   "id": "S06 Mức góp (cC)"
+  },
+  {
+   "f": 3061,
+   "kind": "key",
+   "id": "S06 types 10 USDC 1/2"
+  },
+  {
+   "f": 3067,
+   "kind": "key",
+   "id": "S06 types 10 USDC 2/2"
+  },
+  {
+   "f": 3102,
+   "kind": "click",
+   "id": "S06 Ký quỹ (cBond)"
+  },
+  {
+   "f": 3111,
+   "kind": "key",
+   "id": "S06 types 4"
+  },
+  {
+   "f": 3123,
+   "kind": "key",
+   "id": "S06 types 48"
+  },
+  {
+   "f": 3159,
+   "kind": "click",
+   "id": "S06 Nạp ký quỹ (cDeposit)"
+  },
+  {
+   "f": 3180,
+   "kind": "whoosh.short",
+   "id": "S06 coverage card slides in (coverIn)"
+  },
+  {
+   "f": 3279,
+   "kind": "bell",
+   "id": "S06 coverage reaches 100% (pct)"
+  },
+  {
+   "f": 3807,
+   "kind": "whoosh.short",
+   "id": "S06->S07 card out, phone back (coverOut, phBack)"
+  },
+  {
+   "f": 3909,
+   "kind": "land.light",
+   "id": "S07 tap Ký và vào dây (tJoin)"
+  },
+  {
+   "f": 3925,
+   "kind": "click.confirm",
+   "id": "S07 the fifth seat fills (joined)"
+  },
+  {
+   "f": 4403,
+   "kind": "land.light",
+   "id": "S08 tap the bid field (tInput)"
+  },
+  {
+   "f": 4410,
+   "kind": "key",
+   "id": "S08 types 0,60 (bidVal) 1/3"
+  },
+  {
+   "f": 4417,
+   "kind": "key",
+   "id": "S08 types 0,60 (bidVal) 2/3"
+  },
+  {
+   "f": 4424,
+   "kind": "key",
+   "id": "S08 types 0,60 (bidVal) 3/3"
+  },
+  {
+   "f": 4545,
+   "kind": "pop",
+   "id": "S08 the cap line lights (capHi)"
+  },
+  {
+   "f": 4724,
+   "kind": "land.light",
+   "id": "S08 tap Niêm phong thăm (tSeal)"
+  },
+  {
+   "f": 4739,
+   "kind": "whoosh.short",
+   "id": "S08 the bid flies into the envelope (chip)"
+  },
+  {
+   "f": 4750,
+   "kind": "text",
+   "id": "S08 the flap folds (close)"
+  },
+  {
+   "f": 4757,
+   "kind": "tock",
+   "id": "S08 the seal stamps (stamp)"
+  },
+  {
+   "f": 4806,
+   "kind": "pop",
+   "id": "S08 the two bids revealed (reveal) 1/2"
+  },
+  {
+   "f": 4814,
+   "kind": "pop",
+   "id": "S08 the two bids revealed (reveal) 2/2"
+  },
+  {
+   "f": 4866,
+   "kind": "whoosh.short",
+   "id": "S08->S09 envelope flies to the pill, desk opens (envFly)"
+  },
+  {
+   "f": 5026,
+   "kind": "click",
+   "id": "S09 click Khui kỳ 1 (cSettle1)"
+  },
+  {
+   "f": 5042,
+   "kind": "pop",
+   "id": "S09 toast: Kỳ 1 đã chốt"
+  },
+  {
+   "f": 5092,
+   "kind": "tick.crisp",
+   "id": "S09 four shares into the pot (coinIn) 1/4"
+  },
+  {
+   "f": 5098,
+   "kind": "tick.crisp",
+   "id": "S09 four shares into the pot (coinIn) 2/4"
+  },
+  {
+   "f": 5104,
+   "kind": "tick.crisp",
+   "id": "S09 four shares into the pot (coinIn) 3/4"
+  },
+  {
+   "f": 5110,
+   "kind": "tick.crisp",
+   "id": "S09 four shares into the pot (coinIn) 4/4"
+  },
+  {
+   "f": 5147,
+   "kind": "whoosh.short",
+   "id": "S09 the pot flies to Member 4's phone (coinOut)"
+  },
+  {
+   "f": 5172,
+   "kind": "tick.crisp",
+   "id": "S09 coins land on the phone 1/2"
+  },
+  {
+   "f": 5178,
+   "kind": "tick.crisp",
+   "id": "S09 coins land on the phone 2/2"
+  },
+  {
+   "f": 5265,
+   "kind": "bell",
+   "id": "S09 28,848 USDC lands (payout1)"
+  },
+  {
+   "f": 5418,
+   "kind": "pop",
+   "id": "S09 breakdown rows (rows)"
+  },
+  {
+   "f": 5441,
+   "kind": "tick",
+   "id": "S09 holdback row lights (hold)"
+  },
+  {
+   "f": 5673,
+   "kind": "whoosh.short",
+   "id": "S09->S10 phone out, camera to the desk (phOut); music edit hides here"
+  },
+  {
+   "f": 5736,
+   "kind": "drop",
+   "id": "S10 Member 4 comes up short (short)"
+  },
+  {
+   "f": 5882,
+   "kind": "click",
+   "id": "S10 click Khui kỳ 2 (cSettle2)"
+  },
+  {
+   "f": 5903,
+   "kind": "whoosh.short",
+   "id": "S10 cascade card slides in"
+  },
+  {
+   "f": 5991,
+   "kind": "pop",
+   "id": "S10 8 from the holdback (fill1)"
+  },
+  {
+   "f": 6084,
+   "kind": "pop",
+   "id": "S10 2 from the bond (fill2)"
+  },
+  {
+   "f": 6247,
+   "kind": "bell",
+   "id": "S10 Member 1 gets the full 32,318 (payout2)"
+  },
+  {
+   "f": 6427,
+   "kind": "tock",
+   "id": "S10 VỠ NỢ tag stamped (tag)"
+  },
+  {
+   "f": 6605,
+   "kind": "tick",
+   "id": "S10 rounds 3-5 fill on the pill (done) 1/3"
+  },
+  {
+   "f": 6641,
+   "kind": "tick",
+   "id": "S10 rounds 3-5 fill on the pill (done) 2/3"
+  },
+  {
+   "f": 6677,
+   "kind": "tick",
+   "id": "S10 rounds 3-5 fill on the pill (done) 3/3"
+  },
+  {
+   "f": 6769,
+   "kind": "whoosh.short",
+   "id": "S10->S11 to the ledger"
+  },
+  {
+   "f": 6784,
+   "kind": "pop",
+   "id": "S11 ledger rows (ledgerRows) 1/5"
+  },
+  {
+   "f": 6791,
+   "kind": "pop",
+   "id": "S11 ledger rows (ledgerRows) 2/5"
+  },
+  {
+   "f": 6798,
+   "kind": "pop",
+   "id": "S11 ledger rows (ledgerRows) 3/5"
+  },
+  {
+   "f": 6805,
+   "kind": "pop",
+   "id": "S11 ledger rows (ledgerRows) 4/5"
+  },
+  {
+   "f": 6812,
+   "kind": "pop",
+   "id": "S11 ledger rows (ledgerRows) 5/5"
+  },
+  {
+   "f": 6983,
+   "kind": "click",
+   "id": "S11 click the transaction chip (cChip)"
+  },
+  {
+   "f": 7033,
+   "kind": "whoosh.long",
+   "id": "S11->S12 zoom-through into the explorer (zoom)"
+  },
+  {
+   "f": 7036,
+   "kind": "drop",
+   "id": "S12 sub as the explorer lands"
+  },
+  {
+   "f": 7235,
+   "kind": "pop",
+   "id": "S12 stat 5 contracts"
+  },
+  {
+   "f": 7277,
+   "kind": "pop",
+   "id": "S12 stat 634 tests"
+  },
+  {
+   "f": 7348,
+   "kind": "pop",
+   "id": "S12 stat 0 critical or high"
+  },
+  {
+   "f": 7526,
+   "kind": "whoosh.short",
+   "id": "S12 second capture (swap)"
+  },
+  {
+   "f": 7738,
+   "kind": "bell",
+   "id": "S12 0 USDC left in the contract"
+  },
+  {
+   "f": 7883,
+   "kind": "whoosh.short",
+   "id": "S12->S13 everything rises out (up12)"
+  },
+  {
+   "f": 7965,
+   "kind": "pop",
+   "id": "S13 answer 1"
+  },
+  {
+   "f": 8191,
+   "kind": "whoosh.short",
+   "id": "S13 question 2 arrives"
+  },
+  {
+   "f": 8281,
+   "kind": "tick",
+   "id": "S13 Avalanche reason 1"
+  },
+  {
+   "f": 8395,
+   "kind": "tick",
+   "id": "S13 Avalanche reason 2"
+  },
+  {
+   "f": 8579,
+   "kind": "tick",
+   "id": "S13 Avalanche reason 3"
+  },
+  {
+   "f": 8734,
+   "kind": "whoosh.short",
+   "id": "S13 question 3 arrives"
+  },
+  {
+   "f": 8843,
+   "kind": "tick",
+   "id": "S13 money reason 1"
+  },
+  {
+   "f": 8951,
+   "kind": "tick",
+   "id": "S13 money reason 2"
+  },
+  {
+   "f": 9145,
+   "kind": "tick",
+   "id": "S13 money reason 3"
+  },
+  {
+   "f": 9387,
+   "kind": "whoosh.short",
+   "id": "S13->S14 rises out (up13)"
+  },
+  {
+   "f": 9622,
+   "kind": "whoosh.short",
+   "id": "S14 closing line out (lineOut), then the logo"
+  },
+  {
+   "f": 9656,
+   "kind": "tock",
+   "id": "S14 the seal stamps on the logo (stamp)"
+  },
+  {
+   "f": 9656,
+   "kind": "hit",
+   "id": "S14 weight under the logo stamp"
+  },
+  {
+   "f": 9656,
+   "kind": "drop",
+   "id": "S14 sub under the end card"
+  },
+  {
+   "f": 9726,
+   "kind": "pop",
+   "id": "S14 Try it on Fuji testnet"
+  }
+ ]
+}

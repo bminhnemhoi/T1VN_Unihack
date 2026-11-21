@@ -69,6 +69,24 @@ export interface EventOptions {
 
 /** Public Fuji RPC limit on the `eth_getLogs` block range (inclusive). */
 export const FUJI_GETLOGS_MAX_BLOCKS = 100n;
+/**
+ * First range tried by the fallback scan when the caller fixes no `chunk` (issue #14). A node that refuses it (Avalanche's
+ * public RPC caps at 100) answers with an error and the range is halved down to `FUJI_GETLOGS_MAX_BLOCKS`; the size that
+ * worked is remembered per client. PublicNode accepts this size, so an old circle costs about 50x fewer calls.
+ */
+export const ADAPTIVE_START_BLOCKS = 5_000n;
+/** At most this many `getLogs` calls per scan; past it the scan stops, keeps its progress and throws (issue #14). */
+export const MAX_SCAN_CALLS = 200;
+
+/** The fallback scan hit `MAX_SCAN_CALLS`: progress is kept, the next call continues where this one stopped. */
+export class EventSourceUnavailableError extends Error {
+  constructor(public readonly scannedTo: bigint, public readonly latest: bigint) {
+    super(`Nguồn dữ liệu sự kiện đang gián đoạn (đã đọc tới block ${scannedTo} / ${latest}). Thử lại sau ít giây.`);
+    this.name = 'EventSourceUnavailableError';
+  }
+}
+
+const chunkSizes = new WeakMap<object, bigint>();
 
 const creationCache = new WeakMap<object, Map<string, bigint>>();
 
@@ -274,17 +292,44 @@ async function scanEvents(client: PublicClient, circle: Address, opts: EventOpti
     }
   }
 
-  const ranges: Array<[bigint, bigint]> = [];
-  for (let from = start; from <= latest; from += chunk) {
-    ranges.push([from, from + chunk - 1n > latest ? latest : from + chunk - 1n]);
-  }
+  const kept = entry ? entry.events.filter((e) => e.blockNumber < start) : [];
   const fresh: CircleEvent[] = [];
-  for (let i = 0; i < ranges.length; i += concurrency) {
-    const batch = await Promise.all(
-      ranges.slice(i, i + concurrency).map(([from, to]) =>
-        client.getContractEvents({ address: circle, abi: huiCircleAbi, fromBlock: from, toBlock: to }),
-      ),
-    );
+  const fixed = opts.chunk && opts.chunk > 0n ? opts.chunk : undefined;
+  let size = fixed ?? chunkSizes.get(client) ?? ADAPTIVE_START_BLOCKS;
+  let from = start;
+  let calls = 0;
+  // Keep what was read so far, so a scan cut short (cap, throttling) resumes here instead of from the creation block.
+  const persistPartial = () => {
+    if (useCache && from > start) {
+      perClient.set(key, { requestedFrom: entry?.requestedFrom ?? requestedFrom, start: entry?.start ?? start, scannedTo: from - 1n, scannedAt: Date.now(), events: [...kept, ...fresh], timestamps: entry?.timestamps ?? new Map() });
+    }
+  };
+  while (from <= latest) {
+    const ranges: Array<[bigint, bigint]> = [];
+    for (let f = from; ranges.length < concurrency && f <= latest; ) {
+      const to = f + size - 1n > latest ? latest : f + size - 1n;
+      ranges.push([f, to]);
+      f = to + 1n;
+    }
+    if (calls + ranges.length > MAX_SCAN_CALLS) {
+      persistPartial();
+      throw new EventSourceUnavailableError(from - 1n, latest);
+    }
+    calls += ranges.length;
+    let batch;
+    try {
+      batch = await Promise.all(
+        ranges.map(([a, b]) => client.getContractEvents({ address: circle, abi: huiCircleAbi, fromBlock: a, toBlock: b })),
+      );
+    } catch (err) {
+      if (!fixed && size > FUJI_GETLOGS_MAX_BLOCKS) {
+        const half = size / 2n;
+        size = half < FUJI_GETLOGS_MAX_BLOCKS ? FUJI_GETLOGS_MAX_BLOCKS : half;
+        continue;
+      }
+      persistPartial();
+      throw err;
+    }
     for (const logs of batch) {
       for (const l of logs) {
         fresh.push({
@@ -296,9 +341,10 @@ async function scanEvents(client: PublicClient, circle: Address, opts: EventOpti
         });
       }
     }
+    from = ranges[ranges.length - 1]![1] + 1n;
+    if (!fixed) chunkSizes.set(client, size);
   }
 
-  const kept = entry ? entry.events.filter((e) => e.blockNumber < start) : [];
   const timestamps = entry?.timestamps ?? new Map<bigint, number>();
   const out = [...kept, ...fresh];
   if (opts.withTimestamps) {
