@@ -6,7 +6,10 @@ import { Cursor, E, P, Tap, clamp, countTo, keys, mix, path, press } from "../an
 import { chunk, line } from "../plan";
 import { Coin3D, Envelope3D, Obj3D, SealedEnvelope } from "../objects";
 import { BidRoom, CascadeCard, CoverageCard, CreateForm, InviteScreen, LandingCrop, Ledger, ResultCard, SeatsPanel, SettleDesk, SignIn, Toast, WaitSettle } from "../ui";
+
 import { SEAM_1_2 } from "./Act1";
+
+const mmss = (sec: number) => `${String(Math.floor(sec / 60)).padStart(2, "0")}:${String(sec % 60).padStart(2, "0")}`;
 
 // Act 2 on ivory: one world (laptop window, phone, status pill) and one camera that travels between them.
 // World coordinates are canvas pixels at scale 1. Every beat hangs off a voiceover line from plan.ts.
@@ -279,7 +282,7 @@ export const Act2: React.FC<{ t: number }> = ({ t }) => {
               <PhoneBody x={phX} y={phYfinal} blur={phBlur}>
                 <Page t={t} from={s0} to={s06 + 0.3}><SignIn wallet={P(t, tGoogle + 0.35, 0.5, E.arrive)} googlePress={press(t, tGoogle)} tap={<Tap t={t} at={tGoogle} x={0} y={0} />} /></Page>
                 <Page t={t} from={s07 - 0.2} to={s08}><InviteScreen press={press(t, tJoin)} joined={P(t, tJoin + 0.2, 0.2)} glow={P(t, L15.start + 0.6, 0.3)} tap={<Tap t={t} at={tJoin} x={0} y={0} />} /></Page>
-                <Page t={t} from={s08} to={s09}><BidRoom value={bidVal} caret={t > tInput - 0.3 && t < tSeal && Math.floor(t * 2.4) % 2 === 0} cap={capHi} seal={sealP} clock={`00:${String(Math.max(0, 75 - Math.floor((t - s08) * 2))).padStart(2, "0")}`} tapInput={<Tap t={t} at={tInput} x={0} y={0} />} tapSeal={<Tap t={t} at={tSeal} x={0} y={0} />} /></Page>
+                <Page t={t} from={s08} to={s09}><BidRoom value={bidVal} caret={t > tInput - 0.3 && t < tSeal && Math.floor(t * 2.4) % 2 === 0} cap={capHi} seal={sealP} clock={mmss(Math.max(0, 75 - Math.floor((t - s08) * 2)))} tapInput={<Tap t={t} at={tInput} x={0} y={0} />} tapSeal={<Tap t={t} at={tSeal} x={0} y={0} />} /></Page>
                 <Page t={t} from={s09} to={chunk("L19", 1) + 0.6}><WaitSettle /></Page>
                 <Page t={t} from={chunk("L19", 1) + 0.6} to={s10 + 1}><ResultCard payout={payout1} rows={P(t, L20.start - 0.2, 0.4)} hold={P(t, L20.start + 0.2, 0.35, E.ui)} /></Page>
               </PhoneBody>

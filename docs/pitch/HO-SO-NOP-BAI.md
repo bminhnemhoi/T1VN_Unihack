@@ -15,7 +15,7 @@ something, the team is disqualified." Mở thử mọi link bằng tab ẩn danh
 | What it does * | Sẵn sàng | Mục 2 |
 | GitHub repository * | Sẵn sàng | `https://github.com/bminhnemhoi/T1VN_Unihack` (repo public) |
 | Pitch slides * | Sẵn sàng | `https://docs.google.com/presentation/d/1o5ACVCFPpO_gcy8CKchnLyq9oH6R5DRbcLw3gMhD4Ww/edit?usp=sharing` (bản 26 trang, xem không cần đăng nhập) |
-| Demo video * | Sẵn sàng | `https://youtu.be/TQvUQzcTcYI` (YouTube công khai, 2:46) |
+| Demo video * | Sẵn sàng | `https://youtu.be/QgRsihBc8o8` (YouTube công khai, 2:46) |
 | Live app | Sẵn sàng | `https://lamng.tail3abf4e.ts.net:8443` (kiểm 21/11 19:20: trả 200; kiểm lại ngay trước khi nộp) |
 | Contract address or explorer link | Sẵn sàng | `https://testnet.snowtrace.io/address/0x5004477143F8Db65f80992A0BD79c1DAb75C8b21` |
 | Anything else for the judges | Sẵn sàng | Mục 2 |
