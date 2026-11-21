@@ -182,6 +182,23 @@ function Intro() {
   );
 }
 
+type Photo = { src: string; w: number; h: number };
+
+/**
+ * Two photographs set into each other beside a section head. Decorative: hidden from assistive technology and from
+ * narrow screens (the head fills the row there). Motion is CSS only and stops under `prefers-reduced-motion`.
+ */
+function PhotoStack({ back, front, tag, credit, flip }: { back: Photo; front: Photo; tag: string; credit: string; flip?: boolean }) {
+  return (
+    <figure className={s.photoStack} data-flip={flip ? '1' : undefined} aria-hidden>
+      <img className={s.photoBack} src={back.src} alt="" width={back.w} height={back.h} loading="lazy" decoding="async" />
+      <img className={s.photoFront} src={front.src} alt="" width={front.w} height={front.h} loading="lazy" decoding="async" />
+      <span className={s.photoTag}>{tag}</span>
+      <figcaption className={s.photoCredit}>{credit}</figcaption>
+    </figure>
+  );
+}
+
 export function Landing({ sample, factory }: { sample: boolean; factory?: `0x${string}` }) {
   return (
     <>
@@ -344,10 +361,18 @@ export function Landing({ sample, factory }: { sample: boolean; factory?: `0x${s
 
           <section className={s.story} id="mot-ky" data-lp-story data-state="1" aria-labelledby="lp-story-h">
             <div className={s.wrap}>
-              <div className={s.head} data-lp-head>
-                <p className={s.label}>Một kỳ hụi trên blockchain</p>
-                <h2 id="lp-story-h">Một kỳ hụi chạy thế nào on-chain</h2>
-                <p>Cuộn xuống để xem kỳ 2 của dây mẫu Tổ dân phố 7, từ lúc nộp thăm tới lúc chi tiền.</p>
+              <div className={s.headRow}>
+                <div className={s.head} data-lp-head>
+                  <p className={s.label}>Một kỳ hụi trên blockchain</p>
+                  <h2 id="lp-story-h">Một kỳ hụi chạy thế nào on-chain</h2>
+                  <p>Cuộn xuống để xem kỳ 2 của dây mẫu Tổ dân phố 7, từ lúc nộp thăm tới lúc chi tiền.</p>
+                </div>
+                <PhotoStack
+                  back={{ src: '/photos/ben-thanh-hall.webp', w: 960, h: 720 }}
+                  front={{ src: '/photos/ben-thanh-aisle.webp', w: 800, h: 1000 }}
+                  tag="Hụi của chợ, của xóm"
+                  credit="Chợ Bến Thành, TP.HCM. Ảnh: Bahnfrend, CC BY-SA 4.0"
+                />
               </div>
               <div className={s.storyGrid}>
                 <div className={s.slipCol}>
@@ -520,10 +545,19 @@ export function Landing({ sample, factory }: { sample: boolean; factory?: `0x${s
 
           <section className={s.ledger} id="so-cai" aria-labelledby="lp-ledger-h">
             <div className={s.wrap}>
-              <div className={s.head} data-lp-head>
-                <p className={s.label}>Đã chạy thật, kiểm được</p>
-                <h2 id="lp-ledger-h">Sổ cái thật, trên Avalanche Fuji.</h2>
-                <p>Hai dây do nhóm chạy bằng ví demo, số tiền thu nhỏ 10 lần. Mỗi dòng mở ra giao dịch tương ứng trên Snowtrace.</p>
+              <div className={s.headRow}>
+                <div className={s.head} data-lp-head>
+                  <p className={s.label}>Đã chạy thật, kiểm được</p>
+                  <h2 id="lp-ledger-h">Sổ cái thật, trên Avalanche Fuji.</h2>
+                  <p>Hai dây do nhóm chạy bằng ví demo, số tiền thu nhỏ 10 lần. Mỗi dòng mở ra giao dịch tương ứng trên Snowtrace.</p>
+                </div>
+                <PhotoStack
+                  back={{ src: '/photos/ben-thanh-fruit.webp', w: 800, h: 1000 }}
+                  front={{ src: '/photos/cho-lon-stall.webp', w: 960, h: 720 }}
+                  tag="Tiền ngoài chợ, sổ trên chuỗi"
+                  credit="Ảnh: Bahnfrend (CC BY-SA 4.0), Andre Hospers (CC BY 4.0)"
+                  flip
+                />
               </div>
               <div className={s.book}>
                 {SHEETS.map((sh) => (

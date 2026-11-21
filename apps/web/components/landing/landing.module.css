@@ -432,3 +432,27 @@
   .logoIcon { height: 22px; width: auto; }
   .brand { gap: 6px; }
 }
+
+/* Photographs beside a section head (PhotoStack). Desktop only: below 1000px the head takes the whole row. */
+.headRow { display: block; }
+.photoStack { display: none; }
+@media (min-width: 1000px) {
+  .headRow { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 420px); align-items: end; gap: 56px; margin-bottom: clamp(30px, 6vw, 70px); }
+  .headRow .head { margin-bottom: 0; }
+  .photoStack { display: block; position: relative; margin: 0; height: 326px; }
+  .photoStack img { position: absolute; display: block; object-fit: cover; border-radius: 14px; border: 1px solid rgba(244, 240, 232, 0.28); box-shadow: 0 22px 44px rgba(0, 0, 0, 0.42); filter: saturate(0.86) contrast(1.04); transition: transform 0.5s cubic-bezier(0.22, 1, 0.36, 1), filter 0.5s ease; }
+  .photoBack { right: 0; top: 0; width: 78%; height: 232px; transform: rotate(2.2deg); }
+  .photoFront { left: 0; bottom: 26px; width: 44%; height: 232px; transform: rotate(-3deg); }
+  .photoStack[data-flip='1'] .photoBack { right: auto; left: 0; width: 46%; height: 250px; transform: rotate(-2.4deg); }
+  .photoStack[data-flip='1'] .photoFront { left: auto; right: 0; bottom: 26px; width: 70%; height: 214px; transform: rotate(2deg); }
+  .photoTag { position: absolute; right: 18px; bottom: 78px; z-index: 2; padding: 7px 12px; border-radius: 999px; background: var(--lime); color: var(--ink); font: 600 0.75rem/1.2 var(--mono); letter-spacing: 0.04em; transform: rotate(-2deg); }
+  .photoStack[data-flip='1'] .photoTag { right: auto; left: 22px; bottom: 64px; transform: rotate(2deg); }
+  .photoCredit { position: absolute; left: 0; right: 0; bottom: 0; text-align: right; font: 400 0.625rem/1.2 var(--mono); letter-spacing: 0.02em; color: var(--mute); }
+  .photoStack[data-flip='1'] .photoCredit { text-align: left; }
+}
+@media (min-width: 1000px) and (hover: hover) and (prefers-reduced-motion: no-preference) {
+  .photoStack:hover .photoBack { transform: rotate(0.8deg) translateY(-4px); filter: saturate(1) contrast(1.02); }
+  .photoStack:hover .photoFront { transform: rotate(-1.2deg) translateY(-6px); filter: saturate(1) contrast(1.02); }
+  .photoStack[data-flip='1']:hover .photoBack { transform: rotate(-1deg) translateY(-6px); }
+  .photoStack[data-flip='1']:hover .photoFront { transform: rotate(0.8deg) translateY(-4px); }
+}
