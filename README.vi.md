@@ -14,6 +14,7 @@
 </p>
 
 <p align="center">
+  <a href="https://github.com/bminhnemhoi/T1VN_Unihack/actions/workflows/ci.yml"><img alt="CI on main" src="https://github.com/bminhnemhoi/T1VN_Unihack/actions/workflows/ci.yml/badge.svg?branch=main" /></a>
   <img alt="Avalanche Fuji 43113" src="https://img.shields.io/badge/Avalanche-Fuji%2043113-E84142?style=flat-square" />
   <img alt="Solidity 0.8.28" src="https://img.shields.io/badge/Solidity-0.8.28-363636?style=flat-square" />
   <img alt="Foundry" src="https://img.shields.io/badge/Built%20with-Foundry-1f1f1f?style=flat-square" />
@@ -280,7 +281,7 @@ Các quyết định thiết kế chính (đủ danh sách ADR ở [docs/04 mụ
 
 ### Kiểm thử
 
-Kết quả là các lần chạy trên máy, vào ngày ghi bên cạnh. Hai dòng Vitest và pytest được chạy lại trên commit nộp bài; các dòng còn lại là số mới nhất ghi trong [docs/TIEN-DO.md](docs/TIEN-DO.md) và phụ lục nguồn của slide.
+CI trên `main` chạy sáu job ở mỗi lần push: contracts (định dạng, build, test, gas snapshot, độ phủ), invariant, Slither, web (SDK, lint, typecheck, test, build), mô phỏng và kiểm quyền riêng tư; cả sáu đều đạt tính tới 21/11/2026. Các số dưới đây là lần chạy trên máy, vào ngày ghi bên cạnh. Hai dòng Vitest và pytest được chạy lại trên commit nộp bài; các dòng còn lại là số mới nhất ghi trong [docs/TIEN-DO.md](docs/TIEN-DO.md) và phụ lục nguồn của slide.
 
 | Lệnh | Kiểm cái gì | Kết quả mới nhất |
 |---|---|---|
@@ -316,7 +317,7 @@ Mỗi bất biến có một hàm invariant riêng ([docs/03 mục 7.2](docs/03-
 ### Bảo mật
 
 - **Chỉ mới rà soát nội bộ.** Sau khi đội tự rà soát contract, relay, attest và keeper: 0 lỗi Critical, 0 lỗi High còn mở ([docs/09](docs/09-kiem-thu-va-bao-mat.md)). Chưa có audit độc lập.
-- **Phân tích tĩnh.** Slither 0.11.6, lọc `lib/`, `test/`, `script/`: 0 High (11/11/2026); các phát hiện Medium được phân loại ở docs/09 mục 7.1.
+- **Phân tích tĩnh.** Slither 0.11.6, lọc `lib/`, `test/`, `script/`: 0 High (11/11/2026); cổng `fail-on: high` của CI đạt trên `main` (21/11/2026). Các phát hiện Medium được phân loại ở docs/09 mục 7.1.
 - **Admin không lấy được tiền.** Admin là Safe 2/3, chỉ thao tác qua factory: tạm dừng, mở lại, và sau 48 giờ tạm dừng liên tục thì `emergencyUnwind` trả tiền theo sổ. Khi dây tạm dừng, chỉ `claim()` chạy được.
 - **Tách khóa theo vai.** Deployer, relayer, attester, keeper mỗi vai một khóa; relayer và keeper chỉ giữ AVAX trả gas, không có quyền gì trên chuỗi (ADR-21).
 - **Chốt chặn ở relayer.** Danh sách cho phép theo đích và hàm, `value = 0`, trần gas, giới hạn tần suất, kiểm chữ ký và mô phỏng trước khi gửi (ADR-19).
