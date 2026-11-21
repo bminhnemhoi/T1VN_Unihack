@@ -1,0 +1,7 @@
+# Throwaway image used only to convert the deck to PDF for checking (render.sh). Not part of the app.
+FROM debian:trixie-slim
+RUN apt-get update \
+ && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends libreoffice-impress-nogui fontconfig \
+ || DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends libreoffice-impress fontconfig; \
+ rm -rf /var/lib/apt/lists/*
+ENV HOME=/tmp
