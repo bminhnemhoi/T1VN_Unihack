@@ -327,7 +327,7 @@ test.describe('S13 assistant drawer', () => {
 
   test('when the route is not configured the Vietnamese config error is shown and the calculator still works', async ({ page }) => {
     await page.route('**/api/copilot', (r) =>
-      r.fulfill({ status: 503, contentType: 'application/json', body: JSON.stringify({ error: { code: 'not_configured', message: 'Trợ lý AI chưa được cấu hình: thiếu COPILOT_MODEL. Bạn dùng chế độ máy tính.' } }) }),
+      r.fulfill({ status: 503, contentType: 'application/json', body: JSON.stringify({ error: { code: 'NotConfigured', message: 'Trợ lý AI chưa được cấu hình: thiếu COPILOT_MODEL. Bạn dùng chế độ máy tính.' } }) }),
     );
     await page.goto('/circles');
     const dlg = await open(page);

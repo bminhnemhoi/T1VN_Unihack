@@ -58,33 +58,33 @@ export async function POST(req: Request): Promise<Response> {
   const log = (entry: Record<string, unknown>) => console.log(JSON.stringify({ route: 'copilot', ...entry }));
 
   if (['0', 'false', 'off'].includes((process.env.COPILOT_ENABLED ?? '').toLowerCase())) {
-    return json(503, 'disabled', 'Trợ lý AI đang tắt. Bạn dùng chế độ máy tính.');
+    return json(503, 'Disabled', 'Trợ lý AI đang tắt. Bạn dùng chế độ máy tính.');
   }
 
   const declared = Number(req.headers.get('content-length') ?? '0');
-  if (declared > LIMITS.maxBodyBytes) return json(413, 'too_large', 'Nội dung gửi lên quá dài.');
+  if (declared > LIMITS.maxBodyBytes) return json(413, 'PayloadTooLarge', 'Nội dung gửi lên quá dài.');
 
   const taken = limiter.take(clientIp(req, trustProxyFrom(process.env)));
   if (!taken.ok) {
     log({ requestId, event: 'rate_limited', reason: taken.reason });
-    return json(429, 'rate_limited', 'Bạn hỏi nhiều quá, vui lòng thử lại sau ít phút.', {
+    return json(429, 'RateLimited', 'Bạn hỏi nhiều quá, vui lòng thử lại sau ít phút.', {
       'retry-after': String(taken.retryAfterSec),
     });
   }
 
   const text = await readLimited(req, LIMITS.maxBodyBytes);
-  if (text === null) return json(413, 'too_large', 'Nội dung gửi lên quá dài.');
+  if (text === null) return json(413, 'PayloadTooLarge', 'Nội dung gửi lên quá dài.');
   let body: unknown;
   try {
     body = JSON.parse(text);
   } catch {
-    return json(400, 'bad_json', 'Nội dung gửi lên không đúng định dạng.');
+    return json(400, 'BadRequest', 'Nội dung gửi lên không đúng định dạng.');
   }
   const parsed = requestSchema.safeParse(body);
   if (!parsed.success) {
     // Paths only: never echo user content back or into logs.
     const fields = [...new Set(parsed.error.issues.map((i) => i.path.join('.') || 'body'))].join(', ');
-    return json(400, 'bad_request', `Dữ liệu không hợp lệ ở: ${fields}.`);
+    return json(400, 'BadRequest', `Dữ liệu không hợp lệ ở: ${fields}.`);
   }
 
   let model: ModelClient;
@@ -92,7 +92,7 @@ export async function POST(req: Request): Promise<Response> {
     model = await resolveModel();
   } catch (e) {
     // The message names variables, never their values.
-    if (e instanceof ConfigError) return json(503, 'not_configured', `${e.message} Bạn dùng chế độ máy tính.`);
+    if (e instanceof ConfigError) return json(503, 'NotConfigured', `${e.message} Bạn dùng chế độ máy tính.`);
     throw e;
   }
 

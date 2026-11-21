@@ -6,11 +6,12 @@
  * It does not wrap the app. It renders next to the app's children and reports its `HuiWalletValue` upward, so the
  * children tree keeps its place (no remount, no lost form state) when this chunk arrives.
  */
-import { memo, useEffect, useMemo, useRef } from 'react';
+import { memo, useEffect, useMemo, useRef, useState } from 'react';
 import { createWalletClient, custom, verifyTypedData } from 'viem';
 import { avalancheFuji } from 'viem/chains';
 import { PrivyProvider, usePrivy, useSignTypedData, useWallets, type PrivyClientConfig } from '@privy-io/react-auth';
 import { huiCircleFullAbi, huiFactoryAbi, type TypedDataSigner } from 'sdk';
+import { WALLET_CREATION_GRACE_MS, loginAction, privyStatus } from './privyStatus';
 import { quietSignAllowed } from './quietSign';
 import { useChain } from './provider';
 import type { HuiWallet } from './wallet';
@@ -84,15 +85,40 @@ function usePrivyValue(): HuiWalletValue {
   }, [address, chainId]);
 
   const { ready, authenticated } = privy;
+  // Issue #6: signed in but no embedded wallet yet. Start a grace timer; if the wallet never shows up, report
+  // "logged-out" so the user is not stuck behind a dead "Creating your wallet" dialog (see lib/chain/privyStatus.ts).
+  const pending = ready && authenticated && !wallet;
+  const [stuck, setStuck] = useState(false);
+  useEffect(() => {
+    if (!pending) {
+      setStuck(false);
+      return;
+    }
+    const t = setTimeout(() => setStuck(true), WALLET_CREATION_GRACE_MS);
+    return () => clearTimeout(t);
+  }, [pending]);
   return useMemo<HuiWalletValue>(
     () => ({
-      status: !ready ? 'loading' : authenticated && wallet ? 'ready' : 'logged-out',
+      status: privyStatus({ ready, authenticated, hasWallet: wallet !== undefined, stuck }),
       wallet,
-      login: () => void latest.current.privy.login(),
+      login: () => {
+        const { privy: p, embedded: w } = latest.current;
+        if (loginAction({ authenticated: p.authenticated, hasWallet: w !== undefined }) === 'reset-then-login') {
+          void (async () => {
+            try {
+              await p.logout();
+            } finally {
+              latest.current.privy.login();
+            }
+          })();
+        } else {
+          void p.login();
+        }
+      },
       logout: () => void latest.current.privy.logout(),
       getAccessToken: () => latest.current.privy.getAccessToken(),
     }),
-    [ready, authenticated, wallet],
+    [ready, authenticated, wallet, stuck],
   );
 }
 

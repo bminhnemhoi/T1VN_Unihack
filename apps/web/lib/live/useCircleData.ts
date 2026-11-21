@@ -5,7 +5,7 @@
  */
 import { useMemo } from 'react';
 import { useChain } from '@/lib/chain/provider';
-import { NotACircleError, useCircle, useCircles } from '@/lib/chain/hooks';
+import { NotACircleError, useCircle, useMyCircleViews } from '@/lib/chain/hooks';
 import { useHuiWallet } from '@/lib/chain/walletProvider';
 import { toLedger, toSampleCircle } from '@/lib/chain/adapter';
 import { SAMPLE_CIRCLES, SAMPLE_WALLET, type SampleCircle } from '@/lib/sample';
@@ -67,8 +67,8 @@ export type MyCirclesState =
 export function useMyCircles(): MyCirclesState {
   const chain = useChain();
   const { wallet, status } = useHuiWallet();
-  const q = useCircles();
   const viewer = wallet?.address;
+  const q = useMyCircleViews(viewer);
   const updated = q.dataUpdatedAt;
   const ready = useMemo((): Extract<MyCirclesState, { status: 'ready' }> | undefined => {
     if (!q.data || !viewer) return undefined;

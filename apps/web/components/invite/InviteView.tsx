@@ -24,6 +24,8 @@ import { useCircleData } from '@/lib/live/useCircleData';
 import { useMinCoverageBps } from '@/lib/live/useMinCoverage';
 import { useWalletBalance } from '@/lib/live/useWalletBalance';
 import type { SampleCircleData } from '@/lib/sample-circles';
+import { useUnresolvedDefault } from '@/lib/live/useUnresolvedDefault';
+import { UNRESOLVED_DEFAULT_MESSAGE } from '@/lib/entryRules';
 
 const REVEAL_BOND_BPS = 100n;
 
@@ -61,6 +63,9 @@ export function InviteView({ c: C }: { c: SampleCircleData }) {
   const allowance = live ? live.view.requiredAllowance : (t.n - 1n) * (t.c + (t.c * REVEAL_BOND_BPS) / 10_000n);
   const minEntryUsdc = t.c + (t.mode === 'bidding' ? (t.c * REVEAL_BOND_BPS) / 10_000n : 0n);
   const insufficientUsdc = Boolean(live && wallet?.address && walletBal.data && walletBal.data.usdc < minEntryUsdc);
+  // Issue #17: warn before the person signs anything; /api/attest stays the gate (same rule, lib/entryRules.ts).
+  const unresolved = useUnresolvedDefault(live?.address, live ? wallet?.address : undefined);
+  const blockedByDefault = unresolved.data === true;
   const open = !live || live.view.state === 'forming';
   const already = live ? C.viewer >= 0 : false;
 
@@ -196,6 +201,14 @@ export function InviteView({ c: C }: { c: SampleCircleData }) {
           </p>
         ) : (
           <>
+            {blockedByDefault && (
+              <div role="status" className="mt-4 rounded-xl border-2 border-state-bad/40 bg-secondary p-4">
+                <p className="font-semibold text-state-bad">{UNRESOLVED_DEFAULT_MESSAGE}</p>
+                <p className="mt-1 text-muted-foreground">
+                  Mỗi ví chỉ được vào dây mới khi đã trả hết nợ ở các dây trước, để bảo vệ các thành viên và ký quỹ của chủ hụi.
+                </p>
+              </div>
+            )}
             {insufficientUsdc && wallet?.address && walletBal.data && (
               <div role="status" className="mt-4 rounded-xl border-2 border-state-bad/40 bg-secondary p-4">
                 <p className="font-semibold text-state-bad">
@@ -234,7 +247,7 @@ export function InviteView({ c: C }: { c: SampleCircleData }) {
               size="lg"
               className="mt-3"
               onClick={join}
-              disabled={tx.pending || terms.check === 'mismatch' || insufficientUsdc}
+              disabled={tx.pending || terms.check === 'mismatch' || insufficientUsdc || blockedByDefault}
               aria-busy={tx.pending || undefined}
               aria-describedby={terms.check === 'mismatch' ? 'vao-khong-khop' : undefined}
             >

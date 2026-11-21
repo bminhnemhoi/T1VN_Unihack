@@ -16,7 +16,7 @@ import { createPublicClient, createWalletClient, http, stringToHex, toHex, type 
 import { mnemonicToAccount, type HDAccount } from 'viem/accounts';
 import { loadAddresses } from 'config/addresses';
 import { resolveNetwork } from 'config/network';
-import { erc2771ForwarderAbi, huiFactoryAbi, memorySaltStore, mockUsdcAbi, termsHashOf, type FetchLike } from 'sdk';
+import { buildTermsText, erc2771ForwarderAbi, huiFactoryAbi, memorySaltStore, mockUsdcAbi, termsHashOf, type FetchLike } from 'sdk';
 import { createChainConfig } from '../lib/chain/config';
 import { devWallet } from '../lib/chain/wallet';
 import { activate, createCircle, depositBond, join, type TxContext } from '../lib/chain/write';
@@ -37,7 +37,16 @@ const keyOf = (a: HDAccount): Hex => toHex(a.getHdKey().privateKey!);
 const [deployer, attester, relayer, , organizer] = [hd(0), hd(1), hd(2), hd(3), hd(4)];
 const M = [hd(5), hd(6), hd(7), hd(8), hd(9)];
 
-const baseEnv = (): NodeJS.ProcessEnv => ({ PATH: `${FOUNDRY_BIN}:${process.env.PATH ?? ''}`, HOME: process.env.HOME ?? '', NODE_ENV: 'development' }) as NodeJS.ProcessEnv;
+const baseEnv = (): NodeJS.ProcessEnv => {
+  if (process.platform !== 'win32') {
+    return { PATH: `${FOUNDRY_BIN}:${process.env.PATH ?? ''}`, HOME: process.env.HOME ?? '', NODE_ENV: 'development' } as NodeJS.ProcessEnv;
+  }
+  // Windows (same fix as e2e-anvil.ts): PATH is ';'-separated and cmd.exe, pnpm.cmd and forge need the system variables.
+  const vars: NodeJS.ProcessEnv = { ...process.env, NODE_ENV: 'development' };
+  const pathKey = Object.keys(vars).find((k) => k.toLowerCase() === 'path') ?? 'PATH';
+  vars[pathKey] = `${FOUNDRY_BIN};${vars[pathKey] ?? ''}`;
+  return vars;
+};
 function run(cmd: string, args: string[], env: Record<string, string>): void {
   const r = spawnSync(cmd, args, { cwd: CONTRACTS, env: { ...baseEnv(), ...env }, encoding: 'utf8' });
   if (r.status !== 0) throw new Error(`${cmd} failed:\n${(r.stdout ?? '').slice(-1200)}\n${(r.stderr ?? '').slice(-1200)}`);
@@ -143,11 +152,17 @@ async function main(): Promise<void> {
 
   // A second circle that is still gathering people (organizer = account 4, M1 already in): for the forming / invite screens.
   const now = Number((await pub.getBlock()).timestamp);
+  // The terms hash must be the hash of the standard terms text, or the invite page shows "Không khớp thỏa thuận" and
+  // disables "Vào dây" (ADR-27), and the join flow cannot be tried on the playground (issue #8).
+  const secondTerms = {
+    mode: 'bidding' as const, memberCount: 5, contribution: 10n * ONE, periodSeconds: 30 * 86_400, roundDuration: 180, commitWindow: 90,
+    revealWindow: 60, graceSeconds: 120, alphaBps: 2000, commissionMode: true, feeBps: 100, commissionShareBps: 0, reserveBps: 100,
+    revealBondBps: 100, capBps: 2000,
+  };
   const second = await createCircle(ctx(-1), {
-    mode: 1, memberCount: 5, contribution: 10n * ONE, periodSeconds: 30 * 86_400, roundDuration: 180, commitWindow: 90, revealWindow: 60,
-    graceSeconds: 120, alphaBps: 2000, commissionMode: true, feeBps: 100, reserveBps: 100, revealBondBps: 100, capBps: 2000,
+    ...secondTerms, mode: 1,
     joinDeadline: BigInt(now + 3600), organizerIsMember: false, label: stringToHex('Hụi đang gom', { size: 32 }),
-    commissionShareBps: 0, termsHash: termsHashOf('anvil playground: circle still gathering'),
+    termsHash: termsHashOf(buildTermsText(secondTerms)),
   });
   if (!second.ok) throw new Error(`second circle: ${second.code} ${second.message}`);
   const dep2 = await depositBond(ctx(-1), second.circle, 16n * ONE);

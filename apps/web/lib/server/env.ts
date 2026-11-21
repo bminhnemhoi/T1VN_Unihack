@@ -22,6 +22,7 @@ import {
   createRelayHandler,
 } from './relay';
 import { PERMIT_PER_HOUR, createRelayPermitHandler } from './relayPermit';
+import { UNRESOLVED_DEFAULT_MESSAGE, hasUnresolvedDefault } from '../entryRules';
 
 type Env = Record<string, string | undefined>;
 type Handler = (req: Request) => Promise<Response>;
@@ -84,13 +85,8 @@ export async function buildAttestHandler(env: Env = process.env): Promise<Handle
       if (mi.joined) {
         return { ok: false, status: 409, code: 'AlreadyMember', message: 'Bạn đã ở trong dây này rồi.' };
       }
-      if (Number(rep.defaults) > Number(rep.repaid)) {
-        return {
-          ok: false,
-          status: 422,
-          code: 'UnresolvedDefault',
-          message: 'Ví này đang có khoản vỡ nợ chưa hoàn trả ở dây trước nên chưa được vào dây mới. Hãy hoàn trả nợ cũ trước.',
-        };
+      if (hasUnresolvedDefault(rep)) {
+        return { ok: false, status: 422, code: 'UnresolvedDefault', message: UNRESOLVED_DEFAULT_MESSAGE };
       }
       const revealBond = Number(params.mode) === 1 ? (BigInt(params.contribution) * BigInt(params.revealBondBps)) / 10_000n : 0n;
       const minNeeded = BigInt(params.contribution) + revealBond;

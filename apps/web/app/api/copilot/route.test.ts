@@ -29,7 +29,7 @@ describe('POST /api/copilot', () => {
     const res = await POST(post(ask('Rủi ro lớn nhất?')));
     expect(res.status).toBe(503);
     const body = (await res.json()) as { error: { code: string; message: string } };
-    expect(body.error.code).toBe('not_configured');
+    expect(body.error.code).toBe('NotConfigured');
     expect(body.error.message).toContain('COPILOT_MODEL');
     expect(body.error.message).toContain('COPILOT_API_KEY');
   });
@@ -51,7 +51,7 @@ describe('POST /api/copilot', () => {
     vi.stubEnv('COPILOT_ENABLED', '0');
     const res = await POST(post(ask('x')));
     expect(res.status).toBe(503);
-    expect(((await res.json()) as { error: { code: string } }).error.code).toBe('disabled');
+    expect(((await res.json()) as { error: { code: string } }).error.code).toBe('Disabled');
   });
 
   it('streams status, tool and answer events with a request id (dev mock model)', async () => {
@@ -129,5 +129,14 @@ describe('POST /api/copilot', () => {
     const answer = ev.find((e) => e.type === 'answer') as unknown as { answer: { refused: boolean } };
     expect(answer.answer.refused).toBe(true);
     expect(ev.some((e) => e.type === 'tool')).toBe(false);
+  });
+  it('uses the same PascalCase error codes as the other API routes (issue #9)', async () => {
+    vi.stubEnv('COPILOT_MOCK', '1');
+    const bad = await POST(post({ messages: 'not an array' }));
+    expect(bad.status).toBe(400);
+    expect(((await bad.json()) as { error: { code: string } }).error.code).toBe('BadRequest');
+    const notJson = await POST(post('{not json'));
+    expect(notJson.status).toBe(400);
+    expect(((await notJson.json()) as { error: { code: string } }).error.code).toBe('BadRequest');
   });
 });

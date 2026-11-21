@@ -18,6 +18,7 @@ import {
   type TierResult,
 } from 'sdk';
 import { useChain } from './provider';
+import { listMyCircleAddresses } from './myCircles';
 
 type Address = `0x${string}`;
 
@@ -67,6 +68,27 @@ export function useCircles(opts: { organizer?: Address } = {}): UseQueryResult<C
     refetchInterval: chain ? Math.max(chain.pollMs * 2, 10_000) : undefined,
     queryFn: async () => {
       const addrs = await listCircles(chain!.client, chain!.factory, opts);
+      return Promise.all(
+        addrs.map((a) =>
+          readCircle(chain!.client, a, { fromBlock: chain!.fromBlock, factory: chain!.factory, vndPerUsdc: chain!.vndPerUsdc }),
+        ),
+      );
+    },
+  });
+}
+
+/**
+ * Issue #12: the circles the viewer organises or sits in, read in full; other circles of the factory are not read. The
+ * selection itself is light (see lib/chain/myCircles.ts). Not signed in: nothing is read.
+ */
+export function useMyCircleViews(viewer: Address | undefined): UseQueryResult<CircleView[]> {
+  const chain = useChain();
+  return useQuery({
+    queryKey: chainKey(chain?.chainId ?? 0, 'my-circles', viewer?.toLowerCase()),
+    enabled: Boolean(chain && viewer),
+    refetchInterval: chain ? Math.max(chain.pollMs * 2, 10_000) : undefined,
+    queryFn: async () => {
+      const addrs = await listMyCircleAddresses(chain!.client, chain!.factory, viewer!);
       return Promise.all(
         addrs.map((a) =>
           readCircle(chain!.client, a, { fromBlock: chain!.fromBlock, factory: chain!.factory, vndPerUsdc: chain!.vndPerUsdc }),
