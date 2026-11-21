@@ -26,7 +26,7 @@
 <p align="center">
   <a href="https://lamng.tail3abf4e.ts.net:8443"><strong>Live app</strong></a> ·
   <a href="docs/pitch/slides/HuiSafe-UniHack-2026.pdf"><strong>Pitch deck (PDF)</strong></a> ·
-  <!-- DEMO_VIDEO_LINK -->
+  <a href="https://youtu.be/TQvUQzcTcYI"><strong>Demo video</strong></a> ·
   <a href="https://testnet.snowtrace.io/address/0x5004477143F8Db65f80992A0BD79c1DAb75C8b21"><strong>HuiFactory on Snowtrace</strong></a> ·
   <a href="#documentation"><strong>Docs</strong></a>
 </p>
