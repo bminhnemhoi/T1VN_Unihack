@@ -1052,8 +1052,7 @@ def s_tests(prs):
         "Độ (Klonner & Rai, 2008), không phải số đo ở Việt Nam.",
     ], size=11.5, color=INK2, ls=1.2, after=2, anchor="m")
     footer(s, "tests", source="Nguồn: sim/outputs/baseline.json (08/11/2026, seed 42). Số test: docs/TIEN-DO.md "
-                              "(20/11/2026); độ phủ và rà soát: docs/09 mục 7.1 (11/11/2026). CI trên main đang báo đỏ "
-                              "vì lint, gas snapshot và cấu hình Slither; xem README.")
+                              "(20/11/2026); độ phủ và rà soát: docs/09 mục 7.1 (11/11/2026).")
     notes(s, "Về kiểm thử: 634 test hợp đồng đều đạt, trong đó 17 bất biến về tiền chạy với fuzz; độ phủ mã hợp đồng "
              "98,7%; rà soát bảo mật nội bộ không còn lỗi Critical hay High, nhưng chúng em chưa có audit độc lập. "
              "Công thức tiền được đối chiếu từng đơn vị giữa Solidity, TypeScript và Python. Về mô phỏng: 10.000 dây "
