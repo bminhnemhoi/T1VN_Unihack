@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="vi"><head><meta charset="utf-8"><title>Storyboard HụiSafe B30</title>
+<style>
+  @font-face { font-family: Brand; src: url("../public/fonts/InterTight-VF.ttf"); font-weight: 100 900; }
+  @font-face { font-family: Mono; src: url("../public/fonts/IBMPlexMono-Regular.ttf"); font-weight: 400; }
+  * { box-sizing: border-box; } html, body { margin: 0; background: #151313; color: #F4F0E8; font-family: Brand, system-ui, sans-serif; }
+  .board { width: 1920px; padding: 40px 30px 30px; }
+  h1 { margin: 0 0 6px; font-size: 42px; font-weight: 800; letter-spacing: -1.4px; } h1 span { color: #A39D94; font-weight: 450; }
+  .sub { font-size: 18px; color: #C9C3B9; margin-bottom: 26px; max-width: 1820px; line-height: 1.45; }
+  .sub b { color: #A1FF62; font-weight: 600; }
+  .grid { display: grid; grid-template-columns: repeat(4, 450px); gap: 30px 26px; }
+  .frame { position: relative; width: 450px; height: 253px; border-radius: 10px; overflow: hidden; background: #111; box-shadow: 0 0 0 1px #3A3636; }
+  .frame img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+  .num { position: absolute; left: 10px; top: 10px; width: 40px; height: 40px; border-radius: 50%; background: #A1FF62; color: #151313; font-weight: 800; font-size: 19px; display: flex; align-items: center; justify-content: center; z-index: 2; box-shadow: 0 0 0 3px #151313; }
+  .t { font-family: Mono; font-size: 13px; color: #A39D94; margin-top: 10px; } .b { font-size: 20px; font-weight: 700; margin: 2px 0 4px; letter-spacing: -0.3px; }
+  .vo { margin-top: 5px; font-size: 14.5px; color: #9FB8FF; line-height: 1.4; } .d { font-size: 14.5px; color: #D8D2C8; line-height: 1.42; }
+  .mv { margin-top: 6px; font-size: 13.5px; color: #F5D04E; line-height: 1.4; } .tr { margin-top: 6px; font-size: 13.5px; color: #A1FF62; line-height: 1.4; }
+  .legend { display: flex; gap: 22px; font-size: 15px; margin-bottom: 22px; } .legend i { font-style: normal; }
+</style></head><body>
+<div class="board"><h1>HụiSafe <span>· demo UniHack 2026 · storyboard B30 v1 · chờ duyệt</span></h1>
+  <div class="sub">Phim 1920×1080, 60 fps, mục tiêu <b>2:42</b> (trần 3:00), lời đọc tiếng Anh (L01–L31 trong <b>video/script.md</b>), phụ đề tiếng Anh in sẵn. Không cắt cảnh: mỗi cảnh biến thành cảnh sau qua một vật trong khung; vật dẫn mắt là phong bì lá thăm. Nền mực cho câu chuyện, nền ngà cho sản phẩm; đỏ chỉ ở khoảnh khắc rủi ro. UI dựng lại theo app thật, số liệu là dữ liệu Fuji thật (dây 0xc628…5Bfc và 0xa428…8f5a).</div>
+  <div class="legend"><i style="color:#9FB8FF">Xanh lam: lời đọc</i><i style="color:#D8D2C8">Trắng: khung hình</i><i style="color:#F5D04E">Vàng: cái gì chuyển động</i><i style="color:#A1FF62">Chanh: biến sang cảnh sau</i></div>
+  <div class="grid" id="g"></div></div>
+<script>
+// [time, frame, title, VO, description, motion, transition]
+const S = [
+  ['0:00–0:07', 'frames/01.jpg', 'Mở phim + khai báo demo', '“A demo on Avalanche Fuji testnet: test USDC, and rounds sped up to about two minutes.”', 'Nền mực, phong bì lá thăm ở tâm; viên khai báo DEMO · Fuji giữ ≥ 4 giây.', 'Phong bì rơi vào tâm, nắp gập, con dấu U đóng (cộp). Dòng khai báo hiện từng từ.', 'Lùi ra: phong bì nhỏ lại, bốn phong bì khác vào thành vòng năm người.'],
+  ['0:07–0:17', 'frames/02.jpg', 'Hụi là gì', '“Millions of Vietnamese save through hụi… In between, one person holds all of it: the organizer.”', 'Vòng 5 thành viên, hũ đất ở giữa, nhãn Organizer.', 'Mỗi phong bì gửi một đồng xu vào hũ; hũ tới M1 rồi về tay chủ hụi.', 'Hũ nứt một đường đỏ; vết nứt chạy sang trái thành vạch dưới vụ án đầu.'],
+  ['0:17–0:32', 'frames/03.jpg', 'Ba vụ vỡ hụi có nguồn', '“Bình Thuận, 2024… Trà Vinh, 2025… Tây Ninh, 2026: fake Zalo accounts…”', '100+ billion VND · 167 people; 157 fake shares · 12 years; fake Zalo accounts · ~500 million VND. Nguồn nhỏ dưới mỗi vụ.', 'Mỗi vụ vào bằng waterfall cut sang trái; vụ trước thu nhỏ, mờ dần.', 'Ba dòng ép thành một thẻ “Organizer”, thẻ tách đôi.'],
+  ['0:32–0:45', 'frames/04.jpg', 'Hai việc của chủ hụi', '“An organizer has two jobs… HụiSafe keeps only the second.”', 'Thẻ “Hold the money” (bị bỏ) và “Cover the loss” (giữ, con dấu U). Hàng 5 ví.', 'Thẻ giữ tiền vỡ thành 5 đồng xu về 5 ví; thẻ bảo lãnh nhận con dấu.', 'Con dấu chanh nén 8% rồi phủ kín khung, đổi sang nền ngà.'],
+  ['0:45–0:53', 'frames/05.jpg', 'Đăng nhập Google, không cần AVAX', '“Sign in with Google and you have a wallet. No AVAX needed: our relayer pays the fees.”', 'Laptop: cột phải của landing thật. Điện thoại: đăng nhập, thẻ ví 0 AVAX. Viên trạng thái xuất hiện.', 'Con trỏ bấm “Chơi hụi ngay”; điện thoại trượt vào; chạm Google; thẻ ví mọc lên.', 'Nút chanh kéo dài thành tiêu đề form “Tạo dây hụi”.'],
+  ['0:53–1:09', 'frames/06.jpg', 'Tạo dây, ký quỹ, bảo chứng 100%', '“…a forty-eight USDC bond brings coverage to one hundred percent… the worst single shock: everyone already paid stops paying at the same time.”', 'Form 5 người × 10 USDC, ký quỹ 48. Vòng bảo chứng 20% + 80% = 100%.', 'Form điền theo con trỏ; vòng quét, số đếm lên; nút kích hoạt sẵn sàng.', 'Camera trôi trái: laptop lùi và mờ, điện thoại vào tiêu điểm.'],
+  ['1:09–1:17', 'frames/07.jpg', 'Vào dây: ký một lần', '“Members sign once, allowing at most 40.40 USDC to be pulled. The money stays in their wallets.”', 'Điện thoại: lời mời, bảo chứng 100%, trần kỳ 1 0,65, quyền trích 40,40 USDC.', 'Chạm “Ký và vào dây”; ghế thứ 5 lấp đầy; số dư ví đứng yên; dây kích hoạt.', 'Nút chanh co lại thành đồng hồ của phòng bỏ thăm.'],
+  ['1:17–1:28', 'frames/08.jpg', 'Thăm kín', '“Want the pot early? Bid a discount for the others, sealed and capped by law: 0.65 USDC this round. Highest bid wins.”', 'Phòng bỏ thăm thật: thăm 0,60, trần 0,65, “Niêm phong thăm”. Phong bì lớn.', 'Con số trượt vào phong bì, nắp gập, con dấu đóng; mã băm hiện; mở thăm: 0,40 và 0,60.', 'Phong bì bay lên trái, đáp vào bàn khui kỳ; camera lùi ra cặp thiết bị.'],
+  ['1:28–1:41', 'frames/09.jpg', 'Khui kỳ: laptop và điện thoại', '“When time\'s up, the organizer opens the round. One transaction… pays Member 4: 28.848 USDC.”', 'Bàn khui kỳ 1 (chữ thật của SettleDesk). Điện thoại Thành viên 4: Kết quả kỳ 1, thực nhận 28,848.', 'Bấm Khui (dừng 0,5 s trước); 4 đồng xu vào giữa rồi sang điện thoại; 8,00 tách ra làm tiền giữ lại.', 'Thanh kỳ tiến một đoạn; bàn khui cuộn sang kỳ 2.'],
+  ['1:41–1:58', 'frames/10.jpg', 'Có người bỏ đóng: đỏ sang chanh', '“Member 4 comes up ten USDC short… eight from Member 4\'s holdback, two from the bond. Member 1 still gets the full 32.318 USDC.”', 'Dòng Thành viên 4 đỏ; thác bù 4 bậc; Thành viên 1 nhận đủ; ký quỹ 48 → 16.', 'Thanh thiếu đỏ được lấp 8 rồi 2 thành chanh; 32,318 đếm lên; tua kỳ 3–5, ký quỹ hạ dần.', 'Các dòng bàn khui gập thành dòng sổ hụi.'],
+  ['1:58–2:04', 'frames/11.jpg', 'Sổ hụi', '“Every step goes into the ledger, linked to a transaction anyone can open.”', 'Sổ hụi dựng từ event on-chain, mỗi dòng một chip mã giao dịch.', 'Dòng ghi vào từ trên xuống; con trỏ bấm chip mã giao dịch.', 'Đẩy tới trước vào chip, mở ra trang explorer thật.'],
+  ['2:04–2:18', 'frames/12.jpg', 'Bằng chứng (quay thật)', '“It runs on Avalanche Fuji: five verified contracts, 634 tests… The contract\'s balance ended at zero.”', 'Quay thật Avalanche Explorer (Fuji) của dây 0xc628; landing đang chạy. 5 · 634 · 0.', 'Bản quay cuộn tới các lệnh settleRound; ba con số đếm lên.', 'Cửa sổ trượt trái ra; câu hỏi thứ nhất đi lên.'],
+  ['2:18–2:35', 'frames/13.jpg', 'Ba câu hỏi của BTC', '“Why on-chain?… Why Avalanche?… Where does the money come from? The members alone…”', 'Ba câu hỏi xếp chồng, logo Avalanche chính thức, chú thích φ > 0.', 'Mỗi câu vào bằng waterfall từ dưới; câu trước trượt lên và mờ.', 'Cả ba trượt lên; phong bì đi lên vào tâm.'],
+  ['2:35–2:42', 'frames/14.jpg', 'Kết', '“HụiSafe. Try it on Fuji testnet.”', 'Logo, Try it on Fuji testnet, QR + link, Built on Avalanche · Team1 Vietnam UniHack 2026, 3 thành viên.', 'Logo đáp vào tâm, con dấu đóng lần cuối; giữ yên 2 giây, không trôi camera.', 'Hết phim.'],
+];
+document.getElementById('g').innerHTML = S.map(([t, img, b, vo, d, mv, tr], i) => `<div><div class="frame"><div class="num">${i + 1}</div><img src="${img}"></div>
+  <div class="t">${t}</div><div class="b">${b}</div><div class="vo">${vo}</div><div class="d">${d}</div><div class="mv">${mv}</div><div class="tr">→ ${tr}</div></div>`).join('');
+</script></body></html>

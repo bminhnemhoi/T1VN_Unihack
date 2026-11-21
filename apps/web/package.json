@@ -16,7 +16,8 @@
     "e2e:anvil": "tsx scripts/e2e-anvil.ts",
     "rehearse:fuji-fork": "tsx scripts/rehearse-fuji-fork.ts",
     "worked-example:fuji": "tsx scripts/worked-example-fuji.ts",
-    "probe:fuji": "tsx scripts/probe-fuji.mts"
+    "probe:fuji": "tsx scripts/probe-fuji.mts",
+    "seat:fuji": "tsx scripts/seat-demo-members.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "1.6.0",

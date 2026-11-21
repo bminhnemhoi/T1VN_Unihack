@@ -1,0 +1,1029 @@
+{
+ "total": 166.21,
+ "anchors": {
+  "shatter": 15.282,
+  "flood": 42.298,
+  "edit": 94.277,
+  "logoStamp": 160.929
+ },
+ "vo": [
+  {
+   "id": "L01",
+   "start": 1,
+   "end": 5.737
+  },
+  {
+   "id": "L02",
+   "start": 6.337,
+   "end": 8.382
+  },
+  {
+   "id": "L03",
+   "start": 8.732,
+   "end": 11.578
+  },
+  {
+   "id": "L04",
+   "start": 11.928,
+   "end": 14.862
+  },
+  {
+   "id": "L05",
+   "start": 15.612,
+   "end": 20.322
+  },
+  {
+   "id": "L06",
+   "start": 20.772,
+   "end": 25.207
+  },
+  {
+   "id": "L07",
+   "start": 25.657,
+   "end": 29.544
+  },
+  {
+   "id": "L08",
+   "start": 30.244,
+   "end": 34.001
+  },
+  {
+   "id": "L09",
+   "start": 34.451,
+   "end": 35.982
+  },
+  {
+   "id": "L10",
+   "start": 36.382,
+   "end": 41.978
+  },
+  {
+   "id": "L11",
+   "start": 42.878,
+   "end": 46.661
+  },
+  {
+   "id": "L12",
+   "start": 47.261,
+   "end": 51.148
+  },
+  {
+   "id": "L13",
+   "start": 51.548,
+   "end": 56.026
+  },
+  {
+   "id": "L14",
+   "start": 56.526,
+   "end": 63.249
+  },
+  {
+   "id": "L15",
+   "start": 63.949,
+   "end": 70.16
+  },
+  {
+   "id": "L16",
+   "start": 70.76,
+   "end": 78.69
+  },
+  {
+   "id": "L17",
+   "start": 78.99,
+   "end": 79.895
+  },
+  {
+   "id": "L18",
+   "start": 81.295,
+   "end": 83.312
+  },
+  {
+   "id": "L19",
+   "start": 84.112,
+   "end": 90.047
+  },
+  {
+   "id": "L20",
+   "start": 90.447,
+   "end": 94.157
+  },
+  {
+   "id": "L21",
+   "start": 94.857,
+   "end": 97.626
+  },
+  {
+   "id": "L22",
+   "start": 98.326,
+   "end": 102.313
+  },
+  {
+   "id": "L23",
+   "start": 102.713,
+   "end": 106.388
+  },
+  {
+   "id": "L24",
+   "start": 106.888,
+   "end": 112.323
+  },
+  {
+   "id": "L25",
+   "start": 112.923,
+   "end": 116.736
+  },
+  {
+   "id": "L26",
+   "start": 117.636,
+   "end": 124.927
+  },
+  {
+   "id": "L27",
+   "start": 125.427,
+   "end": 130.827
+  },
+  {
+   "id": "L28",
+   "start": 131.527,
+   "end": 135.865
+  },
+  {
+   "id": "L29",
+   "start": 136.415,
+   "end": 144.922
+  },
+  {
+   "id": "L30",
+   "start": 145.472,
+   "end": 155.874
+  },
+  {
+   "id": "L31",
+   "start": 156.674,
+   "end": 163.41
+  }
+ ],
+ "cues": [
+  {
+   "t": 0.45,
+   "role": "whoosh.short",
+   "label": "S01 envelope drops in",
+   "db": -4,
+   "pan": 0
+  },
+  {
+   "t": 0.98,
+   "role": "text",
+   "label": "S01 flap folds (closeP)",
+   "db": 0,
+   "pan": 0
+  },
+  {
+   "t": 1.06,
+   "role": "tock",
+   "label": "S01 seal stamps (stamp)",
+   "db": 0,
+   "pan": 0
+  },
+  {
+   "t": 6.337,
+   "role": "whoosh.short",
+   "label": "S01->S02 envelope recedes into the ring (toRing)",
+   "db": -4,
+   "pan": 0
+  },
+  {
+   "t": 6.497,
+   "role": "pop",
+   "label": "S02 ring envelopes arrive (ringIn) 1/4",
+   "db": -4,
+   "pan": 0
+  },
+  {
+   "t": 6.537,
+   "role": "land",
+   "label": "S02 the pot lands (jarIn)",
+   "db": -2,
+   "pan": 0
+  },
+  {
+   "t": 6.611,
+   "role": "pop",
+   "label": "S02 ring envelopes arrive (ringIn) 2/4",
+   "db": -4,
+   "pan": 0
+  },
+  {
+   "t": 6.725,
+   "role": "pop",
+   "label": "S02 ring envelopes arrive (ringIn) 3/4",
+   "db": -4,
+   "pan": 0
+  },
+  {
+   "t": 6.839,
+   "role": "pop",
+   "label": "S02 ring envelopes arrive (ringIn) 4/4",
+   "db": -4,
+   "pan": 0
+  },
+  {
+   "t": 9.432,
+   "role": "tick.crisp",
+   "label": "S02 round-1 coins into the pot (coinsIn1) 1/5",
+   "db": 0,
+   "pan": 0
+  },
+  {
+   "t": 9.522,
+   "role": "tick.crisp",
+   "label": "S02 round-1 coins into the pot (coinsIn1) 2/5",
+   "db": 0,
+   "pan": 0.35
+  },
+  {
+   "t": 9.612,
+   "role": "tick.crisp",
+   "label": "S02 round-1 coins into the pot (coinsIn1) 3/5",
+   "db": 0,
+   "pan": 0.22
+  },
+  {
+   "t": 9.702,
+   "role": "tick.crisp",
+   "label": "S02 round-1 coins into the pot (coinsIn1) 4/5",
+   "db": 0,
+   "pan": -0.22
+  },
+  {
+   "t": 9.792,
+   "role": "tick.crisp",
+   "label": "S02 round-1 coins into the pot (coinsIn1) 5/5",
+   "db": 0,
+   "pan": -0.35
+  },
+  {
+   "t": 10.951,
+   "role": "tick.crisp",
+   "label": "S02 the pot to M1 (potToM1) 1/2",
+   "db": 2,
+   "pan": 0
+  },
+  {
+   "t": 11.041,
+   "role": "tick.crisp",
+   "label": "S02 the pot to M1 (potToM1) 2/2",
+   "db": 2,
+   "pan": 0
+  },
+  {
+   "t": 12.768,
+   "role": "tick.crisp",
+   "label": "S02 round-2 coins into the pot (coinsIn2) 1/4",
+   "db": -1,
+   "pan": 0.35
+  },
+  {
+   "t": 12.858,
+   "role": "tick.crisp",
+   "label": "S02 round-2 coins into the pot (coinsIn2) 2/4",
+   "db": -1,
+   "pan": 0.22
+  },
+  {
+   "t": 12.948,
+   "role": "tick.crisp",
+   "label": "S02 round-2 coins into the pot (coinsIn2) 3/4",
+   "db": -1,
+   "pan": -0.22
+  },
+  {
+   "t": 13.038,
+   "role": "tick.crisp",
+   "label": "S02 round-2 coins into the pot (coinsIn2) 4/4",
+   "db": -1,
+   "pan": -0.35
+  },
+  {
+   "t": 14.112,
+   "role": "pop",
+   "label": "S02 ORGANIZER tag (orgTag)",
+   "db": 0,
+   "pan": 0
+  },
+  {
+   "t": 15.022,
+   "role": "snap",
+   "label": "S02 the pot cracks (crack)",
+   "db": 0,
+   "pan": 0
+  },
+  {
+   "t": 15.282,
+   "role": "hit",
+   "label": "S02 the pot breaks (jar state 2); music M1 stops here",
+   "db": 0,
+   "pan": 0
+  },
+  {
+   "t": 20.852,
+   "role": "land",
+   "label": "S03 case 2 headline",
+   "db": -3,
+   "pan": 0
+  },
+  {
+   "t": 25.737,
+   "role": "land",
+   "label": "S03 case 3 headline",
+   "db": -3,
+   "pan": 0
+  },
+  {
+   "t": 30.094,
+   "role": "whoosh.short",
+   "label": "S03->S04 cases fold away (s3Out)",
+   "db": -2,
+   "pan": 0
+  },
+  {
+   "t": 30.364,
+   "role": "pop",
+   "label": "S04 the two job cards",
+   "db": -3,
+   "pan": 0
+  },
+  {
+   "t": 34.681,
+   "role": "text",
+   "label": "S04 job 1 struck through (strike)",
+   "db": 1,
+   "pan": 0
+  },
+  {
+   "t": 34.921,
+   "role": "tock",
+   "label": "S04 seal stamps on job 2 (sealOn)",
+   "db": -1,
+   "pan": 0.45
+  },
+  {
+   "t": 36.502,
+   "role": "pop",
+   "label": "S04 five wallets arrive (wallets)",
+   "db": -2,
+   "pan": 0
+  },
+  {
+   "t": 37.532,
+   "role": "tick.crisp",
+   "label": "S04 coins land in the wallets (coinsOut) 1/5",
+   "db": -1,
+   "pan": -0.45
+  },
+  {
+   "t": 37.622,
+   "role": "tick.crisp",
+   "label": "S04 coins land in the wallets (coinsOut) 2/5",
+   "db": -1,
+   "pan": -0.22
+  },
+  {
+   "t": 37.712,
+   "role": "tick.crisp",
+   "label": "S04 coins land in the wallets (coinsOut) 3/5",
+   "db": -1,
+   "pan": 0
+  },
+  {
+   "t": 37.802,
+   "role": "tick.crisp",
+   "label": "S04 coins land in the wallets (coinsOut) 4/5",
+   "db": -1,
+   "pan": 0.22
+  },
+  {
+   "t": 37.892,
+   "role": "tick.crisp",
+   "label": "S04 coins land in the wallets (coinsOut) 5/5",
+   "db": -1,
+   "pan": 0.45
+  },
+  {
+   "t": 42.298,
+   "role": "swell",
+   "label": "S04->S05 seal floods the frame ivory (flood); the music's beat drops here",
+   "db": 0,
+   "pan": 0
+  },
+  {
+   "t": 42.298,
+   "role": "drop",
+   "label": "S05 sub under the product reveal",
+   "db": -3,
+   "pan": 0
+  },
+  {
+   "t": 42.998,
+   "role": "pop",
+   "label": "S05 status pill (hudIn)",
+   "db": -4,
+   "pan": 0
+  },
+  {
+   "t": 43.628,
+   "role": "click",
+   "label": "S05 click Chơi hụi ngay (cLanding)",
+   "db": 0,
+   "pan": -0.3
+  },
+  {
+   "t": 44.028,
+   "role": "whoosh.short",
+   "label": "S05 the phone slides in, camera follows (phIn)",
+   "db": -2,
+   "pan": 0.35
+  },
+  {
+   "t": 44.458,
+   "role": "land.light",
+   "label": "S05 tap Tiếp tục với Google (tGoogle)",
+   "db": 0,
+   "pan": 0
+  },
+  {
+   "t": 44.838,
+   "role": "pop",
+   "label": "S05 wallet card (0 AVAX)",
+   "db": 0,
+   "pan": 0
+  },
+  {
+   "t": 47.061,
+   "role": "whoosh.short",
+   "label": "S05->S06 phone drops, camera to the form (phDown)",
+   "db": -1,
+   "pan": 0.3
+  },
+  {
+   "t": 47.611,
+   "role": "click",
+   "label": "S06 Kiểu dây (cMode)",
+   "db": -2,
+   "pan": 0
+  },
+  {
+   "t": 50.443,
+   "role": "click",
+   "label": "S06 Số phần (cN)",
+   "db": -2,
+   "pan": 0
+  },
+  {
+   "t": 50.563,
+   "role": "key",
+   "label": "S06 types 5",
+   "db": 0,
+   "pan": 0
+  },
+  {
+   "t": 50.893,
+   "role": "click",
+   "label": "S06 Mức góp (cC)",
+   "db": -2,
+   "pan": 0
+  },
+  {
+   "t": 51.013,
+   "role": "key",
+   "label": "S06 types 10 USDC 1/2",
+   "db": 0,
+   "pan": 0
+  },
+  {
+   "t": 51.113,
+   "role": "key",
+   "label": "S06 types 10 USDC 2/2",
+   "db": 0,
+   "pan": 0
+  },
+  {
+   "t": 51.698,
+   "role": "click",
+   "label": "S06 Ký quỹ (cBond)",
+   "db": -2,
+   "pan": 0
+  },
+  {
+   "t": 51.848,
+   "role": "key",
+   "label": "S06 types 4",
+   "db": 0,
+   "pan": 0
+  },
+  {
+   "t": 52.048,
+   "role": "key",
+   "label": "S06 types 48",
+   "db": 0,
+   "pan": 0
+  },
+  {
+   "t": 52.648,
+   "role": "click",
+   "label": "S06 Nạp ký quỹ (cDeposit)",
+   "db": 1,
+   "pan": 0
+  },
+  {
+   "t": 52.998,
+   "role": "whoosh.short",
+   "label": "S06 coverage card slides in (coverIn)",
+   "db": 0,
+   "pan": 0.3
+  },
+  {
+   "t": 54.648,
+   "role": "bell",
+   "label": "S06 coverage reaches 100% (pct)",
+   "db": 0,
+   "pan": 0
+  },
+  {
+   "t": 63.449,
+   "role": "whoosh.short",
+   "label": "S06->S07 card out, phone back (coverOut, phBack)",
+   "db": -1,
+   "pan": 0
+  },
+  {
+   "t": 65.149,
+   "role": "land.light",
+   "label": "S07 tap Ký và vào dây (tJoin)",
+   "db": 0,
+   "pan": 0
+  },
+  {
+   "t": 65.419,
+   "role": "click.confirm",
+   "label": "S07 the fifth seat fills (joined)",
+   "db": 4,
+   "pan": 0
+  },
+  {
+   "t": 73.379,
+   "role": "land.light",
+   "label": "S08 tap the bid field (tInput)",
+   "db": -2,
+   "pan": 0
+  },
+  {
+   "t": 73.499,
+   "role": "key",
+   "label": "S08 types 0,60 (bidVal) 1/3",
+   "db": 0,
+   "pan": 0
+  },
+  {
+   "t": 73.619,
+   "role": "key",
+   "label": "S08 types 0,60 (bidVal) 2/3",
+   "db": 0,
+   "pan": 0
+  },
+  {
+   "t": 73.739,
+   "role": "key",
+   "label": "S08 types 0,60 (bidVal) 3/3",
+   "db": 0,
+   "pan": 0
+  },
+  {
+   "t": 75.75,
+   "role": "pop",
+   "label": "S08 the cap line lights (capHi)",
+   "db": -4,
+   "pan": 0
+  },
+  {
+   "t": 78.74,
+   "role": "land.light",
+   "label": "S08 tap Niêm phong thăm (tSeal)",
+   "db": 0,
+   "pan": 0
+  },
+  {
+   "t": 78.98,
+   "role": "whoosh.short",
+   "label": "S08 the bid flies into the envelope (chip)",
+   "db": -6,
+   "pan": 0
+  },
+  {
+   "t": 79.16,
+   "role": "text",
+   "label": "S08 the flap folds (close)",
+   "db": 0,
+   "pan": 0
+  },
+  {
+   "t": 79.29,
+   "role": "tock",
+   "label": "S08 the seal stamps (stamp)",
+   "db": 0,
+   "pan": 0
+  },
+  {
+   "t": 80.105,
+   "role": "pop",
+   "label": "S08 the two bids revealed (reveal) 1/2",
+   "db": -2,
+   "pan": 0
+  },
+  {
+   "t": 80.225,
+   "role": "pop",
+   "label": "S08 the two bids revealed (reveal) 2/2",
+   "db": -2,
+   "pan": 0
+  },
+  {
+   "t": 81.095,
+   "role": "whoosh.short",
+   "label": "S08->S09 envelope flies to the pill, desk opens (envFly)",
+   "db": -1,
+   "pan": 0
+  },
+  {
+   "t": 83.762,
+   "role": "click",
+   "label": "S09 click Khui kỳ 1 (cSettle1)",
+   "db": 2,
+   "pan": 0
+  },
+  {
+   "t": 84.032,
+   "role": "pop",
+   "label": "S09 toast: Kỳ 1 đã chốt",
+   "db": -2,
+   "pan": 0
+  },
+  {
+   "t": 84.862,
+   "role": "tick.crisp",
+   "label": "S09 four shares into the pot (coinIn) 1/4",
+   "db": 1,
+   "pan": 0.15
+  },
+  {
+   "t": 84.962,
+   "role": "tick.crisp",
+   "label": "S09 four shares into the pot (coinIn) 2/4",
+   "db": 1,
+   "pan": 0.2
+  },
+  {
+   "t": 85.062,
+   "role": "tick.crisp",
+   "label": "S09 four shares into the pot (coinIn) 3/4",
+   "db": 1,
+   "pan": 0.25
+  },
+  {
+   "t": 85.162,
+   "role": "tick.crisp",
+   "label": "S09 four shares into the pot (coinIn) 4/4",
+   "db": 1,
+   "pan": 0.3
+  },
+  {
+   "t": 85.785,
+   "role": "whoosh.short",
+   "label": "S09 the pot flies to Member 4's phone (coinOut)",
+   "db": -6,
+   "pan": 0.35
+  },
+  {
+   "t": 86.205,
+   "role": "tick.crisp",
+   "label": "S09 coins land on the phone 1/2",
+   "db": 2,
+   "pan": 0.45
+  },
+  {
+   "t": 86.295,
+   "role": "tick.crisp",
+   "label": "S09 coins land on the phone 2/2",
+   "db": 2,
+   "pan": 0.45
+  },
+  {
+   "t": 87.755,
+   "role": "bell",
+   "label": "S09 28,848 USDC lands (payout1)",
+   "db": 0,
+   "pan": 0
+  },
+  {
+   "t": 90.297,
+   "role": "pop",
+   "label": "S09 breakdown rows (rows)",
+   "db": -4,
+   "pan": 0
+  },
+  {
+   "t": 90.677,
+   "role": "tick",
+   "label": "S09 holdback row lights (hold)",
+   "db": -2,
+   "pan": 0
+  },
+  {
+   "t": 94.557,
+   "role": "whoosh.short",
+   "label": "S09->S10 phone out, camera to the desk (phOut); music edit hides here",
+   "db": -1,
+   "pan": 0.35
+  },
+  {
+   "t": 95.595,
+   "role": "drop",
+   "label": "S10 Member 4 comes up short (short)",
+   "db": 0,
+   "pan": 0
+  },
+  {
+   "t": 98.026,
+   "role": "click",
+   "label": "S10 click Khui kỳ 2 (cSettle2)",
+   "db": 1,
+   "pan": 0
+  },
+  {
+   "t": 98.376,
+   "role": "whoosh.short",
+   "label": "S10 cascade card slides in",
+   "db": -5,
+   "pan": 0.3
+  },
+  {
+   "t": 99.851,
+   "role": "pop",
+   "label": "S10 8 from the holdback (fill1)",
+   "db": -1,
+   "pan": 0
+  },
+  {
+   "t": 101.396,
+   "role": "pop",
+   "label": "S10 2 from the bond (fill2)",
+   "db": -1,
+   "pan": 0
+  },
+  {
+   "t": 104.113,
+   "role": "bell",
+   "label": "S10 Member 1 gets the full 32,318 (payout2)",
+   "db": 0,
+   "pan": 0
+  },
+  {
+   "t": 107.118,
+   "role": "tock",
+   "label": "S10 VỠ NỢ tag stamped (tag)",
+   "db": -5,
+   "pan": 0
+  },
+  {
+   "t": 110.088,
+   "role": "tick",
+   "label": "S10 rounds 3-5 fill on the pill (done) 1/3",
+   "db": -1,
+   "pan": 0
+  },
+  {
+   "t": 110.688,
+   "role": "tick",
+   "label": "S10 rounds 3-5 fill on the pill (done) 2/3",
+   "db": -1,
+   "pan": 0
+  },
+  {
+   "t": 111.288,
+   "role": "tick",
+   "label": "S10 rounds 3-5 fill on the pill (done) 3/3",
+   "db": -1,
+   "pan": 0
+  },
+  {
+   "t": 112.823,
+   "role": "whoosh.short",
+   "label": "S10->S11 to the ledger",
+   "db": -4,
+   "pan": 0
+  },
+  {
+   "t": 113.073,
+   "role": "pop",
+   "label": "S11 ledger rows (ledgerRows) 1/5",
+   "db": -6,
+   "pan": 0
+  },
+  {
+   "t": 113.187,
+   "role": "pop",
+   "label": "S11 ledger rows (ledgerRows) 2/5",
+   "db": -6,
+   "pan": 0
+  },
+  {
+   "t": 113.301,
+   "role": "pop",
+   "label": "S11 ledger rows (ledgerRows) 3/5",
+   "db": -6,
+   "pan": 0
+  },
+  {
+   "t": 113.415,
+   "role": "pop",
+   "label": "S11 ledger rows (ledgerRows) 4/5",
+   "db": -6,
+   "pan": 0
+  },
+  {
+   "t": 113.529,
+   "role": "pop",
+   "label": "S11 ledger rows (ledgerRows) 5/5",
+   "db": -6,
+   "pan": 0
+  },
+  {
+   "t": 116.386,
+   "role": "click",
+   "label": "S11 click the transaction chip (cChip)",
+   "db": 0,
+   "pan": 0
+  },
+  {
+   "t": 117.216,
+   "role": "whoosh.long",
+   "label": "S11->S12 zoom-through into the explorer (zoom)",
+   "db": 0,
+   "pan": 0
+  },
+  {
+   "t": 117.266,
+   "role": "drop",
+   "label": "S12 sub as the explorer lands",
+   "db": -6,
+   "pan": 0
+  },
+  {
+   "t": 120.585,
+   "role": "pop",
+   "label": "S12 stat 5 contracts",
+   "db": -1,
+   "pan": 0
+  },
+  {
+   "t": 121.285,
+   "role": "pop",
+   "label": "S12 stat 634 tests",
+   "db": -1,
+   "pan": 0
+  },
+  {
+   "t": 122.474,
+   "role": "pop",
+   "label": "S12 stat 0 critical or high",
+   "db": -1,
+   "pan": 0
+  },
+  {
+   "t": 125.427,
+   "role": "whoosh.short",
+   "label": "S12 second capture (swap)",
+   "db": -7,
+   "pan": 0
+  },
+  {
+   "t": 128.968,
+   "role": "bell",
+   "label": "S12 0 USDC left in the contract",
+   "db": -2,
+   "pan": 0
+  },
+  {
+   "t": 131.377,
+   "role": "whoosh.short",
+   "label": "S12->S13 everything rises out (up12)",
+   "db": -2,
+   "pan": 0
+  },
+  {
+   "t": 132.742,
+   "role": "pop",
+   "label": "S13 answer 1",
+   "db": -5,
+   "pan": 0
+  },
+  {
+   "t": 136.515,
+   "role": "whoosh.short",
+   "label": "S13 question 2 arrives",
+   "db": -5,
+   "pan": 0
+  },
+  {
+   "t": 138.015,
+   "role": "tick",
+   "label": "S13 Avalanche reason 1",
+   "db": -1,
+   "pan": 0
+  },
+  {
+   "t": 139.922,
+   "role": "tick",
+   "label": "S13 Avalanche reason 2",
+   "db": -1,
+   "pan": 0
+  },
+  {
+   "t": 142.991,
+   "role": "tick",
+   "label": "S13 Avalanche reason 3",
+   "db": -1,
+   "pan": 0
+  },
+  {
+   "t": 145.572,
+   "role": "whoosh.short",
+   "label": "S13 question 3 arrives",
+   "db": -5,
+   "pan": 0
+  },
+  {
+   "t": 147.391,
+   "role": "tick",
+   "label": "S13 money reason 1",
+   "db": -1,
+   "pan": 0
+  },
+  {
+   "t": 149.175,
+   "role": "tick",
+   "label": "S13 money reason 2",
+   "db": -1,
+   "pan": 0
+  },
+  {
+   "t": 152.413,
+   "role": "tick",
+   "label": "S13 money reason 3",
+   "db": -1,
+   "pan": 0
+  },
+  {
+   "t": 156.454,
+   "role": "whoosh.short",
+   "label": "S13->S14 rises out (up13)",
+   "db": -2,
+   "pan": 0
+  },
+  {
+   "t": 160.359,
+   "role": "whoosh.short",
+   "label": "S14 closing line out (lineOut), then the logo",
+   "db": -6,
+   "pan": 0
+  },
+  {
+   "t": 160.929,
+   "role": "tock",
+   "label": "S14 the seal stamps on the logo (stamp)",
+   "db": 1,
+   "pan": 0
+  },
+  {
+   "t": 160.929,
+   "role": "hit",
+   "label": "S14 weight under the logo stamp",
+   "db": -6,
+   "pan": 0
+  },
+  {
+   "t": 160.929,
+   "role": "drop",
+   "label": "S14 sub under the end card",
+   "db": -4,
+   "pan": 0
+  },
+  {
+   "t": 162.102,
+   "role": "pop",
+   "label": "S14 Try it on Fuji testnet",
+   "db": -3,
+   "pan": 0
+  }
+ ]
+}

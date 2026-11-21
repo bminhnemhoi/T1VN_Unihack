@@ -1,5 +1,6 @@
 'use client';
 
+import { formingCopy } from '@/lib/forming-copy';
 import { Copy } from 'lucide-react';
 import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
@@ -64,6 +65,8 @@ export function FormingView({ c }: { c: SampleCircleData }) {
     : !preview.canActivate
       ? `Chưa bắt đầu được: chỉ số bảo chứng ${formatBps(preview.coverageBps)}, thấp hơn mức tối thiểu ${formatBps(preview.minCoverageBps)}. Cần nạp thêm ${formatUsdc(preview.bondMissing)} ký quỹ.`
       : 'Đủ người và đủ bảo chứng. Bấm bắt đầu để dây chạy kỳ 1.';
+  // Sample data is always shown from the organizer's seat; live data only when the wallet is the organizer (#15).
+  const copyText = formingCopy({ organizerView: !live || c.viewerIsOrganizer, full, n });
   const invitePath = `/moi/${id}`;
   const inviteUrl = `${origin || 'https://huisafe.example'}${invitePath}`;
 
@@ -108,7 +111,7 @@ export function FormingView({ c }: { c: SampleCircleData }) {
               Đang chờ đủ người: {have} trên {n}
             </h2>
             <p className="mt-3 text-lead text-[#e9e4da]">
-              Còn <Countdown seconds={joinLeftSec} className="font-semibold text-white" /> để mời đủ người. Quá hạn mà chưa đủ thì dây tự hủy và bạn rút lại ký quỹ.
+              {copyText.countdownHead} <Countdown seconds={joinLeftSec} className="font-semibold text-white" /> {copyText.countdownTail}
             </p>
             <div className="mt-6 flex flex-wrap gap-3">
               {live ? (
@@ -185,7 +188,7 @@ export function FormingView({ c }: { c: SampleCircleData }) {
 
           <section aria-labelledby="ky-quy" className="o-phang p-6">
             <h2 id="ky-quy" className="font-display text-h3 font-bold">
-              Ký quỹ của bạn
+              {copyText.bondTitle}
             </h2>
             <LedgerList
               className="mt-2"
@@ -198,7 +201,7 @@ export function FormingView({ c }: { c: SampleCircleData }) {
               ]}
             />
             <p className="mt-3 text-muted-foreground">
-              {preview.canActivate ? 'Ký quỹ đã đủ để bắt đầu dây.' : `Còn thiếu ${formatUsdc(preview.bondMissing)} để bắt đầu.`} Hết dây bạn lấy lại ký quỹ, chỉ mất phần đã dùng để bù cho người bỏ đóng.
+              {preview.canActivate ? 'Ký quỹ đã đủ để bắt đầu dây.' : `Còn thiếu ${formatUsdc(preview.bondMissing)} để bắt đầu.`} {copyText.bondNote}
             </p>
             {live && !c.viewerIsOrganizer ? null : live ? (
               <div className="mt-3">

@@ -1,0 +1,47 @@
+{
+  "_note": "Chart inputs typed from the cited sources (opened 21/11/2026). See appendix A of the deck for URLs.",
+  "cases": [
+    [
+      "Lâm Đồng · 203 bị hại",
+      156,
+      "Tuổi Trẻ 19/09/2025"
+    ],
+    [
+      "An Giang · 134 dây hụi",
+      99,
+      "VnExpress 25/09/2025"
+    ],
+    [
+      "Trà Vinh · hơn 270 người",
+      72,
+      "VnExpress 11/10/2023"
+    ],
+    [
+      "Đồng Nai · 337 người",
+      49,
+      "Thanh Niên 01/02/2024"
+    ],
+    [
+      "Trà Vinh · 160 hụi viên",
+      35,
+      "Dân trí 04/06/2025"
+    ]
+  ],
+  "findex": {
+    "highlight": 2,
+    "rows": [
+      [
+        "Có tài khoản ngân hàng hoặc ví di động",
+        70.55
+      ],
+      [
+        "Vay từ gia đình, bạn bè",
+        33.59
+      ],
+      [
+        "Tiết kiệm qua hội nhóm hoặc người ngoài gia đình",
+        10.14
+      ]
+    ]
+  }
+}

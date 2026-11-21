@@ -1,0 +1,13 @@
+node_modules
+dist
+.DS_Store
+.env
+
+# Ignore the output video from Git but not videos you import into src/.
+out
+
+# Local browser snapshots from playwright-cli
+.playwright-cli
+
+# Intermediate audio renders (rebuild from scripts)
+audio/mix/

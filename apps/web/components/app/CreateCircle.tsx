@@ -155,9 +155,9 @@ export function CreateCircle() {
               {n} người × {f(cUnits ?? 0n)} USDC
             </small>
           </div>
-          <h1 tabIndex={-1}>Gửi đường dẫn mời cho {n - 1} người còn lại.</h1>
+          <h1 tabIndex={-1}>Gửi đường dẫn mời cho {n} người.</h1>
           <p className="sub">
-            Đủ người thì bạn bấm &quot;Bắt đầu dây&quot;. Ký quỹ {f(bond)} USDC khóa trong smart contract, bạn không rút được cho tới khi dây kết thúc.
+            Chủ hụi không tự có chân trong dây; muốn chơi một chân thì bạn cũng vào bằng đường dẫn này. Đủ {n} người thì bạn bấm &quot;Bắt đầu dây&quot;. Ký quỹ {f(bond)} USDC khóa trong smart contract, bạn không rút được cho tới khi dây kết thúc.
             {chain ? '' : ' Bản xem thử: chưa gửi gì lên blockchain.'}
           </p>
           <TxNote t={t} ok="Đã xác nhận trên Fuji." />

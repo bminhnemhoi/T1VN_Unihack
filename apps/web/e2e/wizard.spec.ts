@@ -44,7 +44,7 @@ test.describe('/circles/new (Dây mới)', () => {
     await page.getByRole('button', { name: 'Tạo dây' }).click();
     await expect(page.locator('button[aria-busy="true"]')).toBeDisabled();
     await expect(page.locator('.crDone .stamp')).toContainText('ĐÃ TẠO DÂY');
-    await expect(page.getByRole('heading', { name: 'Gửi đường dẫn mời cho 4 người còn lại.' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Gửi đường dẫn mời cho 5 người.' })).toBeVisible();
     await expect(page.getByText('Bản xem thử: chưa gửi gì lên blockchain.')).toBeVisible();
     errs.expectClean();
   });
