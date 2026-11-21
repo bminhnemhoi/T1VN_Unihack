@@ -59,7 +59,7 @@ Dev toggle: the demo runs in fast-forward mode (1 round = 2 minutes, grace = 1 m
 | Trường | Giá trị |
 |---|---|
 | GitHub repository | `github.com/bminhnemhoi/T1VN_Unihack` (docs/12 mục 6; docs/11 mục 12 ghi repo public hoặc đã mời `tuantqse90`; cần xác nhận lúc nộp) |
-| Pitch slides | `[CHƯA CÓ: link Canva hoặc Google Slides, quyền xem cho mọi người]` |
+| Pitch slides | https://docs.google.com/presentation/d/1jAjgYnTRqJBMIz6mLopV6g_vjBsqf8KPp9du1ZvyBPY/edit?usp=sharing (Google Slides, ai có link cũng xem được; kiểm khi chưa đăng nhập 21/11) |
 | Demo video | `[CHƯA CÓ: link YouTube hoặc Loom, mở không cần đăng nhập]` |
 | Live app | https://lamng.tail3abf4e.ts.net:8443 (vào thẳng app: `/circles`) |
 | Contract address | `HuiFactory` trên Fuji: `0x5004477143F8Db65f80992A0BD79c1DAb75C8b21`. Link: https://testnet.snowtrace.io/address/0x5004477143F8Db65f80992A0BD79c1DAb75C8b21 |
