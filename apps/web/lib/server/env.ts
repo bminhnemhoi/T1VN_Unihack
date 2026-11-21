@@ -10,6 +10,7 @@ import { NetworkError, resolveNetwork } from 'config/network';
 import { formatUsdc, huiCircleFullAbi, huiFactoryAbi, erc2771ForwarderAbi, mockUsdcAbi } from 'sdk';
 import { createAttestHandler, ATTEST_PER_HOUR, type AttestDeps } from './attest';
 import { createEntryDebtGuard } from './entryGuard';
+import { markDefaultWouldSucceed } from './markDefaultProbe';
 import { chainFor, ConfigError, loadDeployment, makePublicClient } from './chain';
 import { consoleLogger, errorResponse, makeRequestIdGenerator, trustProxyFrom } from './http';
 import { createPrivyVerifier } from './privy';
@@ -67,6 +68,7 @@ export async function buildAttestHandler(env: Env = process.env): Promise<Handle
     members: (c) => publicClient.readContract({ address: c, abi: huiCircleFullAbi, functionName: 'members' }) as Promise<readonly `0x${string}`[]>,
     memberInfo: (c, w) =>
       publicClient.readContract({ address: c, abi: huiCircleFullAbi, functionName: 'memberInfo', args: [w] }) as Promise<{ defaulted: boolean; debt: bigint }>,
+    overdueUnmarked: (c, w) => markDefaultWouldSucceed(publicClient, c, w),
   });
 
   const deps: AttestDeps = {
@@ -110,6 +112,14 @@ export async function buildAttestHandler(env: Env = process.env): Promise<Handle
           status: 503,
           code: 'EntryCheckUnavailable',
           message: 'Tạm thời chưa kiểm được lịch sử nợ của ví để vào dây. Hãy thử lại sau ít phút.',
+        };
+      }
+      if (debt.kind === 'overdue') {
+        return {
+          ok: false,
+          status: 422,
+          code: 'OverdueShortfall',
+          message: 'Ví này có khoản góp đã quá hạn trả trễ ở một dây khác nên chưa được vào dây mới.',
         };
       }
       if (debt.kind === 'unpaid') {

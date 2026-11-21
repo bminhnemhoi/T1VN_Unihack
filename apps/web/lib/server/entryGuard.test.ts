@@ -11,10 +11,11 @@ interface Circle {
   state: number; // 0 Forming, 1 Active, 3 Completed, 4 Cancelled, 5 Unwound
   members: Address[];
   info?: Partial<Record<Address, { defaulted: boolean; debt: bigint }>>;
+  overdue?: Address[];
 }
 
 function fake(world: Map<Address, Circle>) {
-  const calls = { allCircles: 0, state: 0, members: 0, memberInfo: [] as Address[], maxInFlight: 0 };
+  const calls = { allCircles: 0, state: 0, members: 0, memberInfo: [] as Address[], overdue: [] as Address[], maxInFlight: 0 };
   let inFlight = 0;
   const track = async <T>(f: () => T): Promise<T> => {
     calls.maxInFlight = Math.max(calls.maxInFlight, ++inFlight);
@@ -27,6 +28,7 @@ function fake(world: Map<Address, Circle>) {
     state: (c) => track(() => (calls.state++, world.get(c)!.state)),
     members: (c) => track(() => (calls.members++, world.get(c)!.members)),
     memberInfo: (c, w) => track(() => (calls.memberInfo.push(c), world.get(c)!.info?.[w] ?? clean)),
+    overdueUnmarked: (c, w) => track(() => (calls.overdue.push(c), world.get(c)!.overdue?.includes(w) ?? false)),
   };
   return { reader, calls };
 }
@@ -52,9 +54,40 @@ describe('entry debt guard (docs/05 8.1, direction A)', () => {
     expect(await createEntryDebtGuard(fake(world).reader).check(WALLET)).toEqual({ kind: 'clear' });
   });
 
-  it('debt without a default (an open shortfall still in grace) does not block', async () => {
+  it('debt without a default, still inside its grace period, does not block (payLate is still open)', async () => {
     const world = new Map<Address, Circle>([[addr(1), { state: 1, members: [WALLET], info: { [WALLET]: { defaulted: false, debt: 5n } } }]]);
-    expect(await createEntryDebtGuard(fake(world).reader).check(WALLET)).toEqual({ kind: 'clear' });
+    const f = fake(world);
+    expect(await createEntryDebtGuard(f.reader).check(WALLET)).toEqual({ kind: 'clear' });
+    expect(f.calls.overdue).toEqual([addr(1)]);
+  });
+
+  it('a shortfall past its grace end that nobody marked blocks too, and names the circle (audit L-02)', async () => {
+    const world = new Map<Address, Circle>([
+      [addr(1), { state: 1, members: [WALLET], info: { [WALLET]: { defaulted: false, debt: 5n } } }],
+      [addr(2), { state: 1, members: [WALLET], info: { [WALLET]: { defaulted: false, debt: 7n } }, overdue: [WALLET] }],
+    ]);
+    expect(await createEntryDebtGuard(fake(world).reader).check(WALLET)).toEqual({ kind: 'overdue', circle: addr(2) });
+  });
+
+  it('the markDefault probe runs only where the wallet owes without a mark', async () => {
+    const world = new Map<Address, Circle>([
+      [addr(1), { state: 3, members: [WALLET] }],
+      [addr(2), { state: 3, members: [WALLET], info: { [WALLET]: { defaulted: true, debt: 0n } } }],
+      [addr(3), { state: 1, members: [OTHER], info: { [OTHER]: { defaulted: false, debt: 9n } }, overdue: [OTHER] }],
+    ]);
+    const f = fake(world);
+    expect(await createEntryDebtGuard(f.reader).check(WALLET)).toEqual({ kind: 'clear' });
+    expect(f.calls.overdue).toEqual([]);
+  });
+
+  it('a debt marked as default wins over an overdue one, without probing', async () => {
+    const world = new Map<Address, Circle>([
+      [addr(1), { state: 1, members: [WALLET], info: { [WALLET]: { defaulted: false, debt: 5n } }, overdue: [WALLET] }],
+      [addr(2), { state: 3, members: [WALLET], info: { [WALLET]: { defaulted: true, debt: 5n } } }],
+    ]);
+    const f = fake(world);
+    expect(await createEntryDebtGuard(f.reader).check(WALLET)).toEqual({ kind: 'unpaid', circle: addr(2) });
+    expect(f.calls.overdue).toEqual([]);
   });
 
   it('a request reads memberInfo only for the wallet own circles, member lists once, Cancelled never (audit M-02)', async () => {
@@ -138,6 +171,7 @@ describe('entry debt guard (docs/05 8.1, direction A)', () => {
       state: async () => 3,
       members: async () => [WALLET],
       memberInfo: async () => ({ defaulted: true, debt: 1n }),
+      overdueUnmarked: async () => false,
       ...over,
     });
     await expect(createEntryDebtGuard(base({ allCircles: async () => Promise.reject(new Error('rpc')) })).check(WALLET)).rejects.toThrow();
@@ -147,6 +181,9 @@ describe('entry debt guard (docs/05 8.1, direction A)', () => {
     await expect(createEntryDebtGuard(base({ members: async () => 'x' as never })).check(WALLET)).rejects.toThrow();
     await expect(createEntryDebtGuard(base({ state: async () => '1' as never })).check(WALLET)).rejects.toThrow();
     await expect(createEntryDebtGuard(base({ allCircles: async () => null as never })).check(WALLET)).rejects.toThrow();
+    const owing = { memberInfo: async () => ({ defaulted: false, debt: 1n }) };
+    await expect(createEntryDebtGuard(base({ ...owing, overdueUnmarked: async () => Promise.reject(new Error('rpc')) })).check(WALLET)).rejects.toThrow();
+    await expect(createEntryDebtGuard(base({ ...owing, overdueUnmarked: async () => 'yes' as never })).check(WALLET)).rejects.toThrow();
   });
 
   it('a failed refresh is retried on the next request', async () => {
@@ -159,6 +196,7 @@ describe('entry debt guard (docs/05 8.1, direction A)', () => {
       state: async () => 3,
       members: async () => [WALLET],
       memberInfo: async () => clean,
+      overdueUnmarked: async () => false,
     });
     await expect(g.check(WALLET)).rejects.toThrow();
     fail = false;
