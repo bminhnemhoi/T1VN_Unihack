@@ -7,8 +7,10 @@
 import { createWalletClient, http, fallback, nonceManager, type Hex } from 'viem';
 import { privateKeyToAccount } from 'viem/accounts';
 import { NetworkError, resolveNetwork } from 'config/network';
-import { formatUsdc, huiCircleFullAbi, huiFactoryAbi, erc2771ForwarderAbi, iReputationRegistryAbi, mockUsdcAbi } from 'sdk';
+import { formatUsdc, huiCircleFullAbi, huiFactoryAbi, erc2771ForwarderAbi, mockUsdcAbi } from 'sdk';
 import { createAttestHandler, ATTEST_PER_HOUR, type AttestDeps } from './attest';
+import { createEntryDebtGuard } from './entryGuard';
+import { markDefaultWouldSucceed } from './markDefaultProbe';
 import { chainFor, ConfigError, loadDeployment, makePublicClient } from './chain';
 import { consoleLogger, errorResponse, makeRequestIdGenerator, trustProxyFrom } from './http';
 import { createPrivyVerifier } from './privy';
@@ -59,6 +61,16 @@ export async function buildAttestHandler(env: Env = process.env): Promise<Handle
     throw new ConfigError('ATTESTER_PRIVATE_KEY does not match the attester of the deployed factory');
   }
 
+  // One index per process, shared by every attest request (member lists of circles past Forming are fixed).
+  const debtGuard = createEntryDebtGuard({
+    allCircles: () => publicClient.readContract({ address: deployment.factory, abi: huiFactoryAbi, functionName: 'allCircles' }),
+    state: async (c) => Number(await publicClient.readContract({ address: c, abi: huiCircleFullAbi, functionName: 'state' })),
+    members: (c) => publicClient.readContract({ address: c, abi: huiCircleFullAbi, functionName: 'members' }) as Promise<readonly `0x${string}`[]>,
+    memberInfo: (c, w) =>
+      publicClient.readContract({ address: c, abi: huiCircleFullAbi, functionName: 'memberInfo', args: [w] }) as Promise<{ defaulted: boolean; debt: bigint }>,
+    overdueUnmarked: (c, w) => markDefaultWouldSucceed(publicClient, c, w),
+  });
+
   const deps: AttestDeps = {
     verifier,
     attester: { address: account.address, signTypedData: (args) => account.signTypedData(args) },
@@ -67,7 +79,8 @@ export async function buildAttestHandler(env: Env = process.env): Promise<Handle
     isCircle: (circle) =>
       publicClient.readContract({ address: deployment.factory, abi: huiFactoryAbi, functionName: 'isCircle', args: [circle] }),
     checkEligibility: async (circle, wallet) => {
-      const [mi, params, balance, rep] = await Promise.all([
+      // Cheap reads of this circle first; the debt check only for a request that passed them (audit 21/11 M-02).
+      const [mi, params, balance] = await Promise.all([
         publicClient.readContract({ address: circle, abi: huiCircleFullAbi, functionName: 'memberInfo', args: [wallet] }) as Promise<{ joined: boolean }>,
         publicClient.readContract({ address: circle, abi: huiCircleFullAbi, functionName: 'params' }) as Promise<{
           mode: number;
@@ -75,22 +88,9 @@ export async function buildAttestHandler(env: Env = process.env): Promise<Handle
           revealBondBps: number;
         }>,
         publicClient.readContract({ address: deployment.usdc, abi: mockUsdcAbi, functionName: 'balanceOf', args: [wallet] }) as Promise<bigint>,
-        // Fails closed (audit B28 L-02): an unreadable registry is a chain error, never "no defaults".
-        publicClient.readContract({ address: config.reputation, abi: iReputationRegistryAbi, functionName: 'reputationOf', args: [wallet] }) as Promise<{
-          defaults: number;
-          repaid: number;
-        }>,
       ]);
       if (mi.joined) {
         return { ok: false, status: 409, code: 'AlreadyMember', message: 'Bạn đã ở trong dây này rồi.' };
-      }
-      if (Number(rep.defaults) > Number(rep.repaid)) {
-        return {
-          ok: false,
-          status: 422,
-          code: 'UnresolvedDefault',
-          message: 'Ví này đang có khoản vỡ nợ chưa hoàn trả ở dây trước nên chưa được vào dây mới. Hãy hoàn trả nợ cũ trước.',
-        };
       }
       const revealBond = Number(params.mode) === 1 ? (BigInt(params.contribution) * BigInt(params.revealBondBps)) / 10_000n : 0n;
       const minNeeded = BigInt(params.contribution) + revealBond;
@@ -100,6 +100,34 @@ export async function buildAttestHandler(env: Env = process.env): Promise<Handle
           status: 422,
           code: 'InsufficientBalance',
           message: `Ví của bạn hiện có ${formatUsdc(BigInt(balance))}, cần tối thiểu ${formatUsdc(minNeeded)} cho kỳ đầu để vào dây. Hãy nhận USDC thử nghiệm trước.`,
+        };
+      }
+      // Real debt in the wallet's own circles, not the registry counters (docs/05 8.1). Fails closed (audit B28 L-02):
+      // a failed or malformed read throws and the route answers 502, never "no defaults".
+      const debt = await debtGuard.check(wallet);
+      if (debt.kind === 'incomplete') {
+        consoleLogger('warn', 'attest debt index incomplete', { unread: debt.unread });
+        return {
+          ok: false,
+          status: 503,
+          code: 'EntryCheckUnavailable',
+          message: 'Tạm thời chưa kiểm được lịch sử nợ của ví để vào dây. Hãy thử lại sau ít phút.',
+        };
+      }
+      if (debt.kind === 'overdue') {
+        return {
+          ok: false,
+          status: 422,
+          code: 'OverdueShortfall',
+          message: 'Ví này có khoản góp đã quá hạn trả trễ ở một dây khác nên chưa được vào dây mới.',
+        };
+      }
+      if (debt.kind === 'unpaid') {
+        return {
+          ok: false,
+          status: 422,
+          code: 'UnresolvedDefault',
+          message: 'Ví này đang có khoản vỡ nợ chưa hoàn trả ở dây trước nên chưa được vào dây mới. Hãy hoàn trả nợ cũ trước.',
         };
       }
       return { ok: true };
