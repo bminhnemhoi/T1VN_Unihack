@@ -234,7 +234,6 @@ export function getCircleEvents(client: PublicClient, circle: Address, opts: Eve
 const scanLocks = new WeakMap<object, Map<string, Promise<unknown>>>();
 
 async function scanEvents(client: PublicClient, circle: Address, opts: EventOptions): Promise<CircleEvent[]> {
-  const chunk = opts.chunk && opts.chunk > 0n ? opts.chunk : FUJI_GETLOGS_MAX_BLOCKS;
   const concurrency = Math.max(1, opts.concurrency ?? 1);
   const useCache = opts.toBlock === undefined && opts.cache !== false;
   const perClient = eventCache.get(client) ?? new Map<string, EventCacheEntry>();
