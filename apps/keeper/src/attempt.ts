@@ -5,9 +5,12 @@
  * A transaction that was SENT but whose receipt could not be confirmed (the receipt poll hit a throttled RPC, or the
  * 180 s wait ran out) is remembered as pending. Until its receipt shows up, the same (circle, action) is not sent again:
  * before it is mined the simulation still passes, so a resend would only queue a twin that reverts and burns gas.
- * A pending transaction with no receipt after `PENDING_FORGET_MS` is assumed dropped and may be sent again.
+ * A pending transaction with no receipt after `PENDING_FORGET_MS` (whatever the reason: not found, or a poll that keeps
+ * failing) is forgotten and may be sent again; if it was in fact mined, the fresh simulation reverts and nothing is sent.
+ * The key has no round number, so a confirmed success does not end the scan: the action may be due again (round 2 after
+ * round 1), which the fresh simulation decides. The confirmed receipt is reported only when nothing new is sent.
  */
-import { TransactionReceiptNotFoundError, type PublicClient, type WalletClient } from 'viem';
+import type { PublicClient, WalletClient } from 'viem';
 import { decodeError, huiCircleFullAbi } from 'sdk';
 import { REVERT_BACKOFF_SECONDS, gasLimitFor } from './config.js';
 import type { AttemptResult, KeeperFn } from './keeper.js';
@@ -49,16 +52,19 @@ export function createAttempt(deps: AttemptDeps): (circle: Address, fn: KeeperFn
       return { sent: false, code: 'BackingOff', message: 'a previous attempt reverted on-chain; waiting to retry' };
     }
 
+    let confirmed: AttemptResult | undefined;
     const waiting = pending.get(key);
     if (waiting) {
       try {
         const receipt = await deps.publicClient.getTransactionReceipt({ hash: waiting.hash });
         pending.delete(key);
-        return mined(key, waiting.hash, receipt);
-      } catch (e) {
-        const notFound = e instanceof TransactionReceiptNotFoundError;
-        if (!notFound || now() - waiting.at < PENDING_FORGET_MS) return stillPending(waiting.hash);
-        pending.delete(key); // never mined for a long time: dropped, send it again below
+        const result = mined(key, waiting.hash, receipt);
+        if (result.sent && !result.ok) return result;
+        confirmed = result; // mined fine: is the same action due again? The simulation below says.
+      } catch {
+        // not found and failing polls are treated alike: only age decides
+        if (now() - waiting.at < PENDING_FORGET_MS) return stillPending(waiting.hash);
+        pending.delete(key); // no receipt for a long time: dropped (or mined and unreadable); a resend is safe, see above
       }
     }
 
@@ -73,6 +79,7 @@ export function createAttempt(deps: AttemptDeps): (circle: Address, fn: KeeperFn
       }
       gas = limit;
     } catch (e) {
+      if (confirmed) return confirmed; // nothing new is due: report the transaction that just got confirmed
       const d = decodeError(e);
       return { sent: false, code: d.code, message: d.message };
     }
