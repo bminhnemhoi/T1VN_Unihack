@@ -91,7 +91,6 @@ export function createEntryDebtGuard(reader: CircleIndexReader, o: EntryGuardOpt
   async function refresh(): Promise<void> {
     const t = now();
     circles = addressList(await reader.allCircles(), 'allCircles');
-    refreshedAt = t;
     // Unread circles first, then the Forming ones read longest ago.
     const todo = circles
       .filter((c) => {
@@ -101,6 +100,9 @@ export function createEntryDebtGuard(reader: CircleIndexReader, o: EntryGuardOpt
       .sort((a, b) => age(b, t) - age(a, t));
     // One unit per circle: its `state`, plus one `members` read the first time it is seen past Forming.
     await inBatches(todo.slice(0, maxReads), concurrency, (c) => readOne(c, t));
+    // Only a refresh that finished counts: a failed read leaves the next request free to retry at once instead of
+    // serving 503 until the window ends, and requests that arrive meanwhile wait for it (see ensureFresh).
+    refreshedAt = t;
   }
 
   function age(c: Address, t: number): number {
@@ -109,6 +111,7 @@ export function createEntryDebtGuard(reader: CircleIndexReader, o: EntryGuardOpt
   }
 
   async function ensureFresh(): Promise<void> {
+    if (refreshing) return refreshing;
     if (refreshedAt !== undefined && now() - refreshedAt < refreshEvery) return;
     refreshing ??= refresh().finally(() => {
       refreshing = undefined;

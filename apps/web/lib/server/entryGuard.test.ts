@@ -202,4 +202,28 @@ describe('entry debt guard (docs/05 8.1, direction A)', () => {
     fail = false;
     expect(await g.check(WALLET)).toEqual({ kind: 'clear' });
   });
+
+  it('a request that arrives during a refresh waits for it; a failed state read does not lock the window (review 21/11)', async () => {
+    const world = new Map<Address, Circle>([[addr(1), { state: 3, members: [WALLET] }]]);
+    const f = fake(world);
+    let release!: () => void;
+    const gate = new Promise<void>((r) => (release = r));
+    let failState = true;
+    const reader: CircleIndexReader = {
+      ...f.reader,
+      state: async (c) => {
+        await gate;
+        if (failState) throw new Error('rpc');
+        return f.reader.state(c);
+      },
+    };
+    const g = createEntryDebtGuard(reader);
+    const first = g.check(WALLET);
+    const second = g.check(WALLET); // arrives while the first refresh is still reading
+    release();
+    await expect(first).rejects.toThrow();
+    await expect(second).rejects.toThrow(); // waited for the refresh, saw its failure; not a premature 503 'incomplete'
+    failState = false;
+    expect(await g.check(WALLET)).toEqual({ kind: 'clear' }); // RPC is back: no 30 s lockout
+  });
 });
