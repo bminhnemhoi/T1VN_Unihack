@@ -2,6 +2,17 @@
 
 Ghi những gì người dùng và giám khảo thấy được trên web (tính năng, sửa lỗi, bản chạy công khai). Mới nhất ở trên. Chi tiết kỹ thuật và số test nằm ở [TIEN-DO.md](TIEN-DO.md); lịch sử đầy đủ trong `git log`.
 
+## 21/11/2026
+
+### Hồ sơ nộp bài và dọn repo (B31)
+- **README mới, song ngữ** (`README.md` tiếng Anh, `README.vi.md` tiếng Việt): trình bày theo thang điểm 100 của BTC, có bảng đối chiếu từng tiêu chí với bằng chứng trong repo và đường dẫn tới 8 bài báo về vỡ hụi.
+- **Slide v2, 26 trang** (`docs/pitch/slides/`): logo dự án góc trái, cụm UniHack 2026 và Team1 Vietnam góc phải, ảnh cắt bài báo thật, biểu đồ thị trường và mô phỏng, mockup landing và app, ảnh ba thành viên; mỗi con số có nguồn ở phụ lục.
+- **Landing có ảnh thật** (PR #24): hai phần "Một kỳ hụi chạy thế nào on-chain" và "Sổ cái thật, trên Avalanche Fuji" có cụm hai ảnh chợ Bến Thành, Chợ Lớn lồng vào nhau ở nửa phải, chỉ hiện trên màn hình rộng từ 1000px. Các hiệu ứng sẵn có không đổi.
+- **Đường dẫn dây sai không còn báo "Lỗi mạng"** (issue #5): địa chỉ hợp lệ nhưng không phải dây thì hiện "Không tìm thấy dây này" và không thử lại mãi.
+- **Tiêu đề tab của năm trang con dây bỏ chữ "(mẫu)"** (issue #7).
+- **CI trên `main` xanh lại** (PR #20) sau một tuần đỏ: sửa lỗi lint ở SDK, cập nhật gas snapshot, cho job Slither nạp đúng cấu hình của repo.
+- Ba thay đổi trên web chỉ có trên bản đang chạy sau lần deploy tới.
+
 ## 20/11/2026
 
 ### Sửa lỗi từ đợt kiểm thử của Hiếu (B29)

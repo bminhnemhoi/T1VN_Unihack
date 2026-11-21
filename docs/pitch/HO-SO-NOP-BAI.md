@@ -80,7 +80,7 @@ video công khai nào**. Việc còn lại:
 
 ## 5. Kiểm lần cuối trước khi bấm Submit
 
-- [ ] Repo: `main` đã có README mới (PR #19 đã gộp). Mở `github.com/bminhnemhoi/T1VN_Unihack` bằng tab ẩn danh.
+- [x] Repo: `main` đã có README mới (PR #19) và CI xanh (PR #20). Mở `github.com/bminhnemhoi/T1VN_Unihack` bằng tab ẩn danh để xem lại.
 - [ ] Link slide mở được khi chưa đăng nhập Google.
 - [ ] Link video mở được khi chưa đăng nhập, dài 2 đến 3 phút.
 - [ ] Live app mở được bằng 4G; relayer còn ít nhất 0,02 AVAX; keeper đang chạy (`bash scripts/demo-check.sh`).
@@ -111,7 +111,7 @@ Câu hỏi nhiều khả năng bị hỏi và chỗ trả lời: `docs/pitch/hoi
 
 | Tiêu chí | Tối đa | Ước lượng | Điểm cộng | Điểm trừ |
 |---|---|---|---|---|
-| Technical Implementation | 25 | 21 đến 23 | 634 test hợp đồng, 17 bất biến tiền chạy fuzz, công thức đối chiếu ba ngôn ngữ, độ phủ 98,7% | CI trên `main` đỏ nhiều ngày (PR #20 sửa); 9 issue còn mở; `HuiCircle` sát giới hạn EIP-170; relayer một tiến trình |
+| Technical Implementation | 25 | 21 đến 23 | 634 test hợp đồng, 17 bất biến tiền chạy fuzz, công thức đối chiếu ba ngôn ngữ, độ phủ 98,7%, CI trên `main` xanh đủ 6 job (từ PR #20) | 5 issue còn mở (gắn nhãn `sau-nop-bai`); `HuiCircle` sát giới hạn EIP-170; relayer một tiến trình; chưa có audit độc lập |
 | Avalanche Integration | 25 | 20 đến 22 | 5 contract verify trên Fuji, 3 dây chạy trọn có mã giao dịch, USDC permit, ERC-2771 không cần AVAX | Lý do "vì sao Avalanche" (phí thấp, USDC) chuỗi EVM nào cũng nói được; chưa dùng L1 riêng hay ICM |
 | Creativity & Innovation | 15 | 12 đến 13 | Tách giữ tiền khỏi bảo lãnh; chỉ số bảo chứng có chứng minh và phản ví dụ; hoa hồng trong trần lãi | Đề #01 là đề gợi ý của BTC, nhiều đội cùng làm hụi |
 | Impact & Use Case | 15 | 10 đến 12 | Bài toán thật, có nguồn báo chí và số Findex | Chưa thử với người dùng ngoài đội; USDC chưa dùng thật được ở Việt Nam; mô phỏng cho thấy chủ hụi có thể lỗ trên ký quỹ |
@@ -119,8 +119,8 @@ Câu hỏi nhiều khả năng bị hỏi và chỗ trả lời: `docs/pitch/hoi
 | UI/UX & Demo | 10 | 8 đến 9 | Landing và app hoàn thiện, tiếng Việt, đăng nhập Google, không cần gas | Bản demo chạy trên một VPS qua địa chỉ Tailscale cổng 8443; lỗi kẹt đăng nhập (#6) chưa sửa |
 | **Tổng** | **100** | **78 đến 88** | | |
 
-Ba việc nâng điểm nhiều nhất trong thời gian còn lại, theo thứ tự: (1) có link video công khai đúng luật; (2) kiểm bản
-demo sống và ví relayer ngay trước giờ chấm; (3) CI xanh trên `main`.
+Hai việc nâng điểm nhiều nhất trong thời gian còn lại, theo thứ tự: (1) có link video công khai đúng luật; (2) kiểm bản
+demo sống và ví relayer ngay trước giờ chấm. Việc thứ ba, CI xanh trên `main`, đã xong ở PR #20.
 
 Rủi ro bị loại: chỉ có một, là link không mở được (video, slide, hoặc app nếu Tailscale Funnel rớt).
 
@@ -128,4 +128,5 @@ Rủi ro bị loại: chỉ có một, là link không mở được (video, sli
 
 - 23/11: BTC công bố 10 đội vào chung kết. 30/11, 09:00 đến 11:30: Final Demo Day tại Greenwich Việt Nam, 20 Cộng Hòa
   (kiểm kỹ thuật từ 08:00; thứ tự trình bày bốc ngẫu nhiên).
-- Việc để sau: gộp PR #16 (backend) sau khi Tiến xem; các issue #4, #5, #6, #9, #12, #17; thử với 3 đến 5 nhóm hụi.
+- Việc để sau: tách và gộp PR #16 (backend) sau khi Minh và Tiến duyệt phần đổi luật vào dây; các issue #6 (sửa trước Demo
+  Day), #8, #9, #12, #17; deploy lại web để có PR #21 và #24; thử với 3 đến 5 nhóm hụi.
