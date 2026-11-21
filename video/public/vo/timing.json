@@ -1,0 +1,219 @@
+{
+  "L01": {
+    "scene": "S01",
+    "text": "A demo on Avalanche Fuji testnet: test USDC, and rounds sped up to about two minutes.",
+    "spoken": "A demo on Avalanche Fuji testnet: test U.S.D.C., and rounds sped up to about two minutes.",
+    "file": "vo/L01.mp3",
+    "duration": 4.737
+  },
+  "L02": {
+    "scene": "S02",
+    "text": "Across Vietnam, families save through hụi.",
+    "spoken": "Across Vietnam, families save through hụi.",
+    "file": "vo/L02.mp3",
+    "duration": 2.045
+  },
+  "L03": {
+    "scene": "S02",
+    "text": "Each month, everyone puts in, and one person takes the pot.",
+    "spoken": "Each month, everyone puts in, and one person takes the pot.",
+    "file": "vo/L03.mp3",
+    "duration": 2.846
+  },
+  "L04": {
+    "scene": "S02",
+    "text": "In between, one person holds all of it: the organizer.",
+    "spoken": "In between, one person holds all of it: ... the organizer.",
+    "file": "vo/L04.mp3",
+    "duration": 2.934
+  },
+  "L05": {
+    "scene": "S03",
+    "text": "Bình Thuận, 2024: over a hundred billion dong, from 167 people.",
+    "spoken": "Binh Thuan, twenty twenty-four: over a hundred billion dong, from one hundred sixty-seven people.",
+    "file": "vo/L05.mp3",
+    "duration": 4.71
+  },
+  "L06": {
+    "scene": "S03",
+    "text": "Trà Vinh, 2025: 157 fake shares, and twelve years in prison.",
+    "spoken": "Tra Vinh, twenty twenty-five: one hundred fifty-seven fake shares, and twelve years in prison.",
+    "file": "vo/L06.mp3",
+    "duration": 4.435
+  },
+  "L07": {
+    "scene": "S03",
+    "text": "Tây Ninh, 2026: fake Zalo accounts, nearly five hundred million dong.",
+    "spoken": "Tay Ninh, twenty twenty-six: fake Zalo accounts, nearly five hundred million dong.",
+    "file": "vo/L07.mp3",
+    "duration": 3.887
+  },
+  "L08": {
+    "scene": "S04",
+    "text": "An organizer has two jobs: hold the money, and cover anyone who stops paying.",
+    "spoken": "An organizer has two jobs: hold the money, and cover anyone who stops paying.",
+    "file": "vo/L08.mp3",
+    "duration": 3.757
+  },
+  "L09": {
+    "scene": "S04",
+    "text": "HụiSafe keeps only the second.",
+    "spoken": "Hooey Safe keeps only the second.",
+    "file": "vo/L09.mp3",
+    "duration": 1.531
+  },
+  "L10": {
+    "scene": "S04",
+    "text": "Money stays in each member's wallet until payout. The organizer locks a bond in a smart contract.",
+    "spoken": "Money stays in each member's wallet until payout. The organizer locks a bond in a smart contract.",
+    "file": "vo/L10.mp3",
+    "duration": 5.596
+  },
+  "L11": {
+    "scene": "S05",
+    "text": "Sign in with Google and you have a wallet. No AVAX needed: our relayer pays the fees.",
+    "spoken": "Sign in with Google and you have a wallet. No Avax needed: our relayer pays the fees.",
+    "file": "vo/L11.mp3",
+    "duration": 3.783
+  },
+  "L12": {
+    "scene": "S06",
+    "text": "The organizer sets up a circle: five members, ten USDC a round.",
+    "spoken": "The organizer sets up a circle: five members, ten U.S.D.C. a round.",
+    "file": "vo/L12.mp3",
+    "duration": 3.887
+  },
+  "L13": {
+    "scene": "S06",
+    "text": "A forty-eight USDC bond brings coverage to one hundred percent, the minimum to start.",
+    "spoken": "A forty-eight U.S.D.C. bond brings coverage to one hundred percent, the minimum to start.",
+    "file": "vo/L13.mp3",
+    "duration": 4.478
+  },
+  "L14": {
+    "scene": "S06",
+    "text": "One hundred percent coverage means the bond can absorb the worst single shock: everyone already paid stops paying at the same time.",
+    "spoken": "One hundred percent coverage means the bond can absorb the worst single shock: everyone already paid stops paying at the same time.",
+    "file": "vo/L14.mp3",
+    "duration": 6.723
+  },
+  "L15": {
+    "scene": "S07",
+    "text": "Members sign once, allowing at most 40.40 USDC to be pulled. The money stays in their wallets.",
+    "spoken": "Members sign once, allowing at most forty point four zero U.S.D.C. to be pulled. The money stays in their wallets.",
+    "file": "vo/L15.mp3",
+    "duration": 6.211
+  },
+  "L16": {
+    "scene": "S08",
+    "text": "Want the pot early? Bid a discount for the others, sealed and capped under Decree 19: 0.65 USDC this round.",
+    "spoken": "Want the pot early? Bid a discount for the others, sealed and capped under Decree nineteen: zero point six five U.S.D.C. this round.",
+    "file": "vo/L16.mp3",
+    "duration": 7.93
+  },
+  "L17": {
+    "scene": "S08",
+    "text": "Highest bid wins.",
+    "spoken": "Highest bid wins.",
+    "file": "vo/L17.mp3",
+    "duration": 0.905
+  },
+  "L18": {
+    "scene": "S09",
+    "text": "When time's up, the organizer opens the round.",
+    "spoken": "When time's up, the organizer opens the round.",
+    "file": "vo/L18.mp3",
+    "duration": 2.017
+  },
+  "L19": {
+    "scene": "S09",
+    "text": "One transaction collects every share and pays Member 4: 28.848 USDC.",
+    "spoken": "One transaction collects every share and pays Member four: ... twenty-eight point eight four eight U.S.D.C..",
+    "file": "vo/L19.mp3",
+    "duration": 5.935
+  },
+  "L20": {
+    "scene": "S09",
+    "text": "Another eight USDC are held back, in case Member 4 stops paying.",
+    "spoken": "Another eight U.S.D.C. are held back, in case Member four stops paying.",
+    "file": "vo/L20.mp3",
+    "duration": 3.71
+  },
+  "L21": {
+    "scene": "S10",
+    "text": "Round two. Member 4 comes up ten USDC short.",
+    "spoken": "Round two. ... Member four comes up ten U.S.D.C. short.",
+    "file": "vo/L21.mp3",
+    "duration": 2.769
+  },
+  "L22": {
+    "scene": "S10",
+    "text": "The same transaction covers it: eight from Member 4's holdback, two from the bond.",
+    "spoken": "The same transaction covers it: eight from Member four's holdback, two from the bond.",
+    "file": "vo/L22.mp3",
+    "duration": 3.987
+  },
+  "L23": {
+    "scene": "S10",
+    "text": "Member 1 still gets the full 32.318 USDC.",
+    "spoken": "Member one still gets the full thirty-two point three one eight U.S.D.C..",
+    "file": "vo/L23.mp3",
+    "duration": 3.675
+  },
+  "L24": {
+    "scene": "S10",
+    "text": "From round three, the bond covers Member 4's share: forty-eight USDC down to sixteen.",
+    "spoken": "From round three, the bond covers Member four's share: forty-eight U.S.D.C. down to sixteen.",
+    "file": "vo/L24.mp3",
+    "duration": 5.435
+  },
+  "L25": {
+    "scene": "S11",
+    "text": "Every step goes into the ledger, linked to a transaction anyone can open.",
+    "spoken": "Every step goes into the ledger, linked to a transaction anyone can open.",
+    "file": "vo/L25.mp3",
+    "duration": 3.813
+  },
+  "L26": {
+    "scene": "S12",
+    "text": "It runs on Avalanche Fuji: five verified contracts, 634 tests, and an internal review with no critical or high issues.",
+    "spoken": "It runs on Avalanche Fuji: five verified contracts, six hundred thirty-four tests, and an internal review with no critical or high issues.",
+    "file": "vo/L26.mp3",
+    "duration": 7.291
+  },
+  "L27": {
+    "scene": "S12",
+    "text": "On November 20, an organizer ran a full circle from the web. The contract's balance ended at zero.",
+    "spoken": "On November 20, an organizer ran a full circle from the web. The contract's balance ended at zero.",
+    "file": "vo/L27.mp3",
+    "duration": 5.4
+  },
+  "L28": {
+    "scene": "S13",
+    "text": "Why on-chain? So nobody holds the money, and the rules can't change mid-circle.",
+    "spoken": "Why on-chain? So nobody holds the money, and the rules can't change mid-circle.",
+    "file": "vo/L28.mp3",
+    "duration": 4.338
+  },
+  "L29": {
+    "scene": "S13",
+    "text": "Why Avalanche? Transactions settle in about a second, native USDC with permit means one signature, and fees are low enough for us to pay them.",
+    "spoken": "Why Avalanche? Transactions settle in about a second, native U.S.D.C. with permit means one signature, and fees are low enough for us to pay them.",
+    "file": "vo/L29.mp3",
+    "duration": 8.507
+  },
+  "L30": {
+    "scene": "S13",
+    "text": "Where does the money come from? Only the members' own savings: no token, nothing minted, no promised yield. The organizer earns a commission kept under Decree 19's interest cap.",
+    "spoken": "Where does the money come from? Only the members' own savings: no token, nothing minted, no promised yield. The organizer earns a commission kept under Decree nineteen's interest cap.",
+    "file": "vo/L30.mp3",
+    "duration": 10.402
+  },
+  "L31": {
+    "scene": "S14",
+    "text": "The hụi you already know, with no one sitting on the pot. HụiSafe. Try it on Fuji testnet.",
+    "spoken": "The hụi you already know, with no one sitting on the pot. ... Hụi Safe. ... Try it on Fuji testnet.",
+    "file": "vo/L31.mp3",
+    "duration": 6.736
+  }
+}

@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="160 290 704 452" role="img" aria-label="HụiSafe">
+  <rect x="174" y="304" width="676" height="424" rx="6" fill="#f4f0e8" stroke="#201d1d" stroke-width="14" stroke-linejoin="round"/>
+  <path d="M174 430 L212 530 H812 L850 430" fill="none" stroke="#201d1d" stroke-width="14" stroke-linecap="round" stroke-linejoin="round"/>
+  <circle cx="512" cy="532" r="100" fill="#a1ff62" stroke="#201d1d" stroke-width="12"/>
+  <path d="M482 484 V539 A30 30 0 0 0 542 539 V484" fill="none" stroke="#201d1d" stroke-width="28"/>
+</svg>
